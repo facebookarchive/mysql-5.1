@@ -1,0 +1,536 @@
+#
+# Some simple test of load data
+#
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+create table t1 (a date, b date, c date not null, d date);
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',';
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
+SELECT * from t1;
+truncate table t1;
+
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
+SELECT * from t1;
+drop table t1;
+
+create table t1 (a text, b text);
+load data infile '../../std_data/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+drop table t1;
+
+create table t1 (a int, b char(10));
+load data infile '../../std_data/loaddata3.dat' into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
+select * from t1;
+truncate table t1;
+load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
+
+# The empty line last comes from the end line field in the file
+select * from t1;
+drop table t1;
+
+#
+# Bug #12053 LOAD DATA INFILE ignores NO_AUTO_VALUE_ON_ZERO setting
+#
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+create table t1(id integer not null auto_increment primary key);
+insert into t1 values(0);
+disable_query_log;
+eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1' from t1;
+delete from t1;
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t1' into table t1;
+enable_query_log;
+select * from t1;
+remove_file $MYSQLTEST_VARDIR/tmp/t1;
+
+disable_query_log;
+eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1'
+FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n'
+FROM t1;
+delete from t1;
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t1' into table t1
+FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n';
+enable_query_log;
+select * from t1;
+remove_file $MYSQLTEST_VARDIR/tmp/t1;
+SET @@SQL_MODE=@OLD_SQL_MODE;
+drop table t1;
+
+#
+# Bug #11203: LOAD DATA does not accept same characters for ESCAPED and
+# ENCLOSED
+#
+create table t1 (a varchar(20), b varchar(20));
+load data infile '../../std_data/loaddata_dq.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
+select * from t1;
+drop table t1;
+
+#
+# Bug #29294 SELECT INTO OUTFILE/LOAD DATA INFILE with special
+# characters in the FIELDS ENCLOSED BY clause
+#
+
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  c1 VARCHAR(255)
+);
+
+CREATE TABLE t2 (
+  id INT,
+  c2 VARCHAR(255)
+);
+
+INSERT INTO t1 (c1) VALUES
+  ('r'),   ('rr'),   ('rrr'),   ('rrrr'),
+  ('.r'),  ('.rr'),  ('.rrr'),  ('.rrrr'),
+  ('r.'),  ('rr.'),  ('rrr.'),  ('rrrr.'),
+  ('.r.'), ('.rr.'), ('.rrr.'), ('.rrrr.');
+SELECT * FROM t1;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1' FIELDS ENCLOSED BY 'r' FROM t1;
+cat_file $MYSQLTEST_VARDIR/tmp/t1;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1' INTO TABLE t2 FIELDS ENCLOSED BY 'r';
+SELECT t1.id, c1, c2 FROM t1 LEFT  JOIN t2 ON t1.id=t2.id WHERE c1 != c2;
+SELECT t1.id, c1, c2 FROM t1 RIGHT JOIN t2 ON t1.id=t2.id WHERE c1 != c2;
+
+remove_file $MYSQLTEST_VARDIR/tmp/t1;
+DROP TABLE t1,t2;
+
+# End of 4.1 tests
+
+#
+# Let us test extended LOAD DATA features
+#
+create table t1 (a int default 100, b int, c varchar(60));
+# we can do something like this
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (a, @b) set b=@b+10, c=concat("b=",@b);
+select * from t1;
+truncate table t1;
+# we can use filled fields in expressions 
+# we also assigning NULL value to field with non-NULL default here
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (a, @b) set c= if(a is null,"oops",a);
+select * from t1;
+truncate table t1;
+# we even can use variables in set clause, and missed columns will be set
+# with default values
+set @c:=123;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, b) set c= if(@a is null,@c,b);
+select * from t1;
+# let us test side-effect of such load
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, @b);
+select * from t1;
+select @a, @b;
+truncate table t1;
+# Reading of all columns with set
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 set c=b;
+select * from t1;
+truncate table t1;
+# now going to test fixed field-row file format
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c="Wow";
+select * from t1;
+truncate table t1;
+# this also should work
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c=concat(a,"+",b,"+",@c,"+",b,"+",if(c is null,"NIL",c));
+select * from t1;
+# and this should bark
+--error 1409 
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, @b);
+
+# Now let us test LOAD DATA with subselect
+create table t2 (num int primary key, str varchar(10));
+insert into t2 values (10,'Ten'), (15,'Fifteen');
+truncate table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@dummy,@n) set a= @n, c= (select str from t2 where num=@n);
+select * from t1;
+
+#
+# Bug#18628 mysql-test-run: security problem
+#
+# It should not be possible to load from a file outside of vardir
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show variables like "secure_file_pri%";
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+select @@secure_file_priv;
+--error 1238
+set @@secure_file_priv= 0;
+
+# Test "load data"
+truncate table t1;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error ER_OPTION_PREVENTS_STATEMENT, ER_TEXTFILE_NOT_READABLE
+eval load data infile '$MYSQL_TEST_DIR/t/loaddata.test' into table t1;
+select * from t1;
+
+# Test "load_file" returns NULL
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval select load_file("$MYSQL_TEST_DIR/t/loaddata.test");
+
+# cleanup
+drop table t1, t2;
+
+#
+# Bug#27586: Wrong autoinc value assigned by LOAD DATA in the
+#            NO_AUTO_VALUE_ON_ZERO mode
+#
+create table t1(f1 int);
+insert into t1 values(1),(null);
+create table t2(f2 int auto_increment primary key);
+disable_query_log;
+eval select * into outfile '$MYSQLTEST_VARDIR/tmp/t1' from t1;
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t1' into table t2;
+enable_query_log;
+select * from t2;
+remove_file $MYSQLTEST_VARDIR/tmp/t1;
+SET @@SQL_MODE=@OLD_SQL_MODE;
+drop table t1,t2;
+
+#
+# Bug#27670: LOAD DATA does not set CURRENT_TIMESTAMP default value for a
+#            TIMESTAMP field when no value has been provided.
+#
+create table t1(f1 int, f2 timestamp not null default current_timestamp);
+create table t2(f1 int);
+insert into t2 values(1),(2);
+disable_query_log;
+eval select * into outfile '$MYSQLTEST_VARDIR/tmp/t2' from t2;
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t2' into table t1;
+enable_query_log;
+select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
+remove_file $MYSQLTEST_VARDIR/tmp/t2;
+delete from t1;
+disable_query_log;
+eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t2'
+FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n'
+FROM t2;
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t2' into table t1
+FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n';
+enable_query_log;
+select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
+remove_file $MYSQLTEST_VARDIR/tmp/t2;
+drop table t1,t2;
+
+#
+# Bug#29442: SELECT INTO OUTFILE FIELDS ENCLOSED BY digit, minus sign etc
+#            corrupts non-string fields containing this character.
+#
+
+CREATE TABLE t1 (c1 INT, c2 TIMESTAMP, c3 REAL, c4 DOUBLE);
+
+INSERT INTO t1 (c1, c2, c3, c4) VALUES (10, '1970-02-01 01:02:03', 1.1E-100, 1.1E+100);
+SELECT * FROM t1;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1' FIELDS ENCLOSED BY '-' FROM t1;
+cat_file $MYSQLTEST_VARDIR/tmp/t1;
+echo EOF;
+
+TRUNCATE t1;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1' INTO TABLE t1 FIELDS ENCLOSED BY '-';
+SELECT * FROM t1;
+
+remove_file $MYSQLTEST_VARDIR/tmp/t1;
+DROP TABLE t1;
+
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug#35469: server crash with LOAD DATA INFILE to a VIEW.
+--echo # --
+
+--echo
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+DROP VIEW IF EXISTS v3;
+--enable_warnings
+
+--echo
+CREATE TABLE t1(c1 INT, c2 VARCHAR(255));
+
+--echo
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT 1 + 2 AS c0, c1, c2 FROM t1;
+CREATE VIEW v3 AS SELECT 1 AS d1, 2 AS d2;
+
+--echo
+LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v1
+  FIELDS ESCAPED BY '\\'
+  TERMINATED BY ','
+  ENCLOSED BY '"'
+  LINES TERMINATED BY '\n' (c1, c2);
+
+--echo
+SELECT * FROM t1;
+
+--echo
+SELECT * FROM v1;
+
+--echo
+DELETE FROM t1;
+
+--echo
+LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v2
+  FIELDS ESCAPED BY '\\'
+  TERMINATED BY ','
+  ENCLOSED BY '"'
+  LINES TERMINATED BY '\n' (c1, c2);
+
+--echo
+SELECT * FROM t1;
+
+--echo
+SELECT * FROM v2;
+
+--echo
+DELETE FROM t1;
+
+--echo
+--error ER_LOAD_DATA_INVALID_COLUMN
+LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v2
+  FIELDS ESCAPED BY '\\'
+  TERMINATED BY ','
+  ENCLOSED BY '"'
+  LINES TERMINATED BY '\n' (c0, c2);
+
+--echo
+--error ER_NON_UPDATABLE_TABLE
+LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v3
+  FIELDS ESCAPED BY '\\'
+  TERMINATED BY ','
+  ENCLOSED BY '"'
+  LINES TERMINATED BY '\n' (d1, d2);
+
+--echo
+DROP TABLE t1;
+DROP VIEW v1;
+DROP VIEW v2;
+DROP VIEW v3;
+
+--echo
+--echo # -- End of Bug#35469.
+
+
+
+###########################################################################
+
+#
+# Bug#37114: sql_mode NO_BACKSLASH_ESCAPES does not work properly with
+#            LOAD DATA INFILE
+#
+
+# - For each plain "SELECT id,...", the 1st pair ("before" SELECT...OUTFILE,
+#   LOAD...INFILE) and the 2nd pair of lines ("after") in the result should
+#   look the same, otherwise we broke the dumpe/restore cycle!
+#
+# - the \r is always { '\\', 'r' } in memory, but on-disk format changes
+#
+# - the \t is { '\t' } or { '\\', 't' } in memory depending on whether \
+#    is magic (that is, NO_BACKSLASH_ESCAPES is not set) at INSERT-time.
+#    on-disk format varies.
+#
+# - while INFILE/OUTFILE behaviour changes according to NO_BACKSLASH_ESCAPES,
+#   we can override these defaults using ESCAPED BY '...'
+#   1:  NO_BACKSLASH_ESCAPES default,  \  on-disk:  \,t,x,\r
+#   2:  NO_BACKSLASH_ESCAPES override, \\ on-disk:  \,\,t,x,\,\,r
+#   3: !NO_BACKSLASH_ESCAPES default,  \\ on-disk:  tab,\,\,r
+#   3: !NO_BACKSLASH_ESCAPES override, \  on-disk:  tab,\,r
+
+--echo Bug#37114
+
+SET SESSION character_set_client=latin1;
+SET SESSION character_set_server=latin1;
+SET SESSION character_set_connection=latin1;
+SET @OLD_SQL_MODE=@@SESSION.SQL_MODE;
+
+# 0. test LOAD DATA INFILE first; if that works, all issues in
+#    SELECT INTO OUTFILE / LOAD DATA INFILE cycles below are
+#    arguably in the saving.
+
+--echo test LOAD DATA INFILE
+
+--let $file=$MYSQLTEST_VARDIR/tmp/bug37114.txt
+--let $file2=$MYSQLTEST_VARDIR/tmp/bug37114_out.txt
+
+SET sql_mode = '';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT '1 \\\\aa\n' INTO DUMPFILE '$file'
+
+CREATE TABLE t1 (id INT, val1 CHAR(3)) ENGINE=MyISAM;
+
+SET sql_mode = 'NO_BACKSLASH_ESCAPES';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' REPLACE INTO TABLE t1 FIELDS TERMINATED BY ' '
+SELECT * FROM t1;
+
+# show we can write this with OUTFILE, forcing the parameters for now
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file2' FIELDS ESCAPED BY '' TERMINATED BY ' ' FROM t1
+--diff_files $file $file2
+--remove_file $file2
+
+# now show the OUTFILE defaults are correct with NO_BACKSLASH_ESCAPES
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file2' FIELDS               TERMINATED BY ' ' FROM t1
+--diff_files $file $file2
+--remove_file $file2
+
+INSERT INTO t1 (id, val1) VALUES (1, '\aa');
+SELECT * FROM t1;
+
+SET sql_mode='';
+INSERT INTO t1 (id, val1) VALUES (1, '\aa');
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--remove_file $file
+
+
+
+--echo test SELECT INTO OUTFILE
+
+CREATE TABLE t1 (id INT PRIMARY KEY, val1 CHAR(4));
+CREATE TABLE t2 LIKE t1;
+
+# 1. with NO_BACKSLASH_ESCAPES on
+
+SET sql_mode = '';
+INSERT INTO t1 (id, val1) VALUES (5, '\ttab');
+INSERT INTO t1 (id, val1) VALUES (4, '\\r');
+SET sql_mode = 'NO_BACKSLASH_ESCAPES';
+INSERT INTO t1 (id, val1) VALUES (3, '\tx');
+
+--echo 1.1 NO_BACKSLASH_ESCAPES, use defaults for ESCAPED BY
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' FIELDS TERMINATED BY ' ' FROM t1 ORDER BY id
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 FIELDS TERMINATED BY ' '
+
+SELECT 'before' AS t, id, val1, hex(val1) FROM t1 UNION
+ SELECT 'after' AS t, id, val1, hex(val1) FROM t2 ORDER BY id,t DESC;
+
+TRUNCATE t2;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT LOAD_FILE("$file");
+--remove_file $file
+
+
+
+--echo 1.2 NO_BACKSLASH_ESCAPES, override defaults for ESCAPED BY
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' FIELDS ESCAPED BY '\' TERMINATED BY ' ' FROM t1 ORDER BY id
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 FIELDS ESCAPED BY '\' TERMINATED BY ' '
+
+SELECT 'before' AS t, id, val1, hex(val1) FROM t1 UNION
+ SELECT 'after' AS t, id, val1, hex(val1) FROM t2 ORDER BY id,t DESC;
+
+TRUNCATE t2;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT LOAD_FILE("$file");
+--remove_file $file
+
+
+
+# 2. with NO_BACKSLASH_ESCAPES off
+
+SET sql_mode = '';
+
+--echo 2.1 !NO_BACKSLASH_ESCAPES, use defaults for ESCAPED BY
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' FIELDS TERMINATED BY ' ' FROM t1 ORDER BY id
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 FIELDS TERMINATED BY ' '
+
+SELECT 'before' AS t, id, val1, hex(val1) FROM t1 UNION
+ SELECT 'after' AS t, id, val1, hex(val1) FROM t2 ORDER BY id,t DESC;
+
+TRUNCATE t2;
+
+SET sql_mode = 'NO_BACKSLASH_ESCAPES';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT LOAD_FILE("$file");
+--remove_file $file
+
+SET sql_mode = '';
+
+
+
+--echo 2.2 !NO_BACKSLASH_ESCAPES, override defaults for ESCAPED BY
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' FIELDS ESCAPED BY '' TERMINATED BY ' ' FROM t1 ORDER BY id
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 FIELDS ESCAPED BY '' TERMINATED BY ' '
+
+SELECT 'before' AS t, id, val1, hex(val1) FROM t1 UNION
+ SELECT 'after' AS t, id, val1, hex(val1) FROM t2 ORDER BY id,t DESC;
+
+TRUNCATE t2;
+
+SET sql_mode = 'NO_BACKSLASH_ESCAPES';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT LOAD_FILE("$file");
+--remove_file $file
+
+# clean up
+set session sql_mode=@OLD_SQL_MODE;
+DROP TABLE t1,t2;
+
+
+
+--echo End of 5.0 tests
+
+
+
+#
+# Bug#12448 LOAD DATA / SELECT INTO OUTFILE
+# doesn't work with multibyte path name
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1);
+SET NAMES latin1;
+SET character_set_filesystem=filename;
+select @@character_set_filesystem;
+SELECT * INTO OUTFILE 't-1' FROM t1;
+DELETE FROM t1;
+LOAD DATA INFILE 't-1' INTO TABLE t1;
+SELECT * FROM t1;
+DELETE FROM t1;
+SET character_set_filesystem=latin1;
+select @@character_set_filesystem;
+LOAD DATA INFILE 't@002d1' INTO TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test/t@002d1;
+SET character_set_filesystem=default;
+select @@character_set_filesystem;
+
+
+
+--echo End of 5.1 tests

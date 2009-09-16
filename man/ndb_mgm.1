@@ -1,0 +1,149 @@
+'\" t
+.\"     Title: \fBndb_mgm\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 08/12/2009
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBNDB_MGM\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" ndb_mgm
+.\" MySQL Cluster: ndb_mgm
+.\" MySQL Cluster: management client (ndb_mgm)
+.\" management client (MySQL Cluster)
+.\" ndb_mgm
+.\" MySQL Cluster: administration
+.\" administration of MySQL Cluster
+.SH "NAME"
+ndb_mgm \- the MySQL Cluster management client
+.SH "SYNOPSIS"
+.HP \w'\fBndb_mgm\ \fR\fB\fIoptions\fR\fR\ 'u
+\fBndb_mgm \fR\fB\fIoptions\fR\fR
+.SH "DESCRIPTION"
+.PP
+The
+\fBndb_mgm\fR
+management client process is actually not needed to run the cluster\&. Its value lies in providing a set of commands for checking the cluster\'s status, starting backups, and performing other administrative functions\&. The management client accesses the management server using a C API\&. Advanced users can also employ this API for programming dedicated management processes to perform tasks similar to those performed by
+\fBndb_mgm\fR\&.
+.PP
+To start the management client, it is necessary to supply the host name and port number of the management server:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_mgm [\fR\fB\fIhost_name\fR\fR\fB [\fR\fB\fIport_num\fR\fR\fB]]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+For example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_mgm ndb_mgmd\&.mysql\&.com 1186\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The default host name and port number are
+localhost
+and 1186, respectively\&.
+.\" MySQL Cluster: administration
+.\" MySQL Cluster: commands
+.\" command options (MySQL Cluster): ndb_mgm
+.\" MySQL Cluster: mgm process
+.PP
+The following list includes options that are specific to
+\fBndb_mgm\fR\&. For options common to all NDB programs, see
+Section\ \&17.6.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-try\-reconnect=\fR\fB\fInumber\fR\fR
+.TS
+allbox tab(:);
+l l
+l l.
+T{
+\fBCommand Line Format\fR
+T}:T{
+\-\-try\-reconnect=#
+T}
+T{
+\fBPermitted Values \fR
+T}:T{
+[\fInested\ table\fR]*
+T}
+.TE
+.sp 1
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B *[nested\ table]
+.TS
+allbox tab(:);
+l l
+l l.
+T{
+\fBType\fR
+T}:T{
+boolean
+T}
+T{
+\fBDefault\fR
+T}:T{
+TRUE
+T}
+.TE
+.sp 1
+If the connection to the management server is broken, the node tries to reconnect to it every 5 seconds until it succeeds\&. By using this option, it is possible to limit the number of attempts to
+\fInumber\fR
+before giving up and reporting an error instead\&.
+.RE
+.PP
+Additional information about using
+\fBndb_mgm\fR
+can be found in
+Section\ \&17.6.3.4, \(lqProgram Options for ndb_mgm\(rq, and
+Section\ \&17.7.2, \(lqCommands in the MySQL Cluster Management Client\(rq\&.
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Sun Microsystems, Inc. (http://www.mysql.com/).

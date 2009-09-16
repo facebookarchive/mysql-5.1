@@ -1,0 +1,31 @@
+#
+# Specific tests for case sensitive file systems
+# i.e. lower_case_filesystem=OFF
+#
+-- source include/have_case_sensitive_file_system.inc
+-- source include/not_embedded.inc
+
+connect (master,localhost,root,,);
+connection master;
+create database d1;
+grant all on d1.* to 'sample'@'localhost' identified by 'password';
+flush privileges;
+
+connect (sample,localhost,sample,password,d1);
+connection sample;
+select database();
+--error ER_DBACCESS_DENIED_ERROR
+create database d2;
+--error ER_DBACCESS_DENIED_ERROR
+create database D1;
+disconnect sample;
+--source include/wait_until_disconnected.inc
+
+connection master;
+drop user 'sample'@'localhost';
+drop database if exists d1;
+disconnect master;
+--source include/wait_until_disconnected.inc
+connection default;
+
+# End of 4.1 tests

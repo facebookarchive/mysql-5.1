@@ -1,0 +1,272 @@
+--source include/have_partition.inc
+--source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Bug#40595: Non-matching rows not released with READ-COMMITTED on tables
+#            with partitions
+CREATE TABLE t1 (id INT PRIMARY KEY, data INT) ENGINE = InnoDB 
+PARTITION BY RANGE(id) ( 
+ PARTITION p0 VALUES LESS THAN (5), 
+ PARTITION p1 VALUES LESS THAN (10), 
+ PARTITION p2 VALUES LESS THAN MAXVALUE 
+);
+
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8),
+                      (9,9), (10,10), (11,11);
+
+SET @old_tx_isolation := @@session.tx_isolation;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+SET autocommit = 0;
+
+UPDATE t1 SET DATA = data*2 WHERE id = 3;
+
+# grouping/referencing in replace_regex is very slow on long strings,
+# removing all before/after the interesting row before grouping/referencing
+--replace_regex /.*---TRANSACTION [0-9]+ [0-9]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
+SHOW ENGINE InnoDB STATUS;
+
+UPDATE t1 SET data = data*2 WHERE data = 2;
+
+# grouping/referencing in replace_regex is very slow on long strings,
+# removing all before/after the interesting row before grouping/referencing
+--replace_regex /.*---TRANSACTION [0-9]+ [0-9]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
+SHOW ENGINE InnoDB STATUS;
+
+SET @@session.tx_isolation = @old_tx_isolation;
+
+DROP TABLE t1;
+
+#
+# Bug37721: ORDER BY when WHERE contains non-partitioned index column
+# wrong order since it did not use pk as second compare
+--echo # Bug#37721, test of ORDER BY on PK and WHERE on INDEX
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY (a),
+  INDEX (b))
+ENGINE InnoDB
+PARTITION BY HASH(a)
+PARTITIONS 3;
+# This will give the middle partition the highest value
+INSERT INTO t1 VALUES (0,0),(4,0),(2,0);
+SELECT a FROM t1 WHERE b = 0 ORDER BY a ASC;
+SELECT a FROM t1 WHERE b = 0 ORDER BY a DESC;
+ALTER TABLE t1 DROP INDEX b;
+SELECT a FROM t1 WHERE b = 0 ORDER BY a ASC;
+SELECT a FROM t1 WHERE b = 0 ORDER BY a DESC;
+DROP TABLE t1;
+CREATE TABLE t1 (
+  a VARCHAR(600),
+  b VARCHAR(600),
+  PRIMARY KEY (a),
+  INDEX (b))
+ENGINE InnoDB
+PARTITION BY KEY(a)
+PARTITIONS 3;
+# This will give the middle partition the highest value
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'1'),repeat('0',257));
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'3'),repeat('0',257));
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'2'),repeat('0',257));
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a ASC;
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a DESC;
+ALTER TABLE t1 DROP INDEX b;
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a ASC;
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a DESC;
+DROP TABLE t1;
+
+#
+# Bug#32948 - FKs allowed to reference partitioned table
+#
+-- echo # Bug#32948
+CREATE TABLE t1 (c1 INT, PRIMARY KEY (c1)) ENGINE=INNODB;
+CREATE TABLE t2 (c1 INT, PRIMARY KEY (c1),
+                 FOREIGN KEY (c1) REFERENCES t1 (c1)
+                 ON DELETE CASCADE)
+ENGINE=INNODB;
+--error ER_ROW_IS_REFERENCED
+ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 5;
+--error ER_ROW_IS_REFERENCED
+ALTER TABLE t1 ENGINE=MyISAM;
+DROP TABLE t2;
+DROP TABLE t1;
+
+#
+# Bug #14673: Wrong InnoDB default row format
+#
+create table t1 (a int) engine=innodb partition by hash(a) ;
+# Data_free for InnoDB tablespace varies depending on which
+# tests have been run before this one
+--replace_column 10 #
+show table status like 't1';
+drop table t1;
+
+#
+# Bug 21173: SHOW TABLE STATUS crashes server in InnoDB
+#
+create table t1 (a int)
+engine = innodb
+partition by key (a);
+# Data_free for InnoDB tablespace varies depending on which
+# tests have been run before this one
+--replace_column 10 #
+show table status;
+insert into t1 values (0), (1), (2), (3);
+# Data_free for InnoDB tablespace varies depending on which
+# tests have been run before this one
+--replace_column 10 #
+show table status;
+drop table t1;
+
+create table t1 (a int auto_increment primary key)
+engine = innodb
+partition by key (a);
+# Data_free for InnoDB tablespace varies depending on which
+# tests have been run before this one
+--replace_column 10 #
+show table status;
+insert into t1 values (NULL), (NULL), (NULL), (NULL);
+# Data_free for InnoDB tablespace varies depending on which
+# tests have been run before this one
+--replace_column 10 #
+show table status;
+insert into t1 values (NULL), (NULL), (NULL), (NULL);
+# Data_free for InnoDB tablespace varies depending on which
+# tests have been run before this one
+--replace_column 10 #
+show table status;
+drop table t1;
+
+#
+# BUG 19122 Crash after ALTER TABLE t1 REBUILD PARTITION p1
+#
+create table t1 (a int)
+partition by key (a)
+(partition p1 engine = innodb);
+
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+drop table t1;
+
+#
+# Bug 21339: Crash in Explain Partitions
+#
+create table t1 (a date)
+engine = innodb
+partition by range (year(a))
+(partition p0 values less than (2006),
+ partition p1 values less than (2007));
+explain partitions select * from t1
+where a between '2006-01-01' and '2007-06-01';
+drop table t1;
+
+#
+# Bug 20397: Partitions: Crash when using non-existing engine
+#
+create table t1 (a int)
+engine = x
+partition by key (a);
+show create table t1;
+drop table t1;
+
+create table t1 (a int)
+engine = innodb
+partition by list (a)
+(partition p0 values in (0));
+
+-- error ER_MIX_HANDLER_ERROR
+alter table t1 engine = x;
+show create table t1;
+drop table t1;
+
+# BUG#26117: index_merge sort-union over partitioned table crashes
+
+create table t1
+(
+  id int unsigned auto_increment,
+  time datetime not null,
+  first_name varchar(40),
+  last_name varchar(50),
+  primary key (id, time),
+  index first_index (first_name),
+  index last_index (last_name)	
+) engine=Innodb partition by range (to_days(time)) (
+  partition p1 values less than (to_days('2007-02-07')),
+  partition p2 values less than (to_days('2007-02-08')),
+  partition p3 values less than MAXVALUE
+);
+
+insert into t1 (time, first_name, last_name) values ('2007-02-07', 'Q', 'Robert'),
+('2007-02-07', 'Mark', 'Nate'), ('2007-02-07', 'Nate', 'Oscar'),
+('2007-02-07', 'Zack', 'Alice'), ('2007-02-07', 'Jack', 'Kathy'),
+('2007-02-06', 'Alice', 'Alice'), ('2007-02-06', 'Brian', 'Charles'),
+('2007-02-06', 'Charles', 'David'), ('2007-02-06', 'David', 'Eric'),
+('2007-02-07', 'Hector', 'Isaac'), ('2007-02-07', 'Oscar', 'Patricia'),
+('2007-02-07', 'Patricia', 'Q'), ('2007-02-07', 'X', 'Yuri'),
+('2007-02-07', 'Robert', 'Shawn'), ('2007-02-07', 'Kathy', 'Lois'),
+('2007-02-07', 'Eric', 'Francis'), ('2007-02-06', 'Shawn', 'Theron'),
+('2007-02-06', 'U', 'Vincent'), ('2007-02-06', 'Francis', 'George'),
+('2007-02-06', 'George', 'Hector'), ('2007-02-06', 'Vincent', 'Walter'),
+('2007-02-06', 'Walter', 'X'), ('2007-02-07', 'Lois', 'Mark'),
+('2007-02-07', 'Yuri', 'Zack'), ('2007-02-07', 'Isaac', 'Jack'),
+('2007-02-07', 'Sharon', 'Mark'), ('2007-02-07', 'Michael', 'Michelle'),
+('2007-02-07', 'Derick', 'Nathan'), ('2007-02-07', 'Peter', 'Xavier'),
+('2007-02-07', 'Fred', 'Harold'), ('2007-02-07', 'Katherine', 'Lisa'),
+('2007-02-07', 'Tom', 'Rina'), ('2007-02-07', 'Jerry', 'Victor'),
+('2007-02-07', 'Alexander', 'Terry'), ('2007-02-07', 'Justin', 'John'),
+('2007-02-07', 'Greg', 'Ernest'), ('2007-02-07', 'Robert', 'Q'),
+('2007-02-07', 'Nate', 'Mark'), ('2007-02-07', 'Oscar', 'Nate'),
+('2007-02-07', 'Alice', 'Zack'), ('2007-02-07', 'Kathy', 'Jack'),
+('2007-02-06', 'Alice', 'Alice'), ('2007-02-06', 'Charles', 'Brian'),
+('2007-02-06', 'David', 'Charles'), ('2007-02-06', 'Eric', 'David'),
+('2007-02-07', 'Isaac', 'Hector'), ('2007-02-07', 'Patricia', 'Oscar'),
+('2007-02-07', 'Q', 'Patricia'), ('2007-02-07', 'Yuri', 'X'),
+('2007-02-07', 'Shawn', 'Robert'), ('2007-02-07', 'Lois', 'Kathy'),
+('2007-02-07', 'Francis', 'Eric'), ('2007-02-06', 'Theron', 'Shawn'),
+('2007-02-06', 'Vincent', 'U'), ('2007-02-06', 'George', 'Francis'),
+('2007-02-06', 'Hector', 'George'), ('2007-02-06', 'Walter', 'Vincent'),
+('2007-02-06', 'X', 'Walter'), ('2007-02-07', 'Mark', 'Lois'),
+('2007-02-07', 'Zack', 'Yuri'), ('2007-02-07', 'Jack', 'Isaac'),
+('2007-02-07', 'Mark', 'Sharon'), ('2007-02-07', 'Michelle', 'Michael'),
+('2007-02-07', 'Nathan', 'Derick'), ('2007-02-07', 'Xavier', 'Peter'),
+('2007-02-07', 'Harold', 'Fred'), ('2007-02-07', 'Lisa', 'Katherine'),
+('2007-02-07', 'Rina', 'Tom'), ('2007-02-07', 'Victor', 'Jerry'),
+('2007-02-07', 'Terry', 'Alexander'), ('2007-02-07', 'John', 'Justin'),
+('2007-02-07', 'Ernest', 'Greg');
+
+SELECT * FROM t1 WHERE first_name='Andy' OR last_name='Jake';
+
+drop table t1;
+
+#
+# BUG#30583 - Partition on DOUBLE key + INNODB + count(*) == crash
+#
+CREATE TABLE t1 (a DOUBLE NOT NULL, KEY(a)) ENGINE=InnoDB
+PARTITION BY KEY(a) PARTITIONS 10;
+INSERT INTO t1 VALUES(1),(2);
+SELECT COUNT(*) FROM t1;
+DROP TABLE t1;
+
+#
+# Bug #31893 Partitions: crash if subpartitions and engine change
+#
+create table t1 (int_column int, char_column char(5))
+  PARTITION BY RANGE (int_column) subpartition by key (char_column) subpartitions 2
+  (PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB);
+alter table t1
+ENGINE = MyISAM
+PARTITION BY RANGE (int_column)
+   subpartition by key (char_column) subpartitions 2
+  (PARTITION p1 VALUES LESS THAN (5));
+show create table t1;
+drop table t1;

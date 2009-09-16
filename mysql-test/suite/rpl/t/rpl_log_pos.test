@@ -1,0 +1,42 @@
+##########
+# Change Author: JBM
+# Change Date: 2006-01-16
+# Change: Added Order by for NDB
+##########
+
+#
+# Testing of setting slave to wrong log position with master_log_pos
+#
+
+# Passes with rbr no problem, removed statement include [jbm]
+
+source include/master-slave.inc;
+source include/show_master_status.inc;
+sync_slave_with_master;
+source include/stop_slave.inc;
+
+change master to master_log_pos=75;
+source include/show_slave_status2.inc;
+start slave;
+source include/wait_for_slave_sql_to_start.inc;
+source include/wait_for_slave_io_to_stop.inc;
+source include/stop_slave.inc;
+
+source include/show_slave_status.inc;
+connection master;
+source include/show_master_status.inc;
+create table if not exists t1 (n int);
+drop table if exists t1;
+create table t1 (n int);
+insert into t1 values (1),(2),(3);
+save_master_pos;
+connection slave;
+change master to master_log_pos=4;
+start slave;
+sync_with_master;
+select * from t1 ORDER BY n;
+connection master;
+drop table t1;
+sync_slave_with_master;
+
+--echo End of 5.0 tests
