@@ -1031,6 +1031,11 @@ sub command_line_setup {
     }
   }
 
+  foreach my $arg ( @opt_extra_mysqld_opt )
+  {
+    update_mysqld_features( $arg );
+  }
+
   # --------------------------------------------------------------------------
   # Find out type of logging that are being used
   # --------------------------------------------------------------------------
@@ -1381,6 +1386,26 @@ sub set_build_thread_ports($) {
 
 }
 
+sub update_mysqld_features
+{
+  my $arg = $_[0];
+
+  if ( $arg =~ /^--(\S+)=(\S+)$/ )
+  {
+    # print "mva: $1= $2\n";
+    $mysqld_variables{$1}= $2;
+  }
+  elsif ( $arg =~ /^--skip-(\S+)$/ )
+  {
+    # print "mvb: $1 = OFF\n";
+    $mysqld_variables{$1}= "OFF";
+  }
+  elsif ( $arg =~ /^--(\S+)$/ )
+  {
+    # print "mvc: $1 = ON\n";
+    $mysqld_variables{$1}= "ON";
+  }
+}
 
 sub collect_mysqld_features {
   my $found_variable_list_start= 0;
@@ -1409,6 +1434,12 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--help");
+
+  if ($ENV{'MYSQL_TEST_ROOT'} == "YES")
+  {
+    # without this mysqld will fail quietly and not print all options
+    mtr_add_arg($args, "--user=root");
+  }
 
   my $exe_mysqld= find_mysqld($basedir);
   my $cmd= join(" ", $exe_mysqld, @$args);

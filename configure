@@ -48810,7 +48810,7 @@ $as_echo_n "checking \"for man pages to remove\"... " >&6; }
     MAN_DROP="$MAN_DROP embedded"
     grep -v 'embedded' $MANLISTFIL > $TMPLISTFIL ; mv -f $TMPLISTFIL $MANLISTFIL
   fi
-  if test X"$with_plugin_innobase" != Xyes
+  if test X"$with_plugin_innobase" != Xyes -a X"$with_plugin_innodb_plugin" != Xyes
   then
     MAN_DROP="$MAN_DROP innodb"
     grep -v 'inno' $MANLISTFIL > $TMPLISTFIL ; mv -f $TMPLISTFIL $MANLISTFIL
@@ -48904,7 +48904,7 @@ _ACEOF
 fi
 
 # "innochecksum" is not in the "innobase/" subdirectory, but should be switched
- if test X"$with_plugin_innobase" = Xyes; then
+ if test X"$with_plugin_innobase" = Xyes -o X"$with_plugin_innodb_plugin" = Xyes; then
   BUILD_INNODB_TOOLS_TRUE=
   BUILD_INNODB_TOOLS_FALSE='#'
 else

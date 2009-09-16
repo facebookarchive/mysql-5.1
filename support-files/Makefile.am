@@ -25,6 +25,7 @@ EXTRA_DIST =		mysql.spec.sh \
 			my-innodb-heavy-4G.cnf.sh \
 			mysql-log-rotate.sh \
 			mysql.server.sh \
+			mysql.server-facebook.sh \
 			mysqld_multi.server.sh \
                         config.huge.ini.sh \
                         config.medium.ini.sh \
@@ -53,6 +54,7 @@ pkgsupp_DATA =		my-small.cnf \
 			ndb-config-2-node.ini
 
 pkgsupp_SCRIPTS =	mysql.server \
+			mysql.server-facebook \
 			mysqld_multi.server
 
 aclocaldir =		$(datadir)/aclocal
@@ -73,6 +75,7 @@ CLEANFILES =		my-small.cnf \
 			mysql-@VERSION@.spec \
 			mysql-log-rotate \
 			mysql.server \
+			mysql.server-facebook \
 			mysqld_multi.server \
 			binary-configure \
 			MySQL-shared-compat.spec \
