@@ -116,7 +116,8 @@ am_libmysys_a_OBJECTS = my_init.$(OBJEXT) my_getwd.$(OBJEXT) \
 	my_aes.$(OBJEXT) sha1.$(OBJEXT) my_handler.$(OBJEXT) \
 	my_netware.$(OBJEXT) my_largepage.$(OBJEXT) \
 	my_memmem.$(OBJEXT) stacktrace.$(OBJEXT) my_windac.$(OBJEXT) \
-	my_access.$(OBJEXT) base64.$(OBJEXT) my_libwrap.$(OBJEXT)
+	my_access.$(OBJEXT) base64.$(OBJEXT) my_libwrap.$(OBJEXT) \
+	my_ut.$(OBJEXT)
 libmysys_a_OBJECTS = $(am_libmysys_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -499,7 +500,8 @@ libmysys_a_SOURCES = my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
 			my_handler.c my_netware.c my_largepage.c \
 			my_memmem.c stacktrace.c \
-			my_windac.c my_access.c base64.c my_libwrap.c
+			my_windac.c my_access.c base64.c my_libwrap.c \
+			my_ut.c
 
 EXTRA_DIST = thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c \
@@ -679,6 +681,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/my_symlink.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/my_symlink2.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/my_sync.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/my_ut.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/my_vle.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/my_windac.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/my_write.Po@am__quote@

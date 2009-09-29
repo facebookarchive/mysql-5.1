@@ -22,6 +22,15 @@
 #include <myisam.h>
 #include <my_dir.h>
 
+#ifdef LIBMEMCACHE
+#include <mcc/mcc.h>
+ulong fb_libmcc_errs = 0;
+ulong fb_libmcc_keys = 0;
+ulong fb_libmcc_long_reqs = 0;
+ulong fb_libmcc_reqs = 0;
+ulonglong fb_libmcc_usecs = 0;
+#endif
+
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
@@ -4957,6 +4966,60 @@ finish:
     */
     start_waiting_global_read_lock(thd);
   }
+
+#ifdef LIBMEMCACHE
+  if (opt_fb_enable_memcache) {
+    uint key_cnt = lex->mc_key_list.elements;
+    if ((key_cnt > 0) &&
+        (opt_fb_always_dirty || (thd->system_thread & SYSTEM_THREAD_SLAVE_SQL)) &&
+        !res && !thd->is_error()) {
+      int my_res;
+      ulong sec1, usec1;
+      double mcc_duration_us;
+      nstring_t *key_list = new nstring_t[key_cnt];
+      List_iterator <String> mc_keys(lex->mc_key_list);
+
+      for (uint i = 0; i < key_cnt; ++i) {
+        String *key = mc_keys++;
+        key_list[i].str = key->c_ptr();
+        key_list[i].len = key->length();
+      }
+      /* ignore any errors for now since I don't think we want to start
+       *        * building a log in to mysql */
+      /* Also protect this with a mutex as libmemcache is not thread
+       *        * safe  - note that mc_delete is not thread safe while
+       *               * mc_req_del is thread safe */
+      (void) pthread_mutex_lock(&LOCK_memcache_call);
+      my_res = my_usectime(&sec1, &usec1);
+      mcc_req_t *reqs = mcc_delete(thd->mcHandle, key_list, key_cnt, 0);
+      mcc_duration_us = my_usecdiff_now(my_res, sec1, usec1);
+
+      fb_libmcc_usecs += (ulonglong) mcc_duration_us;
+      fb_libmcc_keys += key_cnt;
+      fb_libmcc_reqs++;
+
+      if (mcc_duration_us >= opt_fb_libmcc_warn_us) {
+        fb_libmcc_long_reqs++;
+      }
+      for (const mcc_err_t *err = mcc_get_last_err(thd->mcHandle); (err != NULL);
+          err = mcc_get_last_err(thd->mcHandle)) {
+        sql_print_error("libmcc error type: %d code: %d file: %s:%d message: %s",
+            err->type, err->code, err->source, err->lineno,
+            err->message.str);
+        mcc_clear_err(thd->mcHandle, err);
+        fb_libmcc_errs++;
+      }
+      (void) pthread_mutex_unlock(&LOCK_memcache_call);
+      if (reqs != NULL) {
+        mcc_req_del(reqs);
+      } else {
+        sql_print_error("mcc_delete returned NULL");
+      }
+      delete [] key_list;
+      DBUG_RETURN(0);
+    }
+  }
+#endif
   DBUG_RETURN(res || thd->is_error());
 }
 

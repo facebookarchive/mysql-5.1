@@ -1,0 +1,21 @@
+#! /bin/sh
+
+path=`dirname $0`      
+
+if test ! -f sql/mysqld.cc
+then
+echo "You must run this script from the MySQL top-level directory"
+exit 1
+fi
+# bug in mysql bld system.
+touch sql/sql_yacc.yy
+
+. "$path/SETUP.sh"
+
+extra_configs="--with-blackhole-storage-engine --with-memcache-path='/root/usr/local' -with-server-suffix=-FB_Memcache --host=x86_64-redhat-linux-gnu --build=x86_64-redhat-inux-gnu --target=x86_64-redhat-linux '--program-prefix=' --prefix=/usr --exec-prefix=usr --bindir=/usr/bin --sbindir=/usr/sbin --sysconfdir=/etc --datadir=/usr/share --incudedir=/usr/include --libdir=/usr/lib64 --libexecdir=/usr/libexec --localstatedir=/var --sharedstatedir=/usr/com --mandir=/usr/share/man --infodir=/usr/share/info --with-realine --with-openssl --with-debug --enable-shared --with-bench --localstatedir=/var/libmysql --with-unix-socket-path=/var/lib/mysql/mysql.sock --with-mysqld-user=mysql --wit-extra-charsets=all --with-innodb --with-berkeley-db --enable-local-infile --enable-lagefile --enable-thread-safe-client --disable-dependency-tracking --with-named-thread-lbs=-lpthread 'CFLAGS=-O2 -g -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -no-strict-aliasing -fwrapv' 'CXXFLAGS=-O2 -g -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LRGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fno-rtti -fno-exceptions' 'FFLAGS=-O2 -g uild_alias=x86_64-redhat-linux-gnu' host_alias=x86_64-redhat-linux-gnu target_alias=x8_64-redhat-linux"
+
+#strip=yes
+
+. "$path/FINISH.sh"
+
+

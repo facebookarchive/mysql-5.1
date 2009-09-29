@@ -828,6 +828,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MEDIUMINT
 %token  MEDIUMTEXT
 %token  MEDIUM_SYM
+%token  MEMCACHE_DIRTY
 %token  MEMORY_SYM
 %token  MERGE_SYM                     /* SQL-2003-R */
 %token  MICROSECOND_SYM               /* MYSQL-FUNC */
@@ -1298,7 +1299,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         view_algorithm view_or_trigger_or_sp_or_event
         definer_tail no_definer_tail
         view_suid view_tail view_list_opt view_list view_select
-        view_check_option trigger_tail sp_tail sf_tail udf_tail event_tail
+        view_check_option trigger_tail sp_tail sf_tail udf_tail event_tail mc_key_list
         install uninstall partition_entry binlog_base64_event
         init_key_options key_options key_opts key_opt key_using_alg
         server_def server_options_list server_option
@@ -1388,7 +1389,7 @@ query:
           }
           ';'
           opt_end_of_input
-        | verb_clause END_OF_INPUT
+        | verb_clause mc_dirty END_OF_INPUT
           {
             /* Single query, not terminated. */
             YYLIP->found_semicolon= NULL;
@@ -1399,6 +1400,16 @@ opt_end_of_input:
           /* empty */
         | END_OF_INPUT
         ;
+
+mc_dirty:
+	/* empty */ { }
+	| MEMCACHE_DIRTY mc_key_list
+	;
+
+mc_key_list:
+	mc_key_list ',' text_string { Lex->mc_key_list.push_back($3); }
+	| text_string { Lex->mc_key_list.push_back($1); }
+	;
 
 verb_clause:
           statement

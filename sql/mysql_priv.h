@@ -44,6 +44,20 @@
 #include "sql_plugin.h"
 #include "scheduler.h"
 
+#ifdef LIBMEMCACHE
+#include <mcc/mcc.h>
+extern mcc_handle_t mcHandle;
+extern uint opt_fb_libmcc_warn_ms;
+extern uint opt_fb_libmcc_warn_us;
+extern my_bool opt_fb_always_dirty;
+extern my_bool opt_fb_enable_memcache;
+extern ulong fb_libmcc_errs;
+extern ulong fb_libmcc_keys;
+extern ulong fb_libmcc_long_reqs;
+extern ulong fb_libmcc_reqs;
+extern ulonglong fb_libmcc_usecs;
+#endif
+
 class Parser_state;
 
 /**
@@ -2033,6 +2047,9 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open, LOCK_lock_db,
        LOCK_global_system_variables, LOCK_user_conn,
        LOCK_prepared_stmt_count,
        LOCK_bytes_sent, LOCK_bytes_received, LOCK_connection_count;
+#ifdef LIBMEMCACHE
+extern pthread_mutex_t LOCK_memcache_call;
+#endif
 extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
 #ifdef HAVE_OPENSSL
 extern pthread_mutex_t LOCK_des_key_file;

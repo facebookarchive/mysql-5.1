@@ -806,6 +806,26 @@ else
   AC_MSG_RESULT([no])
 fi
 
+# If we should compile with memcache
+AC_MSG_CHECKING(If we should compile with memcache)
+AC_ARG_WITH(memcache-path,
+  [  --with-memcache-path=memcachepath
+                          Path to memcache library and includes.],
+  [ LIBMEMCACHE=$withval ],
+  [ LIBMEMCACHE=no]
+  )
+if test "$LIBMEMCACHE" = "no"
+then
+  AC_MSG_RESULT([no])
+else
+  AC_MSG_RESULT([yes: path is "$LIBMEMCACHE"])
+  AC_DEFINE([ENABLE_LIBMEMCACHE], [1],
+            [Enable the use of libmcc])
+fi
+
+AM_CONDITIONAL(NO_MEMCACHE, test "$LIBMEMCACHE" = "no")
+AC_SUBST(LIBMEMCACHE)
+
 MYSQL_SYS_LARGEFILE
 
 # Types that must be checked AFTER large file support is checked

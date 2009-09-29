@@ -931,6 +931,9 @@ ZLIB_DEPS
 ZLIB_LIBS
 zlib_dir
 GETCONF
+LIBMEMCACHE
+NO_MEMCACHE_FALSE
+NO_MEMCACHE_TRUE
 MYSQLD_USER
 MYSQL_TCP_PORT_DEFAULT
 MYSQL_TCP_PORT
@@ -1153,6 +1156,7 @@ with_tcp_port
 with_mysqld_user
 enable_local_infile
 enable_grant_options
+with_memcache_path
 enable_largefile
 with_zlib_dir
 with_libwrap
@@ -1898,6 +1902,8 @@ Optional Packages:
                           Which port to use for MySQL services (default 3306)
   --with-mysqld-user=username
                           What user the mysqld daemon shall be run as.
+  --with-memcache-path=memcachepath
+                          Path to memcache library and includes.
   --with-zlib-dir=no|bundled|DIR
                           Provide MySQL with a custom location of compression
                           library. Given DIR, zlib binary is assumed to be in
@@ -19486,6 +19492,42 @@ _ACEOF
   { $as_echo "$as_me:$LINENO: result: no" >&5
 $as_echo "no" >&6; }
 fi
+
+# If we should compile with memcache
+{ $as_echo "$as_me:$LINENO: checking If we should compile with memcache" >&5
+$as_echo_n "checking If we should compile with memcache... " >&6; }
+
+# Check whether --with-memcache-path was given.
+if test "${with_memcache_path+set}" = set; then
+  withval=$with_memcache_path;  LIBMEMCACHE=$withval
+else
+   LIBMEMCACHE=no
+
+fi
+
+if test "$LIBMEMCACHE" = "no"
+then
+  { $as_echo "$as_me:$LINENO: result: no" >&5
+$as_echo "no" >&6; }
+else
+  { $as_echo "$as_me:$LINENO: result: yes: path is \"$LIBMEMCACHE\"" >&5
+$as_echo "yes: path is \"$LIBMEMCACHE\"" >&6; }
+
+cat >>confdefs.h <<\_ACEOF
+#define ENABLE_LIBMEMCACHE 1
+_ACEOF
+
+fi
+
+ if test "$LIBMEMCACHE" = "no"; then
+  NO_MEMCACHE_TRUE=
+  NO_MEMCACHE_FALSE='#'
+else
+  NO_MEMCACHE_TRUE='#'
+  NO_MEMCACHE_FALSE=
+fi
+
+
 
 
   # Check whether --enable-largefile was given.

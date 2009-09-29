@@ -35,6 +35,10 @@
 #include <sys/prctl.h>
 #endif
 
+#ifdef LIBMEMCACHE
+#include <mcc/mcc.h>
+#endif
+
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #if defined(NOT_ENOUGH_TESTED) \
   && defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
@@ -402,6 +406,13 @@ static double long_query_time;
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
 /* Global variables */
+#ifdef LIBMEMCACHE
+mcc_handle_t mcHandle= NULL;
+my_bool opt_fb_enable_memcache;
+uint opt_fb_libmcc_warn_ms;
+uint opt_fb_libmcc_warn_us;
+my_bool opt_fb_always_dirty;
+#endif
 
 bool opt_update_log, opt_bin_log, opt_ignore_builtin_innodb= 0;
 my_bool opt_log, opt_slow_log;
@@ -636,6 +647,9 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
                 LOCK_connection_count;
+#ifdef LIBMEMCACHE
+pthread_mutex_t LOCK_memcache_call;
+#endif
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -672,6 +686,11 @@ char *master_ssl_ca, *master_ssl_capath, *master_ssl_cipher;
 char *opt_logname, *opt_slow_logname;
 
 /* Static variables */
+
+#ifdef LIBMEMCACHE
+static char *opt_fb_mcproxy_server = 0;
+static uint opt_fb_mcproxy_port, opt_fb_libmcc_tmo_ms;
+#endif
 
 static bool kill_in_progress, segfaulted;
 #ifdef HAVE_STACK_TRACE_ON_SEGV
@@ -808,6 +827,10 @@ static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
                                    const char *option, int *error);
 static void clean_up(bool print_message);
 static int test_if_case_insensitive(const char *dir_name);
+
+#ifdef LIBMEMCACHE
+static void init_mcc();
+#endif
 
 #ifndef EMBEDDED_LIBRARY
 static void usage(void);
@@ -1397,6 +1420,9 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_user_conn);
   (void) pthread_mutex_destroy(&LOCK_connection_count);
   Events::destroy_mutexes();
+#ifdef LIBMEMCACHE
+  (void) pthread_mutex_destroy(&LOCK_memcache_call);
+#endif
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
@@ -3269,6 +3295,10 @@ static int init_common_variables(const char *conf_file_name, int argc,
   if (get_options(&defaults_argc, defaults_argv))
     return 1;
   set_server_version();
+#ifdef LIBMEMCACHE
+  init_mcc();
+#endif
+
 
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
@@ -3532,6 +3562,9 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
+#ifdef LIBMEMCACHE
+  (void) pthread_mutex_init(&LOCK_memcache_call, MY_MUTEX_INIT_FAST);
+#endif
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
   (void) my_rwlock_init(&LOCK_system_variables_hash, NULL);
@@ -4931,6 +4964,10 @@ static void create_new_thread(THD *thd)
   */
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 
+#ifdef LIBMEMCACHE
+  thd->mcHandle = mcHandle;
+#endif
+
   thread_count++;
 
   thread_scheduler.add_connection(thd);
@@ -5663,6 +5700,15 @@ enum options_mysqld
   OPT_GENERAL_LOG_FILE,
   OPT_SLOW_QUERY_LOG_FILE,
   OPT_IGNORE_BUILTIN_INNODB
+#ifdef LIBMEMCACHE
+  ,
+  OPT_FB_ENABLE_MEMCACHE,
+  OPT_FB_MCPROXY_SERVER,
+  OPT_FB_MCPROXY_PORT,
+  OPT_FB_LIBMCC_TMO_MS,
+  OPT_FB_LIBMCC_WARN_MS,
+  OPT_FB_ALWAYS_DIRTY
+#endif
 };
 
 
@@ -5851,6 +5897,26 @@ struct my_option my_long_options[] =
   {"external-locking", OPT_USE_LOCKING, "Use system (external) locking (disabled by default).  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running. Disable with --skip-external-locking.",
    (uchar**) &opt_external_locking, (uchar**) &opt_external_locking,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef LIBMEMCACHE
+  {"fb-enable-memcache", OPT_FB_ENABLE_MEMCACHE, "enable mc delete via proxy",
+   (uchar**) &opt_fb_enable_memcache, (uchar**) &opt_fb_enable_memcache,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"fb-always-dirty", OPT_FB_ALWAYS_DIRTY, "dirty mc keys from any thread",
+   (uchar**) &opt_fb_always_dirty, (uchar**) &opt_fb_always_dirty,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"fb-libmcc-tmo-ms", OPT_FB_LIBMCC_TMO_MS, "libmcc timeout in ms",
+   (uchar**) &opt_fb_libmcc_tmo_ms, (uchar**) &opt_fb_libmcc_tmo_ms,
+   0, GET_UINT, OPT_ARG, 50, 0, 0, 0, 0, 0},
+  {"fb-libmcc-warn-ms", OPT_FB_LIBMCC_WARN_MS, "libmcc warning threshold in ms",
+   (uchar**) &opt_fb_libmcc_warn_ms, (uchar**) &opt_fb_libmcc_warn_ms,
+   0, GET_UINT, OPT_ARG, 5, 0, 0, 0, 0, 0},
+  {"fb-mcproxy-port", OPT_FB_MCPROXY_PORT, "Port of mcproxy",
+   (uchar**) &opt_fb_mcproxy_port, (uchar**) &opt_fb_mcproxy_port,
+   0, GET_UINT, OPT_ARG, 11100, 0, 0, 0, 0, 0},
+  {"fb-mcproxy-server", OPT_FB_MCPROXY_SERVER, "IP of mcproxy",
+   (uchar**) &opt_fb_mcproxy_server, (uchar**) &opt_fb_mcproxy_server,
+   0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"flush", OPT_FLUSH, "Flush tables to disk between SQL commands.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   /* We must always support the next option to make scripts like mysqltest
@@ -7400,6 +7466,13 @@ SHOW_VAR status_vars[]= {
   {"Key_write_requests",       (char*) offsetof(KEY_CACHE, global_cache_w_requests), SHOW_KEY_CACHE_LONGLONG},
   {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write), SHOW_KEY_CACHE_LONGLONG},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
+#ifdef LIBMEMCACHE
+  {"Libmcc_errors",            (char*) &fb_libmcc_errs, SHOW_LONG},
+  {"Libmcc_keys",              (char*) &fb_libmcc_keys, SHOW_LONG},
+  {"Libmcc_long_requests",     (char*) &fb_libmcc_long_reqs, SHOW_LONG},
+  {"Libmcc_requests",          (char*) &fb_libmcc_reqs, SHOW_LONG},
+  {"Libmcc_usecs",             (char*) &fb_libmcc_usecs, SHOW_LONGLONG},
+#endif
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
@@ -8774,6 +8847,70 @@ static int test_if_case_insensitive(const char *dir_name)
   DBUG_RETURN(result);
 }
 
+#ifdef LIBMEMCACHE
+void init_mcc(void)
+{
+  if (opt_fb_enable_memcache && mcHandle == NULL) {
+    char p[10];
+    nstring_t cname, host, port;
+    nstring_t default_name = NSTRING_CONST("default");
+    const mcc_err_t *err;
+
+    cname.str = "sql mc client";
+    cname.len = strlen(cname.str);
+    mcHandle = mcc_new(&cname);
+    if (mcHandle == NULL) {
+      sql_print_error("mcc_new returned NULL, exiting!");
+      exit(1);
+    }
+
+    host.str = (char*)((opt_fb_mcproxy_server != 0) ?
+        opt_fb_mcproxy_server : "127.0.0.1");
+    host.len = strlen(host.str);
+
+    sprintf(p, "%d", opt_fb_mcproxy_port);
+    port.str = p;
+    port.len = strlen(p);
+
+    if (mcc_add_serverpool(mcHandle, &default_name, 0) == NULL) {
+      sql_print_error("mcc_add_serverpool returned NULL");
+      if ((err = mcc_get_last_err(mcHandle)) != NULL) {
+        sql_print_error("error: %.*s", err->message.len, err->message.str);
+      }
+      exit(1);
+    }
+
+    mcc_set_default_serverpool(mcHandle, &default_name);
+    if ((err = mcc_get_last_err(mcHandle)) != NULL) {
+      sql_print_error("mcc_set_default_serverpool set an error: %.*s",
+          err->message.len, err->message.str);
+      exit(1);
+    }
+
+    if (mcc_add_server(mcHandle, &host) == NULL) {
+      sql_print_error("mcc_add_server returned NULL");
+      if ((err = mcc_get_last_err(mcHandle)) != NULL) {
+        sql_print_error("error: %.*s", err->message.len, err->message.str);
+      }
+      exit(1);
+    }
+
+    mcc_serverpool_add_server(mcHandle, &default_name, &host);
+    if (mcc_add_accesspoint(mcHandle, &host, &host, &port, IPPROTO_TCP,
+          MCC_ASCII_PROTOCOL) == NULL) {
+      sql_print_error("mcc_serverpool_add_server returned NULL");
+      if ((err = mcc_get_last_err(mcHandle)) != NULL) {
+        sql_print_error("error: %.*s", err->message.len, err->message.str);
+      }
+      exit(1);
+    }
+    mcc_set_tmo(mcHandle, opt_fb_libmcc_tmo_ms);
+
+    // The configuration is declared in ms, but track internally in us.
+    opt_fb_libmcc_warn_us = opt_fb_libmcc_warn_ms * 1000;
+  }
+}
+#endif
 
 #ifndef EMBEDDED_LIBRARY
 

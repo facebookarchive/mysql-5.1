@@ -52,9 +52,12 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
+@NO_MEMCACHE_FALSE@am__append_1 = -I@LIBMEMCACHE@/include
 libexec_PROGRAMS = mysqld$(EXEEXT)
 EXTRA_PROGRAMS = gen_lex_hash$(EXEEXT)
 bin_PROGRAMS = mysql_tzinfo_to_sql$(EXEEXT)
+@NO_MEMCACHE_FALSE@am__append_2 = -L$(LIBMEMCACHE)/lib -lmcc -L/usr/local/lib -levent -lcrypto
+@NO_MEMCACHE_FALSE@am__append_3 = -DLIBMEMCACHE
 subdir = sql
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/sql_builtin.cc.in sql_yacc.cc \
@@ -158,7 +161,6 @@ nodist_mysqld_OBJECTS = mini_client_errors.$(OBJEXT) pack.$(OBJEXT) \
 	client.$(OBJEXT) my_time.$(OBJEXT) my_user.$(OBJEXT)
 mysqld_OBJECTS = $(am_mysqld_OBJECTS) $(nodist_mysqld_OBJECTS)
 am__DEPENDENCIES_1 = $(SUPPORTING_LIBS)
-am__DEPENDENCIES_2 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -242,14 +244,11 @@ CXXFLAGS = @CXXFLAGS@
 CXXLDFLAGS = @CXXLDFLAGS@
 CXX_VERSION = @CXX_VERSION@
 CYGPATH_W = @CYGPATH_W@
-DEFS = -DMYSQL_SERVER \
-			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
-			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
-			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
-			-DPLUGINDIR="\"$(pkgplugindir)\"" \
-			-DHAVE_EVENT_SCHEDULER \
-			@DEFS@
-
+DEFS = -DMYSQL_SERVER -DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
+	-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
+	-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
+	-DPLUGINDIR="\"$(pkgplugindir)\"" -DHAVE_EVENT_SCHEDULER \
+	@DEFS@ $(am__append_3)
 DEPDIR = @DEPDIR@
 DIFF = @DIFF@
 DOT_FRM_VERSION = @DOT_FRM_VERSION@
@@ -280,6 +279,7 @@ LDFLAGS = @LDFLAGS@
 LD_VERSION_SCRIPT = @LD_VERSION_SCRIPT@
 LIBDL = @LIBDL@
 LIBEDIT_LOBJECTS = @LIBEDIT_LOBJECTS@
+LIBMEMCACHE = @LIBMEMCACHE@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
@@ -518,10 +518,9 @@ MYSQLSHAREdir = $(pkgdatadir)
 MYSQLBASEdir = $(prefix)
 MYSQLLIBdir = $(pkglibdir)
 pkgplugindir = $(pkglibdir)/plugin
-INCLUDES = @ZLIB_INCLUDES@ \
-			-I$(top_builddir)/include -I$(top_srcdir)/include \
-			-I$(top_srcdir)/regex -I$(srcdir) $(openssl_includes)
-
+INCLUDES = @ZLIB_INCLUDES@ -I$(top_builddir)/include \
+	-I$(top_srcdir)/include -I$(top_srcdir)/regex -I$(srcdir) \
+	$(openssl_includes) $(am__append_1)
 SUBDIRS = share
 noinst_LTLIBRARIES = libndb.la \
 			udf_example.la
@@ -533,7 +532,7 @@ SUPPORTING_LIBS = $(top_builddir)/vio/libvio.a \
 			$(top_builddir)/strings/libmystrings.a
 
 mysqld_DEPENDENCIES = @mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la
-LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@
+LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@ $(am__append_2)
 mysqld_LDADD = libndb.la \
 			@MYSQLD_EXTRA_LDFLAGS@ \
 			@pstack_libs@ \

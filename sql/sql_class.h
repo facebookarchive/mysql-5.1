@@ -20,6 +20,10 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#ifdef LIBMEMCACHE
+#include <mcc/mcc.h>
+#endif
+
 #include "log.h"
 #include "rpl_tblmap.h"
 
@@ -1274,6 +1278,9 @@ public:
     fields then.
   */
   struct st_mysql_stmt *current_stmt;
+#endif
+#ifdef LIBMEMCACHE
+  mcc_handle_t mcHandle;
 #endif
   NET	  net;				// client connection descriptor
   MEM_ROOT warn_root;			// For warnings and errors

@@ -23,6 +23,10 @@ pkgplugindir =		$(pkglibdir)/plugin
 INCLUDES =		@ZLIB_INCLUDES@ \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_srcdir)/regex -I$(srcdir) $(openssl_includes)
+if !NO_MEMCACHE
+INCLUDES +=             -I@LIBMEMCACHE@/include
+endif
+
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
@@ -39,6 +43,10 @@ SUPPORTING_LIBS =	$(top_builddir)/vio/libvio.a \
 			$(top_builddir)/strings/libmystrings.a
 mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la
 LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@
+if !NO_MEMCACHE
+LDADD +=  -L$(LIBMEMCACHE)/lib -lmcc -L/usr/local/lib -levent -lcrypto
+endif
+
 mysqld_LDADD =		libndb.la \
 			@MYSQLD_EXTRA_LDFLAGS@ \
 			@pstack_libs@ \
@@ -142,6 +150,10 @@ DEFS =			-DMYSQL_SERVER \
 			-DPLUGINDIR="\"$(pkgplugindir)\"" \
 			-DHAVE_EVENT_SCHEDULER \
 			@DEFS@
+
+if !NO_MEMCACHE
+DEFS +=                 -DLIBMEMCACHE
+endif
 
 BUILT_MAINT_SRC =	sql_yacc.cc sql_yacc.h
 BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h link_sources
