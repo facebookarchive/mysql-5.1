@@ -33,6 +33,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "dict0types.h"
 #include "ut0byte.h"
 #include "os0file.h"
+#include "hash0hash.h"
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
@@ -155,6 +156,172 @@ extern ulint	fil_n_pending_log_flushes;
 /** Number of pending tablespace flushes */
 extern ulint	fil_n_pending_tablespace_flushes;
 
+typedef	struct fil_space_struct	fil_space_t;
+ 
+/** File node of a tablespace or the log data space */
+struct fil_node_struct {
+	fil_space_t*	space;	/*!< backpointer to the space where this node
+				belongs */
+	char*		name;	/*!< path to the file */
+	ibool		open;	/*!< TRUE if file open */
+	os_file_t	handle;	/*!< OS handle to the file, if file open */
+	ibool		is_raw_disk;/*!< TRUE if the 'file' is actually a raw
+				device or a raw disk partition */
+	ulint		size;	/*!< size of the file in database pages, 0 if
+				not known yet; the possible last incomplete
+				megabyte may be ignored if space == 0 */
+	ulint		n_pending;
+				/*!< count of pending i/o's on this file;
+				closing of the file is not allowed if
+				this is > 0 */
+	ulint		n_pending_flushes;
+				/*!< count of pending flushes on this file;
+				closing of the file is not allowed if
+				this is > 0 */
+	ib_int64_t	modification_counter;/*!< when we write to the file we
+				increment this by one */
+	ib_int64_t	flush_counter;/*!< up to what
+				modification_counter value we have
+				flushed the modifications to disk */
+	UT_LIST_NODE_T(fil_node_t) chain;
+				/*!< link field for the file chain */
+	UT_LIST_NODE_T(fil_node_t) LRU;
+				/*!< link field for the LRU list */
+	ulint		magic_n;/*!< FIL_NODE_MAGIC_N */
+};
+
+/** Value of fil_node_struct::magic_n */
+#define	FIL_NODE_MAGIC_N	89389
+
+/** Tablespace or log data space: let us call them by a common name space */
+struct fil_space_struct {
+	char*		name;	/*!< space name = the path to the first file in
+				it */
+	ulint		id;	/*!< space id */
+	ib_int64_t	tablespace_version;
+				/*!< in DISCARD/IMPORT this timestamp
+				is used to check if we should ignore
+				an insert buffer merge request for a
+				page because it actually was for the
+				previous incarnation of the space */
+	ibool		mark;	/*!< this is set to TRUE at database startup if
+				the space corresponds to a table in the InnoDB
+				data dictionary; so we can print a warning of
+				orphaned tablespaces */
+	ibool		stop_ios;/*!< TRUE if we want to rename the
+				.ibd file of tablespace and want to
+				stop temporarily posting of new i/o
+				requests on the file */
+	ibool		stop_ibuf_merges;
+				/*!< we set this TRUE when we start
+				deleting a single-table tablespace */
+	ibool		is_being_deleted;
+				/*!< this is set to TRUE when we start
+				deleting a single-table tablespace and its
+				file; when this flag is set no further i/o
+				or flush requests can be placed on this space,
+				though there may be such requests still being
+				processed on this space */
+	ulint		purpose;/*!< FIL_TABLESPACE, FIL_LOG, or
+				FIL_ARCH_LOG */
+	UT_LIST_BASE_NODE_T(fil_node_t) chain;
+				/*!< base node for the file chain */
+	ulint		size;	/*!< space size in pages; 0 if a single-table
+				tablespace whose size we do not know yet;
+				last incomplete megabytes in data files may be
+				ignored if space == 0 */
+	ulint		flags;	/*!< compressed page size and file format, or 0 */
+	ulint		n_reserved_extents;
+				/*!< number of reserved free extents for
+				ongoing operations like B-tree page split */
+	ulint		n_pending_flushes; /*!< this is positive when flushing
+				the tablespace to disk; dropping of the
+				tablespace is forbidden if this is positive */
+	ulint		n_pending_ibuf_merges;/*!< this is positive
+				when merging insert buffer entries to
+				a page so that we may need to access
+				the ibuf bitmap page in the
+				tablespade: dropping of the tablespace
+				is forbidden if this is positive */
+	hash_node_t	hash;	/*!< hash chain node */
+	hash_node_t	name_hash;/*!< hash chain the name_hash table */
+#ifndef UNIV_HOTBACKUP
+	rw_lock_t	latch;	/*!< latch protecting the file space storage
+				allocation */
+#endif /* !UNIV_HOTBACKUP */
+	UT_LIST_NODE_T(fil_space_t) unflushed_spaces;
+				/*!< list of spaces with at least one unflushed
+				file we have written to */
+	ibool		is_in_unflushed_spaces; /*!< TRUE if this space is
+				currently in unflushed_spaces */
+	UT_LIST_NODE_T(fil_space_t) space_list;
+				/*!< list of all spaces */
+	os_io_perf2_t	io_perf2;/*!< per tablespace IO perf counters */
+	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
+};
+
+/** Value of fil_space_struct::magic_n */
+#define	FIL_SPACE_MAGIC_N	89472
+
+/** The tablespace memory cache */
+typedef	struct fil_system_struct	fil_system_t;
+
+/** The tablespace memory cache; also the totality of logs (the log
+data space) is stored here; below we talk about tablespaces, but also
+the ib_logfiles form a 'space' and it is handled here */
+
+struct fil_system_struct {
+#ifndef UNIV_HOTBACKUP
+	mutex_t		mutex;		/*!< The mutex protecting the cache */
+#endif /* !UNIV_HOTBACKUP */
+	hash_table_t*	spaces;		/*!< The hash table of spaces in the
+					system; they are hashed on the space
+					id */
+	hash_table_t*	name_hash;	/*!< hash table based on the space
+					name */
+	UT_LIST_BASE_NODE_T(fil_node_t) LRU;
+					/*!< base node for the LRU list of the
+					most recently used open files with no
+					pending i/o's; if we start an i/o on
+					the file, we first remove it from this
+					list, and return it to the start of
+					the list when the i/o ends;
+					log files and the system tablespace are
+					not put to this list: they are opened
+					after the startup, and kept open until
+					shutdown */
+	UT_LIST_BASE_NODE_T(fil_space_t) unflushed_spaces;
+					/*!< base node for the list of those
+					tablespaces whose files contain
+					unflushed writes; those spaces have
+					at least one file node where
+					modification_counter > flush_counter */
+	ulint		n_open;		/*!< number of files currently open */
+	ulint		max_n_open;	/*!< n_open is not allowed to exceed
+					this */
+	ib_int64_t	modification_counter;/*!< when we write to a file we
+					increment this by one */
+	ulint		max_assigned_id;/*!< maximum space id in the existing
+					tables, or assigned during the time
+					mysqld has been up; at an InnoDB
+					startup we scan the data dictionary
+					and set here the maximum of the
+					space id's of the tables there */
+	ib_int64_t	tablespace_version;
+					/*!< a counter which is incremented for
+					every space object memory creation;
+					every space mem object gets a
+					'timestamp' from this; in DISCARD/
+					IMPORT this is used to check if we
+					should ignore an insert buffer merge
+					request */
+	UT_LIST_BASE_NODE_T(fil_space_t) space_list;
+					/*!< list of all file spaces */
+};
+
+/** The tablespace memory cache. This variable is NULL before the module is
+initialized. */
+extern fil_system_t*   fil_system;
 
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
@@ -721,8 +888,6 @@ fil_page_get_type(
 	const byte*	page);	/*!< in: file page */
 
 
-typedef	struct fil_space_struct	fil_space_t;
- 
 /*************************************************************************
 Print tablespace data for SHOW INNODB STATUS. */
 
