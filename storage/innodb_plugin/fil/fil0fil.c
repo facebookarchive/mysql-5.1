@@ -218,6 +218,7 @@ struct fil_space_struct {
 				currently in unflushed_spaces */
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/*!< list of all spaces */
+	os_io_perf2_t	io_perf2;/*!< per tablespace IO perf counters */
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
 };
 
@@ -1195,6 +1196,9 @@ try_again:
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(name), space);
 	space->is_in_unflushed_spaces = FALSE;
+
+	os_io_perf_init(&(space->io_perf2.read));
+	os_io_perf_init(&(space->io_perf2.write));
 
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
 
@@ -3834,7 +3838,7 @@ fil_extend_space_to_desired_size(
 				 node->name, node->handle, buf,
 				 offset_low, offset_high,
 				 page_size * n_pages,
-				 NULL, NULL);
+				 NULL, NULL, &space->io_perf2);
 #endif
 		if (success) {
 			node->size += n_pages;
@@ -4357,7 +4361,7 @@ fil_io(
 #else
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
-		     offset_low, offset_high, len, node, message);
+		     offset_low, offset_high, len, node, message, &space->io_perf2);
 #endif
 	ut_a(ret);
 
@@ -4734,4 +4738,34 @@ fil_page_get_type(
 	ut_ad(page);
 
 	return(mach_read_from_2(page + FIL_PAGE_TYPE));
+}
+
+/*************************************************************************
+Print tablespace data for SHOW INNODB STATUS. */
+
+void
+fil_print(
+/*=======*/
+	FILE* file)	/* in: print results to this */
+{
+	fil_system_t*	system		= fil_system;
+	fil_space_t*	space;
+
+	mutex_enter(&(system->mutex));
+
+	space = UT_LIST_GET_FIRST(system->space_list);
+
+	while (space != NULL) {
+		if (space->io_perf2.read.requests) {
+			fprintf(file, "read: %s ", space->name);
+			os_io_perf_print(file, &(space->io_perf2.read), TRUE);
+		}
+		if (space->io_perf2.write.requests) {
+			fprintf(file, "write: %s ", space->name);
+			os_io_perf_print(file, &(space->io_perf2.write), TRUE);
+		}
+		space = UT_LIST_GET_NEXT(space_list, space);
+	}
+
+	mutex_exit(&(system->mutex));
 }

@@ -722,5 +722,13 @@ fil_page_get_type(
 
 
 typedef	struct fil_space_struct	fil_space_t;
+ 
+/*************************************************************************
+Print tablespace data for SHOW INNODB STATUS. */
+
+void
+fil_print(
+/*=======*/
+	FILE* file);	/* in: print results to this */
 
 #endif

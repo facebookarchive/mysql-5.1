@@ -235,6 +235,44 @@ typedef HANDLE	os_file_dir_t;	/*!< directory stream */
 typedef DIR*	os_file_dir_t;	/*!< directory stream */
 #endif
 
+/* Struct used for IO performance counters */
+struct os_io_perf_struct {
+	ulint	bytes;
+	ulint	requests;
+	double	svc_usecs;	/*!< time to do read or write operation */
+	ulint	svc_usecs_max;
+	double	wait_usecs;	/*!< total time in the request array */
+	ulint	wait_usecs_max;
+	uint	old_ios;	/*!< requests that take too long */
+};
+typedef struct os_io_perf_struct os_io_perf_t;
+
+/* Added so os_aio() can be called with one pointer for read and write
+performance counters. */
+struct os_io_perf2_struct {
+	os_io_perf_t	read;
+	os_io_perf_t	write;
+};
+typedef struct os_io_perf2_struct os_io_perf2_t;
+
+/***************************************************************************
+Initialize an os_io_perf_t struct. */
+
+void
+os_io_perf_init(
+/*=============*/
+	os_io_perf_t*	perf);
+ 
+/**************************************************************************
+Prints IO statistics. */
+
+void
+os_io_perf_print(
+/*==============*/
+	FILE*		file,
+	os_io_perf_t*	perf,
+	ibool		newline);
+
 /***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
 @return	OS_WIN95, OS_WIN31, OS_WINNT, or OS_WIN2000 */
@@ -654,10 +692,12 @@ os_aio(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
-	void*		message2);/*!< in: message for the aio handler
+	void*		message2,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
+	os_io_perf2_t*	io_perf2);/*!< in: per fil_space_t performance counters */
+
 /************************************************************************//**
 Wakes up all async i/o threads so that they know to exit themselves in
 shutdown. */
