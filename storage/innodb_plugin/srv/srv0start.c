@@ -1313,7 +1313,8 @@ innobase_start_or_create_for_mysql(void)
 	/* TODO: Investigate if SRV_N_PENDING_IOS_PER_THREAD (32) limit
 	still applies to windows. */
 	if (!os_aio_use_native_aio) {
-		io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
+		io_limit = max(8 * SRV_N_PENDING_IOS_PER_THREAD,
+				srv_io_capacity);
 	} else {
 		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
 	}
