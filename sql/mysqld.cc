@@ -4518,6 +4518,13 @@ we force server id to 2, but this MySQL server will not act as a slave.");
       unireg_abort(1);
   }
 
+  ulonglong delta = my_init_fast_timer(1);
+  if (delta > 0) {
+    sql_print_information("time stamp counter resolution %lu ticks/s, fast timers enabled", delta);
+  } else {
+    sql_print_error("unable to determine time stamp counter resolution, fast timers disabled");
+  }
+
   create_shutdown_thread();
   start_handle_manager();
 
@@ -7480,6 +7487,8 @@ SHOW_VAR status_vars[]= {
   {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received), SHOW_LONGLONG_STATUS},
   {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent), SHOW_LONGLONG_STATUS},
   {"Com",                      (char*) com_status_vars, SHOW_ARRAY},
+  {"Command_seconds",          (char*) &command_seconds,        SHOW_DOUBLE},
+  {"Command_slave_seconds",    (char*) &command_slave_seconds,  SHOW_DOUBLE},
   {"Compression",              (char*) &show_net_compression, SHOW_FUNC},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_NOFLUSH},
   {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONG_STATUS},
@@ -7488,6 +7497,7 @@ SHOW_VAR status_vars[]= {
   {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
   {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
   {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
+  {"Exec_seconds",             (char*) &exec_seconds,           SHOW_DOUBLE},
   {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_NOFLUSH},
   {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
   {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
@@ -7528,6 +7538,8 @@ SHOW_VAR status_vars[]= {
   {"Opened_files",             (char*) &my_file_total_opened, SHOW_LONG_NOFLUSH},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
   {"Opened_table_definitions", (char*) offsetof(STATUS_VAR, opened_shares), SHOW_LONG_STATUS},
+  {"Parse_seconds",            (char*) &parse_seconds,          SHOW_DOUBLE},
+  {"Pre_exec_seconds",         (char*) &pre_exec_seconds,       SHOW_DOUBLE},
   {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_NOFLUSH},
@@ -7923,6 +7935,7 @@ static int mysql_init_variables(void)
     tmpenv = DEFAULT_MYSQL_HOME;
   (void) strmake(mysql_home, tmpenv, sizeof(mysql_home)-1);
 #endif
+
   return 0;
 }
 

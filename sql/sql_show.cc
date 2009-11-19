@@ -2109,6 +2109,8 @@ void reset_status_vars()
     /* Note that SHOW_LONG_NOFLUSH variables are not reset */
     if (ptr->type == SHOW_LONG)
       *(ulong*) ptr->value= 0;
+    else if (ptr->type == SHOW_DOUBLE)
+      *(double*) ptr->value= 0;
   }  
 }
 

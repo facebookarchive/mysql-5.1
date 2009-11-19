@@ -51,6 +51,9 @@
 */
 #define FMT_G_BUFSIZE(PREC) (3 + (PREC) + 5 + 1)
 
+/* Seconds executing SQL for replication */
+double command_slave_seconds = 0;
+
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
@@ -3136,8 +3139,12 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       thd->table_map_for_update= (table_map)table_map_for_update;
       
       /* Execute the query (note that we bypass dispatch_command()) */
+      my_fast_timer_t init_timer, last_timer;
+      my_get_fast_timer(&init_timer);
+      last_timer = init_timer;
       const char* found_semicolon= NULL;
-      mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
+      mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon, &last_timer);
+      command_slave_seconds += my_fast_timer_diff_now(&init_timer, &init_timer);
       log_slow_statement(thd);
     }
     else

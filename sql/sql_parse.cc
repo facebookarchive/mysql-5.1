@@ -52,7 +52,19 @@ ulonglong fb_libmcc_usecs = 0;
    (LP)->sql_command == SQLCOM_DROP_FUNCTION ? \
    "FUNCTION" : "PROCEDURE")
 
-static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
+/* Seconds handling client commands */
+double command_seconds = 0;
+
+/* Seconds parsing client commands */
+double parse_seconds = 0;
+
+/* Seconds doing work post-parse but before execution */
+double pre_exec_seconds = 0;
+
+/* Seconds executing client commands */
+double exec_seconds = 0;
+
+static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables, my_fast_timer_t *last_timer);
 static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
 
 const char *any_db="*any*";	// Special symbol for check_access
@@ -505,7 +517,7 @@ static void handle_bootstrap_impl(THD *thd)
     */
     thd->query_id=next_query_id();
     thd->set_time();
-    mysql_parse(thd, thd->query(), length, & found_semicolon);
+    mysql_parse(thd, thd->query(), length, & found_semicolon, NULL);
     close_thread_tables(thd);			// Free tables
 
     bootstrap_error= thd->is_error();
@@ -982,8 +994,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 {
   NET *net= &thd->net;
   bool error= 0;
+  my_fast_timer_t init_timer, last_timer;
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
+
+  my_get_fast_timer(&init_timer);
+  last_timer = init_timer;
 
   thd->command=command;
   /*
@@ -1237,7 +1253,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
 
-    mysql_parse(thd, thd->query(), thd->query_length(), &end_of_stmt);
+    mysql_parse(thd, thd->query(), thd->query_length(), &end_of_stmt,
+                &last_timer);
 
     while (!thd->killed && (end_of_stmt != NULL) && ! thd->is_error())
     {
@@ -1276,7 +1293,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->set_time(); /* Reset the query start time. */
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
-      mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt);
+      mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt,
+                  &last_timer);
     }
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1645,6 +1663,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
+
+  /* Don't count the thread running on a master to send binlog events to a
+     slave as that runs a long time. */
+  if (command != COM_BINLOG_DUMP)
+  {
+    command_seconds += my_fast_timer_diff_now(&init_timer, &last_timer);
+  }
   DBUG_RETURN(error);
 }
 
@@ -2000,7 +2025,7 @@ bool sp_process_definer(THD *thd)
 */
 
 int
-mysql_execute_command(THD *thd)
+mysql_execute_command(THD *thd, my_fast_timer_t *last_timer)
 {
   int res= FALSE;
   bool need_start_waiting= FALSE; // have protection against global read lock
@@ -2196,14 +2221,14 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
     if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
-      res= execute_sqlcom_select(thd, all_tables);
+      res= execute_sqlcom_select(thd, all_tables, last_timer);
     break;
   case SQLCOM_SHOW_STATUS:
   {
     system_status_var old_status_var= thd->status_var;
     thd->initial_status_var= &old_status_var;
     if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
-      res= execute_sqlcom_select(thd, all_tables);
+      res= execute_sqlcom_select(thd, all_tables, last_timer);
     /* Don't log SHOW STATUS commands to slow query log */
     thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
                            SERVER_QUERY_NO_GOOD_INDEX_USED);
@@ -2252,7 +2277,7 @@ mysql_execute_command(THD *thd)
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       break;
 
-    res= execute_sqlcom_select(thd, all_tables);
+    res= execute_sqlcom_select(thd, all_tables, last_timer);
     break;
   case SQLCOM_PREPARE:
   {
@@ -4998,6 +5023,10 @@ error:
   res= TRUE;
 
 finish:
+  if (last_timer && lex->sql_command != SQLCOM_SELECT)
+  {
+    exec_seconds += my_fast_timer_diff_now(last_timer, last_timer);
+  }
   if (need_start_waiting)
   {
     /*
@@ -5064,7 +5093,7 @@ finish:
 }
 
 
-static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
+static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables, my_fast_timer_t *last_timer)
 {
   LEX	*lex= thd->lex;
   select_result *result=lex->result;
@@ -5076,7 +5105,12 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  if (!(res= open_and_lock_tables(thd, all_tables)))
+  res= open_and_lock_tables(thd, all_tables);
+  if (last_timer)
+  {
+    pre_exec_seconds += my_fast_timer_diff_now(last_timer, last_timer);
+  }
+  if (!res)
   {
     if (lex->describe)
     {
@@ -5115,6 +5149,10 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       if (result != lex->result)
         delete result;
     }
+  }
+  if (last_timer)
+  {
+    exec_seconds += my_fast_timer_diff_now(last_timer, last_timer);
   }
   return res;
 }
@@ -5959,7 +5997,7 @@ void mysql_init_multi_delete(LEX *lex)
 */
 
 void mysql_parse(THD *thd, const char *inBuf, uint length,
-                 const char ** found_semicolon)
+                 const char ** found_semicolon, my_fast_timer_t *last_timer)
 {
   DBUG_ENTER("mysql_parse");
 
@@ -5996,6 +6034,11 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     bool err= parse_sql(thd, & parser_state, NULL);
     *found_semicolon= parser_state.m_lip.found_semicolon;
 
+    if (last_timer)
+    {
+      parse_seconds += my_fast_timer_diff_now(last_timer, last_timer);
+    }
+
     if (!err)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -6030,7 +6073,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
             thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           }
           lex->set_trg_event_type_for_tables();
-          mysql_execute_command(thd);
+          mysql_execute_command(thd, last_timer);
 	}
       }
     }
