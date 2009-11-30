@@ -1464,6 +1464,9 @@ bool mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
 void mysql_ha_flush(THD *thd);
 void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables, bool is_locked);
 void mysql_ha_cleanup(THD *thd);
+bool mysql_ha_open_read_close(THD *, TABLE_LIST *,enum enum_ha_read_modes,
+                              char *, List<Item> *,enum ha_rkey_function,
+                              Item *,ha_rows,ha_rows);
 
 /* sql_base.cc */
 #define TMP_TABLE_KEY_EXTRA 8

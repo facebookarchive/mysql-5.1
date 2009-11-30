@@ -375,6 +375,7 @@ static SYMBOL symbols[] = {
   { "ONE",              SYM(ONE_SYM)},
   { "ONE_SHOT",		SYM(ONE_SHOT_SYM)},
   { "OPEN",		SYM(OPEN_SYM)},
+  { "OPEN_READ_CLOSE",	SYM(OPEN_READ_CLOSE_SYM)},
   { "OPTIMIZE",		SYM(OPTIMIZE)},
   { "OPTIONS",		SYM(OPTIONS_SYM)},
   { "OPTION",		SYM(OPTION)},

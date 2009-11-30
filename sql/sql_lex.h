@@ -118,6 +118,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_CREATE_TRIGGER,
   SQLCOM_ALTER_DB_UPGRADE,
   SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
+  SQLCOM_HA_OPEN_READ_CLOSE,
 
   /*
     When a command is added here, be sure it's also added in mysqld.cc

@@ -4088,6 +4088,17 @@ end_with_restore_list:
                        lex->insert_list, lex->ha_rkey_mode, select_lex->where,
                        unit->select_limit_cnt, unit->offset_limit_cnt);
     break;
+  case SQLCOM_HA_OPEN_READ_CLOSE:
+    DBUG_ASSERT(first_table == all_tables && first_table != 0);
+    if (check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE))
+      goto error;
+    unit->set_limit(select_lex);
+    res = mysql_ha_open_read_close(thd, first_table, lex->ha_read_mode,
+                                   lex->ident.str, lex->insert_list,
+                                   lex->ha_rkey_mode, select_lex->where,
+                                   unit->select_limit_cnt,
+                                   unit->offset_limit_cnt);
+    break;
 
   case SQLCOM_BEGIN:
     if (thd->transaction.xid_state.xa_state != XA_NOTR)

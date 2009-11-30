@@ -875,6 +875,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ONE_SHOT_SYM
 %token  ONE_SYM
 %token  OPEN_SYM                      /* SQL-2003-R */
+%token  OPEN_READ_CLOSE_SYM
 %token  OPTIMIZE
 %token  OPTIONS_SYM
 %token  OPTION                        /* SQL-2003-N */
@@ -1138,6 +1139,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <table>
         table_ident table_ident_nodb references xid
+        handler_table_and_read_or_open_read_close
 
 %type <simple_string>
         remember_name remember_end opt_ident opt_db text_or_password
@@ -12273,7 +12275,7 @@ handler:
             if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
               MYSQL_YYABORT;
           }
-        | HANDLER_SYM table_ident_nodb READ_SYM
+        | HANDLER_SYM handler_table_and_read_or_open_read_close
           {
             LEX *lex=Lex;
             if (lex->sphead)
@@ -12282,7 +12284,6 @@ handler:
               MYSQL_YYABORT;
             }
             lex->expr_allows_subselect= FALSE;
-            lex->sql_command = SQLCOM_HA_READ;
             lex->ha_rkey_mode= HA_READ_KEY_EXACT; /* Avoid purify warnings */
             Item *one= new (YYTHD->mem_root) Item_int((int32) 1);
             if (one == NULL)
@@ -12296,6 +12297,11 @@ handler:
           {
             Lex->expr_allows_subselect= TRUE;
           }
+        ;
+
+handler_table_and_read_or_open_read_close:
+          table_ident_nodb READ_SYM { Lex->sql_command = SQLCOM_HA_READ; $$ = $1; }
+        | table_ident OPEN_READ_CLOSE_SYM { Lex->sql_command = SQLCOM_HA_OPEN_READ_CLOSE; $$ = $1; }
         ;
 
 handler_read_or_scan:

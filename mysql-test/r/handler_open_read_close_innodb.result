@@ -1,0 +1,95 @@
+SET SESSION STORAGE_ENGINE = InnoDB;
+drop table if exists t1,t3,t4,t5;
+create table t1 (a int, b char(10), key a(a), key b(a,b));
+insert into t1 values
+(17,"ddd"),(18,"eee"),(19,"fff"),(19,"yyy"),
+(14,"aaa"),(15,"bbb"),(16,"ccc"),(16,"xxx"),
+(20,"ggg"),(21,"hhh"),(22,"iii");
+handler t1 open_read_close a=(SELECT 1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1)' at line 1
+handler t1 open_read_close a first;
+a	b
+14	aaa
+handler t1 open_read_close a last;
+a	b
+22	iii
+handler t1 open_read_close a first;
+a	b
+14	aaa
+handler t1 open_read_close a last;
+a	b
+22	iii
+handler t1 open_read_close a=(15);
+a	b
+15	bbb
+handler t1 open_read_close a=(16);
+a	b
+16	ccc
+handler t1 open_read_close a=(19,"fff");
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+handler t1 open_read_close b=(19,"fff");
+a	b
+19	fff
+handler t1 open_read_close b=(19,"yyy");
+a	b
+19	yyy
+handler t1 open_read_close b=(19);
+a	b
+19	fff
+handler t1 open_read_close a last;
+a	b
+22	iii
+handler t1 open_read_close a=(11);
+a	b
+handler t1 open_read_close a>=(11);
+a	b
+14	aaa
+handler t1 open_read_close a=(18);
+a	b
+18	eee
+handler t1 open_read_close a>=(18);
+a	b
+18	eee
+handler t1 open_read_close a>(18);
+a	b
+19	fff
+handler t1 open_read_close a<=(18);
+a	b
+18	eee
+handler t1 open_read_close a<(18);
+a	b
+17	ddd
+handler t1 open_read_close a first limit 5;
+a	b
+14	aaa
+15	bbb
+16	ccc
+16	xxx
+17	ddd
+handler t1 open_read_close a>=(16) limit 4;
+a	b
+16	ccc
+16	xxx
+17	ddd
+18	eee
+handler t1 open_read_close a>=(16) limit 2,2;
+a	b
+17	ddd
+18	eee
+handler t1 open_read_close a last  limit 3;
+a	b
+22	iii
+21	hhh
+20	ggg
+handler t1 open_read_close a=(19);
+a	b
+19	fff
+handler t1 open_read_close a=(19) where b="yyy";
+a	b
+19	yyy
+handler t1 open_read_close first;
+a	b
+17	ddd
+handler t1 open_read_close last;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+drop table t1;
