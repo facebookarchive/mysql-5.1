@@ -107,6 +107,14 @@ Database: information_schema
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
+| INNODB_CMP_RESET                      |
+| INNODB_TRX                            |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_LOCK_WAITS                     |
+| INNODB_CMPMEM                         |
+| INNODB_CMP                            |
+| INNODB_FILE_STATUS                    |
+| INNODB_LOCKS                          |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -140,6 +148,14 @@ Database: INFORMATION_SCHEMA
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
+| INNODB_CMP_RESET                      |
+| INNODB_TRX                            |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_LOCK_WAITS                     |
+| INNODB_CMPMEM                         |
+| INNODB_CMP                            |
+| INNODB_FILE_STATUS                    |
+| INNODB_LOCKS                          |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

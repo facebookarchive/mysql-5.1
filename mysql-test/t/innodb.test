@@ -1149,7 +1149,7 @@ show create table t2;
 create index id2 on t2 (id);
 show create table t2;
 drop index id2 on t2;
---error 1025,1025
+--error 1553,1553
 drop index id on t2;
 show create table t2;
 drop table t2;
@@ -1317,7 +1317,7 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
-SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+SELECT 'OK' AS variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total' AND variable_value IN (8191, 8192);
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
@@ -1336,7 +1336,7 @@ set global innodb_sync_spin_loops=1000;
 show variables like "innodb_sync_spin_loops";
 set global innodb_sync_spin_loops=0;
 show variables like "innodb_sync_spin_loops";
-set global innodb_sync_spin_loops=20;
+set global innodb_sync_spin_loops=30;
 show variables like "innodb_sync_spin_loops";
 
 # Test for innodb_thread_concurrency variable
