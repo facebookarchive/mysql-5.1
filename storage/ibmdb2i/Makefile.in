@@ -43,6 +43,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
+@NO_MEMCACHE_FALSE@am__append_1 = -I@LIBMEMCACHE@/include
+@NO_MEMCACHE_FALSE@am__append_2 = -DLIBMEMCACHE
 subdir = storage/ibmdb2i
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
@@ -163,7 +165,7 @@ CXXFLAGS = @CXXFLAGS@
 CXXLDFLAGS = @CXXLDFLAGS@
 CXX_VERSION = @CXX_VERSION@
 CYGPATH_W = @CYGPATH_W@
-DEFS = @DEFS@
+DEFS = @DEFS@ $(am__append_2)
 DEPDIR = @DEPDIR@
 DIFF = @DIFF@
 DOT_FRM_VERSION = @DOT_FRM_VERSION@
@@ -435,7 +437,7 @@ pkgplugindir = $(pkglibdir)/plugin
 INCLUDES = -I$(top_srcdir)/include -I$(top_builddir)/include \
 			-I$(top_srcdir)/regex \
 			-I$(top_srcdir)/sql \
-                        -I$(srcdir) \
+                        -I$(srcdir) $(am__append_2) \
                         -I$ /afs/rchland.ibm.com/lande/shadow/dev2000/osxpf/v5r4m0f.xpf/cur/cmvc/base.pgm/my.xpf/apis \
                         -I$ /afs/rchland.ibm.com/lande/shadow/dev2000/osxpf/v5r4m0.xpf/bld/cmvc/base.pgm/lg.xpf \
                         -I$ /afs/rchland.ibm.com/lande/shadow/dev2000/osxpf/v5r4m0.xpf/bld/cmvc/base.pgm/tq.xpf

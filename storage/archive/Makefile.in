@@ -53,6 +53,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
+@NO_MEMCACHE_FALSE@am__append_1 = -I@LIBMEMCACHE@/include
+@NO_MEMCACHE_FALSE@am__append_2 = -DLIBMEMCACHE
 noinst_PROGRAMS = archive_test$(EXEEXT) archive_reader$(EXEEXT)
 subdir = storage/archive
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
@@ -183,7 +185,7 @@ CXXFLAGS = @CXXFLAGS@
 CXXLDFLAGS = @CXXLDFLAGS@
 CXX_VERSION = @CXX_VERSION@
 CYGPATH_W = @CYGPATH_W@
-DEFS = @DEFS@
+DEFS = @DEFS@ $(am__append_2)
 DEPDIR = @DEPDIR@
 DIFF = @DIFF@
 DOT_FRM_VERSION = @DOT_FRM_VERSION@
@@ -455,7 +457,7 @@ pkgplugindir = $(pkglibdir)/plugin
 INCLUDES = -I$(top_srcdir)/include -I$(top_builddir)/include \
 			-I$(top_srcdir)/regex \
 			-I$(top_srcdir)/sql \
-                        -I$(srcdir) @ZLIB_INCLUDES@
+                        -I$(srcdir) @ZLIB_INCLUDES@ $(am__append_1)
 
 LDADD = 
 noinst_HEADERS = ha_archive.h azlib.h

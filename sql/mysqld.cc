@@ -8940,7 +8940,7 @@ void init_mcc(void)
     if (mcc_add_serverpool(mcHandle, &default_name, 0) == NULL) {
       sql_print_error("mcc_add_serverpool returned NULL");
       if ((err = mcc_get_last_err(mcHandle)) != NULL) {
-        sql_print_error("error: %.*s", err->message.len, err->message.str);
+        sql_print_error("error: %.*s", (int)err->message.len, err->message.str);
       }
       exit(1);
     }
@@ -8948,14 +8948,14 @@ void init_mcc(void)
     mcc_set_default_serverpool(mcHandle, &default_name);
     if ((err = mcc_get_last_err(mcHandle)) != NULL) {
       sql_print_error("mcc_set_default_serverpool set an error: %.*s",
-          err->message.len, err->message.str);
+          (int)err->message.len, err->message.str);
       exit(1);
     }
 
     if (mcc_add_server(mcHandle, &host) == NULL) {
       sql_print_error("mcc_add_server returned NULL");
       if ((err = mcc_get_last_err(mcHandle)) != NULL) {
-        sql_print_error("error: %.*s", err->message.len, err->message.str);
+        sql_print_error("error: %.*s", (int)err->message.len, err->message.str);
       }
       exit(1);
     }
@@ -8965,7 +8965,7 @@ void init_mcc(void)
           MCC_ASCII_PROTOCOL) == NULL) {
       sql_print_error("mcc_serverpool_add_server returned NULL");
       if ((err = mcc_get_last_err(mcHandle)) != NULL) {
-        sql_print_error("error: %.*s", err->message.len, err->message.str);
+        sql_print_error("error: %.*s", (int)err->message.len, err->message.str);
       }
       exit(1);
     }

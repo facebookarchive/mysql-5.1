@@ -161,6 +161,7 @@ nodist_mysqld_OBJECTS = mini_client_errors.$(OBJEXT) pack.$(OBJEXT) \
 	client.$(OBJEXT) my_time.$(OBJEXT) my_user.$(OBJEXT)
 mysqld_OBJECTS = $(am_mysqld_OBJECTS) $(nodist_mysqld_OBJECTS)
 am__DEPENDENCIES_1 = $(SUPPORTING_LIBS)
+am__DEPENDENCIES_2 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -244,11 +245,14 @@ CXXFLAGS = @CXXFLAGS@
 CXXLDFLAGS = @CXXLDFLAGS@
 CXX_VERSION = @CXX_VERSION@
 CYGPATH_W = @CYGPATH_W@
-DEFS = -DMYSQL_SERVER -DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
-	-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
-	-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
-	-DPLUGINDIR="\"$(pkgplugindir)\"" -DHAVE_EVENT_SCHEDULER \
-	@DEFS@ $(am__append_3)
+DEFS = -DMYSQL_SERVER \
+			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
+			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
+			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
+			-DPLUGINDIR="\"$(pkgplugindir)\"" \
+			-DHAVE_EVENT_SCHEDULER \
+			@DEFS@ $(am__append_3)
+
 DEPDIR = @DEPDIR@
 DIFF = @DIFF@
 DOT_FRM_VERSION = @DOT_FRM_VERSION@
@@ -518,9 +522,10 @@ MYSQLSHAREdir = $(pkgdatadir)
 MYSQLBASEdir = $(prefix)
 MYSQLLIBdir = $(pkglibdir)
 pkgplugindir = $(pkglibdir)/plugin
-INCLUDES = @ZLIB_INCLUDES@ -I$(top_builddir)/include \
-	-I$(top_srcdir)/include -I$(top_srcdir)/regex -I$(srcdir) \
-	$(openssl_includes) $(am__append_1)
+INCLUDES = @ZLIB_INCLUDES@ \
+			-I$(top_builddir)/include -I$(top_srcdir)/include \
+			-I$(top_srcdir)/regex -I$(srcdir) $(openssl_includes) \
+			$(am__append_1)
 SUBDIRS = share
 noinst_LTLIBRARIES = libndb.la \
 			udf_example.la

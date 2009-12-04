@@ -40,6 +40,11 @@ noinst_LIBRARIES =	@plugin_csv_static_target@
 libcsv_a_CXXFLAGS =	$(AM_CFLAGS)
 libcsv_a_SOURCES =	transparent_file.cc ha_tina.cc
 
+if !NO_MEMCACHE
+INCLUDES +=             -I@LIBMEMCACHE@/include
+DEFS +=                 -DLIBMEMCACHE
+endif
+
 EXTRA_DIST =		CMakeLists.txt plug.in
 # Don't update the files from bitkeeper
 %::SCCS/s.%

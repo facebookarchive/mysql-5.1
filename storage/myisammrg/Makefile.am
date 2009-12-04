@@ -38,6 +38,11 @@ libmyisammrg_a_SOURCES = myrg_open.c myrg_extra.c myrg_info.c myrg_locking.c \
 			myrg_rnext_same.c myrg_records.c
 
 
+if !NO_MEMCACHE
+INCLUDES +=             -I@LIBMEMCACHE@/include
+DEFS +=                 -DLIBMEMCACHE
+endif
+
 EXTRA_DIST =		CMakeLists.txt plug.in
 
 # Don't update the files from bitkeeper

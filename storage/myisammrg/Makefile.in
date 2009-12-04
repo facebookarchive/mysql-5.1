@@ -49,6 +49,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
+@NO_MEMCACHE_FALSE@am__append_1 = -I@LIBMEMCACHE@/include
+@NO_MEMCACHE_FALSE@am__append_2 = -DLIBMEMCACHE
 subdir = storage/myisammrg
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
@@ -157,7 +159,7 @@ CXXFLAGS = @CXXFLAGS@
 CXXLDFLAGS = @CXXLDFLAGS@
 CXX_VERSION = @CXX_VERSION@
 CYGPATH_W = @CYGPATH_W@
-DEFS = @DEFS@
+DEFS = @DEFS@ $(am__append_2)
 DEPDIR = @DEPDIR@
 DIFF = @DIFF@
 DOT_FRM_VERSION = @DOT_FRM_VERSION@
@@ -428,7 +430,7 @@ MYSQLLIBdir = $(pkglibdir)
 INCLUDES = -I$(top_srcdir)/include -I$(top_builddir)/include \
 			-I$(top_srcdir)/regex \
 			-I$(top_srcdir)/sql \
-                        -I$(srcdir)
+                        -I$(srcdir) $(am__append_1)
 
 LDADD = 
 pkglib_LIBRARIES = libmyisammrg.a
