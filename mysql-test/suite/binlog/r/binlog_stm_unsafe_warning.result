@@ -43,8 +43,87 @@ SET GLOBAL LOG_WARNINGS = 1;
 INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
 Warnings:
 Note	1592	Statement may not be safe to log in statement format.
+SET GLOBAL LOG_WARNINGS = 2;
+INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 DROP TABLE t1;
 SET GLOBAL log_warnings = @old_log_warnings;
 # Count the number of times the "Unsafe" message was printed
 # to the error log.
 Occurrences: 1
+set @save_log_warnings= @@global.log_warnings;
+CREATE TABLE `t1` (
+`recNo` int(10) unsigned NOT NULL AUTO_INCREMENT,
+`string` varchar(64) NOT NULL,
+`inUseBy` varchar(38) NOT NULL DEFAULT '',
+`tsLastUpdated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE
+CURRENT_TIMESTAMP,
+PRIMARY KEY (`recNo`),
+KEY `tsLastUpdated` (`tsLastUpdated`),
+KEY `inUseBy` (`inUseBy`)
+);
+INSERT INTO t1 SET string='one';
+INSERT INTO t1 SET string='two';
+INSERT INTO t1 SET string='three';
+set @@global.log_warnings= 0;
+select @@global.log_warnings;
+@@global.log_warnings
+0
+UPDATE t1 SET inUseBy='me' WHERE inUseBy='--log-warnings < 2' limit 1;
+# When the --log-warnings is set to 0, Test the unsafe
+# warning will be displayed by 'SHOW WARNINGS', but it will not 
+# be written to error log.
+SHOW WARNINGS;
+Level	Code	Message
+Note	1592	Statement may not be safe to log in statement format.
+set @@global.log_warnings= 1;
+select @@global.log_warnings;
+@@global.log_warnings
+1
+UPDATE t1 SET inUseBy='me' WHERE inUseBy='--log-warnings < 2' limit 2;
+# When the --log-warnings is set to 1, Test the unsafe
+# warning will be displayed by 'SHOW WARNINGS', but it will not 
+# be written to error log.
+SHOW WARNINGS;
+Level	Code	Message
+Note	1592	Statement may not be safe to log in statement format.
+set @@global.log_warnings= 2;
+select @@global.log_warnings;
+@@global.log_warnings
+2
+UPDATE t1 SET inUseBy='me' WHERE inUseBy='--log-warnings >= 2' limit 3;
+# When the --log-warnings is set to 2, Test the unsafe
+# warning will be displayed by 'SHOW WARNINGS', and it also will 
+# be written to error log.
+SHOW WARNINGS;
+Level	Code	Message
+Note	1592	Statement may not be safe to log in statement format.
+set @@global.log_warnings= 3;
+select @@global.log_warnings;
+@@global.log_warnings
+3
+UPDATE t1 SET inUseBy='me' WHERE inUseBy='--log-warnings >= 2' limit 4;
+# When the --log-warnings is set to 3, Test the unsafe
+# warning will be displayed by 'SHOW WARNINGS', and it also will 
+# be written to error log.
+SHOW WARNINGS;
+Level	Code	Message
+Note	1592	Statement may not be safe to log in statement format.
+set @@global.log_warnings= 500;
+select @@global.log_warnings;
+@@global.log_warnings
+500
+UPDATE t1 SET inUseBy='me' WHERE inUseBy='--log-warnings >= 2' limit 5;
+# When the --log-warnings is set to 500, Test the unsafe
+# warning will be displayed by 'SHOW WARNINGS', and it also will 
+# be written to error log.
+SHOW WARNINGS;
+Level	Code	Message
+Note	1592	Statement may not be safe to log in statement format.
+set @@global.log_warnings= @save_log_warnings;
+drop table t1;
+# Count the number of times the "Unsafe" message was printed to
+# the error log, when --log-warnings >= 2 and --log-warnings < 2.
+When --log-warnings >= 2, Occurrences: 3
+When --log-warnings < 2, Occurrences: 0
