@@ -2702,7 +2702,7 @@ bool check_db_name(LEX_STRING *org_name)
   }
   else
 #endif
-    return ((org_name->str[org_name->length - 1] != ' ') ||
+    return ((org_name->str[org_name->length - 1] == ' ') ||
             (name_length > NAME_CHAR_LEN)); /* purecov: inspected */
 }
 
