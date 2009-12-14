@@ -5054,7 +5054,7 @@ finish:
         (opt_fb_always_dirty || (thd->system_thread & SYSTEM_THREAD_SLAVE_SQL)) &&
         !res && !thd->is_error()) {
       int my_res;
-      ulong sec1, usec1;
+      my_fast_timer_t timer;
       double mcc_duration_us;
       nstring_t *key_list = new nstring_t[key_cnt];
       List_iterator <String> mc_keys(lex->mc_key_list);
@@ -5070,9 +5070,9 @@ finish:
        *        * safe  - note that mc_delete is not thread safe while
        *               * mc_req_del is thread safe */
       (void) pthread_mutex_lock(&LOCK_memcache_call);
-      my_res = my_usectime(&sec1, &usec1);
+      my_get_fast_timer(&timer);
       mcc_req_t *reqs = mcc_delete(thd->mcHandle, key_list, key_cnt, 0);
-      mcc_duration_us = my_usecdiff_now(my_res, sec1, usec1);
+      mcc_duration_us = my_fast_timer_diff_now(&timer, NULL);
 
       fb_libmcc_usecs += (ulonglong) mcc_duration_us;
       fb_libmcc_keys += key_cnt;
