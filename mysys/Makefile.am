@@ -53,7 +53,7 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_handler.c my_netware.c my_largepage.c \
 			my_memmem.c stacktrace.c \
 			my_windac.c my_access.c base64.c my_libwrap.c \
-			my_ut.c
+			my_ut.c my_perf.c
 
 if NEED_THREAD
 # mf_keycache is used only in the server, so it is safe to leave the file

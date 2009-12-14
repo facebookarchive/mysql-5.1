@@ -309,21 +309,6 @@ os_io_perf_update_wait(
 }
 
 /***********************************************************************//**
-Return the time in microseconds since the epoch or 0 on an error. */
-
-static double
-time_usecs()
-/*===================*/
-	/* out: time in microseconds */
-{
-	ulint sec, usec;
-	if (ut_usectime(&sec, &usec))
-		return 0;
-	else
-		return sec * 1000000.0 + usec;
-}
-
-/***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
 @return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000 */
 UNIV_INTERN
@@ -2084,7 +2069,7 @@ os_file_flush(
 	return(FALSE);
 #else
 	int	ret;
-	double	start_usecs = time_usecs();
+	double	start_usecs = my_fast_timer_usecs();
 	double	end_usecs;
 
 #if defined(HAVE_DARWIN_THREADS)
@@ -2116,7 +2101,7 @@ os_file_flush(
 #else
 	ret = os_file_fsync(file);
 #endif
-	end_usecs = time_usecs();
+	end_usecs = my_fast_timer_usecs();
 	if (end_usecs > 0 && start_usecs > 0) {
 		os_file_flush_usecs += max(end_usecs - start_usecs, 0);
 	}
@@ -3426,7 +3411,7 @@ found:
 	}
 
 	slot->reserved = TRUE;
-	slot->reservation_time = time_usecs();
+	slot->reservation_time = my_fast_timer_usecs();
 	slot->message1 = message1;
 	slot->message2 = message2;
 	slot->io_perf2 = io_perf2;
@@ -3666,7 +3651,7 @@ os_aio(
 		double start_usecs, end_usecs;
 		double elapsed_usecs = 0;
 
-		start_usecs = time_usecs();
+		start_usecs = my_fast_timer_usecs();
 		if (type == OS_FILE_READ) {
 			r = os_file_read(file, buf, offset,
 							offset_high, n);
@@ -3675,7 +3660,7 @@ os_aio(
 			r = os_file_write(name, file, buf, offset,
 							offset_high, n);
 		}
-		end_usecs = time_usecs();
+		end_usecs = my_fast_timer_usecs();
 		if (end_usecs > 0 && start_usecs > 0)
 			elapsed_usecs = max(end_usecs - start_usecs, 0);
 		/* These stats are not exact because a mutex is not locked. */
@@ -3984,7 +3969,7 @@ restart:
 	/* Check if there is a slot for which the i/o has already been
 	done */
 
-	now = time_usecs();
+	now = my_fast_timer_usecs();
 	slot = os_aio_array_get_nth_slot(array, segment * n);
 	for (i = 0; i < n; i++, slot++) {
 		if (slot->reserved && slot->io_already_done) {
@@ -4153,7 +4138,7 @@ restart:
 	}
 
 	/* Do the i/o with ordinary, synchronous i/o functions: */
-	start_usecs = time_usecs();
+	start_usecs = my_fast_timer_usecs();
 	if (slot->type == OS_FILE_WRITE) {
 		ret = os_file_write(slot->name, slot->file, combined_buf,
 				    slot->offset, slot->offset_high,
@@ -4162,7 +4147,7 @@ restart:
 		ret = os_file_read(slot->file, combined_buf,
 				   slot->offset, slot->offset_high, total_len);
 	}
-	stop_usecs = time_usecs();
+	stop_usecs = my_fast_timer_usecs();
 	if (start_usecs > 0 && stop_usecs > 0)
 		elapsed_usecs = max(stop_usecs - start_usecs, 0);
 	else
