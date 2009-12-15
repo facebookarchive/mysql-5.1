@@ -106,6 +106,8 @@ extern "C" {
 #include "ha_innodb.h"
 #include "i_s.h"
 
+#include "my_perf.h"
+
 #ifndef MYSQL_SERVER
 # ifndef MYSQL_PLUGIN_IMPORT
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
@@ -1965,6 +1967,11 @@ innobase_init(
 	innobase_hton->alter_table_flags = innobase_alter_table_flags;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
+
+        if (my_fast_timer_get_scale() == 0) {
+                sql_print_error("fast timers failed to initialize");
+                goto error;
+        }
 
 #ifdef UNIV_DEBUG
 	static const char	test_filename[] = "-@";

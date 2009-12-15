@@ -46,6 +46,8 @@ Created 5/11/1994 Heikki Tuuri
 # include "mysql_com.h" /* NAME_LEN */
 #endif /* UNIV_HOTBACKUP */
 
+#include "my_perf.h"
+
 /** A constant to prevent the compiler from optimizing ut_delay() away. */
 UNIV_INTERN ibool	ut_always_false	= FALSE;
 
@@ -210,11 +212,7 @@ ulint
 ut_time_ms(void)
 /*============*/
 {
-	struct timeval	tv;
-
-	ut_gettimeofday(&tv, NULL);
-
-	return((ulint) tv.tv_sec * 1000 + tv.tv_usec / 1000);
+	return my_fast_timer_msecs();
 }
 #endif /* !UNIV_HOTBACKUP */
 

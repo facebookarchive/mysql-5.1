@@ -3951,6 +3951,8 @@ server.");
     }
   }
 
+  my_init_fast_timer(1);
+
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
 
@@ -4519,9 +4521,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
       unireg_abort(1);
   }
 
-  ulonglong delta = my_init_fast_timer(1);
-  if (delta > 0) {
-    sql_print_information("time stamp counter resolution %lu ticks/s, fast timers enabled", delta);
+  double scale = my_fast_timer_get_scale();
+  if (scale > 0) {
+    sql_print_information("time stamp counter resolution %.0f ticks/s, fast timers enabled", 1 / scale);
   } else {
     sql_print_error("unable to determine time stamp counter resolution, fast timers disabled");
   }

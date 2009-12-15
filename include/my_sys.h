@@ -893,22 +893,6 @@ int my_usectime(ulong *sec, ulong *ms);
 double my_usecdiff_now(int start_res, ulong start_sec, ulong start_usec);
 void my_print_timestamp(FILE*  file);
 
-/* Initialize the fast timer at startup
-   Counts timer ticks for given seconds.
-   Returns ticks counted in given seconds or 0 on failure. */
-extern ulonglong my_init_fast_timer(int seconds);
-
-typedef ulonglong my_fast_timer_t;
-
-/* Returns a fast timer suitable for performance measurements. */
-extern void my_get_fast_timer(my_fast_timer_t* timer);
-
-/* Returns the difference between now and the time from 'in' in seconds.
-   Also optionally returns current fast timer in 'out'.
-   It is safe to pass the same struct for 'in' and 'out'.
-*/
-double my_fast_timer_diff_now(my_fast_timer_t const *in, my_fast_timer_t *out);
-
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 

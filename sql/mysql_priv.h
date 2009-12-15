@@ -43,6 +43,7 @@
 #include "sql_array.h"
 #include "sql_plugin.h"
 #include "scheduler.h"
+#include "my_perf.h"
 
 #ifdef LIBMEMCACHE
 #include <mcc/mcc.h>
