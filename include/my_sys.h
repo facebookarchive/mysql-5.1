@@ -889,10 +889,6 @@ time_t my_time_possible_from_micro(ulonglong microtime);
 extern my_bool my_gethwaddr(uchar *to);
 extern int my_getncpus();
 
-int my_usectime(ulong *sec, ulong *ms);
-double my_usecdiff_now(int start_res, ulong start_sec, ulong start_usec);
-void my_print_timestamp(FILE*  file);
-
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 
