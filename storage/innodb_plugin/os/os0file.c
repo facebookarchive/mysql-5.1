@@ -55,6 +55,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
+#include "my_perf.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0sync.h"
 # include "os0thread.h"
@@ -117,7 +118,7 @@ struct os_aio_slot_struct{
 	ulint		pos;		/*!< index of the slot in the aio
 					array */
 	ibool		reserved;	/*!< TRUE if this slot is reserved */
-	double		reservation_time;/*!< time when reserved */
+	my_fast_timer_t reservation_time;/*!< time when reserved */
 	ulint		len;		/*!< length of the block to read or
 					write */
 	byte*		buf;		/*!< buffer used in i/o */
@@ -273,13 +274,13 @@ UNIV_INLINE
 void
 os_io_perf_update_all(
 /*===============*/
-	os_io_perf_t*	perf,		/*!< in: struct to update */
-	ulint		bytes,		/*!< in: size of request */
-	double		svc_usecs,	/*!< in: usecs to perform IO */
-	double		stop_usecs,	/*!< in: now as usecs since epoch */
-	double		wait_start)	/*!< in: usecs when IO request submitted */
+	os_io_perf_t*		perf,		/* in: struct to update */
+	ulint			bytes,		/* in: size of request */
+	double			svc_usecs,	/* in: usecs to perform IO */
+	my_fast_timer_t*	stop_timer,	/* in: timer for now */
+	my_fast_timer_t*	wait_start)	/* in: timer when IO request submitted */
 {
-	double	wait_usecs = max(0.0, stop_usecs - wait_start);
+	double	wait_usecs = my_fast_timer_diff(wait_start, stop_timer) * 1000000;
 
 	perf->requests++;
 	perf->bytes += bytes;
@@ -299,11 +300,11 @@ UNIV_INLINE
 void
 os_io_perf_update_wait(
 /*===============*/
-	os_io_perf_t*	perf,		/*!< in: struct to update */
-	double		stop_usecs,	/*!< in: now as usecs since epoch */
-	double		wait_start)	/*!< in: usecs when IO request submitted */
+	os_io_perf_t*		perf,		/* in: struct to update */
+	my_fast_timer_t*	stop_timer,	/* in: timer for now */
+	my_fast_timer_t*	wait_start)	/* in: timer when IO request submitted */
 {
-	double	wait_usecs = max(0.0, stop_usecs - wait_start);
+	double	wait_usecs = my_fast_timer_diff(wait_start, stop_timer) * 1000000;
 	perf->wait_usecs += wait_usecs;
 	perf->wait_usecs_max = max(wait_usecs, perf->wait_usecs_max);
 }
@@ -2069,8 +2070,8 @@ os_file_flush(
 	return(FALSE);
 #else
 	int	ret;
-	double	start_usecs = my_fast_timer_usecs();
-	double	end_usecs;
+	my_fast_timer_t start_timer;
+	my_get_fast_timer(&start_timer);
 
 #if defined(HAVE_DARWIN_THREADS)
 # ifndef F_FULLFSYNC
@@ -2101,10 +2102,8 @@ os_file_flush(
 #else
 	ret = os_file_fsync(file);
 #endif
-	end_usecs = my_fast_timer_usecs();
-	if (end_usecs > 0 && start_usecs > 0) {
-		os_file_flush_usecs += max(end_usecs - start_usecs, 0);
-	}
+	os_file_flush_usecs +=
+		my_fast_timer_diff_now(&start_timer, NULL) * 1000000;
 
 	if (ret == 0) {
 		return(TRUE);
@@ -3411,7 +3410,7 @@ found:
 	}
 
 	slot->reserved = TRUE;
-	slot->reservation_time = my_fast_timer_usecs();
+	my_get_fast_timer(&(slot->reservation_time));
 	slot->message1 = message1;
 	slot->message2 = message2;
 	slot->io_perf2 = io_perf2;
@@ -3648,10 +3647,10 @@ os_aio(
 		therefore we have built a special mechanism for synchronous
 		wait in the Windows case. */
 		ibool r;
-		double start_usecs, end_usecs;
+		my_fast_timer_t start_timer, end_timer;
 		double elapsed_usecs = 0;
 
-		start_usecs = my_fast_timer_usecs();
+		my_get_fast_timer(&start_timer);
 		if (type == OS_FILE_READ) {
 			r = os_file_read(file, buf, offset,
 							offset_high, n);
@@ -3660,22 +3659,22 @@ os_aio(
 			r = os_file_write(name, file, buf, offset,
 							offset_high, n);
 		}
-		end_usecs = my_fast_timer_usecs();
-		if (end_usecs > 0 && start_usecs > 0)
-			elapsed_usecs = max(end_usecs - start_usecs, 0);
+		my_get_fast_timer(&end_timer);
+		elapsed_usecs = my_fast_timer_diff(&start_timer, &end_timer) * 1000000;
+
 		/* These stats are not exact because a mutex is not locked. */
 		if (type == OS_FILE_READ) {
 			os_io_perf_update_all(&os_sync_read_perf, n,
-				elapsed_usecs, end_usecs, start_usecs);
+				elapsed_usecs, &end_timer, &start_timer);
 			/* Per fil_space_t counters */
 			os_io_perf_update_all(&(io_perf2->read), n,
-				elapsed_usecs, end_usecs, start_usecs);
+				elapsed_usecs, &end_timer, &start_timer);
 		} else {
 			os_io_perf_update_all(&os_sync_write_perf, n,
-				elapsed_usecs, end_usecs, start_usecs);
+				elapsed_usecs, &end_timer, &start_timer);
 			/* Per fil_space_t counters */
 			os_io_perf_update_all(&(io_perf2->write), n,
-				elapsed_usecs, end_usecs, start_usecs);
+				elapsed_usecs, &end_timer, &start_timer);
 		}
 		return r;
 	}
@@ -3927,15 +3926,14 @@ os_aio_simulated_handle(
 	ulint		lowest_offset;
 	ulint		oldest_offset;
 	double		biggest_age;
-	double		age;
 	byte*		combined_buf;
 	byte*		combined_buf2;
 	ibool		ret;
 	ulint		n;
 	ulint		i;
 
-	double          start_usecs, stop_usecs, elapsed_usecs, max_usecs;
- 	double          now;
+	double          elapsed_usecs;
+	my_fast_timer_t	start_timer, stop_timer, now;
 
 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
 
@@ -3969,7 +3967,7 @@ restart:
 	/* Check if there is a slot for which the i/o has already been
 	done */
 
-	now = my_fast_timer_usecs();
+	my_get_fast_timer(&now);
 	slot = os_aio_array_get_nth_slot(array, segment * n);
 	for (i = 0; i < n; i++, slot++) {
 		if (slot->reserved && slot->io_already_done) {
@@ -3986,11 +3984,11 @@ restart:
 			/* Update wait stats for this request. Other stats were updated
 			as part of the merged request. */	
 			os_io_perf_update_wait(&os_aio_perf[global_segment],
-					now, slot->reservation_time);
+					&now, &(slot->reservation_time));
 			/* Per fil_space_t counters */
 			os_io_perf_update_wait(slot->type == OS_FILE_WRITE ?
 					&(slot->io_perf2->write) : &(slot->io_perf2->read),
-					now, slot->reservation_time);
+					&now, &(slot->reservation_time));
 			goto slot_io_done;
 		}
 	}
@@ -4008,7 +4006,8 @@ restart:
 	slot = os_aio_array_get_nth_slot(array, segment * n);
 	for (i = 0; i < n; i++, slot++) {
 		if (slot->reserved) {
-			age = max(now - slot->reservation_time, 0);
+			double age;
+			age = my_fast_timer_diff(&slot->reservation_time, &now) * 1000000;
 
                         /* Now that age is a float, age will rarely == biggest_age */
 			if ((age >= OS_AIO_OLD_USECS && age > biggest_age)
@@ -4138,7 +4137,7 @@ restart:
 	}
 
 	/* Do the i/o with ordinary, synchronous i/o functions: */
-	start_usecs = my_fast_timer_usecs();
+	my_get_fast_timer(&start_timer);
 	if (slot->type == OS_FILE_WRITE) {
 		ret = os_file_write(slot->name, slot->file, combined_buf,
 				    slot->offset, slot->offset_high,
@@ -4147,11 +4146,8 @@ restart:
 		ret = os_file_read(slot->file, combined_buf,
 				   slot->offset, slot->offset_high, total_len);
 	}
-	stop_usecs = my_fast_timer_usecs();
-	if (start_usecs > 0 && stop_usecs > 0)
-		elapsed_usecs = max(stop_usecs - start_usecs, 0);
-	else
-		elapsed_usecs= 0;
+	my_get_fast_timer(&stop_timer);
+	elapsed_usecs = my_fast_timer_diff(&start_timer, &stop_timer) * 1000000;
 
 	ut_a(ret);
 	srv_set_io_thread_op_info(global_segment, "file i/o done");
@@ -4177,25 +4173,25 @@ restart:
 	/* Update statistics. The mutex is not locked and the race is OK. */
 	if (slot->type == OS_FILE_WRITE) {
 		os_io_perf_update_all(&os_async_write_perf,
-			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, stop_usecs,
-			slot->reservation_time);
+			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, &stop_timer,
+			&(slot->reservation_time));
 		/* Per fil_space_t counters */
 		os_io_perf_update_all(&(slot->io_perf2->write),
-			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, stop_usecs,
-			slot->reservation_time);
+			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, &stop_timer,
+			&(slot->reservation_time));
 	} else {
 		os_io_perf_update_all(&os_async_read_perf,
-			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, stop_usecs,
-			slot->reservation_time);
+			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, &stop_timer,
+			&(slot->reservation_time));
 		/* Per fil_space_t counters */
 		os_io_perf_update_all(&(slot->io_perf2->read),
-			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, stop_usecs,
-			slot->reservation_time);
+			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, &stop_timer,
+			&(slot->reservation_time));
 	}
 
 	os_io_perf_update_all(&os_aio_perf[global_segment],
-			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, stop_usecs,
-			slot->reservation_time);
+			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, &stop_timer,
+			&(slot->reservation_time));
 
 	os_mutex_enter(array->mutex);
 

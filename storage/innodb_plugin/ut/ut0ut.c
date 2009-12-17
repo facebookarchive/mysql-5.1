@@ -212,7 +212,11 @@ ulint
 ut_time_ms(void)
 /*============*/
 {
-	return my_fast_timer_msecs();
+	struct timeval  tv;
+
+	ut_gettimeofday(&tv, NULL);
+
+	return((ulint) tv.tv_sec * 1000 + tv.tv_usec / 1000);
 }
 #endif /* !UNIV_HOTBACKUP */
 

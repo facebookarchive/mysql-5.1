@@ -1520,11 +1520,11 @@ static
 void
 buf_page_set_accessed_make_young(
 /*=============================*/
-	buf_page_t*	bpage,		/*!< in/out: buffer block of a
-					file page */
-	unsigned	access_time)	/*!< in: bpage->access_time
-					read under mutex protection,
-					or 0 if unknown */
+	buf_page_t*	bpage,			/*!< in/out: buffer block of a
+						file page */
+	const my_fast_timer_t* access_time)	/*!< in: bpage->access_time
+						read under mutex protection,
+						or 0 if unknown */
 {
 	ut_ad(!buf_pool_mutex_own());
 	ut_a(buf_page_in_file(bpage));
@@ -1533,10 +1533,11 @@ buf_page_set_accessed_make_young(
 		buf_pool_mutex_enter();
 		buf_LRU_make_block_young(bpage);
 		buf_pool_mutex_exit();
-	} else if (!access_time) {
-		ulint	time_ms = ut_time_ms();
+	} else if (!my_fast_timer_is_valid(access_time)) {
+		my_fast_timer_t	timer;
+		my_get_fast_timer(&timer);
 		buf_pool_mutex_enter();
-		buf_page_set_accessed(bpage, time_ms);
+		buf_page_set_accessed(bpage, &timer);
 		buf_pool_mutex_exit();
 	}
 }
@@ -1672,7 +1673,7 @@ buf_page_get_zip(
 	buf_page_t*	bpage;
 	mutex_t*	block_mutex;
 	ibool		must_read;
-	unsigned	access_time;
+	my_fast_timer_t	access_timer;
 
 #ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside());
@@ -1740,13 +1741,13 @@ err_exit:
 
 got_block:
 	must_read = buf_page_get_io_fix(bpage) == BUF_IO_READ;
-	access_time = buf_page_is_accessed(bpage);
+	buf_page_is_accessed(bpage, &access_timer);
 
 	buf_pool_mutex_exit();
 
 	mutex_exit(block_mutex);
 
-	buf_page_set_accessed_make_young(bpage, access_time);
+	buf_page_set_accessed_make_young(bpage, &access_timer);
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(!bpage->file_page_was_freed);
@@ -2027,7 +2028,7 @@ buf_page_get_gen(
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
 	buf_block_t*	block;
-	unsigned	access_time;
+	my_fast_timer_t	access_timer;
 	ulint		fix_type;
 	ibool		must_read;
 
@@ -2275,11 +2276,11 @@ wait_until_unfixed:
 
 	/* Check if this is the first access to the page */
 
-	access_time = buf_page_is_accessed(&block->page);
+	buf_page_is_accessed(&block->page, &access_timer);
 
 	buf_pool_mutex_exit();
 
-	buf_page_set_accessed_make_young(&block->page, access_time);
+	buf_page_set_accessed_make_young(&block->page, &access_timer);
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(!block->page.file_page_was_freed);
@@ -2332,7 +2333,7 @@ wait_until_unfixed:
 
 	mtr_memo_push(mtr, block, fix_type);
 
-	if (!access_time) {
+	if (!my_fast_timer_is_valid(&access_timer)) {
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
@@ -2362,7 +2363,7 @@ buf_page_optimistic_get_func(
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
-	unsigned	access_time;
+	my_fast_timer_t	access_timer;
 	ibool		success;
 	ulint		fix_type;
 
@@ -2387,8 +2388,8 @@ buf_page_optimistic_get_func(
 	This field is only used for heuristic purposes; it does not
 	affect correctness. */
 
-	access_time = buf_page_is_accessed(&block->page);
-	buf_page_set_accessed_make_young(&block->page, access_time);
+	buf_page_is_accessed(&block->page, &access_timer);
+	buf_page_set_accessed_make_young(&block->page, &access_timer);
 
 	ut_ad(!ibuf_inside()
 	      || ibuf_page(buf_block_get_space(block),
@@ -2440,7 +2441,7 @@ buf_page_optimistic_get_func(
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(block->page.file_page_was_freed == FALSE);
 #endif
-	if (UNIV_UNLIKELY(!access_time)) {
+	if (UNIV_UNLIKELY(!my_fast_timer_is_valid(&access_timer))) {
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
@@ -2505,16 +2506,20 @@ buf_page_get_known_nowait(
 		buf_pool_mutex_enter();
 		buf_LRU_make_block_young(&block->page);
 		buf_pool_mutex_exit();
-	} else if (!buf_page_is_accessed(&block->page)) {
-		/* Above, we do a dirty read on purpose, to avoid
-		mutex contention.  The field buf_page_t::access_time
-		is only used for heuristic purposes.  Writes to the
-		field must be protected by mutex, however. */
-		ulint	time_ms = ut_time_ms();
+	} else {
+		my_fast_timer_t timer;
+		buf_page_is_accessed(&block->page, &timer);
+		if (!my_fast_timer_is_valid(&timer)) {
+			/* Above, we do a dirty read on purpose, to avoid
+			mutex contention.  The field buf_page_t::access_time
+			is only used for heuristic purposes.  Writes to the
+			field must be protected by mutex, however. */
+			my_get_fast_timer(&timer);
 
-		buf_pool_mutex_enter();
-		buf_page_set_accessed(&block->page, time_ms);
-		buf_pool_mutex_exit();
+			buf_pool_mutex_enter();
+			buf_page_set_accessed(&block->page, &timer);
+			buf_pool_mutex_exit();
+		}
 	}
 
 	ut_ad(!ibuf_inside() || (mode == BUF_KEEP_OLD));
@@ -2651,7 +2656,7 @@ buf_page_init_low(
 	bpage->io_fix = BUF_IO_NONE;
 	bpage->buf_fix_count = 0;
 	bpage->freed_page_clock = 0;
-	bpage->access_time = 0;
+	my_fast_timer_invalidate(&(bpage->access_time));
 	bpage->newest_modification = 0;
 	bpage->oldest_modification = 0;
 	HASH_INVALIDATE(bpage, hash);
@@ -2947,7 +2952,8 @@ buf_page_create(
 	buf_frame_t*	frame;
 	buf_block_t*	block;
 	buf_block_t*	free_block	= NULL;
-	ulint		time_ms		= ut_time_ms();
+	my_fast_timer_t	timer;
+	my_get_fast_timer(&timer);
 
 	ut_ad(mtr);
 	ut_ad(space || !zip_size);
@@ -3031,7 +3037,7 @@ buf_page_create(
 		rw_lock_x_unlock(&block->lock);
 	}
 
-	buf_page_set_accessed(&block->page, time_ms);
+	buf_page_set_accessed(&block->page, &timer);
 
 	buf_pool_mutex_exit();
 

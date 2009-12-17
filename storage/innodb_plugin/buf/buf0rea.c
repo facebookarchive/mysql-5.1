@@ -320,13 +320,24 @@ buf_read_ahead_linear(
 	fail_count = 0;
 
 	for (i = low; i < high; i++) {
+		my_fast_timer_t bpage_accessed;
+
 		bpage = buf_page_hash_get(space, i);
 
-		if ((bpage == NULL) || !buf_page_is_accessed(bpage)) {
+		if (bpage) {
+			buf_page_is_accessed(bpage, &bpage_accessed);
+		} else {
+			my_fast_timer_invalidate(&bpage_accessed);
+		}
+
+		if (!my_fast_timer_is_valid(&bpage_accessed)) {
 			/* Not accessed */
 			fail_count++;
 
 		} else if (pred_bpage) {
+			my_fast_timer_t pred_bpage_accessed;
+			buf_page_is_accessed(pred_bpage, &pred_bpage_accessed);
+
 			/* Note that buf_page_is_accessed() returns
 			the time of the first access.  If some blocks
 			of the extent existed in the buffer pool at
@@ -335,9 +346,8 @@ buf_read_ahead_linear(
 			the latest access times were linear.  The
 			threshold (srv_read_ahead_factor) should help
 			a little against this. */
-			int res = ut_ulint_cmp(
-				buf_page_is_accessed(bpage),
-				buf_page_is_accessed(pred_bpage));
+			int res = my_fast_timer_cmp(&bpage_accessed,
+						    &pred_bpage_accessed);
 			/* Accesses not in the right order */
 			if (res != 0 && res != asc_or_desc) {
 				fail_count++;
@@ -350,7 +360,7 @@ buf_read_ahead_linear(
 			return(0);
 		}
 
-		if (bpage && buf_page_is_accessed(bpage)) {
+		if (my_fast_timer_is_valid(&bpage_accessed)) {
 			pred_bpage = bpage;
 		}
 	}

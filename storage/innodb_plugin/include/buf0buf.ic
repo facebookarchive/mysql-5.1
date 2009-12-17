@@ -78,10 +78,11 @@ buf_page_peek_if_too_old(
 		either the warm-up phase or an in-memory workload. */
 		return(FALSE);
 	} else if (buf_LRU_old_threshold_ms && bpage->old) {
-		unsigned	access_time = buf_page_is_accessed(bpage);
+		my_fast_timer_t access_time;
+		buf_page_is_accessed(bpage, &access_time);
 
-		if (access_time > 0
-		    && (ut_time_ms() - access_time)
+		if (my_fast_timer_is_valid(&access_time)
+		    && my_fast_timer_diff_now(&access_time, NULL) * 1000
 		    >= buf_LRU_old_threshold_ms) {
 			return(TRUE);
 		}
@@ -487,16 +488,16 @@ buf_page_set_old(
 
 /*********************************************************************//**
 Determine the time of first access of a block in the buffer pool.
-@return	ut_time_ms() at the time of first access, 0 if not accessed */
+Returns the fast timer at the time of first access, 0 if not accessed */
 UNIV_INLINE
-unsigned
+void
 buf_page_is_accessed(
 /*=================*/
-	const buf_page_t*	bpage)	/*!< in: control block */
+	const buf_page_t*	bpage,	/*!< in: control block */
+	my_fast_timer_t*	timer)	/*!< out: fast timer value */
 {
 	ut_ad(buf_page_in_file(bpage));
-
-	return(bpage->access_time);
+	my_fast_timer_set(timer, &(bpage->access_time));
 }
 
 /*********************************************************************//**
@@ -505,15 +506,15 @@ UNIV_INLINE
 void
 buf_page_set_accessed(
 /*==================*/
-	buf_page_t*	bpage,		/*!< in/out: control block */
-	ulint		time_ms)	/*!< in: ut_time_ms() */
+	buf_page_t*		bpage,	/*!< in/out: control block */
+	const my_fast_timer_t* timer)	/*!< in: fast timer value */
 {
 	ut_a(buf_page_in_file(bpage));
 	ut_ad(buf_pool_mutex_own());
 
-	if (!bpage->access_time) {
+	if (!my_fast_timer_is_valid(&bpage->access_time)) {
 		/* Make this the time of the first access. */
-		bpage->access_time = time_ms;
+		my_fast_timer_set(&(bpage->access_time), timer);
 	}
 }
 

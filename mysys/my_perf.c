@@ -38,30 +38,7 @@
 
 #include "my_perf.h"
 
-/* Reads the time stamp counter on an Intel processor */
-static __inline__
-ulonglong
-rdtsc(void)
-{
-  ulonglong tsc;
-
-#if defined(__GNUC__) && defined(__i386__)
-  __asm__ __volatile__ ("rdtsc" : "=A" (tsc));
-#elif defined(__GNUC__) && defined(__x86_64__)
-  uint high, low;
-  __asm__ __volatile__ ("rdtsc" : "=a"(low), "=d"(high));
-  tsc = (((ulonglong)high)<<32) | low;
-#else
-  tsc = 0;
-  assert(! "Aborted: rdtsc unimplemented for this configuration.");
-#endif
-
-  return tsc;
-}
-
-/* The inverse of the CPU frequency used to convert the time stamp counter
-   to seconds. */
-static double my_tsc_scale = 0;
+double my_tsc_scale = 0;
 
 void my_init_fast_timer(int seconds)
 {
@@ -75,38 +52,4 @@ void my_init_fast_timer(int seconds)
   } while (retry-- && delta < 0);
 
   my_tsc_scale = (delta > 0) ? (double)seconds / delta : 0;
-}
-
-void my_get_fast_timer(my_fast_timer_t* timer)
-{
-  *timer = rdtsc();
-}
-
-double my_fast_timer_diff_now(my_fast_timer_t const *in,
-                              my_fast_timer_t *out)
-{
-  my_fast_timer_t now = rdtsc();
-
-  ulonglong delta = now - *in;
-
-  if (out) {
-    *out = now;
-  }
-
-  return (delta > 0) ? my_tsc_scale * delta : 0;
-}
-
-double my_fast_timer_usecs()
-{
-  return 1000000.0 * my_tsc_scale * rdtsc();
-}
-
-ulong my_fast_timer_msecs()
-{
-  return (ulong)(1000.0 * my_tsc_scale * rdtsc());
-}
-
-double my_fast_timer_get_scale()
-{
-  return my_tsc_scale;
 }

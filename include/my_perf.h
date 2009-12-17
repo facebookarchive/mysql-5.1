@@ -46,31 +46,104 @@ C_MODE_START
 /* Type used for low-overhead timers */
 typedef ulonglong my_fast_timer_t;
 
+/* The inverse of the CPU frequency used to convert the time stamp counter
+   to seconds. */
+extern double my_tsc_scale;
+
 /* Initialize the fast timer at startup Counts timer ticks for given seconds.
  */
 extern void my_init_fast_timer(int seconds);
 
+/* Reads the time stamp counter on an Intel processor */
+static __inline__ ulonglong rdtsc(void)
+{
+  ulonglong tsc;
+
+#if defined(__GNUC__) && defined(__i386__)
+  __asm__ __volatile__ ("rdtsc" : "=A" (tsc));
+#elif defined(__GNUC__) && defined(__x86_64__)
+  uint high, low;
+  __asm__ __volatile__ ("rdtsc" : "=a"(low), "=d"(high));
+  tsc = (((ulonglong)high)<<32) | low;
+#else
+  tsc = 0;
+  assert(! "Aborted: rdtsc unimplemented for this configuration.");
+#endif
+
+  return tsc;
+}
+
 /* Returns a fast timer suitable for performance measurements. */
-extern void my_get_fast_timer(my_fast_timer_t* timer);
+static __inline__ void my_get_fast_timer(my_fast_timer_t* timer)
+{
+  *timer = rdtsc();
+}
+
+/* Returns the difference between stop and start in seconds. Returns 0
+   when stop < start. */
+static __inline__ double my_fast_timer_diff(my_fast_timer_t const *start,
+                                            my_fast_timer_t const *stop)
+{
+  if (*stop <= *start)
+    return 0;
+
+  ulonglong delta = *stop - *start;
+
+  return my_tsc_scale * delta;
+}
 
 /* Returns the difference between now and the time from 'in' in seconds.  Also
    optionally returns current fast timer in 'out'.  It is safe to pass the same
    struct for 'in' and 'out'. */
-extern double my_fast_timer_diff_now(my_fast_timer_t const *in,
-                                     my_fast_timer_t *out);
+static __inline__ double my_fast_timer_diff_now(my_fast_timer_t const *in,
+                                                my_fast_timer_t *out)
+{
+  my_fast_timer_t now = rdtsc();
 
-/* Return the time in microseconds since CPU started counting or 0 on an error.
-*/
-extern double my_fast_timer_usecs();
+  if (out) {
+    *out = now;
+  }
 
-/* Return the time in miliseconds since arbitrary epoch or 0 on an error.  This
-   will wrap and should only be used for heuristics and performance analysis.
-*/
-extern ulong my_fast_timer_msecs();
+  return my_fast_timer_diff(in, &now);
+}
+
+/* Returns -1, 1, or 0 if *x is less than, greater than, or equal to *y */
+static __inline__ int my_fast_timer_cmp(my_fast_timer_t const *x,
+                                        my_fast_timer_t const *y)
+{
+  if (*x < *y)
+    return -1;
+  if (*x > *y)
+    return 1;
+  else
+    return 0;
+}
+
+/* Sets a fast timer to an invalid value */
+static __inline__ void my_fast_timer_invalidate(my_fast_timer_t *timer)
+{
+  *timer = 0;
+}
+
+/* Sets a fast timer to the value of another */
+static __inline__ void my_fast_timer_set(my_fast_timer_t *dest,
+                                         my_fast_timer_t const *src)
+{
+  *dest = *src;
+}
+
+/* Returns true if the timer is valid */
+static __inline__ int my_fast_timer_is_valid(my_fast_timer_t const *timer)
+{
+  return (int)(*timer);
+}
 
 /* Return the fast timer scale factor.  If this value is 0 fast timers are
    not initialized. */
-extern double my_fast_timer_get_scale();
+static __inline__ double my_fast_timer_get_scale()
+{
+  return my_tsc_scale;
+}
 
 C_MODE_END
 

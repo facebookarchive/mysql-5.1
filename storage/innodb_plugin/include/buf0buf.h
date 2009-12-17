@@ -33,6 +33,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "hash0hash.h"
 #include "ut0byte.h"
 #include "page0types.h"
+#include "my_perf.h"
 #ifndef UNIV_HOTBACKUP
 #include "os0proc.h"
 
@@ -808,13 +809,14 @@ buf_page_set_old(
 	ibool		old);	/*!< in: old */
 /*********************************************************************//**
 Determine the time of first access of a block in the buffer pool.
-@return	ut_time_ms() at the time of first access, 0 if not accessed */
+Returns the fast timer at the time of first access, 0 if not accessed */
 UNIV_INLINE
-unsigned
+void
 buf_page_is_accessed(
 /*=================*/
-	const buf_page_t*	bpage)	/*!< in: control block */
-	__attribute__((nonnull, pure));
+	const buf_page_t*	bpage,	/*!< in: control block */
+	my_fast_timer_t*	timer)	/*!< out: fast timer value */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Flag a block accessed. */
 UNIV_INLINE
@@ -822,7 +824,7 @@ void
 buf_page_set_accessed(
 /*==================*/
 	buf_page_t*	bpage,		/*!< in/out: control block */
-	ulint		time_ms)	/*!< in: ut_time_ms() */
+	const my_fast_timer_t* timer)	/*!< in: fast timer value */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Gets the buf_block_t handle of a buffered file block if an uncompressed
@@ -1138,7 +1140,7 @@ struct buf_page_struct{
 					to read this for heuristic
 					purposes without holding any
 					mutex or latch */
-	unsigned	access_time:32;	/*!< time of first access, or
+	my_fast_timer_t	access_time;	/*!< time of first access, or
 					0 if the block was never accessed
 					in the buffer pool */
 	/* @} */
