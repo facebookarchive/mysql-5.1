@@ -100,11 +100,13 @@ static __inline__ double my_fast_timer_diff_now(my_fast_timer_t const *in,
 {
   my_fast_timer_t now = rdtsc();
 
+  double diff = my_fast_timer_diff(in, &now);
+
   if (out) {
     *out = now;
   }
 
-  return my_fast_timer_diff(in, &now);
+  return diff;
 }
 
 /* Returns -1, 1, or 0 if *x is less than, greater than, or equal to *y */
