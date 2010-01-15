@@ -4351,6 +4351,12 @@ fil_flush(
 				goto skip_flush;
 			}
 #endif
+#ifdef UNIV_LINUX
+			if (space->purpose == FIL_TABLESPACE
+			    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
+				goto skip_flush;
+			}
+#endif
 retry:
 			if (node->n_pending_flushes > 0) {
 				/* We want to avoid calling os_file_flush() on
