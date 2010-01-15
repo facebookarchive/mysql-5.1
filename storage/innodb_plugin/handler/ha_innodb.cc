@@ -2351,7 +2351,10 @@ innobase_alter_table_flags(
 {
 	return(HA_ONLINE_ADD_INDEX_NO_WRITES
 		| HA_ONLINE_DROP_INDEX_NO_WRITES
-		| HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES
+		/* Current InnoDB doesn't sort unique indexes along mysqld's order
+		   It is dangerous to use index. So it is disabled until
+		   the bug http://bugs.mysql.com/47622 */
+		/* | HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES */
 		| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES
 		| HA_ONLINE_ADD_PK_INDEX_NO_WRITES);
 }
@@ -9399,6 +9402,20 @@ ha_innobase::check_if_incompatible_data(
 		info->auto_increment_value != 0) {
 
 		return(COMPATIBLE_DATA_NO);
+	}
+
+	/* Renaming column asynchronizes dictionary between mysqld and InnoDB...
+	   If not synchronized, treat as COMPATIBLE_DATA_NO
+	   until the bug http://bugs.mysql.com/47621 is fixed officialily */
+	{
+		uint    i;
+		for (i = 0; i < table->s->fields; i++) {
+			if (table->field[i]->flags & FIELD_IN_ADD_INDEX
+			    && innobase_strcasecmp(table->field[i]->field_name,
+			    dict_table_get_col_name(prebuilt->table, i))) {
+				return(COMPATIBLE_DATA_NO);
+			}
+		}
 	}
 
 	/* Check if a column participating in a foreign key is being renamed.
