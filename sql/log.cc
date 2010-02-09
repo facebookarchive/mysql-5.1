@@ -4229,6 +4229,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 {
   THD *thd= event_info->thd;
   bool error= 1;
+  IO_CACHE *file;
   DBUG_ENTER("MYSQL_BIN_LOG::write(Log_event *)");
 
   if (thd->binlog_evt_union.do_union)
@@ -4257,8 +4258,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
   if (thd->binlog_flush_pending_rows_event(end_stmt))
     DBUG_RETURN(error);
 
-  pthread_mutex_lock(&LOCK_log);
-
   /*
      In most cases this is only called if 'is_open()' is true; in fact this is
      mostly called if is_open() *was* true a few instructions before, but it
@@ -4266,7 +4265,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
   */
   if (likely(is_open()))
   {
-    IO_CACHE *file= &log_file;
+    file= &log_file;
 #ifdef HAVE_REPLICATION
     /*
       In the future we need to add to the following if tests like
@@ -4277,7 +4276,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
 	(!binlog_filter->db_ok(local_db)))
     {
-      VOID(pthread_mutex_unlock(&LOCK_log));
       DBUG_RETURN(0);
     }
 #endif /* HAVE_REPLICATION */
@@ -4319,15 +4317,17 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         thd->binlog_start_trans_and_stmt();
         file= trans_log;
       }
-      /*
-        TODO as Mats suggested, for all the cases above where we write to
-        trans_log, it sounds unnecessary to lock LOCK_log. We should rather
-        test first if we want to write to trans_log, and if not, lock
-        LOCK_log.
-      */
     }
 #endif /* USING_TRANSACTIONS */
     DBUG_PRINT("info",("event type: %d",event_info->get_type_code()));
+
+    /*
+     *  only aquire lock if we are not writing to trans_log
+     */
+    if (file == &log_file)
+    {
+      pthread_mutex_lock(&LOCK_log);
+    }
 
     /*
       No check for auto events flag here - this write method should
@@ -4414,8 +4414,11 @@ err:
 
   if (event_info->flags & LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F)
     ++m_table_map_version;
-
-  pthread_mutex_unlock(&LOCK_log);
+  // only unlock if we initially locked
+  if (file == &log_file)
+  {
+    pthread_mutex_unlock(&LOCK_log);
+  }
   DBUG_RETURN(error);
 }
 
