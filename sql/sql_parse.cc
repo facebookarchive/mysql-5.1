@@ -7077,7 +7077,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
  *write_to_binlog= tmp_write_to_binlog;
- return result;
+  /*
+    If the query was killed then this function must fail.
+  */
+ return result || (thd ? thd->killed : 0);
 }
 
 
