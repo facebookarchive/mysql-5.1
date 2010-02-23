@@ -1,0 +1,1 @@
+--innodb_read_ahead_linear --innodb_buffer_pool_size=16m

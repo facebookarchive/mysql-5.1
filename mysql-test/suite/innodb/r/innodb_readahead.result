@@ -1,0 +1,39 @@
+create table readahead(i int primary key auto_increment, c char(250)) engine=innodb;
+insert into readahead values (null, 'a'), (null, 'b'), (null, 'c'), (null, 'd');
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+select count(*) from readahead;
+count(*)
+131072
+readahead
+1
+show variables like "innodb_read_ahead_linear";
+Variable_name	Value
+innodb_read_ahead_linear	ON
+set global innodb_read_ahead_linear=OFF;
+show variables like "innodb_read_ahead_linear";
+Variable_name	Value
+innodb_read_ahead_linear	OFF
+select count(*) from readahead;
+count(*)
+131072
+no_readahead
+1
+drop table readahead;
+set global innodb_read_ahead_linear=ON;
+show variables like "innodb_read_ahead_linear";
+Variable_name	Value
+innodb_read_ahead_linear	ON

@@ -328,6 +328,9 @@ UNIV_INTERN lint	srv_conc_n_threads	= 0;
 InnoDB */
 UNIV_INTERN ulint	srv_conc_n_waiting_threads = 0;
 
+/* Enables InnoDB readahead (prefetch) */
+UNIV_INTERN my_bool	srv_read_ahead_linear = TRUE;
+
 typedef struct srv_conc_slot_struct	srv_conc_slot_t;
 struct srv_conc_slot_struct{
 	os_event_t			event;		/*!< event to wait */

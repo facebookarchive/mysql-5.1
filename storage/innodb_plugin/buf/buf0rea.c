@@ -254,6 +254,11 @@ buf_read_ahead_linear(
 		= BUF_READ_AHEAD_LINEAR_AREA;
 	ulint		threshold;
 
+	if (!srv_read_ahead_linear) {
+		/* Disabled */
+		return(0);
+	}
+
 	if (UNIV_UNLIKELY(srv_startup_is_before_trx_rollback_phase)) {
 		/* No read-ahead to avoid thread deadlocks */
 		return(0);
@@ -468,6 +473,8 @@ buf_read_ahead_linear(
 			}
 		}
 	}
+
+	/* TODO(mcallaghan): skip code below when count == 0 */
 
 	/* In simulated aio we wake the aio handler threads only after
 	queuing all aio requests, in native aio the following call does

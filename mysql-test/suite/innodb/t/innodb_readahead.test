@@ -1,0 +1,45 @@
+#
+# Confirm readahead still works
+#
+
+-- source include/have_innodb.inc
+
+create table readahead(i int primary key auto_increment, c char(250)) engine=innodb;
+insert into readahead values (null, 'a'), (null, 'b'), (null, 'c'), (null, 'd');
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+insert into readahead select null,c from readahead;
+select count(*) from readahead;
+
+let $ra1 = query_get_value(show status like 'Innodb_buffer_pool_read_ahead', Value, 1);
+--disable_query_log
+eval select $ra1 > 0 as readahead;
+--enable_query_log
+
+show variables like "innodb_read_ahead_linear";
+set global innodb_read_ahead_linear=OFF;
+show variables like "innodb_read_ahead_linear";
+
+select count(*) from readahead;
+
+let $ra2 = query_get_value(show status like 'Innodb_buffer_pool_read_ahead', Value, 1);
+--disable_query_log
+eval select $ra2 - $ra1 = 0 as no_readahead;
+--enable_query_log
+
+drop table readahead;
+
+set global innodb_read_ahead_linear=ON;
+show variables like "innodb_read_ahead_linear";
