@@ -939,6 +939,7 @@ struct Query_cache_query_flags
 #define query_cache_store_query(A, B) query_cache.store_query(A, B)
 #define query_cache_destroy() query_cache.destroy()
 #define query_cache_result_size_limit(A) query_cache.result_size_limit(A)
+#define query_cache_set_skip_leading_comment(A) query_cache.set_skip_leading_comment(A)
 #define query_cache_init() query_cache.init()
 #define query_cache_resize(A) query_cache.resize(A)
 #define query_cache_set_min_res_unit(A) query_cache.set_min_res_unit(A)
@@ -958,6 +959,7 @@ struct Query_cache_query_flags
 #define query_cache_store_query(A, B)
 #define query_cache_destroy()
 #define query_cache_result_size_limit(A)
+#define query_cache_set_skip_leading_comment(A)
 #define query_cache_init()
 #define query_cache_resize(A)
 #define query_cache_set_min_res_unit(A)
@@ -1989,6 +1991,7 @@ extern ulong delayed_insert_threads, delayed_insert_writes;
 extern ulong delayed_rows_in_use,delayed_insert_errors;
 extern ulong slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
+extern my_bool query_cache_skip_leading_comment;
 extern ulong slow_launch_threads, slow_launch_time;
 extern ulong table_cache_size, table_def_size;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;

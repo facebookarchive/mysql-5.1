@@ -208,8 +208,9 @@ class sys_var_bool_ptr :public sys_var
 {
 public:
   my_bool *value;
-  sys_var_bool_ptr(sys_var_chain *chain, const char *name_arg, my_bool *value_arg)
-    :sys_var(name_arg),value(value_arg)
+  sys_var_bool_ptr(sys_var_chain *chain, const char *name_arg, my_bool *value_arg,
+                   sys_after_update_func after_update_arg= NULL)
+    :sys_var(name_arg, after_update_arg),value(value_arg)
   { chain_sys_var(chain); }
   bool check(THD *thd, set_var *var)
   {
@@ -519,10 +520,16 @@ public:
   { chain_sys_var(chain); }
   bool check(THD *thd, set_var *var)
   {
-    int ret= 0;
-    if (check_func)
-      ret= (*check_func)(thd, var);
-    return ret ? ret : check_enum(thd, var, enum_names);
+    /*
+      check_enum fails if the character representation supplied was wrong
+      or that the integer value was wrong or missing.
+    */
+    if (check_enum(thd, var, enum_names))
+      return TRUE;
+    else if ((check_func && (*check_func)(thd, var)))
+      return TRUE;
+    else
+      return FALSE;
   }
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);

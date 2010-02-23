@@ -921,6 +921,89 @@ Variable_name	Value
 Qcache_hits	7
 DROP TABLE t1;
 SET GLOBAL query_cache_size=0;
+SET GLOBAL query_cache_skip_leading_comment=0;
+set GLOBAL query_cache_size=1355776;
+create table t1 (a int);
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	19
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	7
+/* this should /* not be ignored */ select * from t1;
+a
+/* this should /* not be ignored */ select * from t1;
+a
+/* neither should / * this * / */ select * from t1;
+a
+/* neither should / * this * / */ select * from t1;
+a
+select * from t1;
+a
+select * from t1;
+a
+select /*! HIGH_PRIORITY */ * from t1;
+a
+select /* this should not be skipped */ * from t1;
+a
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	5
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	24
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	10
+/* this should not be ignored * / select * from t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/* this should not be ignored * / select * from t1' at line 1
+DROP TABLE t1;
+SET GLOBAL query_cache_size=0;
+SET GLOBAL query_cache_skip_leading_comment=1;
+set GLOBAL query_cache_size=1355776;
+create table t1 (a int);
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	24
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	10
+/* this should be ignored */ select * from t1;
+a
+/* this should /* be ignored */ select * from t1;
+a
+/* as should this * / */ select * from t1;
+a
+/* as should /* this */ select * from t1;
+a
+select * from t1;
+a
+select * from t1;
+a
+select /*! HIGH_PRIORITY */ * from t1;
+a
+select /* this should not be skipped */ * from t1;
+a
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	3
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	27
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	15
+/* this should not be ignored * / select * from t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/* this should not be ignored * / select * from t1' at line 1
+DROP TABLE t1;
+SET GLOBAL query_cache_size=0;
+SET GLOBAL query_cache_skip_leading_comment=0;
 SET SESSION query_cache_type = 2;
 create table t1(a int);
 select table_name from information_schema.tables

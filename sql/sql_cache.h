@@ -279,8 +279,11 @@ private:
   enum Cache_lock_status { UNLOCKED, LOCKED_NO_WAIT, LOCKED };
   Cache_lock_status m_cache_lock_status;
 
+  bool m_query_cache_is_disabled;
+
   void free_query_internal(Query_cache_block *point);
   void invalidate_table_internal(THD *thd, uchar *key, uint32 key_length);
+  void disable_query_cache(void) { m_query_cache_is_disabled= TRUE; }
 
 protected:
   /*
@@ -311,6 +314,7 @@ protected:
   uint def_query_hash_size, def_table_hash_size;
   
   uint mem_bin_num, mem_bin_steps;		// See at init_cache & find_bin
+  my_bool enable_skip_leading_comment;
 
   my_bool initialized;
 
@@ -415,6 +419,8 @@ protected:
                                               uint8 *tables_type);
 
   static my_bool ask_handler_allowance(THD *thd, TABLE_LIST *tables_used);
+
+  static char* skip_leading_comment(char *sql, uint *length);
  public:
 
   Query_cache(ulong query_cache_limit = ULONG_MAX,
@@ -422,6 +428,8 @@ protected:
 	      ulong min_result_data_size = QUERY_CACHE_MIN_RESULT_DATA_SIZE,
 	      uint def_query_hash_size = QUERY_CACHE_DEF_QUERY_HASH_SIZE,
 	      uint def_table_hash_size = QUERY_CACHE_DEF_TABLE_HASH_SIZE);
+
+  bool is_disabled(void) { return m_query_cache_is_disabled; }
 
   /* initialize cache (mutex) */
   void init();
@@ -431,6 +439,8 @@ protected:
   inline void result_size_limit(ulong limit){query_cache_limit=limit;}
   /* set minimal result data allocation unit size */
   ulong set_min_res_unit(ulong size);
+  /* enable skipping leading comment */
+  void set_skip_leading_comment(my_bool enable);
 
   /* register query in cache */
   void store_query(THD *thd, TABLE_LIST *used_tables);

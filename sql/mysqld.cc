@@ -774,6 +774,7 @@ int deny_severity = LOG_WARNING;
 #ifdef HAVE_QUERY_CACHE
 static ulong query_cache_limit= 0;
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
+my_bool query_cache_skip_leading_comment= 0;
 Query_cache query_cache;
 #endif
 #ifdef HAVE_SMEM
@@ -3783,6 +3784,7 @@ static int init_server_components()
 
   query_cache_result_size_limit(query_cache_limit);
   query_cache_set_min_res_unit(query_cache_min_res_unit);
+  query_cache_set_skip_leading_comment(query_cache_skip_leading_comment);
   query_cache_init();
   query_cache_resize(query_cache_size);
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
@@ -5713,6 +5715,7 @@ enum options_mysqld
   OPT_PRELOAD_BUFFER_SIZE,
   OPT_QUERY_CACHE_LIMIT, OPT_QUERY_CACHE_MIN_RES_UNIT, OPT_QUERY_CACHE_SIZE,
   OPT_QUERY_CACHE_TYPE, OPT_QUERY_CACHE_WLOCK_INVALIDATE, OPT_RECORD_BUFFER,
+  OPT_QUERY_CACHE_SKIP_LEADING_COMMENT,
   OPT_RECORD_RND_BUFFER, OPT_DIV_PRECINCREMENT, OPT_RELAY_LOG_SPACE_LIMIT,
   OPT_RELAY_LOG_PURGE,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
@@ -7004,6 +7007,11 @@ The minimum value for this variable is 4096.",
    (uchar**) &query_cache_min_res_unit, (uchar**) &query_cache_min_res_unit,
    0, GET_ULONG, REQUIRED_ARG, QUERY_CACHE_MIN_RESULT_DATA_SIZE,
    0, ULONG_MAX, 0, 1, 0},
+  {"query_cache_skip_leading_comment", OPT_QUERY_CACHE_SKIP_LEADING_COMMENT,
+   "Ignore a comment preceding a SELECT statement when checking the query cache.",
+   (uchar**) &query_cache_skip_leading_comment,
+   (uchar**) &query_cache_skip_leading_comment,
+    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
 #endif /*HAVE_QUERY_CACHE*/
   {"query_cache_size", OPT_QUERY_CACHE_SIZE,
    "The memory allocated to store results from old queries.",

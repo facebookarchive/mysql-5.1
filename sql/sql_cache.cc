@@ -857,7 +857,7 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
   DBUG_ENTER("query_cache_insert");
 
   /* See the comment on double-check locking usage above. */
-  if (net->query_cache_query == 0)
+  if (query_cache.is_disabled() || net->query_cache_query == 0)
     DBUG_VOID_RETURN;
 
   DBUG_EXECUTE_IF("wait_in_query_cache_insert",
@@ -918,7 +918,7 @@ void query_cache_abort(NET *net)
   THD *thd= current_thd;
 
   /* See the comment on double-check locking usage above. */
-  if (net->query_cache_query == 0)
+  if (query_cache.is_disabled() || net->query_cache_query == 0)
     DBUG_VOID_RETURN;
 
   if (query_cache.try_lock())
@@ -1054,10 +1054,12 @@ Query_cache::Query_cache(ulong query_cache_limit_arg,
    query_cache_limit(query_cache_limit_arg),
    queries_in_cache(0), hits(0), inserts(0), refused(0),
    total_blocks(0), lowmem_prunes(0),
+   m_query_cache_is_disabled(FALSE),
    min_allocation_unit(ALIGN_SIZE(min_allocation_unit_arg)),
    min_result_data_size(ALIGN_SIZE(min_result_data_size_arg)),
    def_query_hash_size(ALIGN_SIZE(def_query_hash_size_arg)),
    def_table_hash_size(ALIGN_SIZE(def_table_hash_size_arg)),
+   enable_skip_leading_comment(0),
    initialized(0)
 {
   ulong min_needed= (ALIGN_SIZE(sizeof(Query_cache_block)) +
@@ -1122,6 +1124,12 @@ ulong Query_cache::set_min_res_unit(ulong size)
   if (size < min_allocation_unit)
     size= min_allocation_unit;
   return (min_result_data_size= ALIGN_SIZE(size));
+}
+
+
+void Query_cache::set_skip_leading_comment(my_bool enable)
+{
+  enable_skip_leading_comment = enable;
 }
 
 
@@ -1236,11 +1244,18 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       DBUG_VOID_RETURN;
     }
 
+    char *sql = thd->query();
+    uint query_length = thd->query_length();
+
+    if (enable_skip_leading_comment)
+    {
+      sql = skip_leading_comment(sql, &query_length);
+    }
+
     /* Key is query + database + flag */
     if (thd->db_length)
     {
-      memcpy(thd->query() + thd->query_length() + 1, thd->db, 
-        thd->db_length);
+      memcpy(sql+query_length+1, thd->db, thd->db_length);
       DBUG_PRINT("qcache", ("database: %s  length: %u",
 			    thd->db, (unsigned) thd->db_length)); 
     }
@@ -1248,24 +1263,24 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     {
       DBUG_PRINT("qcache", ("No active database"));
     }
-    tot_length= thd->query_length() + thd->db_length + 1 +
+    tot_length= query_length + thd->db_length + 1 +
       QUERY_CACHE_FLAGS_SIZE;
     /*
       We should only copy structure (don't use it location directly)
       because of alignment issue
     */
-    memcpy((void*) (thd->query() + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
+    memcpy((void*)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
 	   &flags, QUERY_CACHE_FLAGS_SIZE);
 
     /* Check if another thread is processing the same query? */
     Query_cache_block *competitor = (Query_cache_block *)
-      hash_search(&queries, (uchar*) thd->query(), tot_length);
+      hash_search(&queries, (uchar*) sql, tot_length);
     DBUG_PRINT("qcache", ("competitor 0x%lx", (ulong) competitor));
     if (competitor == 0)
     {
       /* Query is not in cache and no one is working with it; Store it */
       Query_cache_block *query_block;
-      query_block= write_block_data(tot_length, (uchar*) thd->query(),
+      query_block= write_block_data(tot_length, (uchar*) sql,
 				    ALIGN_SIZE(sizeof(Query_cache_query)),
 				    Query_cache_block::QUERY, local_tables);
       if (query_block != 0)
@@ -1363,8 +1378,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 
     See also a note on double-check locking usage above.
   */
-  if (thd->locked_tables || thd->variables.query_cache_type == 0 ||
-      query_cache_size == 0)
+  if (is_disabled() || thd->locked_tables ||
+      thd->variables.query_cache_type == 0 || query_cache_size == 0)
     goto err;
 
   if (!thd->lex->safe_to_cache_query)
@@ -1408,6 +1423,11 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       DBUG_PRINT("qcache", ("The statement has a SQL_NO_CACHE directive"));
       goto err;
     }
+  }
+
+  if (enable_skip_leading_comment)
+  {
+    sql = skip_leading_comment(sql, &query_length);
   }
 
   /*
@@ -1673,6 +1693,8 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 			     my_bool using_transactions)
 {
   DBUG_ENTER("Query_cache::invalidate (table list)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
 
   using_transactions= using_transactions &&
     (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
@@ -1703,6 +1725,8 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
 {
   DBUG_ENTER("Query_cache::invalidate (changed table list)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
   THD *thd= current_thd;
   for (; tables_used; tables_used= tables_used->next)
   {
@@ -1728,8 +1752,10 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
 */
 void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
 {
-  THD *thd= current_thd;
   DBUG_ENTER("Query_cache::invalidate_locked_for_write");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
+  THD *thd= current_thd;
   for (; tables_used; tables_used= tables_used->next_local)
   {
     thd_proc_info(thd, "invalidating query cache entries (table)");
@@ -1750,6 +1776,8 @@ void Query_cache::invalidate(THD *thd, TABLE *table,
 			     my_bool using_transactions)
 {
   DBUG_ENTER("Query_cache::invalidate (table)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
   
   using_transactions= using_transactions &&
     (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
@@ -1767,6 +1795,8 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
 			     my_bool using_transactions)
 {
   DBUG_ENTER("Query_cache::invalidate (key)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
 
   using_transactions= using_transactions &&
     (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
@@ -1785,8 +1815,10 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
 
 void Query_cache::invalidate(char *db)
 {
-  bool restart= FALSE;
   DBUG_ENTER("Query_cache::invalidate (db)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
+  bool restart= FALSE;
 
   /*
     Lock the query cache and queue all invalidation attempts to avoid
@@ -1857,6 +1889,8 @@ void Query_cache::invalidate(char *db)
 void Query_cache::invalidate_by_MyISAM_filename(const char *filename)
 {
   DBUG_ENTER("Query_cache::invalidate_by_MyISAM_filename");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
 
   /* Calculate the key outside the lock to make the lock shorter */
   char key[MAX_DBKEY_LENGTH];
@@ -1872,6 +1906,8 @@ void Query_cache::invalidate_by_MyISAM_filename(const char *filename)
 void Query_cache::flush()
 {
   DBUG_ENTER("Query_cache::flush");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
   DBUG_EXECUTE_IF("wait_in_query_cache_flush1",
                   debug_wait_for_kill("wait_in_query_cache_flush1"););
 
@@ -1902,6 +1938,8 @@ void Query_cache::flush()
 void Query_cache::pack(ulong join_limit, uint iteration_limit)
 {
   DBUG_ENTER("Query_cache::pack");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
 
   /*
     If the entire qc is being invalidated we can bail out early
@@ -1960,6 +1998,14 @@ void Query_cache::init()
   pthread_cond_init(&COND_cache_status_changed, NULL);
   m_cache_lock_status= Query_cache::UNLOCKED;
   initialized = 1;
+  /*
+    If we explicitly turn off query cache from the command line query cache will
+    be disabled for the reminder of the server life time. This is because we
+    want to avoid locking the QC specific mutex if query cache isn't going to
+    be used.
+  */
+  if (global_system_variables.query_cache_type == 0)
+    query_cache.disable_query_cache();
   DBUG_VOID_RETURN;
 }
 
@@ -3537,6 +3583,70 @@ Query_cache::is_cacheable(THD *thd, uint32 query_len, char *query, LEX *lex,
 	      (int) thd->variables.query_cache_type));
   DBUG_RETURN(0);
 }
+
+
+/**
+  Skips a leading comment.
+  @param sql Input query to scan for a leading comment
+  @param [inout] Length of query scan, updated if a leading comment is found
+  @return Pointer into sql after leading comment or sql if none is found
+*/
+char* Query_cache::skip_leading_comment(char *sql, uint *length)
+{
+  char *scan = sql;
+  char *end = sql + *length;
+
+  // Skip leading whitespace
+  while (scan <= end - 4 && my_isspace(system_charset_info, *scan))
+  {
+    ++scan;
+  }
+
+  // Check for leading comment
+  if (scan <= end - 4 && scan[0] == '/' && scan[1] == '*' && scan[2] != '!')
+  {
+    scan += 2;
+
+    // Search for end of comment
+    for (;;)
+    {
+      scan = (char *)memchr(scan, '*', (end - scan) - 1);
+
+      // Leave unterminated comments alone
+      if (!scan)
+      {
+        return sql;
+      }
+
+      if (scan[1] == '/')
+      {
+        scan += 2;
+
+        // Skip whitespace after comment
+        while (scan < end && my_isspace(system_charset_info, *scan))
+        {
+          ++scan;
+        }
+
+        // Leave comment if sql contains nothing else
+        if (scan == end)
+        {
+          return sql;
+        }
+
+        *length -= (scan - sql);
+        return scan;
+      }
+      else
+      {
+        ++scan;
+      }
+    }
+  }
+
+  return sql;
+}
+
 
 /*
   Check handler allowance to cache query with these tables

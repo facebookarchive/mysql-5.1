@@ -648,6 +648,63 @@ DROP TABLE t1;
 SET GLOBAL query_cache_size=0;
 
 #
+# test leading comment skipping off
+#
+SET GLOBAL query_cache_skip_leading_comment=0;
+set GLOBAL query_cache_size=1355776;
+create table t1 (a int);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+/* this should /* not be ignored */ select * from t1;
+/* this should /* not be ignored */ select * from t1;
+/* neither should / * this * / */ select * from t1;
+/* neither should / * this * / */ select * from t1;
+select * from t1;
+select * from t1;
+# make sure we don't skip comments mid query
+select /*! HIGH_PRIORITY */ * from t1;
+select /* this should not be skipped */ * from t1;
+show status like "Qcache_queries_in_cache"; # should be 5
+show status like "Qcache_inserts";          # should have gone up by 5
+show status like "Qcache_hits";             # should have gone up by 3
+# test invalid comments
+--error 1064
+/* this should not be ignored * / select * from t1;
+# cleanup
+DROP TABLE t1;
+SET GLOBAL query_cache_size=0;
+
+#
+# test leading comment skipping on
+#
+SET GLOBAL query_cache_skip_leading_comment=1;
+set GLOBAL query_cache_size=1355776;
+create table t1 (a int);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+/* this should be ignored */ select * from t1;
+/* this should /* be ignored */ select * from t1;
+/* as should this * / */ select * from t1;
+/* as should /* this */ select * from t1;
+select * from t1;
+select * from t1;
+# make sure we don't skip comments mid query
+select /*! HIGH_PRIORITY */ * from t1;
+select /* this should not be skipped */ * from t1;
+show status like "Qcache_queries_in_cache"; # should be 3
+show status like "Qcache_inserts";          # should have gone up by 3
+show status like "Qcache_hits";             # should have gone up by 5
+# test invalid comments
+--error 1064
+/* this should not be ignored * / select * from t1;
+# cleanup
+DROP TABLE t1;
+SET GLOBAL query_cache_size=0;
+SET GLOBAL query_cache_skip_leading_comment=0;
+
+#
 # Information schema & query cache test
 #
 SET SESSION query_cache_type = 2;
