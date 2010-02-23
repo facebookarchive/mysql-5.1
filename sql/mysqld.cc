@@ -552,6 +552,10 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 uint  max_user_connections= 0;
+
+/* Added by patches */
+ulong reserved_super_connections=0;
+
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -5794,6 +5798,7 @@ enum options_mysqld
   OPT_FB_LIBMCC_WARN_MS,
   OPT_FB_ALWAYS_DIRTY,
 #endif
+  OPT_RESERVED_SUPER_CONNECTIONS,
 };
 
 
@@ -7171,6 +7176,10 @@ The minimum value for this variable is 4096.",
    "Causes updates to non-transactional engines using statement format to be written directly to binary log. Before using this option make sure that there are no dependencies between transactional and non-transactional tables such as in the statement INSERT INTO t_myisam SELECT * FROM t_innodb; otherwise, slaves may diverge from the master.",
    (uchar**) &global_system_variables.binlog_direct_non_trans_update, (uchar**) &max_system_variables.binlog_direct_non_trans_update, 0, GET_BOOL, NO_ARG, 0,
     0, 0, 0, 0, 0},
+  {"reserved_super_connections", OPT_RESERVED_SUPER_CONNECTIONS,
+   "The number of reserved connections for users with SUPER privileges.",
+   (uchar**) &reserved_super_connections, (uchar**) &reserved_super_connections,
+   0, GET_ULONG, REQUIRED_ARG, 10, 1, 50, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7807,6 +7816,9 @@ static int mysql_init_variables(void)
   opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   key_map_full.set_all();
+
+  /* Things added by patches */
+  reserved_super_connections=0;
 
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;

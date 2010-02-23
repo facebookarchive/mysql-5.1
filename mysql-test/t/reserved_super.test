@@ -1,0 +1,52 @@
+set global reserved_super_connections = 2;
+show variables like 'reserved_super_connections';
+show variables like 'max_connections';
+
+# mysqld allows max_connections + 1 threads to be created, so
+# this can create max_connections connections for SUPER in
+# addition to the pre-existing connection
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+connect (con4,localhost,root,,);
+connect (con5,localhost,root,,);
+--disable_query_log
+--error 1040
+connect (con6,localhost,root,,);
+--enable_query_log
+
+connection default;
+
+disconnect con1;
+disconnect con2;
+disconnect con3;
+disconnect con4;
+disconnect con5;
+
+# allow connection cleanup
+sleep 1;
+
+# create user 'foo'
+grant SELECT on test.* to 'foo'@'%';
+
+# 2 connections can be created
+connect (con1,127.0.0.1,foo,,);
+connect (con2,127.0.0.1,foo,,);
+
+# this fails because non-SUPER users cannot raise the
+# connection count above max_connections - reserved_super_connections
+# which is 3 and there are 2 non-SUPER connections and the
+# default connection.
+--disable_query_log
+--error 1040
+connect (con3,127.0.0.1,foo,,);
+--enable_query_log
+
+disconnect con1;
+disconnect con2;
+
+connection default;
+drop user 'foo'@'%';
+
+set global reserved_super_connections = 10;

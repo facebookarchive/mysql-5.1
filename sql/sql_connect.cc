@@ -400,10 +400,14 @@ check_user(THD *thd, enum enum_server_command command,
                   thd->main_security_ctx.master_access,
                   (thd->db ? thd->db : "*none*")));
 
+//  (max_connections - min(max_connections, reserved_super_connections)) +
+
       if (check_count)
       {
+        ulong use_max_conns = max_connections -
+            min(max_connections, reserved_super_connections);
         pthread_mutex_lock(&LOCK_connection_count);
-        bool count_ok= connection_count <= max_connections ||
+        bool count_ok= connection_count <= use_max_conns ||
                        (thd->main_security_ctx.master_access & SUPER_ACL);
         VOID(pthread_mutex_unlock(&LOCK_connection_count));
 

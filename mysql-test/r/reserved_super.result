@@ -1,0 +1,12 @@
+set global reserved_super_connections = 2;
+show variables like 'reserved_super_connections';
+Variable_name	Value
+reserved_super_connections	2
+show variables like 'max_connections';
+Variable_name	Value
+max_connections	5
+ERROR HY000: Too many connections
+grant SELECT on test.* to 'foo'@'%';
+ERROR 08004: Too many connections
+drop user 'foo'@'%';
+set global reserved_super_connections = 10;

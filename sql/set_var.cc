@@ -416,6 +416,8 @@ static sys_var_thd_ulong	sys_max_sort_length(&vars, "max_sort_length",
 static sys_var_thd_ulong	sys_max_sp_recursion_depth(&vars, "max_sp_recursion_depth",
                                                    &SV::max_sp_recursion_depth);
 static sys_var_max_user_conn   sys_max_user_connections(&vars, "max_user_connections");
+static sys_var_long_ptr        sys_reserved_super_connections(&vars, "reserved_super_connections",
+                                                              &reserved_super_connections);
 static sys_var_thd_ulong	sys_max_tmp_tables(&vars, "max_tmp_tables",
 					   &SV::max_tmp_tables);
 static sys_var_long_ptr	sys_max_write_lock_count(&vars, "max_write_lock_count",
