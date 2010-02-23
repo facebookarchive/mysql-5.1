@@ -1113,7 +1113,7 @@ retry:
 	/* If the transaction is not holding resources, let it sleep
 	for SRV_THREAD_SLEEP_DELAY microseconds, and try again then */
 
-	if (!has_slept && !trx->has_search_latch
+	if (SRV_THREAD_SLEEP_DELAY && !has_slept && !trx->has_search_latch
 	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
 
 		has_slept = TRUE; /* We let it sleep only once to avoid
@@ -1130,9 +1130,7 @@ retry:
 		situations of lots of thread switches. Simply put some
 		threads aside for a while to reduce the number of thread
 		switches. */
-		if (SRV_THREAD_SLEEP_DELAY > 0) {
-			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
-		}
+		os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
 
 		trx->op_info = "";
 

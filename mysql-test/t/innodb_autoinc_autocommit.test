@@ -1,0 +1,32 @@
+# Simple test for autoincrement with and without autocommit
+
+-- source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists autoinno, noautoinno;
+--enable_warnings
+
+create table autoinno(i int not null auto_increment primary key) engine=innodb;
+create table noautoinno(i int not null primary key) engine=innodb;
+
+set autocommit=1;
+insert into autoinno values (null);
+insert into noautoinno values (1);
+
+set autocommit=0;
+
+begin;
+insert into autoinno values (null);
+insert into noautoinno values (2);
+rollback;
+
+begin;
+insert into autoinno values (null);
+insert into noautoinno values (2);
+commit;
+
+select * from autoinno;
+select * from noautoinno;
+
+drop table autoinno, noautoinno;
+
