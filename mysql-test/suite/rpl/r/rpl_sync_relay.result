@@ -1,0 +1,88 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop table if exists sync_relay_table;
+create table sync_relay_table(i int) engine=innodb;
+
+Should display 1
+
+show variables like 'sync_relay_info';
+Variable_name	Value
+sync_relay_info	1
+
+Should display 2
+
+set global sync_relay_info=2;
+show variables like 'sync_relay_info';
+Variable_name	Value
+sync_relay_info	2
+
+Should display 1
+
+set global sync_relay_info=1;
+show variables like 'sync_relay_info';
+Variable_name	Value
+sync_relay_info	1
+
+Confirm 1 sync per autocommit
+
+insert into sync_relay_table values (1), (2), (3), (4);
+insert into sync_relay_table values (1), (2), (3), (4);
+num_syncs	...must be 2
+2	...must be 2
+select count(*), i from sync_relay_table group by i order by i;
+count(*)	i
+2	1
+2	2
+2	3
+2	4
+
+Confirm 1 sync per commit
+
+begin;
+insert into sync_relay_table values (1), (2), (3), (4);
+insert into sync_relay_table values (1), (2), (3), (4);
+commit;
+begin;
+insert into sync_relay_table values (1), (2), (3), (4);
+insert into sync_relay_table values (1), (2), (3), (4);
+commit;
+num_syncs	...must be 2
+2	...must be 2
+select count(*), i from sync_relay_table group by i order by i;
+count(*)	i
+6	1
+6	2
+6	3
+6	4
+
+Confirm 0 syncs with sync_relay_info = 0
+
+set global sync_relay_info=0;
+begin;
+insert into sync_relay_table values (1), (2), (3), (4);
+commit;
+num_syncs	...must be 0
+0	...must be 0
+select count(*), i from sync_relay_table group by i order by i;
+count(*)	i
+7	1
+7	2
+7	3
+7	4
+
+Confirm sync every other commit
+
+set global sync_relay_info=2;
+begin;
+insert into sync_relay_table values (1), (2), (3), (4);
+commit;
+begin;
+insert into sync_relay_table values (1), (2), (3), (4);
+commit;
+set global sync_relay_info=1;
+num_syncs	...must be 1
+1	...must be 1

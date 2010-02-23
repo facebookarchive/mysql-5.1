@@ -1,0 +1,147 @@
+# Test my.cnf variable sync_relay_info
+
+# Initialize innodb and replication
+--source include/have_innodb.inc
+--source include/master-slave.inc
+
+# Create the test table
+connection master;
+
+--disable_warnings
+drop table if exists sync_relay_table;
+create table sync_relay_table(i int) engine=innodb;
+--enable_warnings
+
+#
+# Check set and show support on the slave
+#
+sync_slave_with_master;
+connection slave;
+
+--echo
+--echo Should display 1
+--echo
+show variables like 'sync_relay_info';
+
+--echo
+--echo Should display 2
+--echo
+set global sync_relay_info=2;
+show variables like 'sync_relay_info';
+
+--echo
+--echo Should display 1
+--echo
+set global sync_relay_info=1;
+show variables like 'sync_relay_info';
+
+#
+# Confirm that 1 sync is done per autocommit insert statement
+#
+--echo
+--echo Confirm 1 sync per autocommit
+--echo
+
+let $sync_count1 = query_get_value(show status like 'Slave_relay_info_synced' , Value, 1);
+
+connection master;
+insert into sync_relay_table values (1), (2), (3), (4);
+insert into sync_relay_table values (1), (2), (3), (4);
+
+sync_slave_with_master;
+connection slave;
+
+let $sync_count2 = query_get_value(show status like 'Slave_relay_info_synced' , Value, 1);
+--disable_query_log
+eval select $sync_count2 - $sync_count1 as 'num_syncs', '...must be 2';
+--enable_query_log
+
+select count(*), i from sync_relay_table group by i order by i;
+
+#
+# Confirm that 1 sync is done per commit
+#
+--echo
+--echo Confirm 1 sync per commit
+--echo
+
+connection master;
+
+begin;
+insert into sync_relay_table values (1), (2), (3), (4);
+insert into sync_relay_table values (1), (2), (3), (4);
+commit;
+
+begin;
+insert into sync_relay_table values (1), (2), (3), (4);
+insert into sync_relay_table values (1), (2), (3), (4);
+commit;
+
+sync_slave_with_master;
+connection slave;
+
+let $sync_count3 = query_get_value(show status like 'Slave_relay_info_synced' , Value, 1);
+--disable_query_log
+eval select $sync_count3 - $sync_count2 as 'num_syncs', '...must be 2';
+--enable_query_log
+
+select count(*), i from sync_relay_table group by i order by i;
+
+#
+# Confirm that no syncs are done with sync_relay_info=0
+#
+--echo
+--echo Confirm 0 syncs with sync_relay_info = 0
+--echo
+
+set global sync_relay_info=0;
+
+connection master;
+begin;
+insert into sync_relay_table values (1), (2), (3), (4);
+commit;
+
+sync_slave_with_master;
+connection slave;
+
+let $sync_count4 = query_get_value(show status like 'Slave_relay_info_synced' , Value, 1);
+--disable_query_log
+eval select $sync_count4 - $sync_count3 as 'num_syncs', '...must be 0';
+--enable_query_log
+
+select count(*), i from sync_relay_table group by i order by i;
+
+#
+# Confirm that 1 sync is done per 2 commits with sync_relay_info=2
+#
+--echo
+--echo Confirm sync every other commit
+--echo
+
+set global sync_relay_info=2;
+
+connection master;
+begin;
+insert into sync_relay_table values (1), (2), (3), (4);
+commit;
+begin;
+insert into sync_relay_table values (1), (2), (3), (4);
+commit;
+
+sync_slave_with_master;
+connection slave;
+set global sync_relay_info=1;
+
+let $sync_count5 = query_get_value(show status like 'Slave_relay_info_synced' , Value, 1);
+--disable_query_log
+eval select $sync_count5 - $sync_count4 as 'num_syncs', '...must be 1';
+
+#
+# Cleanup
+#
+
+connection master;
+set global sync_relay_info=0;
+drop table sync_relay_table;
+sync_slave_with_master;
+

@@ -5788,6 +5788,7 @@ enum options_mysqld
   OPT_SLAVE_EXEC_MODE,
   OPT_GENERAL_LOG_FILE,
   OPT_SLOW_QUERY_LOG_FILE,
+  OPT_SYNC_RELAY_INFO,
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
   OPT_DEFAULT_CHARACTER_SET_OLD,
@@ -7188,6 +7189,11 @@ The minimum value for this variable is 4096.",
    "The number of reserved connections for users with SUPER privileges.",
    (uchar**) &reserved_super_connections, (uchar**) &reserved_super_connections,
    0, GET_ULONG, REQUIRED_ARG, 10, 1, 50, 0, 1, 0},
+  {"sync_relay_info", OPT_SYNC_RELAY_INFO,
+   "Synchronously flush relay-log.info writes to disk after every nth write. "
+   "Use 0 (default) to disable synchronous flushing.",
+   (uchar**) &sync_relay_info_period, (uchar**) &sync_relay_info_period, 0, GET_ULONG,
+   REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7639,6 +7645,7 @@ SHOW_VAR status_vars[]= {
   {"Select_scan",	       (char*) offsetof(STATUS_VAR, select_scan_count), SHOW_LONG_STATUS},
   {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables, SHOW_LONG},
 #ifdef HAVE_REPLICATION
+  {"Slave_relay_info_synced",  (char*) &sync_relay_info_events, SHOW_LONG},
   {"Slave_retried_transactions",(char*) &show_slave_retried_trans, SHOW_FUNC},
   {"Slave_running",            (char*) &show_slave_running,     SHOW_FUNC},
 #endif
@@ -7827,6 +7834,8 @@ static int mysql_init_variables(void)
 
   /* Things added by patches */
   reserved_super_connections=0;
+  sync_relay_info_period= 0;
+  sync_relay_info_events= 0;
 
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;

@@ -2143,6 +2143,9 @@ extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
 
+/* Added for patches */
+extern ulong sync_relay_info_period, sync_relay_info_events;
+
 extern int orig_argc;
 extern char **orig_argv;
 extern const char *load_default_groups[];

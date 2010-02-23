@@ -69,6 +69,15 @@ ulonglong relay_log_space_limit = 0;
 int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
 int events_till_abort = -1;
 
+/* Determines when relay-log.info writes are forced to disk. */
+static int sync_relay_info_counter= 0;
+
+/* Number of times relay-log.info writes have been forced to disk. */
+ulong sync_relay_info_events= 0;
+
+/* Sync every sync_relay_info_period writes to relay-log.info */
+ulong sync_relay_info_period= 0;
+
 enum enum_slave_reconnect_actions
 {
   SLAVE_RECON_ACT_REG= 0,
@@ -3964,6 +3973,19 @@ bool flush_relay_log_info(Relay_log_info* rli)
     error=1;
   if (flush_io_cache(file))
     error=1;
+
+  if (!error &&
+      sync_relay_info_period &&
+      ++sync_relay_info_counter >= sync_relay_info_period)
+  {
+    sync_relay_info_counter= 0;
+    sync_relay_info_events++;
+    error= my_sync(rli->info_file.file, MYF(MY_WME));
+    if (error)
+    {
+      sql_print_error("Error when forcing relay-log.info writes to disk");
+    }
+  }
 
   /* Flushing the relay log is done by the slave I/O thread */
   DBUG_RETURN(error);
