@@ -167,13 +167,13 @@ Q.E.D. */
 
 /** The number of iterations in the mutex_spin_wait() spin loop.
 Intended for performance monitoring. */
-static ib_int64_t	mutex_spin_round_count		= 0;
+ib_int64_t	mutex_spin_round_count		= 0;
 /** The number of mutex_spin_wait() calls.  Intended for
 performance monitoring. */
-static ib_int64_t	mutex_spin_wait_count		= 0;
+ib_int64_t	mutex_spin_wait_count		= 0;
 /** The number of OS waits in mutex_spin_wait().  Intended for
 performance monitoring. */
-static ib_int64_t	mutex_os_wait_count		= 0;
+ib_int64_t	mutex_os_wait_count		= 0;
 /** The number of mutex_exit() calls. Intended for performance
 monitoring. */
 UNIV_INTERN ib_int64_t	mutex_exit_count		= 0;
@@ -1401,14 +1401,17 @@ sync_print_wait_info(
 	fprintf(file,
 		"Mutex spin waits %llu, rounds %llu, OS waits %llu\n"
 		"RW-shared spins %llu, OS waits %llu;"
-		" RW-excl spins %llu, OS waits %llu\n",
+		" RW-excl spins %llu, OS waits %llu\n"
+		"RW spin rounds: shared %llu, excl %llu\n",
 		mutex_spin_wait_count,
 		mutex_spin_round_count,
 		mutex_os_wait_count,
 		rw_s_spin_wait_count,
 		rw_s_os_wait_count,
 		rw_x_spin_wait_count,
-		rw_x_os_wait_count);
+		rw_x_os_wait_count,
+		rw_s_spin_round_count,
+		rw_x_spin_round_count);
 
 	fprintf(file,
 		"Spin rounds per wait: %.2f mutex, %.2f RW-shared, "

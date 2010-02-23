@@ -1950,6 +1950,18 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
 
+	export_vars.innodb_mutex_os_waits = mutex_os_wait_count;
+	export_vars.innodb_mutex_spin_rounds = mutex_spin_round_count;
+	export_vars.innodb_mutex_spin_waits = mutex_spin_wait_count;
+
+	export_vars.innodb_rwlock_s_os_waits = rw_s_os_wait_count;
+	export_vars.innodb_rwlock_s_spin_rounds = rw_s_spin_round_count;
+	export_vars.innodb_rwlock_s_spin_waits = rw_s_spin_wait_count;
+
+	export_vars.innodb_rwlock_x_os_waits = rw_x_os_wait_count;
+	export_vars.innodb_rwlock_x_spin_rounds = rw_x_spin_round_count;
+	export_vars.innodb_rwlock_x_spin_waits = rw_x_spin_wait_count;
+
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 

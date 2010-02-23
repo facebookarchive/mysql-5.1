@@ -616,6 +616,9 @@ struct export_var_struct{
 	ulint innodb_log_waits;			/*!< srv_log_waits */
 	ulint innodb_log_write_requests;	/*!< srv_log_write_requests */
 	ulint innodb_log_writes;		/*!< srv_log_writes */
+	ulint innodb_mutex_os_waits;		/*!< mutex_os_wait_count */
+	ulint innodb_mutex_spin_rounds;		/*!< mutex_spin_round_count */
+	ulint innodb_mutex_spin_waits;		/*!< mutex_spin_wait_count */
 	ulint innodb_os_log_written;		/*!< srv_os_log_written */
 	ulint innodb_os_log_fsyncs;		/*!< fil_n_log_flushes */
 	ulint innodb_os_log_pending_writes;	/*!< srv_os_log_pending_writes */
@@ -637,6 +640,12 @@ struct export_var_struct{
 	ulint innodb_rows_inserted;		/*!< srv_n_rows_inserted */
 	ulint innodb_rows_updated;		/*!< srv_n_rows_updated */
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
+	ulint innodb_rwlock_s_os_waits;		/*!< rw_s_os_wait_count */
+	ulint innodb_rwlock_s_spin_rounds;	/*!< rw_s_spin_round_count */
+	ulint innodb_rwlock_s_spin_waits;	/*!< rw_s_spin_wait_count */
+	ulint innodb_rwlock_x_os_waits;		/*!< rw_x_os_wait_count */
+	ulint innodb_rwlock_x_spin_rounds;	/*!< rw_x_spin_round_count */
+	ulint innodb_rwlock_x_spin_waits;	/*!< rw_x_spin_wait_count */
 };
 
 /** The server system struct */
