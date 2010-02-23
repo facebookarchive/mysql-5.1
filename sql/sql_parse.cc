@@ -5054,7 +5054,6 @@ finish:
     if ((key_cnt > 0) &&
         (opt_fb_always_dirty || (thd->system_thread & SYSTEM_THREAD_SLAVE_SQL)) &&
         !res && !thd->is_error()) {
-      int my_res;
       my_fast_timer_t timer;
       double mcc_duration_us;
       nstring_t *key_list = new nstring_t[key_cnt];
@@ -5084,9 +5083,15 @@ finish:
       }
       for (const mcc_err_t *err = mcc_get_last_err(thd->mcHandle); (err != NULL);
           err = mcc_get_last_err(thd->mcHandle)) {
-        sql_print_error("libmcc error type: %d code: %d file: %s:%d message: %s",
-            err->type, err->code, err->source, err->lineno,
-            err->message.str);
+        if (opt_fb_libmcc_verbose) {
+          sql_print_error("libmcc error type: %d code: %x file: %s:%d "
+                          "message: %s",
+                          err->type,
+                          err->code,
+                          err->source,
+                          err->lineno,
+                          err->message.str);
+        }
         mcc_clear_err(thd->mcHandle, err);
         fb_libmcc_errs++;
       }

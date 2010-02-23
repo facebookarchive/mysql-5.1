@@ -410,9 +410,11 @@ static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 #ifdef LIBMEMCACHE
 mcc_handle_t mcHandle= NULL;
 my_bool opt_fb_enable_memcache;
+ulong opt_fb_libmcc_server_retry_tmo_ms;
 uint opt_fb_libmcc_warn_ms;
 uint opt_fb_libmcc_warn_us;
 my_bool opt_fb_always_dirty;
+my_bool opt_fb_libmcc_verbose;
 #endif
 
 bool opt_update_log, opt_bin_log, opt_ignore_builtin_innodb= 0;
@@ -692,8 +694,8 @@ char *opt_logname, *opt_slow_logname;
 /* Static variables */
 
 #ifdef LIBMEMCACHE
-static char *opt_fb_mcproxy_server = 0;
-static uint opt_fb_mcproxy_port, opt_fb_libmcc_tmo_ms;
+char *opt_fb_mcproxy_server = 0;
+uint opt_fb_mcproxy_port, opt_fb_libmcc_tmo_ms;
 #endif
 
 static bool kill_in_progress, segfaulted;
@@ -5781,15 +5783,16 @@ enum options_mysqld
   OPT_SLOW_QUERY_LOG_FILE,
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
-  OPT_DEFAULT_CHARACTER_SET_OLD
+  OPT_DEFAULT_CHARACTER_SET_OLD,
 #ifdef LIBMEMCACHE
-  ,
   OPT_FB_ENABLE_MEMCACHE,
   OPT_FB_MCPROXY_SERVER,
   OPT_FB_MCPROXY_PORT,
+  OPT_FB_LIBMCC_SERVER_RETRY_TMO_MS,
   OPT_FB_LIBMCC_TMO_MS,
+  OPT_FB_LIBMCC_VERBOSE,
   OPT_FB_LIBMCC_WARN_MS,
-  OPT_FB_ALWAYS_DIRTY
+  OPT_FB_ALWAYS_DIRTY,
 #endif
 };
 
@@ -5987,9 +5990,17 @@ struct my_option my_long_options[] =
   {"fb-always-dirty", OPT_FB_ALWAYS_DIRTY, "dirty mc keys from any thread",
    (uchar**) &opt_fb_always_dirty, (uchar**) &opt_fb_always_dirty,
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"fb-libmcc-tmo-ms", OPT_FB_LIBMCC_TMO_MS, "libmcc timeout in ms",
+  {"fb-libmcc-server-retry-tmo-ms", OPT_FB_LIBMCC_SERVER_RETRY_TMO_MS,
+    "libmcc retry serverdown timeout in ms",
+   (uchar**) &opt_fb_libmcc_server_retry_tmo_ms,
+   (uchar**) &opt_fb_libmcc_server_retry_tmo_ms,
+   0, GET_UINT, OPT_ARG, MCC_SERVER_RETRY_TMO_MS_DEFAULT, 0, 0, 0, 0, 0},
+  {"fb-libmcc-timeout-ms", OPT_FB_LIBMCC_TMO_MS, "libmcc timeout in ms",
    (uchar**) &opt_fb_libmcc_tmo_ms, (uchar**) &opt_fb_libmcc_tmo_ms,
    0, GET_UINT, OPT_ARG, 50, 0, 0, 0, 0, 0},
+  {"fb-libmcc-vebose", OPT_FB_LIBMCC_VERBOSE, "libmcc verbose error messages",
+   (uchar**) &opt_fb_libmcc_verbose, (uchar**) &opt_fb_libmcc_verbose,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"fb-libmcc-warn-ms", OPT_FB_LIBMCC_WARN_MS, "libmcc warning threshold in ms",
    (uchar**) &opt_fb_libmcc_warn_ms, (uchar**) &opt_fb_libmcc_warn_ms,
    0, GET_UINT, OPT_ARG, 5, 0, 0, 0, 0, 0},
@@ -7984,6 +7995,13 @@ static int mysql_init_variables(void)
   (void) strmake(mysql_home, tmpenv, sizeof(mysql_home)-1);
 #endif
 
+#ifdef LIBMEMCACHE
+  opt_fb_always_dirty = FALSE;
+  opt_fb_enable_memcache = FALSE;
+  opt_fb_libmcc_verbose = FALSE;
+  opt_fb_libmcc_server_retry_tmo_ms = MCC_SERVER_RETRY_TMO_MS_DEFAULT; /* 60s */
+#endif
+
   return 0;
 }
 
@@ -9080,6 +9098,10 @@ void init_mcc(void)
 
     // The configuration is declared in ms, but track internally in us.
     opt_fb_libmcc_warn_us = opt_fb_libmcc_warn_ms * 1000;
+
+    // By default, libmcc will wait 60 seconds to retry a server after
+    // it has been marked down which is too long.
+    mcc_set_server_retry_tmo(mcHandle, opt_fb_libmcc_server_retry_tmo_ms);
   }
 }
 #endif
