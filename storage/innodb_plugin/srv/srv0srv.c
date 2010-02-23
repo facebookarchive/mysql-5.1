@@ -1921,7 +1921,48 @@ srv_export_innodb_status(void)
 	export_vars.innodb_have_atomic_builtins = 0;
 #endif
 	export_vars.innodb_page_size = UNIV_PAGE_SIZE;
+	export_vars.innodb_log_checkpoints= log_sys->n_checkpoints;
+	export_vars.innodb_log_syncs= log_sys->n_syncs;
 	export_vars.innodb_log_waits = srv_log_waits;
+
+	export_vars.innodb_log_write_archive=
+		log_sys->log_sync_callers[LOG_WRITE_FROM_LOG_ARCHIVE];
+	export_vars.innodb_log_write_background_async=
+		log_sys->log_sync_callers[LOG_WRITE_FROM_BACKGROUND_ASYNC];
+	export_vars.innodb_log_write_background_sync=
+		log_sys->log_sync_callers[LOG_WRITE_FROM_BACKGROUND_SYNC];
+	export_vars.innodb_log_write_checkpoint_async=
+		log_sys->log_sync_callers[LOG_WRITE_FROM_CHECKPOINT_ASYNC];
+	export_vars.innodb_log_write_checkpoint_sync=
+		log_sys->log_sync_callers[LOG_WRITE_FROM_CHECKPOINT_SYNC];
+	export_vars.innodb_log_write_commit_async=
+		log_sys->log_sync_callers[LOG_WRITE_FROM_COMMIT_ASYNC];
+	export_vars.innodb_log_write_commit_sync=
+		log_sys->log_sync_callers[LOG_WRITE_FROM_COMMIT_SYNC];
+	export_vars.innodb_log_write_flush_dirty=
+		log_sys->log_sync_callers[LOG_WRITE_FROM_DIRTY_BUFFER];
+	export_vars.innodb_log_write_other=
+		log_sys->log_sync_callers[LOG_WRITE_FROM_INTERNAL];
+
+	export_vars.innodb_log_sync_archive=
+		log_sys->log_sync_syncers[LOG_WRITE_FROM_LOG_ARCHIVE];
+	export_vars.innodb_log_sync_background_async=
+		log_sys->log_sync_syncers[LOG_WRITE_FROM_BACKGROUND_ASYNC];
+	export_vars.innodb_log_sync_background_sync=
+		log_sys->log_sync_syncers[LOG_WRITE_FROM_BACKGROUND_SYNC];
+	export_vars.innodb_log_sync_checkpoint_async=
+		log_sys->log_sync_syncers[LOG_WRITE_FROM_CHECKPOINT_ASYNC];
+	export_vars.innodb_log_sync_checkpoint_sync=
+		log_sys->log_sync_syncers[LOG_WRITE_FROM_CHECKPOINT_SYNC];
+	export_vars.innodb_log_sync_commit_async=
+		log_sys->log_sync_syncers[LOG_WRITE_FROM_COMMIT_ASYNC];
+	export_vars.innodb_log_sync_commit_sync=
+		log_sys->log_sync_syncers[LOG_WRITE_FROM_COMMIT_SYNC];
+	export_vars.innodb_log_sync_flush_dirty=
+		log_sys->log_sync_syncers[LOG_WRITE_FROM_DIRTY_BUFFER];
+	export_vars.innodb_log_sync_other=
+		log_sys->log_sync_syncers[LOG_WRITE_FROM_INTERNAL];
+
 	export_vars.innodb_os_log_written = srv_os_log_written;
 	export_vars.innodb_os_log_fsyncs = fil_n_log_flushes;
 	export_vars.innodb_os_log_pending_fsyncs = fil_n_pending_log_flushes;

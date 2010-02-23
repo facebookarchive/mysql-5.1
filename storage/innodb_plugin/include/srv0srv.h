@@ -613,9 +613,29 @@ struct export_var_struct{
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
 	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
 	ibool innodb_have_atomic_builtins;	/*!< HAVE_ATOMIC_BUILTINS */
+	ulint innodb_log_checkpoints;
+	ulint innodb_log_syncs;
 	ulint innodb_log_waits;			/*!< srv_log_waits */
 	ulint innodb_log_write_requests;	/*!< srv_log_write_requests */
 	ulint innodb_log_writes;		/*!< srv_log_writes */
+	ulint  innodb_log_write_archive;
+	ulint  innodb_log_write_background_async;
+	ulint  innodb_log_write_background_sync;
+	ulint  innodb_log_write_checkpoint_async;
+	ulint  innodb_log_write_checkpoint_sync;
+	ulint  innodb_log_write_commit_async;
+	ulint  innodb_log_write_commit_sync;
+	ulint  innodb_log_write_flush_dirty;
+	ulint  innodb_log_write_other;
+	ulint  innodb_log_sync_archive;
+	ulint  innodb_log_sync_background_async;
+	ulint  innodb_log_sync_background_sync;
+	ulint  innodb_log_sync_checkpoint_async;
+	ulint  innodb_log_sync_checkpoint_sync;
+	ulint  innodb_log_sync_commit_async;
+	ulint  innodb_log_sync_commit_sync;
+	ulint  innodb_log_sync_flush_dirty;
+	ulint  innodb_log_sync_other;
 	ulint innodb_mutex_os_waits;		/*!< mutex_os_wait_count */
 	ulint innodb_mutex_spin_rounds;		/*!< mutex_spin_round_count */
 	ulint innodb_mutex_spin_waits;		/*!< mutex_spin_wait_count */
