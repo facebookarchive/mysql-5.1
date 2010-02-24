@@ -130,6 +130,7 @@ static pthread_cond_t commit_cond;
 static pthread_mutex_t commit_cond_m;
 static pthread_mutex_t analyze_mutex;
 static bool innodb_inited = 0;
+double innodb_records_in_range_secs = 0;
 
 #define INSIDE_HA_INNOBASE_CC
 
@@ -614,6 +615,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_pages_read,		  SHOW_LONG},
   {"pages_written",
   (char*) &export_vars.innodb_pages_written,		  SHOW_LONG},
+  {"records_in_range_seconds",
+  (char*) &innodb_records_in_range_secs,		  SHOW_DOUBLE},
   {"row_lock_current_waits",
   (char*) &export_vars.innodb_row_lock_current_waits,	  SHOW_LONG},
   {"row_lock_time",
@@ -6921,8 +6924,11 @@ ha_innobase::records_in_range(
 	ulint		mode1;
 	ulint		mode2;
 	mem_heap_t*	heap;
+	my_fast_timer_t start_time;
 
 	DBUG_ENTER("records_in_range");
+
+	my_get_fast_timer(&start_time);
 
 	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
@@ -6998,6 +7004,10 @@ ha_innobase::records_in_range(
 	if (n_rows == 0) {
 		n_rows = 1;
 	}
+
+	/* Update time in ::records_in_range. Don't protect against concurrent
+	updates. */
+	innodb_records_in_range_secs += my_fast_timer_diff_now(&start_time, NULL);
 
 	DBUG_RETURN((ha_rows) n_rows);
 }
