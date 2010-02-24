@@ -595,6 +595,9 @@ struct export_var_struct{
 	ulint innodb_data_writes;		/*!< I/O write requests */
 	ulint innodb_data_written;		/*!< Data bytes written */
 	ulint innodb_data_reads;		/*!< I/O read requests */
+	ulint innodb_buffer_pool_flushed_lru;	/*!< #pages flushed from LRU */
+	ulint innodb_buffer_pool_flushed_list;	/*!< #pages flushed from flush list */
+	ulint innodb_buffer_pool_flushed_page;	/*!< #pages flushed from other */
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
 	ulint innodb_buffer_pool_pages_dirty;	/*!< Dirty data pages */
@@ -603,6 +606,8 @@ struct export_var_struct{
 #ifdef UNIV_DEBUG
 	ulint innodb_buffer_pool_pages_latched;	/*!< Latched pages */
 #endif /* UNIV_DEBUG */
+	ulint innodb_buffer_pool_pages_lru_old;	/*!< Number of old pages in LRU */
+	ulint innodb_buffer_pool_pct_dirty;	/*!< Percent of pages dirty */
 	ulint innodb_buffer_pool_read_requests;	/*!< buf_pool->stat.n_page_gets */
 	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
 	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */

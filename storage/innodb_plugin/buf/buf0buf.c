@@ -983,6 +983,7 @@ buf_pool_init(void)
 
 	for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
 		buf_pool->no_flush[i] = os_event_create(NULL);
+		buf_pool->n_flushed[i] = 0;
 	}
 
 	/* 3. Initialize LRU fields
@@ -3844,19 +3845,28 @@ buf_print_io(
 		"Database pages     %lu\n"
 		"Old database pages %lu\n"
 		"Modified db pages  %lu\n"
+		"Read ahead: %lu\n"
+		"Percent pages dirty: %.2f\n"
 		"Pending reads %lu\n"
-		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
+		"Pending writes: LRU %lu, flush list %lu, single page %lu\n"
+		"Total writes: %lu LRU, %lu flush list, %lu single page\n",
 		(ulong) buf_pool->curr_size,
 		(ulong) UT_LIST_GET_LEN(buf_pool->free),
 		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
 		(ulong) buf_pool->LRU_old_len,
 		(ulong) UT_LIST_GET_LEN(buf_pool->flush_list),
+		(ulong) buf_pool->stat.n_ra_pages_read,
+		(((double) UT_LIST_GET_LEN(buf_pool->flush_list)) /
+			(UT_LIST_GET_LEN(buf_pool->LRU) + 1.0)) * 100.0,
 		(ulong) buf_pool->n_pend_reads,
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LRU]
 		+ buf_pool->init_flush[BUF_FLUSH_LRU],
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LIST]
 		+ buf_pool->init_flush[BUF_FLUSH_LIST],
-		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
+		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE],
+		(ulong) buf_pool->n_flushed[BUF_FLUSH_LRU],
+		(ulong) buf_pool->n_flushed[BUF_FLUSH_LIST],
+		(ulong) buf_pool->n_flushed[BUF_FLUSH_SINGLE_PAGE]);
 
 	current_time = time(NULL);
 	time_elapsed = 0.001 + difftime(current_time,
