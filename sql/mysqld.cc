@@ -7188,7 +7188,7 @@ The minimum value for this variable is 4096.",
   {"reserved_super_connections", OPT_RESERVED_SUPER_CONNECTIONS,
    "The number of reserved connections for users with SUPER privileges.",
    (uchar**) &reserved_super_connections, (uchar**) &reserved_super_connections,
-   0, GET_ULONG, REQUIRED_ARG, 10, 1, 50, 0, 1, 0},
+   0, GET_ULONG, REQUIRED_ARG, 10, 0, 50, 0, 1, 0},
   {"sync_relay_info", OPT_SYNC_RELAY_INFO,
    "Synchronously flush relay-log.info writes to disk after every nth write. "
    "Use 0 (default) to disable synchronous flushing.",
