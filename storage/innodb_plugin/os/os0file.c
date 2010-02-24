@@ -4439,7 +4439,7 @@ os_io_perf_print(
 		/* wait: starts here */
 		perf->wait_secs,
 		(perf->wait_secs * 1000.0) / nzero_requests,
-		perf->svc_secs_max * 1000.0);
+		perf->wait_secs_max * 1000.0);
 
 	if (newline)
 		fprintf(file, "\n");
