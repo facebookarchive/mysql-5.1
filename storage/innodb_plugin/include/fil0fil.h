@@ -266,6 +266,17 @@ struct fil_space_struct {
 /** The tablespace memory cache */
 typedef	struct fil_system_struct	fil_system_t;
 
+/** Identifies the caller of fil_flush */
+typedef enum {
+	FLUSH_FROM_DIRTY_BUFFER,
+	FLUSH_FROM_OTHER,
+	FLUSH_FROM_CHECKPOINT,
+	FLUSH_FROM_LOG_IO_COMPLETE,
+	FLUSH_FROM_LOG_WRITE_UP_TO,
+	FLUSH_FROM_ARCHIVE,
+	FLUSH_FROM_NUMBER
+} flush_from_type;
+
 /** The tablespace memory cache; also the totality of logs (the log
 data space) is stored here; below we talk about tablespaces, but also
 the ib_logfiles form a 'space' and it is handled here */
@@ -317,6 +328,8 @@ struct fil_system_struct {
 					request */
 	UT_LIST_BASE_NODE_T(fil_space_t) space_list;
 					/*!< list of all file spaces */
+	ulint flush_types[FLUSH_FROM_NUMBER];
+					/*!< calls to fil_flush by caller */
 };
 
 /** The tablespace memory cache. This variable is NULL before the module is
@@ -825,8 +838,9 @@ UNIV_INTERN
 void
 fil_flush(
 /*======*/
-	ulint	space_id);	/*!< in: file space id (this can be a group of
+	ulint	space_id,	/*!< in: file space id (this can be a group of
 				log files or a tablespace of the database) */
+	flush_from_type flush_type);/*!< in: identifies the caller */
 /**********************************************************************//**
 Flushes to disk writes in file spaces of the given type possibly cached by
 the OS. */
@@ -834,7 +848,8 @@ UNIV_INTERN
 void
 fil_flush_file_spaces(
 /*==================*/
-	ulint	purpose);	/*!< in: FIL_TABLESPACE, FIL_LOG */
+	ulint	purpose,	/*!< in: FIL_TABLESPACE, FIL_LOG */
+	flush_from_type flush_type);/*!< in: identifies the caller */
 /******************************************************************//**
 Checks the consistency of the tablespace cache.
 @return	TRUE if ok */
