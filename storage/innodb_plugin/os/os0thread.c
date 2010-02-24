@@ -98,6 +98,10 @@ os_thread_get_curr_id(void)
 #endif
 }
 
+/* Supports Google perftools CPU profiling */
+extern int profile_pthread_create(pthread_t * thread, pthread_attr_t * attr,
+                                  void * (*start_routine)(void *), void * arg);
+
 /****************************************************************//**
 Creates a new thread of execution. The execution starts from
 the function given. The start function takes a void* parameter
@@ -187,9 +191,9 @@ os_thread_create(
 	os_mutex_exit(os_sync_mutex);
 
 #ifdef UNIV_HPUX10
-	ret = pthread_create(&pthread, pthread_attr_default, start_f, arg);
+	ret = profile_pthread_create(&pthread, pthread_attr_default, start_f, arg);
 #else
-	ret = pthread_create(&pthread, &attr, start_f, arg);
+	ret = profile_pthread_create(&pthread, &attr, start_f, arg);
 #endif
 	if (ret) {
 		fprintf(stderr,

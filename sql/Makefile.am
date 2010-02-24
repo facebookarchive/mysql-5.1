@@ -20,7 +20,7 @@ MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
 MYSQLLIBdir=            $(pkglibdir)
 pkgplugindir =		$(pkglibdir)/plugin
-INCLUDES =		@ZLIB_INCLUDES@ \
+INCLUDES =		@ZLIB_INCLUDES@ @PERFTOOLS_INCLUDES@ \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_srcdir)/regex -I$(srcdir) $(openssl_includes)
 if !NO_MEMCACHE
@@ -42,7 +42,7 @@ SUPPORTING_LIBS =	$(top_builddir)/vio/libvio.a \
 			$(top_builddir)/regex/libregex.a \
 			$(top_builddir)/strings/libmystrings.a
 mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la
-LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@
+LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@ @PERFTOOLS_LIBS@
 if !NO_MEMCACHE
 LDADD +=  -L$(LIBMEMCACHE)/lib -lmcc -L/usr/local/lib -levent -lcrypto
 endif

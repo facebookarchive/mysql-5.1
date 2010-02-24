@@ -715,6 +715,7 @@ static char *mysql_home_ptr, *pidfile_name_ptr;
 static int defaults_argc;
 static char **defaults_argv;
 static char *opt_bin_logname;
+static char *opt_perftools_profile_output;
 
 int orig_argc;
 char **orig_argv;
@@ -1352,6 +1353,7 @@ void clean_up(bool print_message)
   x_free(opt_bin_logname);
   x_free(opt_relay_logname);
   x_free(opt_secure_file_priv);
+  x_free(opt_perftools_profile_output);
   bitmap_free(&temp_pool);
   free_max_user_conn();
 #ifdef HAVE_REPLICATION
@@ -4227,7 +4229,7 @@ static void handle_connections_methods()
   if (hPipe != INVALID_HANDLE_VALUE)
   {
     handler_count++;
-    if (pthread_create(&hThread,&connection_attrib,
+    if (profile_pthread_create(&hThread,&connection_attrib,
 		       handle_connections_namedpipes, 0))
     {
       sql_print_warning("Can't create thread to handle named pipes");
@@ -4238,7 +4240,7 @@ static void handle_connections_methods()
   if (have_tcpip && !opt_disable_networking)
   {
     handler_count++;
-    if (pthread_create(&hThread,&connection_attrib,
+    if (profile_pthread_create(&hThread,&connection_attrib,
 		       handle_connections_sockets, 0))
     {
       sql_print_warning("Can't create thread to handle TCP/IP");
@@ -4249,7 +4251,7 @@ static void handle_connections_methods()
   if (opt_enable_shared_memory)
   {
     handler_count++;
-    if (pthread_create(&hThread,&connection_attrib,
+    if (profile_pthread_create(&hThread,&connection_attrib,
 		       handle_connections_shared_memory, 0))
     {
       sql_print_warning("Can't create thread to handle shared memory");
@@ -4403,6 +4405,11 @@ int main(int argc, char **argv)
 #ifdef __NETWARE__
   /* Increasing stacksize of threads on NetWare */
   pthread_attr_setstacksize(&connection_attrib, NW_THD_STACKSIZE);
+#endif
+
+#ifdef GOOGLE_PROFILE
+  if (opt_perftools_profile_output)
+    ProfilerStart(opt_perftools_profile_output);
 #endif
 
   (void) thr_setconcurrency(concurrency);	// 10 by default
@@ -4894,6 +4901,50 @@ static bool read_init_file(char *file_name)
 }
 
 
+typedef struct pthread_create_func_wrapper
+{
+  void* (*start_routine)(void *);
+  void* func_arg;
+} pthread_create_func_wrapper;
+
+void* profile_start_routine(void* arg)
+{
+  pthread_create_func_wrapper* wrapper = (pthread_create_func_wrapper*) arg;
+  void* (*start_routine)(void *);
+  void* func_arg;
+
+#ifdef GOOGLE_PROFILE
+  ProfilerRegisterThread();
+#endif
+
+  start_routine = wrapper->start_routine;
+  func_arg= wrapper->func_arg;
+  free(arg);
+  return start_routine(func_arg);
+}
+
+int profile_pthread_create(pthread_t* thread, pthread_attr_t* attr,
+                           void* (*start_routine)(void *), void* arg)
+{
+#ifdef GOOGLE_PROFILE
+  /* Run ProfilerRegisterThread in the context of the new thread. */
+  pthread_create_func_wrapper* wrapper=
+    (pthread_create_func_wrapper*) malloc(sizeof(pthread_create_func_wrapper));
+
+  if (!wrapper)
+  {
+    fprintf(stderr, "Cannot allocate memory in profile_pthread_create\n");
+    unireg_abort(1);
+  }
+  wrapper->start_routine = start_routine;
+  wrapper->func_arg = arg;
+  return pthread_create(thread, attr, profile_start_routine, wrapper);
+#else
+  return pthread_create(thread, attr, start_routine, arg);
+#endif
+}
+
+
 #ifndef EMBEDDED_LIBRARY
 
 /*
@@ -4939,7 +4990,7 @@ void create_thread_to_handle_connection(THD *thd)
     threads.append(thd);
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
     thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
-    if ((error=pthread_create(&thd->real_id,&connection_attrib,
+    if ((error=profile_pthread_create(&thd->real_id,&connection_attrib,
                               handle_one_connection,
                               (void*) thd)))
     {
@@ -5803,6 +5854,7 @@ enum options_mysqld
   OPT_FB_ALWAYS_DIRTY,
 #endif
   OPT_RESERVED_SUPER_CONNECTIONS,
+  OPT_PERFTOOLS_PROFILE,
 };
 
 
@@ -7194,6 +7246,10 @@ The minimum value for this variable is 4096.",
    "Use 0 (default) to disable synchronous flushing.",
    (uchar**) &sync_relay_info_period, (uchar**) &sync_relay_info_period, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
+  {"perftools_profile", OPT_PERFTOOLS_PROFILE,
+   "Enable profiling using Google Perftools and write output to this file.",
+   (uchar**) &opt_perftools_profile_output, (uchar**) &opt_perftools_profile_output,
+   0, GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7821,6 +7877,7 @@ static int mysql_init_variables(void)
   binlog_cache_use=  binlog_cache_disk_use= 0;
   max_used_connections= slow_launch_threads = 0;
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
+  opt_perftools_profile_output= 0;
   prepared_stmt_count= 0;
   errmesg= 0;
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;

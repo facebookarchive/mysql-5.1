@@ -1876,6 +1876,17 @@ extern "C" int key_rec_cmp(void *key_info, uchar *a, uchar *b);
 
 bool init_errmessage(void);
 #endif /* MYSQL_SERVER */
+
+#ifdef GOOGLE_PROFILE
+extern "C" void ProfilerFlush();
+extern "C" void ProfilerStart(char*);
+extern "C" void ProfilerRegisterThread();
+#endif
+extern "C" int profile_pthread_create(pthread_t * thread,
+                                      pthread_attr_t * attr,
+                                      void * (*start_routine)(void *),
+                                      void * arg);
+
 void sql_perror(const char *message);
 
 bool fn_format_relative_to_data_home(char * to, const char *name,

@@ -1521,6 +1521,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_STATISTICS:
   {
+#ifdef GOOGLE_PROFILE
+    ProfilerFlush();
+#endif
+
     STATUS_VAR current_global_status_var;
     ulong uptime;
     uint length;
@@ -4006,6 +4010,10 @@ end_with_restore_list:
     bool write_to_binlog;
     if (check_global_access(thd,RELOAD_ACL))
       goto error;
+
+#ifdef GOOGLE_PROFILE
+    ProfilerFlush();
+#endif
 
     /*
       reload_acl_and_cache() will tell us if we are allowed to write to the
