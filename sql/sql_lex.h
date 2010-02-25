@@ -1681,6 +1681,7 @@ typedef struct st_lex : public Query_tables_list
   */
   bool view_prepare_mode;
   bool safe_to_cache_query;
+  bool disable_flashcache;
   bool subqueries, ignore;
   st_parsing_options parsing_options;
   Alter_info alter_info;

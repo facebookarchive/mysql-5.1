@@ -49,6 +49,10 @@
 #endif
 #endif
 
+#include <mntent.h>
+#include <sys/statfs.h>
+#include "flashcache_ioctl.h"
+
 #ifndef DEFAULT_SKIP_THREAD_PRIORITY
 #define DEFAULT_SKIP_THREAD_PRIORITY 0
 #endif
@@ -552,6 +556,10 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 uint  max_user_connections= 0;
+
+/* flashcache */
+int cachedev_fd;
+my_bool cachedev_enabled= FALSE;
 
 /* Added by patches */
 ulong reserved_super_connections=0;
@@ -4331,6 +4339,83 @@ static void test_lc_time_sz()
 }
 #endif//DBUG_OFF
 
+/*
+ * Auto detect if we support flash cache on the host system.
+ * This needs to be called before we setuid away from root
+ * to avoid permission problems on opening the device node.
+ */
+static void init_cachedev(void)
+{
+  struct statfs stfs_data_home_dir;
+  struct statfs stfs;
+  struct mntent *ent;
+  pid_t pid = getpid();
+  FILE *mounts;
+  char *error_message= NULL;
+
+  // disabled by default
+  cachedev_fd = -1;
+  cachedev_enabled= FALSE;
+
+  if (!mysql_data_home)
+  {
+    error_message= "mysql_data_home not set";
+    goto epilogue;
+  }
+
+  if (statfs(mysql_data_home, &stfs_data_home_dir) < 0)
+  {
+    error_message= "statfs failed";
+    goto epilogue;
+  }
+
+  mounts = setmntent("/etc/mtab", "r");
+  if (mounts == NULL)
+  {
+    error_message= "setmntent failed";
+    goto epilogue;
+  }
+
+  while ((ent = getmntent(mounts)) != NULL)
+  {
+    if (statfs(ent->mnt_dir, &stfs) < 0)
+      continue;
+    if (memcmp(&stfs.f_fsid, &stfs_data_home_dir.f_fsid, sizeof(fsid_t)) == 0)
+      break;
+  }
+  endmntent(mounts);
+
+  if (ent == NULL)
+  {
+    error_message= "getmntent loop failed";
+    goto epilogue;
+  }
+
+  cachedev_fd = open(ent->mnt_fsname, O_RDONLY);
+  if (cachedev_fd < 0)
+  {
+    error_message= "open flash device failed";
+    goto epilogue;
+  }
+
+  if (ioctl(cachedev_fd, FLASHCACHEADDNCPID, &pid) < 0)
+  {
+    close(cachedev_fd);
+    cachedev_fd = -1;
+    error_message= "ioctl failed";
+  } else {
+    ioctl(cachedev_fd, FLASHCACHEDELNCPID, &pid);
+  }
+
+epilogue:
+  sql_print_information("Flashcache bypass: %s",
+      (cachedev_fd > 0) ? "enabled" : "disabled");
+  if (error_message)
+    sql_print_information("Flashcache setup error is : %s\n", error_message);
+  else
+    cachedev_enabled= TRUE;
+
+}
 
 #ifdef __WIN__
 int win_main(int argc, char **argv)
@@ -4439,6 +4524,8 @@ int main(int argc, char **argv)
 #ifndef DBUG_OFF
   test_lc_time_sz();
 #endif
+
+  init_cachedev();
 
   /*
     We have enough space for fiddling with the argv, continue
@@ -7695,6 +7782,7 @@ SHOW_VAR status_vars[]= {
   {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
   {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
   {"Exec_seconds",             (char*) &exec_seconds,           SHOW_DOUBLE},
+  {"Flashcache_enabled",       (char*) &cachedev_enabled,       SHOW_BOOL },
   {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_NOFLUSH},
   {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
   {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},

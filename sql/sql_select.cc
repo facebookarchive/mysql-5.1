@@ -37,6 +37,10 @@
 #include <hash.h>
 #include <ft_global.h>
 
+#include <sys/syscall.h>
+#include <sys/ioctl.h>
+#include "flashcache_ioctl.h"
+
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
@@ -239,8 +243,15 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
                    ulong setup_tables_done_option)
 {
   bool res;
+  pid_t pid;
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
+
+  if (lex->disable_flashcache && cachedev_fd > 0)
+  {
+    pid = syscall(SYS_gettid);
+    ioctl(cachedev_fd, FLASHCACHEADDNCPID, &pid);
+  }
 
   if (select_lex->master_unit()->is_union() || 
       select_lex->master_unit()->fake_select_lex)
@@ -274,6 +285,10 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   if (unlikely(res))
     result->abort();
 
+  if (lex->disable_flashcache && cachedev_fd > 0)
+  {
+    ioctl(cachedev_fd, FLASHCACHEDELNCPID, &pid);
+  }
   DBUG_RETURN(res);
 }
 
