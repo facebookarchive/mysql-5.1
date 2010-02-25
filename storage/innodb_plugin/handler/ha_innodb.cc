@@ -683,6 +683,16 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_rwlock_x_spin_rounds,       SHOW_LONG},
   {"rwlock_x_spin_waits",
   (char*) &export_vars.innodb_rwlock_x_spin_waits,        SHOW_LONG},
+  {"srv_checkpoint_seconds",
+  (char*) &export_vars.innodb_srv_checkpoint_secs,        SHOW_DOUBLE},
+  {"srv_free_margin_seconds",
+  (char*) &export_vars.innodb_srv_free_margin_secs,       SHOW_DOUBLE},
+  {"srv_ibuf_contract_seconds",
+  (char*) &export_vars.innodb_srv_ibuf_contract_secs,     SHOW_DOUBLE},
+  {"srv_buf_flush_seconds",
+  (char*) &export_vars.innodb_srv_buf_flush_secs,         SHOW_DOUBLE},
+  {"srv_purge_seconds",
+  (char*) &export_vars.innodb_srv_purge_secs,             SHOW_DOUBLE},
   {NullS, NullS, SHOW_LONG}
 };
 

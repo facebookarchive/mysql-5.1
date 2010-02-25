@@ -296,6 +296,21 @@ UNIV_INTERN ulint srv_buf_pool_reads = 0;
 /* structure to pass status variables to MySQL */
 UNIV_INTERN export_struc export_vars;
 
+/** Seconds doing a checkpoint */
+UNIV_INTERN double   srv_checkpoint_secs;
+
+/** Seconds in buf_flush_free_margin */
+UNIV_INTERN double   srv_free_margin_secs;
+
+/** Seconds in insert buffer */
+UNIV_INTERN double   srv_ibuf_contract_secs;
+
+/** Seconds in buf_flush_batch */
+UNIV_INTERN double   srv_buf_flush_secs;
+
+/** Seconds in trx_purge */
+UNIV_INTERN double   srv_purge_secs;
+
 /** Pages flushed to maintain non-dirty pages on free list */
 UNIV_INTERN ulint	srv_n_flushed_free_margin	= 0;
 
@@ -758,6 +773,15 @@ srv_print_master_thread_info(
 		srv_main_flush_loops);
 	fprintf(file, "srv_master_thread log flush and writes: %lu\n",
 		      srv_log_writes_and_flush);
+
+	fprintf(file,
+		"Seconds in background IO: %.2f insert buffer, "
+		"%.2f buffer pool, %.2f purge, %.2f free margin, "
+		"%.2f checkpoint\n",
+		srv_ibuf_contract_secs, srv_buf_flush_secs,
+		srv_purge_secs, srv_free_margin_secs,
+		srv_checkpoint_secs);
+
 	fprintf(file, "FIFO threads waited: %lu times, "
 		"LIFO threads scheduled: %lu times\n",
 		srv_thread_fifo_waited, srv_thread_lifo_scheduled);
@@ -2134,6 +2158,12 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rwlock_x_spin_rounds = rw_x_spin_round_count;
 	export_vars.innodb_rwlock_x_spin_waits = rw_x_spin_wait_count;
 
+	export_vars.innodb_srv_checkpoint_secs= srv_checkpoint_secs;
+	export_vars.innodb_srv_free_margin_secs= srv_free_margin_secs;
+	export_vars.innodb_srv_ibuf_contract_secs= srv_ibuf_contract_secs;
+	export_vars.innodb_srv_buf_flush_secs= srv_buf_flush_secs;
+	export_vars.innodb_srv_purge_secs= srv_purge_secs;
+
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 
@@ -2510,6 +2540,7 @@ srv_master_thread(
 	ulint		n_pend_ios;
 	ibool		skip_sleep	= FALSE;
 	ulint		i;
+	my_fast_timer_t	fast_timer;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
@@ -2586,7 +2617,9 @@ loop:
 		srv_sync_log_buffer_in_background();
 
 		srv_main_thread_op_info = "making checkpoint";
+		my_get_fast_timer(&fast_timer);
 		log_free_check();
+		srv_checkpoint_secs += my_fast_timer_diff_now(&fast_timer, NULL);
 
 		/* If i/os during one second sleep were less than 5% of
                 capacity, we assume that there is free disk i/o capacity
@@ -2599,7 +2632,10 @@ loop:
 		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
 		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
 			srv_main_thread_op_info = "doing insert buffer merge";
+			my_get_fast_timer(&fast_timer);
 			ibuf_contract_for_n_pages(FALSE, PCT_IO(5));
+			srv_ibuf_contract_secs +=
+				my_fast_timer_diff_now(&fast_timer, NULL);
 
 			/* Flush logs if needed */
 			srv_sync_log_buffer_in_background();
@@ -2613,9 +2649,12 @@ loop:
 
 			srv_main_thread_op_info =
 				"flushing buffer pool pages";
+			my_get_fast_timer(&fast_timer);
 			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
 							  PCT_IO(100),
 							  IB_ULONGLONG_MAX);
+			srv_buf_flush_secs +=
+				my_fast_timer_diff_now(&fast_timer, NULL);
 			if (n_pages_flushed != ULINT_UNDEFINED) {
 				srv_n_flushed_max_dirty += n_pages_flushed;
 			}
@@ -2637,11 +2676,14 @@ loop:
 				srv_main_thread_op_info =
 					"flushing buffer pool pages";
 				n_flush = ut_min(PCT_IO(100), n_flush);
+				my_get_fast_timer(&fast_timer);
 				n_pages_flushed =
 					buf_flush_batch(
 						BUF_FLUSH_LIST,
 						n_flush,
 						IB_ULONGLONG_MAX);
+				srv_buf_flush_secs +=
+					my_fast_timer_diff_now(&fast_timer, NULL);
 				skip_sleep = TRUE;
 				if (n_pages_flushed != ULINT_UNDEFINED) {
 					srv_n_flushed_adaptive += n_pages_flushed;
@@ -2684,8 +2726,10 @@ loop:
 	    && (n_ios - n_ios_very_old < SRV_PAST_IO_ACTIVITY)) {
 
 		srv_main_thread_op_info = "flushing buffer pool pages";
+		my_get_fast_timer(&fast_timer);
 		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
 					IB_ULONGLONG_MAX);
+		srv_buf_flush_secs += my_fast_timer_diff_now(&fast_timer, NULL);
 		if (n_pages_flushed != ULINT_UNDEFINED) {
 			srv_n_flushed_other += n_pages_flushed;
 		}
@@ -2698,7 +2742,9 @@ loop:
 	even if the server were active */
 
 	srv_main_thread_op_info = "doing insert buffer merge";
+	my_get_fast_timer(&fast_timer);
 	ibuf_contract_for_n_pages(FALSE, PCT_IO(5));
+	srv_ibuf_contract_secs += my_fast_timer_diff_now(&fast_timer, NULL);
 
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
@@ -2713,7 +2759,9 @@ loop:
 		}
 
 		srv_main_thread_op_info = "purging";
+		my_get_fast_timer(&fast_timer);
 		n_pages_purged = trx_purge();
+		srv_purge_secs += my_fast_timer_diff_now(&fast_timer, NULL);
 
 		/* Flush logs if needed */
 		srv_sync_log_buffer_in_background();
@@ -2724,6 +2772,7 @@ loop:
 
 	/* Flush a few oldest pages to make a new checkpoint younger */
 
+	my_get_fast_timer(&fast_timer);
 	if (buf_get_modified_ratio_pct() > 70) {
 
 		/* If there are lots of modified pages in the buffer pool
@@ -2743,6 +2792,7 @@ loop:
 						  IB_ULONGLONG_MAX);
 	}
 
+	srv_buf_flush_secs += my_fast_timer_diff_now(&fast_timer, NULL);
 	if (n_pages_flushed != ULINT_UNDEFINED) {
 		srv_n_flushed_max_dirty += n_pages_flushed;
 	}
@@ -2751,7 +2801,9 @@ loop:
 
 	/* Make a new checkpoint about once in 10 seconds */
 
+	my_get_fast_timer(&fast_timer);
 	log_checkpoint(TRUE, FALSE);
+	srv_checkpoint_secs += my_fast_timer_diff_now(&fast_timer, NULL);
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 

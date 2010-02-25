@@ -1235,7 +1235,9 @@ buf_flush_free_margin(void)
 {
 	ulint	n_to_flush;
 	ulint	n_flushed;
+	my_fast_timer_t	start_time;
 
+	my_get_fast_timer(&start_time);
 	n_to_flush = buf_flush_LRU_recommendation();
 
 	if (n_to_flush > 0) {
@@ -1249,6 +1251,7 @@ buf_flush_free_margin(void)
 			srv_n_flushed_free_margin += n_flushed;
 		}
 	}
+	srv_free_margin_secs += my_fast_timer_diff_now(&start_time, NULL);
 }
 
 /*********************************************************************

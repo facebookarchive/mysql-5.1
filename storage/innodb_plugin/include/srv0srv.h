@@ -276,6 +276,21 @@ extern ulint	srv_n_flushed_other;
 
 extern my_bool	srv_read_ahead_linear;
 
+/** Seconds doing a checkpoint */
+extern double	srv_checkpoint_secs;
+
+/** Seconds in buf_flush_free_margin */
+extern double	srv_free_margin_secs;
+
+/** Seconds in insert buffer */
+extern double	srv_ibuf_contract_secs;
+
+/** Seconds in buf_flush_batch */
+extern double	srv_buf_flush_secs;
+
+/** Seconds in trx_purge */
+extern double	srv_purge_secs;
+
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				query threads, and lock table: we allocate
 				it from dynamic memory to get it to the
@@ -706,6 +721,11 @@ struct export_var_struct{
 	ulint innodb_rwlock_x_os_waits;		/*!< rw_x_os_wait_count */
 	ulint innodb_rwlock_x_spin_rounds;	/*!< rw_x_spin_round_count */
 	ulint innodb_rwlock_x_spin_waits;	/*!< rw_x_spin_wait_count */
+	double innodb_srv_checkpoint_secs;	/*!< srv_checkpoint_secs */
+	double innodb_srv_free_margin_secs;	/*!< srv_free_margin_secs */
+	double innodb_srv_ibuf_contract_secs;	/*!< srv_ibuf_contract_secs */
+	double innodb_srv_buf_flush_secs;	/*!< srv_ibuf_flush_secs */
+	double innodb_srv_purge_secs;		/*!< srv_purge_secs */
 };
 
 /** The server system struct */
