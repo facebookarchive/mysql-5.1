@@ -311,6 +311,12 @@ UNIV_INTERN double   srv_buf_flush_secs;
 /** Seconds in trx_purge */
 UNIV_INTERN double   srv_purge_secs;
 
+/** Number of deadlocks */
+UNIV_INTERN ulint	srv_lock_deadlocks	= 0;
+
+/** Number of row lock wait timeouts */
+UNIV_INTERN ulint	srv_lock_wait_timeouts	= 0;
+
 /** Pages flushed to maintain non-dirty pages on free list */
 UNIV_INTERN ulint	srv_n_flushed_free_margin	= 0;
 
@@ -1744,6 +1750,7 @@ srv_suspend_mysql_thread(
 	    && wait_time > (double) lock_wait_timeout) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
+		srv_lock_wait_timeouts++;
 	}
 }
 
@@ -2088,6 +2095,10 @@ srv_export_innodb_status(void)
 	export_vars.innodb_ibuf_size = ibuf->size;
 
 	export_vars.innodb_page_size = UNIV_PAGE_SIZE;
+
+	export_vars.innodb_lock_deadlocks= srv_lock_deadlocks;
+	export_vars.innodb_lock_wait_timeouts= srv_lock_wait_timeouts;
+
 	export_vars.innodb_log_checkpoints= log_sys->n_checkpoints;
 	export_vars.innodb_log_syncs= log_sys->n_syncs;
 	export_vars.innodb_log_waits = srv_log_waits;
@@ -2141,6 +2152,9 @@ srv_export_innodb_status(void)
 	export_vars.innodb_pages_created = buf_pool->stat.n_pages_created;
 	export_vars.innodb_pages_read = buf_pool->stat.n_pages_read;
 	export_vars.innodb_pages_written = buf_pool->stat.n_pages_written;
+
+	export_vars.innodb_purge_pending= trx_sys->rseg_history_len;
+
 	export_vars.innodb_row_lock_waits = srv_n_lock_wait_count;
 	export_vars.innodb_row_lock_current_waits
 		= srv_n_lock_wait_current_count;

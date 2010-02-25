@@ -294,6 +294,12 @@ extern double	srv_buf_flush_secs;
 /** Seconds in trx_purge */
 extern double	srv_purge_secs;
 
+/** Number of deadlocks */
+extern ulint	srv_lock_deadlocks;
+
+/** Number of lock wait timeouts */
+extern ulint	srv_lock_wait_timeouts;
+
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				query threads, and lock table: we allocate
 				it from dynamic memory to get it to the
@@ -677,6 +683,8 @@ struct export_var_struct{
 	ulint innodb_ibuf_merged_records;	/*!< ibuf->n_merged_recs */
 	ulint innodb_ibuf_merges;		/*!< ibuf->n_merges */
 	ulint innodb_ibuf_size;			/*!< ibuf->size */
+	ulint innodb_lock_deadlocks;		/*!< srv_lock_deadlocks */
+	ulint innodb_lock_wait_timeouts;	/*!< srv_lock_wait_timeouts */
 	ulint innodb_log_checkpoints;
 	ulint innodb_log_syncs;
 	ulint innodb_log_waits;			/*!< srv_log_waits */
@@ -711,6 +719,7 @@ struct export_var_struct{
 	ulint innodb_pages_created;		/*!< buf_pool->stat.n_pages_created */
 	ulint innodb_pages_read;		/*!< buf_pool->stat.n_pages_read */
 	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
+	ulint innodb_purge_pending;		/*!< trx_sys->rseg_history_len */
 	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
 	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
 	ib_int64_t innodb_row_lock_time;	/*!< srv_n_lock_wait_time

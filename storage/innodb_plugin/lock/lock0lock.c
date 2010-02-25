@@ -3398,6 +3398,7 @@ lock_deadlock_recursive(
 
 				FILE*	ef = lock_latest_err_file;
 
+				srv_lock_deadlocks++;
 				rewind(ef);
 				ut_print_timestamp(ef);
 
@@ -4351,6 +4352,10 @@ lock_print_info_summary(
 	fprintf(file,
 		"History list length %lu\n",
 		(ulong) trx_sys->rseg_history_len);
+
+	fprintf(file,
+		"Lock stats: %lu deadlocks, %lu lock wait timeouts\n",
+		srv_lock_deadlocks, srv_lock_wait_timeouts);
 
 #ifdef PRINT_NUM_OF_LOCK_STRUCTS
 	fprintf(file,
