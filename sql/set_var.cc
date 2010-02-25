@@ -62,6 +62,10 @@
 
 #include "events.h"
 
+// for unix sockets
+#include <sys/socket.h>
+#include <sys/un.h>
+
 /* WITH_NDBCLUSTER_STORAGE_ENGINE */
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 extern ulong ndb_cache_check_time;
@@ -934,6 +938,10 @@ static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_sl
 /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
 static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                           &opt_slow_log, QUERY_LOG_SLOW);
+sys_var_bool_ptr sys_log_datagram(&vars, "log_datagram", &log_datagram,
+                                  setup_datagram_socket);
+sys_var_long_ptr sys_log_datagram_usecs(&vars, "log_datagram_usecs",
+                                        &log_datagram_usecs);
 sys_var_str sys_var_general_log_path(&vars, "general_log_file", sys_check_log_path,
 				     sys_update_general_log_path,
 				     sys_default_general_log_path,
@@ -1059,6 +1067,56 @@ static void sys_default_ftb_syntax(THD *thd, enum_var_type type)
 	  sizeof(ft_boolean_syntax)-1);
 }
 
+void setup_datagram_socket(THD *thd, enum_var_type type)
+{
+  if (log_datagram_sock >= 0)
+  {
+    close(log_datagram_sock);
+    log_datagram_sock = -1;
+  }
+ 
+  if (log_datagram)
+  {
+    struct sockaddr_un addr;
+    bzero(&addr, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strxnmov(addr.sun_path, sizeof(addr.sun_path) - 1, 
+             mysql_data_home, "/slocket", NullS);
+
+    log_datagram_sock = socket(AF_UNIX, SOCK_DGRAM, 0);
+
+    if (log_datagram_sock < 0)
+    {
+      sql_print_information("slocket creation failed with error %d; "
+                        "slocket closed", errno);
+      log_datagram = 0;
+      return;
+    }
+
+    // set nonblocking
+    if (fcntl(log_datagram_sock, F_SETFL, O_NONBLOCK |
+              fcntl(log_datagram_sock, F_GETFL)) == -1)
+    {
+      log_datagram = 0;
+      close(log_datagram_sock);
+      log_datagram_sock = -1;
+      sql_print_information("slocket set nonblocking failed with error %d; "
+                        "slocket closed", errno);
+      return;
+    }
+
+    if(connect(log_datagram_sock, (sockaddr*) &addr, 
+               strlen(addr.sun_path) + sizeof(addr.sun_family)) < 0)
+    {
+      log_datagram = 0;
+      close(log_datagram_sock);
+      log_datagram_sock = -1;
+      sql_print_information("slocket connect failed with error %d; "
+                            "slocket closed", errno);
+      return;
+    }
+  }
+}
 
 /**
   If one sets the LOW_PRIORIY UPDATES flag, we also must change the

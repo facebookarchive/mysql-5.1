@@ -1134,6 +1134,9 @@ bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 void log_slow_statement(THD *thd);
+void log_to_datagram(THD *thd, ulonglong end_utime_of_query);
+bool write_log_to_socket(int sockfd, THD *thd, ulonglong end_utime_of_query);
+void setup_datagram_socket(THD *thd, enum_var_type type);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 bool compare_record(TABLE *table);
 bool append_file_to_dir(THD *thd, const char **filename_ptr, 
@@ -2156,6 +2159,10 @@ extern SHOW_COMP_OPTION have_compress;
 
 /* Added for patches */
 extern ulong sync_relay_info_period, sync_relay_info_events;
+
+extern my_bool log_datagram;
+extern ulong log_datagram_usecs;
+extern int log_datagram_sock;
 
 extern int orig_argc;
 extern char **orig_argv;

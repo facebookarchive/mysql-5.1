@@ -556,6 +556,10 @@ uint  max_user_connections= 0;
 /* Added by patches */
 ulong reserved_super_connections=0;
 
+my_bool log_datagram= 0;
+ulong log_datagram_usecs= 0;
+int log_datagram_sock= -1;
+
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -4185,6 +4189,9 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   init_max_user_conn();
   init_update_queries();
+
+  setup_datagram_socket(NULL, OPT_GLOBAL);
+
   DBUG_RETURN(0);
 }
 
@@ -5855,6 +5862,8 @@ enum options_mysqld
 #endif
   OPT_RESERVED_SUPER_CONNECTIONS,
   OPT_PERFTOOLS_PROFILE,
+  OPT_LOG_DATAGRAM,
+  OPT_LOG_DATAGRAM_USECS,
 };
 
 
@@ -6210,6 +6219,16 @@ each time the SQL thread starts.",
     "Log slow queries to given log file. Defaults logging to hostname-slow.log. Must be enabled to activate other slow log options.",
    (uchar**) &opt_slow_logname, (uchar**) &opt_slow_logname, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"log-datagram", OPT_LOG_DATAGRAM,
+   "Enable logging queries to a unix local datagram socket",
+   (uchar**) &log_datagram,
+   (uchar**) &log_datagram,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"log-datagram-usecs", OPT_LOG_DATAGRAM_USECS,
+   "Log queries longer than log-datagram-usecs to a unix local datagram socket",
+   (uchar**) &log_datagram_usecs,
+   (uchar**) &log_datagram_usecs,
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
   {"log-tc", OPT_LOG_TC,
    "Path to transaction coordinator log (used for transactions that affect "
    "more than one storage engine, when binary log is disabled)",
@@ -7893,6 +7912,9 @@ static int mysql_init_variables(void)
   reserved_super_connections=0;
   sync_relay_info_period= 0;
   sync_relay_info_events= 0;
+
+  log_datagram= 0;
+  log_datagram_usecs= 0;
 
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;
