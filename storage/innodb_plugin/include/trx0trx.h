@@ -515,6 +515,10 @@ struct trx_struct{
 	unsigned	has_search_latch:1;
 					/* TRUE if this trx has latched the
 					search system latch in S-mode */
+	unsigned	always_enter_innodb:1;
+					/* thread always enters innodb without
+					considering ticket limit; only used
+					for replication sql thread. */
 	unsigned	declared_to_be_inside_innodb:1;
 					/* this is TRUE if we have declared
 					this transaction in

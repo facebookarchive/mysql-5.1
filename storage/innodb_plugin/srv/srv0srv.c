@@ -1165,6 +1165,10 @@ srv_conc_enter_innodb(
 
 	trx->trx_lifo = FALSE;
 
+	/* TODO(mcallaghan): modify this code so srv_conc_mutex is not
+	locked when the concurrency limit is not reached or always_enter_innodb
+	is set. */
+
 	os_fast_mutex_lock(&srv_conc_mutex);
 retry:
 	if (trx->declared_to_be_inside_innodb) {
@@ -1182,11 +1186,16 @@ retry:
 	ut_ad(srv_conc_n_threads >= 0);
 
 	if (srv_conc_n_threads < (lint)srv_thread_concurrency ||
-		srv_can_enter_as_lifo(trx)) {
+		trx->always_enter_innodb || srv_can_enter_as_lifo(trx)) {
+
+		/* always_enter_innodb is TRUE for the replication SQL thread
+		so it is not delayed by innodb_thread_concurrency. */
 
 		srv_conc_n_threads++;
 		trx->declared_to_be_inside_innodb = TRUE;
-		trx->n_tickets_to_enter_innodb = SRV_FREE_TICKETS_TO_ENTER;
+		trx->n_tickets_to_enter_innodb = trx->always_enter_innodb
+			? (SRV_FREE_TICKETS_TO_ENTER * 1000)
+			: SRV_FREE_TICKETS_TO_ENTER;
 
 		os_fast_mutex_unlock(&srv_conc_mutex);
 
