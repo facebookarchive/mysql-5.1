@@ -184,6 +184,9 @@ trx_create(
 	trx->autoinc_locks = ib_vector_create(
 		mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 4), 4);
 
+	trx->trx_lifo = FALSE;
+	trx->trx_event = os_event_create("trx_event");
+
 	return(trx);
 }
 
@@ -330,6 +333,8 @@ trx_free(
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
 	/* We allocated a dedicated heap for the vector. */
 	ib_vector_free(trx->autoinc_locks);
+
+	os_event_free(trx->trx_event);
 
 	mem_free(trx);
 }

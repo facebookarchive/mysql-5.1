@@ -9973,6 +9973,37 @@ innodb_change_buffering_update(
 	*(const char**) var_ptr = innobase_change_buffering_values[ibuf_use];
 }
 
+extern int check_func_long(THD *thd, struct st_mysql_sys_var *var,
+			   void *save, st_mysql_value *value);
+static
+int
+innodb_thread_concurrency_validate(
+/*=============================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+	long long	intbuf;
+
+	DBUG_ENTER("innobase_thread_concurrency_validate");
+
+	if (value->val_int(value, &intbuf)) {
+		/* The value is NULL. That is invalid. */
+		DBUG_RETURN(1);
+	}
+
+	/* If thread_lifo is enabled do not allow thread_concurrency to
+	 * change from zero to non-zero or vice versa. */
+	if (srv_thread_lifo && !intbuf != !srv_thread_concurrency) {
+		DBUG_RETURN(1);
+	}
+
+	DBUG_RETURN(check_func_long(thd, var, save, value));
+}
+
 static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
 {
   innodb_export_status();
@@ -10260,7 +10291,13 @@ static MYSQL_SYSVAR_ULONG(spin_wait_delay, srv_spin_wait_delay,
 static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
-  NULL, NULL, 0, 0, 1000, 0);
+  innodb_thread_concurrency_validate, NULL, 0, 0, 1000, 0);
+
+static MYSQL_SYSVAR_BOOL(thread_lifo, srv_thread_lifo,
+  PLUGIN_VAR_OPCMDARG,
+  "Enables the LIFO scheduling policy for thread_concurrency"
+  " in addition to the FIFO scheduling that has always been used.",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   PLUGIN_VAR_RQCMDARG,
@@ -10368,6 +10405,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(read_ahead_linear),
+  MYSQL_SYSVAR(thread_lifo),
   NULL
 };
 

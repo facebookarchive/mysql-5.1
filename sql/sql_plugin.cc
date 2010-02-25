@@ -1959,7 +1959,7 @@ static int check_func_int(THD *thd, struct st_mysql_sys_var *var,
 }
 
 
-static int check_func_long(THD *thd, struct st_mysql_sys_var *var,
+int check_func_long(THD *thd, struct st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
 {
   my_bool fixed;

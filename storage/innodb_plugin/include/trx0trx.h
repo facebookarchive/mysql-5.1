@@ -700,6 +700,12 @@ struct trx_struct{
 	trx_undo_arr_t*	undo_no_arr;	/*!< array of undo numbers of undo log
 					records which are currently processed
 					by a rollback operation */
+	ibool		trx_lifo;	/* TRUE when session is scheduled to
+					run by LIFO policy in
+					srv_conc_enter_innodb */
+	/*------------------------------*/
+	/* sync objects to support per-thread synchronization */
+	os_event_t	trx_event;
 	/*------------------------------*/
 	ulint		n_autoinc_rows;	/*!< no. of AUTO-INC rows required for
 					an SQL statement. This is useful for

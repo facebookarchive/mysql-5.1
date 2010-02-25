@@ -188,6 +188,7 @@ extern ulint	srv_max_dirty_pages_pct;
 
 extern ulint	srv_force_recovery;
 extern ulong	srv_thread_concurrency;
+extern my_bool	srv_thread_lifo;
 
 extern ulint	srv_max_n_threads;
 

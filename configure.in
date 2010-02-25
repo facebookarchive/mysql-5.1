@@ -951,6 +951,30 @@ struct request_info *req;
 ])
 AC_SUBST(WRAPLIBS)
 
+AC_CACHE_CHECK([whether the compiler provides atomic builtins],
+               [mysql_cv_gcc_atomic_builtins], [AC_TRY_RUN([
+  int main()
+  {
+    int foo= -10; int bar= 10;
+    if (!__sync_fetch_and_add(&foo, bar) || foo)
+      return -1;
+    bar= __sync_lock_test_and_set(&foo, bar);
+    if (bar || foo != 10)
+      return -1;
+    bar= __sync_val_compare_and_swap(&bar, foo, 15);
+    if (bar)
+      return -1;
+    return 0;
+  }
+], [mysql_cv_gcc_atomic_builtins=yes],
+   [mysql_cv_gcc_atomic_builtins=no],
+   [mysql_cv_gcc_atomic_builtins=no])])
+
+if test "x$mysql_cv_gcc_atomic_builtins" = xyes; then
+  AC_DEFINE(HAVE_GCC_ATOMIC_BUILTINS, 1,
+            [Define to 1 if compiler provides atomic builtins.])
+fi
+
 if test "$TARGET_LINUX" = "true"; then
   AC_ARG_WITH(pstack,
     [  --with-pstack           Use the pstack backtrace library],

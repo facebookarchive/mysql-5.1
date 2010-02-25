@@ -347,19 +347,49 @@ UNIV_INTERN ulint	srv_conc_n_waiting_threads = 0;
 /* Enables InnoDB readahead (prefetch) */
 UNIV_INTERN my_bool	srv_read_ahead_linear = TRUE;
 
+/* When set, the LIFO scheduling policy is used for innodb_thread_concurrency
+in addition to the FIFO scheduling that has always been used. We will call
+this mode FLIFO scheduling because it combines LIFO and FIFO. LIFO scheduling
+compensates for threads that are slow to begin running after being selected
+to run by os_event_set in srv_conc_force_exit_innodb. When there are a large
+number of sessions on srv_conc_queue, it may take a long time for a thread
+to wake from the condition variable wait it was doing. As other threads are
+likely to arrive during this time, the LIFO policy allows some of them to
+enter InnoDB. The rules are:
+1. srv_thread_fifo_pending is incremented in srv_conc_force_exit_innodb when
+      the condition variable is broadcast to wake the 1 thread waiting on it.
+2. srv_thread_fifo_pending is decremented in srv_conc_enter_innodb when that
+      thread begins to run.
+3. srv_thread_lifo_running is incremented when a thread is allowed to run by
+      the LIFO policy.
+4. srv_thread_lifo_running is decremented when such a thread exits InnoDB.
+5. a thread is allowed to run per the LIFO policy when
+      srv_thread_lifo_running < srv_thread_fifo_pending
+
+Note that this allows up to 2 * innodb_thread_concurrency threads to run
+concurrently in some cases.
+*/
+my_bool		srv_thread_lifo = 0;
+
+/* Number of threads running because of the LIFO scheduling policy. */
+volatile int	srv_thread_lifo_running = 0;
+
+/* Number of threads selected to run that have yet to begin running. */
+volatile int	srv_thread_fifo_pending = 0;
+
+/* Number of times a thread waited in srv_conc_enter_innodb. */
+ulong	srv_thread_fifo_waited = 0;
+
+/* Number of times a thread was scheduled to run by the LIFO policy. */
+ulong	srv_thread_lifo_scheduled = 0;
+
 typedef struct srv_conc_slot_struct	srv_conc_slot_t;
 struct srv_conc_slot_struct{
 	os_event_t			event;		/*!< event to wait */
 	ibool				reserved;	/*!< TRUE if slot
 							reserved */
-	ibool				wait_ended;	/*!< TRUE when another
-							thread has already set
-							the event and the
-							thread in this slot is
-							free to proceed; but
-							reserved may still be
-							TRUE at that point */
 	UT_LIST_NODE_T(srv_conc_slot_t)	srv_conc_queue;	/*!< queue node */
+	/* TODO -- add srv_free_queue */
 };
 
 /* queue of threads waiting to get in */
@@ -728,6 +758,9 @@ srv_print_master_thread_info(
 		srv_main_flush_loops);
 	fprintf(file, "srv_master_thread log flush and writes: %lu\n",
 		      srv_log_writes_and_flush);
+	fprintf(file, "FIFO threads waited: %lu times, "
+		"LIFO threads scheduled: %lu times\n",
+		srv_thread_fifo_waited, srv_thread_lifo_scheduled);
 }
 
 /*********************************************************************//**
@@ -1016,8 +1049,7 @@ srv_init(void)
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 		conc_slot = srv_conc_slots + i;
 		conc_slot->reserved = FALSE;
-		conc_slot->event = os_event_create(NULL);
-		ut_a(conc_slot->event);
+		conc_slot->event = NULL;
 	}
 
 	/* Initialize some INFORMATION SCHEMA internal structures */
@@ -1070,6 +1102,35 @@ srv_general_init(void)
 UNIV_INTERN ulong	srv_max_purge_lag		= 0;
 
 /*********************************************************************//**
+Return !0 when a thread can enter the InnoDB kernel via LIFO scheduling. */
+
+int
+srv_can_enter_as_lifo(
+/*==================*/
+	trx_t*	trx)	/* in: current transaction */
+{
+#if defined(HAVE_GCC_ATOMIC_BUILTINS)
+	/* There is a race there but it should be harmless. The race can allow
+	 * more than the expected number of threads in via LIFO scheduling
+	 * policy. The assert is debug only to confirm it doesn't happen during
+	 * normal conditions. */
+	if (srv_thread_lifo &&
+		(srv_thread_lifo_running < srv_thread_fifo_pending)) {
+
+		trx->trx_lifo = TRUE;
+		__sync_fetch_and_add(&srv_thread_lifo_running, 1);
+		ut_ad(srv_thread_lifo_running <= srv_thread_concurrency);
+		srv_thread_lifo_scheduled++;
+		return 1;
+	} else {
+		return 0;
+	}
+#else
+	return 0;
+#endif
+}
+
+/*************************************************************************
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
 UNIV_INTERN
@@ -1102,6 +1163,8 @@ srv_conc_enter_innodb(
 		return;
 	}
 
+	trx->trx_lifo = FALSE;
+
 	os_fast_mutex_lock(&srv_conc_mutex);
 retry:
 	if (trx->declared_to_be_inside_innodb) {
@@ -1118,7 +1181,8 @@ retry:
 
 	ut_ad(srv_conc_n_threads >= 0);
 
-	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
+	if (srv_conc_n_threads < (lint)srv_thread_concurrency ||
+		srv_can_enter_as_lifo(trx)) {
 
 		srv_conc_n_threads++;
 		trx->declared_to_be_inside_innodb = TRUE;
@@ -1191,40 +1255,34 @@ retry:
 
 	/* Add to the queue */
 	slot->reserved = TRUE;
-	slot->wait_ended = FALSE;
+	slot->event = trx->trx_event;
 
 	UT_LIST_ADD_LAST(srv_conc_queue, srv_conc_queue, slot);
 
 	os_event_reset(slot->event);
 
 	srv_conc_n_waiting_threads++;
+	srv_thread_fifo_waited++;
 
 	os_fast_mutex_unlock(&srv_conc_mutex);
+	/* It is unsafe to reference slot after the unlock */
 
 	/* Go to wait for the event; when a thread leaves InnoDB it will
 	release this thread */
 
 	trx->op_info = "waiting in InnoDB queue";
 
-	os_event_wait(slot->event);
+	os_event_wait(trx->trx_event);
+
+#if defined(HAVE_GCC_ATOMIC_BUILTINS)
+	__sync_fetch_and_sub(&srv_thread_fifo_pending, 1);
+	ut_ad(srv_thread_fifo_pending >= 0);
+#endif
 
 	trx->op_info = "";
 
-	os_fast_mutex_lock(&srv_conc_mutex);
-
-	srv_conc_n_waiting_threads--;
-
-	/* NOTE that the thread which released this thread already
-	incremented the thread counter on behalf of this thread */
-
-	slot->reserved = FALSE;
-
-	UT_LIST_REMOVE(srv_conc_queue, srv_conc_queue, slot);
-
 	trx->declared_to_be_inside_innodb = TRUE;
 	trx->n_tickets_to_enter_innodb = SRV_FREE_TICKETS_TO_ENTER;
-
-	os_fast_mutex_unlock(&srv_conc_mutex);
 }
 
 /*********************************************************************//**
@@ -1249,6 +1307,7 @@ srv_conc_force_enter_innodb(
 	srv_conc_n_threads++;
 	trx->declared_to_be_inside_innodb = TRUE;
 	trx->n_tickets_to_enter_innodb = 1;
+	trx->trx_lifo = FALSE;
 
 	os_fast_mutex_unlock(&srv_conc_mutex);
 }
@@ -1264,12 +1323,20 @@ srv_conc_force_exit_innodb(
 			thread */
 {
 	srv_conc_slot_t*	slot	= NULL;
+	os_event_t		event	= NULL;
 
 	if (trx->mysql_thd != NULL
 	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
 
 		return;
 	}
+
+#if defined(HAVE_GCC_ATOMIC_BUILTINS)
+	if (trx->trx_lifo && trx->declared_to_be_inside_innodb)  {
+		__sync_fetch_and_sub(&srv_thread_lifo_running, 1);
+		ut_ad(srv_thread_lifo_running >= 0);
+	}
+#endif
 
 	if (trx->declared_to_be_inside_innodb == FALSE) {
 
@@ -1289,24 +1356,28 @@ srv_conc_force_exit_innodb(
 
 		slot = UT_LIST_GET_FIRST(srv_conc_queue);
 
-		while (slot && slot->wait_ended == TRUE) {
-			slot = UT_LIST_GET_NEXT(srv_conc_queue, slot);
-		}
-
 		if (slot != NULL) {
-			slot->wait_ended = TRUE;
-
 			/* We increment the count on behalf of the released
 			thread */
+			event = slot->event;
 
 			srv_conc_n_threads++;
+
+			srv_conc_n_waiting_threads--;
+			slot->reserved = FALSE;
+			slot->event = NULL;
+			UT_LIST_REMOVE(srv_conc_queue, srv_conc_queue, slot);
 		}
 	}
 
 	os_fast_mutex_unlock(&srv_conc_mutex);
 
 	if (slot != NULL) {
-		os_event_set(slot->event);
+#if defined(HAVE_GCC_ATOMIC_BUILTINS)
+		__sync_fetch_and_add(&srv_thread_fifo_pending, 1);
+		ut_ad(srv_thread_fifo_pending <= srv_thread_concurrency);
+#endif
+		os_event_set(event);
 	}
 }
 
