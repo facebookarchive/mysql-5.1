@@ -70,7 +70,7 @@ int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
 int events_till_abort = -1;
 
 /* Determines when relay-log.info writes are forced to disk. */
-static int sync_relay_info_counter= 0;
+static ulong sync_relay_info_counter= 0;
 
 /* Number of times relay-log.info writes have been forced to disk. */
 ulong sync_relay_info_events= 0;
