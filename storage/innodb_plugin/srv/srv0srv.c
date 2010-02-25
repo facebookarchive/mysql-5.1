@@ -296,6 +296,22 @@ UNIV_INTERN ulint srv_buf_pool_reads = 0;
 /* structure to pass status variables to MySQL */
 UNIV_INTERN export_struc export_vars;
 
+/** Pages flushed to maintain non-dirty pages on free list */
+UNIV_INTERN ulint	srv_n_flushed_free_margin	= 0;
+
+/** Pages flushed to enforce innodb_max_dirty_pages_pct */
+UNIV_INTERN ulint	srv_n_flushed_max_dirty		= 0;
+
+/** Pages flushed by adaptive page flush */
+UNIV_INTERN ulint	srv_n_flushed_adaptive		= 0;
+
+/** Pages flushed at the start of a DML statement to maintain clean
+pages in the buffer pool */
+UNIV_INTERN ulint	srv_n_flushed_preflush		= 0;
+
+/** Pages flushed for other reasons */
+UNIV_INTERN ulint	srv_n_flushed_other		= 0;
+
 /* If the following is != 0 we do not allow inserts etc. This protects
 the user from forgetting the innodb_force_recovery keyword to my.cnf */
 
@@ -1942,6 +1958,12 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_pages_misc = buf_pool->curr_size
 		- UT_LIST_GET_LEN(buf_pool->LRU)
 		- UT_LIST_GET_LEN(buf_pool->free);
+
+        export_vars.innodb_buffer_pool_flushed_adaptive= srv_n_flushed_adaptive;
+        export_vars.innodb_buffer_pool_flushed_free_margin= srv_n_flushed_free_margin;
+        export_vars.innodb_buffer_pool_flushed_max_dirty= srv_n_flushed_max_dirty;
+        export_vars.innodb_buffer_pool_flushed_preflush= srv_n_flushed_preflush;
+
 #ifdef HAVE_ATOMIC_BUILTINS
 	export_vars.innodb_have_atomic_builtins = 1;
 #else
@@ -2512,6 +2534,9 @@ loop:
 			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
 							  PCT_IO(100),
 							  IB_ULONGLONG_MAX);
+			if (n_pages_flushed != ULINT_UNDEFINED) {
+				srv_n_flushed_max_dirty += n_pages_flushed;
+			}
 
 			/* If we had to do the flush, it may have taken
 			even more than 1 second, and also, there may be more
@@ -2536,6 +2561,9 @@ loop:
 						n_flush,
 						IB_ULONGLONG_MAX);
 				skip_sleep = TRUE;
+				if (n_pages_flushed != ULINT_UNDEFINED) {
+					srv_n_flushed_adaptive += n_pages_flushed;
+				}
 			}
 		}
 
@@ -2574,8 +2602,11 @@ loop:
 	    && (n_ios - n_ios_very_old < SRV_PAST_IO_ACTIVITY)) {
 
 		srv_main_thread_op_info = "flushing buffer pool pages";
-		buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
-				IB_ULONGLONG_MAX);
+		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
+					IB_ULONGLONG_MAX);
+		if (n_pages_flushed != ULINT_UNDEFINED) {
+			srv_n_flushed_other += n_pages_flushed;
+		}
 
 		/* Flush logs if needed */
 		srv_sync_log_buffer_in_background();
@@ -2628,6 +2659,10 @@ loop:
 		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
 						  PCT_IO(10),
 						  IB_ULONGLONG_MAX);
+	}
+
+	if (n_pages_flushed != ULINT_UNDEFINED) {
+		srv_n_flushed_max_dirty += n_pages_flushed;
 	}
 
 	srv_main_thread_op_info = "making checkpoint";

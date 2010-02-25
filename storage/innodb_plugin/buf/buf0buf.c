@@ -3849,7 +3849,9 @@ buf_print_io(
 		"Percent pages dirty: %.2f\n"
 		"Pending reads %lu\n"
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n"
-		"Total writes: %lu LRU, %lu flush list, %lu single page\n",
+		"Total writes: %lu LRU, %lu flush list, %lu single page\n"
+		"Write sources: free margin %lu, bg dirty %lu, preflush %lu, "
+		"adaptive %lu, other %lu\n",
 		(ulong) buf_pool->curr_size,
 		(ulong) UT_LIST_GET_LEN(buf_pool->free),
 		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
@@ -3866,7 +3868,12 @@ buf_print_io(
 		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE],
 		(ulong) buf_pool->n_flushed[BUF_FLUSH_LRU],
 		(ulong) buf_pool->n_flushed[BUF_FLUSH_LIST],
-		(ulong) buf_pool->n_flushed[BUF_FLUSH_SINGLE_PAGE]);
+		(ulong) buf_pool->n_flushed[BUF_FLUSH_SINGLE_PAGE],
+		(ulong) srv_n_flushed_free_margin,
+		(ulong) srv_n_flushed_max_dirty,
+		(ulong) srv_n_flushed_preflush,
+		(ulong) srv_n_flushed_adaptive,
+		(ulong) srv_n_flushed_other);
 
 	current_time = time(NULL);
 	time_elapsed = 0.001 + difftime(current_time,

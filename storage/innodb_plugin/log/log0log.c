@@ -1685,9 +1685,11 @@ log_preflush_pool_modified_pages(
 	if (n_pages == ULINT_UNDEFINED) {
 
 		return(FALSE);
-	}
+	} else {
 
-	return(TRUE);
+		srv_n_flushed_preflush += n_pages;
+		return(TRUE);
+	}
 }
 
 /******************************************************//**

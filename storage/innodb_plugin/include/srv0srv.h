@@ -257,6 +257,22 @@ extern ulint	srv_activity_count;
 extern ulint	srv_fatal_semaphore_wait_threshold;
 extern ulint	srv_dml_needed_delay;
 
+/** Pages flushed to maintain non-dirty pages on free list */
+extern ulint	srv_n_flushed_free_margin;
+
+/** Pages flushed for adaptive flushing */ 
+extern ulint	srv_n_flushed_adaptive;
+
+/** Pages flushed to enforce innodb_max_dirty_pages_pct */
+extern ulint	srv_n_flushed_max_dirty;
+
+/** Pages flushed at the start of a DML statement to maintain clean
+pages in the buffer pool */
+extern ulint	srv_n_flushed_preflush;
+
+/** Pages flushed for other reasons */ 
+extern ulint	srv_n_flushed_other;
+
 extern my_bool	srv_read_ahead_linear;
 
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
@@ -628,6 +644,11 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
 	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
 	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
+	ulint innodb_buffer_pool_flushed_adaptive;/*!< srv_n_flushed_adaptive */
+	ulint innodb_buffer_pool_flushed_free_margin;/*!< srv_n_flushed_free_margin */
+	ulint innodb_buffer_pool_flushed_max_dirty;/*!< srv_n_flushed_max_dirty */
+	ulint innodb_buffer_pool_flushed_other;/*!< srv_n_flushed_other */
+	ulint innodb_buffer_pool_flushed_preflush;/*!< srv_n_flushed_preflush */
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
 	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
 	ibool innodb_have_atomic_builtins;	/*!< HAVE_ATOMIC_BUILTINS */
