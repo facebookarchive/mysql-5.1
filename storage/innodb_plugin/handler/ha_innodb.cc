@@ -10313,6 +10313,12 @@ static MYSQL_SYSVAR_BOOL(thread_lifo, srv_thread_lifo,
   " in addition to the FIFO scheduling that has always been used.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(deadlock_detect, srv_deadlock_detect,
+  PLUGIN_VAR_OPCMDARG,
+  "Detect deadlocks when locks are acquired. Without this the row lock wait"
+  " timeout resolves deadlock.",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   PLUGIN_VAR_RQCMDARG,
   "Time of innodb thread sleeping before joining InnoDB queue (usec). Value 0 disable a sleep",
@@ -10420,6 +10426,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(read_ahead_linear),
   MYSQL_SYSVAR(thread_lifo),
+  MYSQL_SYSVAR(deadlock_detect),
   NULL
 };
 

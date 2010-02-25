@@ -138,6 +138,9 @@ extern ulong	srv_auto_extend_increment;
 
 extern ibool	srv_created_new_raw;
 
+/* Detect deadlocks on lock wait */
+extern my_bool	srv_deadlock_detect;
+
 extern ulint	srv_n_log_groups;
 extern ulint	srv_n_log_files;
 extern ulint	srv_log_file_size;

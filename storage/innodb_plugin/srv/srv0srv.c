@@ -398,6 +398,9 @@ ulong	srv_thread_fifo_waited = 0;
 /* Number of times a thread was scheduled to run by the LIFO policy. */
 ulong	srv_thread_lifo_scheduled = 0;
 
+/* When != 0, detect deadlocks for row-lock waits */
+my_bool	srv_deadlock_detect = 1;
+
 typedef struct srv_conc_slot_struct	srv_conc_slot_t;
 struct srv_conc_slot_struct{
 	os_event_t			event;		/*!< event to wait */
