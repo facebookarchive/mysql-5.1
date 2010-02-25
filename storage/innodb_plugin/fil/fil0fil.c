@@ -4346,6 +4346,7 @@ fil_flush(
 
 	mutex_enter(&fil_system->mutex);
 
+	ut_a(flush_type < FLUSH_FROM_NUMBER);
 	fil_system->flush_types[flush_type]++;
 
 	space = fil_space_get_by_id(space_id);
