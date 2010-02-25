@@ -1886,10 +1886,26 @@ srv_export_innodb_status(void)
 		= fil_n_pending_log_flushes
 		+ fil_n_pending_tablespace_flushes;
 	export_vars.innodb_data_fsyncs = os_n_fsyncs;
+	export_vars.innodb_data_fsync_secs = os_file_flush_secs;
 	export_vars.innodb_data_read = srv_data_read;
 	export_vars.innodb_data_reads = os_n_file_reads;
 	export_vars.innodb_data_writes = os_n_file_writes;
 	export_vars.innodb_data_written = srv_data_written;
+
+        export_vars.innodb_data_async_read_bytes= os_async_read_perf.bytes;
+        export_vars.innodb_data_async_read_requests= os_async_read_perf.requests;
+        export_vars.innodb_data_async_read_svc_secs= os_async_read_perf.svc_secs ;
+        export_vars.innodb_data_sync_read_bytes= os_sync_read_perf.bytes;
+        export_vars.innodb_data_sync_read_requests= os_sync_read_perf.requests;
+        export_vars.innodb_data_sync_read_svc_secs= os_sync_read_perf.svc_secs;
+
+        export_vars.innodb_data_async_write_bytes= os_async_write_perf.bytes;
+        export_vars.innodb_data_async_write_requests= os_async_write_perf.requests;
+        export_vars.innodb_data_async_write_svc_secs= os_async_write_perf.svc_secs;
+
+        export_vars.innodb_data_sync_write_bytes= os_sync_write_perf.bytes;
+        export_vars.innodb_data_sync_write_requests= os_sync_write_perf.requests;
+        export_vars.innodb_data_sync_write_svc_secs= os_sync_write_perf.svc_secs;
 
  	export_vars.innodb_buffer_pool_flushed_lru= buf_pool->n_flushed[BUF_FLUSH_LRU];
  	export_vars.innodb_buffer_pool_flushed_list= buf_pool->n_flushed[BUF_FLUSH_LIST];

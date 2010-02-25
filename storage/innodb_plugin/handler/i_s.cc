@@ -1685,12 +1685,12 @@ i_s_file_status_fill_low(
         OK(table->field[3]->store(io_perf->old_ios));
         OK(table->field[4]->store(io_perf->bytes));
         OK(table->field[5]->store((double) io_perf->bytes / io_perf->requests));
-        OK(table->field[6]->store(io_perf->svc_usecs / 1000000.0));
-        OK(table->field[7]->store(io_perf->svc_usecs / io_perf->requests / 1000.0));
-        OK(table->field[8]->store((ulonglong)(io_perf->svc_usecs_max / 1000.0)));
-        OK(table->field[9]->store(io_perf->wait_usecs / 1000000.0));
-        OK(table->field[10]->store(io_perf->wait_usecs / io_perf->requests / 1000.0));
-        OK(table->field[11]->store((ulonglong)(io_perf->wait_usecs_max / 1000.0)));
+        OK(table->field[6]->store(io_perf->svc_secs));
+        OK(table->field[7]->store((io_perf->svc_secs * 1000.0) / io_perf->requests));
+        OK(table->field[8]->store((ulonglong)(io_perf->svc_secs_max * 1000.0)));
+        OK(table->field[9]->store(io_perf->wait_secs));
+        OK(table->field[10]->store((io_perf->wait_secs * 1000.0) / io_perf->requests));
+        OK(table->field[11]->store((ulonglong)(io_perf->wait_secs_max * 1000.0)));
 
 	OK(schema_table_store_record(thd, table));
 

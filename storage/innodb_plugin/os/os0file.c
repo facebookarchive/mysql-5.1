@@ -232,8 +232,8 @@ os_io_perf_t os_async_write_perf;
 os_io_perf_t os_sync_read_perf;
 os_io_perf_t os_sync_write_perf;
 
-/* Microseconds waiting for fsync or fdatasync to finish */
-double os_file_flush_usecs	= 0;
+/** Seconds waiting for fsync to finish */
+double os_file_flush_secs	= 0;
 
 UNIV_INTERN ibool	os_has_said_disk_full	= FALSE;
 
@@ -260,10 +260,10 @@ os_io_perf_init(
 {
 	perf->bytes = 0;
 	perf->requests = 0;
-	perf->svc_usecs = 0;
-	perf->svc_usecs_max = 0;
-	perf->wait_usecs = 0;
-	perf->wait_usecs_max = 0;
+	perf->svc_secs = 0;
+	perf->svc_secs_max = 0;
+	perf->wait_secs = 0;
+	perf->wait_secs_max = 0;
 	perf->old_ios = 0;
 }
 
@@ -276,20 +276,20 @@ os_io_perf_update_all(
 /*===============*/
 	os_io_perf_t*		perf,		/* in: struct to update */
 	ulint			bytes,		/* in: size of request */
-	double			svc_usecs,	/* in: usecs to perform IO */
+	double			svc_secs,	/* in: secs to perform IO */
 	my_fast_timer_t*	stop_timer,	/* in: timer for now */
 	my_fast_timer_t*	wait_start)	/* in: timer when IO request submitted */
 {
-	double	wait_usecs = my_fast_timer_diff(wait_start, stop_timer) * 1000000;
+	double	wait_secs = my_fast_timer_diff(wait_start, stop_timer);
 
 	perf->requests++;
 	perf->bytes += bytes;
 
-	perf->svc_usecs += svc_usecs;
-	perf->svc_usecs_max = max(svc_usecs, perf->svc_usecs_max);
+	perf->svc_secs += svc_secs;
+	perf->svc_secs_max = max(svc_secs, perf->svc_secs_max);
 
-	perf->wait_usecs += wait_usecs;
-	perf->wait_usecs_max = max(wait_usecs, perf->wait_usecs_max);
+	perf->wait_secs += wait_secs;
+	perf->wait_secs_max = max(wait_secs, perf->wait_secs_max);
 }
 
 /***********************************************************************//**
@@ -304,9 +304,9 @@ os_io_perf_update_wait(
 	my_fast_timer_t*	stop_timer,	/* in: timer for now */
 	my_fast_timer_t*	wait_start)	/* in: timer when IO request submitted */
 {
-	double	wait_usecs = my_fast_timer_diff(wait_start, stop_timer) * 1000000;
-	perf->wait_usecs += wait_usecs;
-	perf->wait_usecs_max = max(wait_usecs, perf->wait_usecs_max);
+	double	wait_secs = my_fast_timer_diff(wait_start, stop_timer);
+	perf->wait_secs += wait_secs;
+	perf->wait_secs_max = max(wait_secs, perf->wait_secs_max);
 }
 
 /***********************************************************************//**
@@ -2115,8 +2115,7 @@ os_file_flush(
 #else
 	ret = os_file_fsync(file);
 #endif
-	os_file_flush_usecs +=
-		my_fast_timer_diff_now(&start_timer, NULL) * 1000000;
+	os_file_flush_secs += my_fast_timer_diff_now(&start_timer, NULL);
 
 	if (ret == 0) {
 		return(TRUE);
@@ -3718,7 +3717,7 @@ os_aio(
 		wait in the Windows case. */
 		ibool r;
 		my_fast_timer_t start_timer, end_timer;
-		double elapsed_usecs = 0;
+		double elapsed_secs = 0;
 
 		my_get_fast_timer(&start_timer);
 		if (type == OS_FILE_READ) {
@@ -3730,21 +3729,21 @@ os_aio(
 							offset_high, n);
 		}
 		my_get_fast_timer(&end_timer);
-		elapsed_usecs = my_fast_timer_diff(&start_timer, &end_timer) * 1000000;
+		elapsed_secs = my_fast_timer_diff(&start_timer, &end_timer);
 
 		/* These stats are not exact because a mutex is not locked. */
 		if (type == OS_FILE_READ) {
 			os_io_perf_update_all(&os_sync_read_perf, n,
-				elapsed_usecs, &end_timer, &start_timer);
+				elapsed_secs, &end_timer, &start_timer);
 			/* Per fil_space_t counters */
 			os_io_perf_update_all(&(io_perf2->read), n,
-				elapsed_usecs, &end_timer, &start_timer);
+				elapsed_secs, &end_timer, &start_timer);
 		} else {
 			os_io_perf_update_all(&os_sync_write_perf, n,
-				elapsed_usecs, &end_timer, &start_timer);
+				elapsed_secs, &end_timer, &start_timer);
 			/* Per fil_space_t counters */
 			os_io_perf_update_all(&(io_perf2->write), n,
-				elapsed_usecs, &end_timer, &start_timer);
+				elapsed_secs, &end_timer, &start_timer);
 		}
 		return r;
 	}
@@ -4041,7 +4040,7 @@ os_aio_simulated_handle(
 	ulint		n;
 	ulint		i;
 
-	double          elapsed_usecs;
+	double          elapsed_secs;
 	my_fast_timer_t	start_timer, stop_timer, now;
 
 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
@@ -4256,7 +4255,7 @@ restart:
 				   slot->offset, slot->offset_high, total_len);
 	}
 	my_get_fast_timer(&stop_timer);
-	elapsed_usecs = my_fast_timer_diff(&start_timer, &stop_timer) * 1000000;
+	elapsed_secs = my_fast_timer_diff(&start_timer, &stop_timer);
 
 	ut_a(ret);
 	srv_set_io_thread_op_info(global_segment, "file i/o done");
@@ -4282,24 +4281,24 @@ restart:
 	/* Update statistics. The mutex is not locked and the race is OK. */
 	if (slot->type == OS_FILE_WRITE) {
 		os_io_perf_update_all(&os_async_write_perf,
-			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, &stop_timer,
+			n_consecutive * UNIV_PAGE_SIZE, elapsed_secs, &stop_timer,
 			&(slot->reservation_time));
 		/* Per fil_space_t counters */
 		os_io_perf_update_all(&(slot->io_perf2->write),
-			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, &stop_timer,
+			n_consecutive * UNIV_PAGE_SIZE, elapsed_secs, &stop_timer,
 			&(slot->reservation_time));
 	} else {
 		os_io_perf_update_all(&os_async_read_perf,
-			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, &stop_timer,
+			n_consecutive * UNIV_PAGE_SIZE, elapsed_secs, &stop_timer,
 			&(slot->reservation_time));
 		/* Per fil_space_t counters */
 		os_io_perf_update_all(&(slot->io_perf2->read),
-			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, &stop_timer,
+			n_consecutive * UNIV_PAGE_SIZE, elapsed_secs, &stop_timer,
 			&(slot->reservation_time));
 	}
 
 	os_io_perf_update_all(&os_aio_perf[global_segment],
-			n_consecutive * UNIV_PAGE_SIZE, elapsed_usecs, &stop_timer,
+			n_consecutive * UNIV_PAGE_SIZE, elapsed_secs, &stop_timer,
 			&(slot->reservation_time));
 
 	os_mutex_enter(array->mutex);
@@ -4409,10 +4408,10 @@ os_aio_validate(void)
 struct os_io_perf_stats_struct {
 	ulint	bytes;
 	ulint	requests;
-	double	svc_usecs;
-	ulint	svc_usecs_max;	
-	double	wait_usecs;
-	ulint	wait_usecs_max;	
+	double	svc_secs;
+	ulint	svc_secs_max;	
+	double	wait_secs;
+	ulint	wait_secs_max;	
 };
 
 /**********************************************************************//**
@@ -4434,13 +4433,13 @@ os_io_perf_print(
 		perf->requests, perf->old_ios,
 		perf->bytes / nzero_requests,
 		/* svc: starts here */
-		perf->svc_usecs / 1000000.0,
-		perf->svc_usecs / nzero_requests / 1000.0,
-		perf->svc_usecs_max / 1000.0,
+		perf->svc_secs,
+		(perf->svc_secs * 1000.0) / nzero_requests,
+		perf->svc_secs_max * 1000.0,
 		/* wait: starts here */
-		perf->wait_usecs / 1000000.0,
-		perf->wait_usecs / nzero_requests / 1000.0,
-		perf->svc_usecs_max / 1000.0);
+		perf->wait_secs,
+		(perf->wait_secs * 1000.0) / nzero_requests,
+		perf->svc_secs_max * 1000.0);
 
 	if (newline)
 		fprintf(file, "\n");
@@ -4578,8 +4577,8 @@ loop:
  
 	fprintf(file,
 		"File flushes: %lu requests, %.2f seconds, %.2f msecs/r\n",
-		os_n_fsyncs, os_file_flush_usecs / 1000000.0,
-		(os_file_flush_usecs / 1000.0) / (os_n_fsyncs + 1));
+		os_n_fsyncs, os_file_flush_secs,
+		(os_file_flush_secs * 1000.0) / (os_n_fsyncs + 1));
 
 	if (os_file_n_pending_preads != 0 || os_file_n_pending_pwrites != 0) {
 		fprintf(file,

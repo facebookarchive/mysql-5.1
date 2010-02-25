@@ -204,6 +204,9 @@ extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;
 extern ulint	os_n_fsyncs;
 
+/** Seconds waiting for file flushes to finish */
+extern double os_file_flush_secs;
+
 /* File types for directory entry data type */
 
 enum os_file_type_enum{
@@ -241,10 +244,10 @@ typedef DIR*	os_file_dir_t;	/*!< directory stream */
 struct os_io_perf_struct {
 	ulint	bytes;
 	ulint	requests;
-	double	svc_usecs;	/*!< time to do read or write operation */
-	ulint	svc_usecs_max;
-	double	wait_usecs;	/*!< total time in the request array */
-	ulint	wait_usecs_max;
+	double	svc_secs;	/*!< time to do read or write operation */
+	ulint	svc_secs_max;
+	double	wait_secs;	/*!< total time in the request array */
+	ulint	wait_secs_max;
 	uint	old_ios;	/*!< requests that take too long */
 };
 typedef struct os_io_perf_struct os_io_perf_t;
@@ -256,6 +259,18 @@ struct os_io_perf2_struct {
 	os_io_perf_t	write;
 };
 typedef struct os_io_perf2_struct os_io_perf2_t;
+
+/** Performance statistics for async reads */
+extern os_io_perf_t	os_async_read_perf;
+
+/** Performance statistics for async writes */
+extern os_io_perf_t	os_async_write_perf;
+
+/** Performance statistics for sync reads */
+extern os_io_perf_t	os_sync_read_perf;
+
+/** Performance statistics for sync writes */
+extern os_io_perf_t	os_sync_write_perf;
 
 /***************************************************************************
 Initialize an os_io_perf_t struct. */
