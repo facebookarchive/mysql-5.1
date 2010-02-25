@@ -1960,8 +1960,10 @@ srv_export_innodb_status(void)
 		- UT_LIST_GET_LEN(buf_pool->free);
 
         export_vars.innodb_buffer_pool_flushed_adaptive= srv_n_flushed_adaptive;
-        export_vars.innodb_buffer_pool_flushed_free_margin= srv_n_flushed_free_margin;
-        export_vars.innodb_buffer_pool_flushed_max_dirty= srv_n_flushed_max_dirty;
+        export_vars.innodb_buffer_pool_flushed_free_margin=
+		srv_n_flushed_free_margin;
+        export_vars.innodb_buffer_pool_flushed_max_dirty=
+		srv_n_flushed_max_dirty;
         export_vars.innodb_buffer_pool_flushed_preflush= srv_n_flushed_preflush;
 
 #ifdef HAVE_ATOMIC_BUILTINS
