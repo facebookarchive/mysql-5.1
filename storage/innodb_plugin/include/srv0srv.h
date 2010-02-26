@@ -359,6 +359,9 @@ extern ulint srv_buf_pool_flushed;
 reading of a disk page */
 extern ulint srv_buf_pool_reads;
 
+/* When TRUE, flush dirty neighbor pages on checkpoint. */
+extern my_bool srv_flush_neighbors_on_checkpoint;
+
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
 

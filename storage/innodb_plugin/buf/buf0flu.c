@@ -912,8 +912,10 @@ buf_flush_try_neighbors(
 /*====================*/
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page offset */
-	enum buf_flush	flush_type)	/*!< in: BUF_FLUSH_LRU or
+	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST */
+	ibool	flush_neighbors)        /*!< in: flush dirty neighbors
+                                        when TRUE */
 {
 	buf_page_t*	bpage;
 	ulint		low, high;
@@ -922,9 +924,12 @@ buf_flush_try_neighbors(
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
-	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
+	if ((UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) ||
+		!flush_neighbors) {
+
 		/* If there is little space, it is better not to flush any
-		block except from the end of the LRU list */
+		block except from the end of the LRU list. Also, when requested
+		only flush the specified block. */
 
 		low = offset;
 		high = offset + 1;
@@ -1024,6 +1029,19 @@ buf_flush_batch(
 	ulint		old_page_count;
 	ulint		space;
 	ulint		offset;
+	ibool		flush_neighbors	= TRUE;
+
+	if ((min_n == ULINT_MAX) && (lsn_limit != IB_ULONGLONG_MAX) &&
+		!srv_flush_neighbors_on_checkpoint) {
+
+                /* Given that there is no limit on the number of dirty pages
+                flushed, it might not be a good idea to flush neighbor pages as
+                that causes many more pages to be written and makes checkpoint
+                enforcement slower. The above test on min_n and lsn_limit
+                matches the call from log_preflush_pool_modified_pages(). */
+
+		flush_neighbors = FALSE;
+	}
 
 	ut_ad((flush_type == BUF_FLUSH_LRU)
 	      || (flush_type == BUF_FLUSH_LIST));
@@ -1097,7 +1115,8 @@ flush_next:
 
 				/* Try to flush also all the neighbors */
 				page_count += buf_flush_try_neighbors(
-					space, offset, flush_type);
+					space, offset, flush_type,
+					flush_neighbors);
 				/* fprintf(stderr,
 				"Flush type %lu, page no %lu, neighb %lu\n",
 				flush_type, offset,

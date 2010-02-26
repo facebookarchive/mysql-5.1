@@ -368,6 +368,9 @@ UNIV_INTERN ulint	srv_conc_n_waiting_threads = 0;
 /* Enables InnoDB readahead (prefetch) */
 UNIV_INTERN my_bool	srv_read_ahead_linear = TRUE;
 
+/* When TRUE, flush dirty neighbor pages on checkpoint. */
+UNIV_INTERN my_bool	srv_flush_neighbors_on_checkpoint = TRUE;
+
 /* When set, the LIFO scheduling policy is used for innodb_thread_concurrency
 in addition to the FIFO scheduling that has always been used. We will call
 this mode FLIFO scheduling because it combines LIFO and FIFO. LIFO scheduling

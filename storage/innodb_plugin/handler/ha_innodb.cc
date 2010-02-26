@@ -10378,12 +10378,19 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
 static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   PLUGIN_VAR_RQCMDARG,
   "Number of pages that must be accessed sequentially for InnoDB to"
-  "trigger a readahead.",
+  " trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
 static MYSQL_SYSVAR_BOOL(read_ahead_linear, srv_read_ahead_linear,
   PLUGIN_VAR_NOCMDARG,
   "Enable use of readahead (prefetch)",
+  NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_BOOL(flush_neighbors_on_checkpoint,
+  srv_flush_neighbors_on_checkpoint,
+  PLUGIN_VAR_NOCMDARG,
+  "Flush (write) dirty neighbor pages within an extent when a dirty page "
+  " is to be written during checkpoint. This is enabled by default.",
   NULL, NULL, TRUE);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -10445,6 +10452,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(read_ahead_linear),
   MYSQL_SYSVAR(thread_lifo),
   MYSQL_SYSVAR(deadlock_detect),
+  MYSQL_SYSVAR(flush_neighbors_on_checkpoint),
   NULL
 };
 
