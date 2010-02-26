@@ -21,6 +21,45 @@
 #undef EXTRA_DEBUG
 #define EXTRA_DEBUG
 
+#if defined(USE_VALGRIND)
+/* Please use Valgrind version 3.2 or later */
+#include <valgrind/memcheck.h>
+
+/* After allocation mark memory contents undefine */
+#define VG_POST_ALLOC(addr, size)   VALGRIND_MAKE_MEM_UNDEFINED(addr, size)
+
+/* Mark the free'd memory unusable */
+#define VG_TRASH_MEM(X) \
+    VALGRIND_MAKE_MEM_NOACCESS(((char*)(X) + ((X)->size-(X)->left)), (X)->left)
+
+#else
+
+#define VG_POST_ALLOC(addr, size)
+#define VG_TRASH_MEM(X) 
+
+#endif /* USE_VALGRIND */
+
+/* Clobber the free'd memory */
+#ifndef DBUG_OFF
+
+#define SCRUB_MEM(X) \
+do { \
+  VG_POST_ALLOC(((char*)(X) + ((X)->size-(X)->left)), (X)->left); \
+  bfill(((char*)(X) + ((X)->size-(X)->left)), (X)->left, 0x8f); \
+} while(0)
+
+#else
+
+#define SCRUB_MEM(X) 
+
+#endif /* DBUG_OFF */
+
+/* Clobber the free'd memory and mark it unusable */
+#define TRASH_MEM(X) \
+do { \
+  SCRUB_MEM(X); \
+  VG_TRASH_MEM(X); \
+} while (0)
 
 /*
   Initialize memory root
@@ -149,6 +188,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
 {
 #if defined(HAVE_purify) && defined(EXTRA_DEBUG)
   reg1 USED_MEM *next;
+  void *ret;
   DBUG_ENTER("alloc_root");
   DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
 
@@ -163,10 +203,12 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
   }
   next->next= mem_root->used;
   next->size= length;
+  next->left= length-ALIGN_SIZE(sizeof(USED_MEM));
   mem_root->used= next;
-  DBUG_PRINT("exit",("ptr: 0x%lx", (long) (((char*) next)+
-                                           ALIGN_SIZE(sizeof(USED_MEM)))));
-  DBUG_RETURN((uchar*) (((char*) next)+ALIGN_SIZE(sizeof(USED_MEM))));
+
+  ret= (void*) (((char*) next)+ALIGN_SIZE(sizeof(USED_MEM)));
+  DBUG_PRINT("exit",("ptr: 0x%lx", (long) ret));
+  DBUG_RETURN(ret);
 #else
   size_t get_size, block_size;
   uchar* point;
@@ -221,6 +263,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
     mem_root->first_block_usage= 0;
   }
   DBUG_PRINT("exit",("ptr: 0x%lx", (ulong) point));
+  VG_POST_ALLOC(point, length);
   DBUG_RETURN((void*) point);
 #endif
 }
@@ -275,8 +318,6 @@ void *multi_alloc_root(MEM_ROOT *root, ...)
   va_end(args);
   DBUG_RETURN((void*) start);
 }
-
-#define TRASH_MEM(X) TRASH(((char*)(X) + ((X)->size-(X)->left)), (X)->left)
 
 /* Mark all data in blocks free for reusage */
 
@@ -346,13 +387,19 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   {
     old=next; next= next->next ;
     if (old != root->pre_alloc)
+    {
+      SCRUB_MEM(old);
       my_free(old,MYF(0));
+    }
   }
   for (next=root->free ; next ;)
   {
     old=next; next= next->next;
     if (old != root->pre_alloc)
+    {
+      SCRUB_MEM(old);
       my_free(old,MYF(0));
+    }
   }
   root->used=root->free=0;
   if (root->pre_alloc)
