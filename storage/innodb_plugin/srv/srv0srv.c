@@ -2073,11 +2073,20 @@ srv_export_innodb_status(void)
 		srv_n_flushed_max_dirty;
         export_vars.innodb_buffer_pool_flushed_preflush= srv_n_flushed_preflush;
 
+	export_vars.innodb_hash_searches= btr_cur_n_sea;
+	export_vars.innodb_hash_nonsearches= btr_cur_n_non_sea;
+
 #ifdef HAVE_ATOMIC_BUILTINS
 	export_vars.innodb_have_atomic_builtins = 1;
 #else
 	export_vars.innodb_have_atomic_builtins = 0;
 #endif
+
+	export_vars.innodb_ibuf_inserts = ibuf->n_inserts;
+	export_vars.innodb_ibuf_merged_records = ibuf->n_merged_recs;
+	export_vars.innodb_ibuf_merges = ibuf->n_merges;
+	export_vars.innodb_ibuf_size = ibuf->size;
+
 	export_vars.innodb_page_size = UNIV_PAGE_SIZE;
 	export_vars.innodb_log_checkpoints= log_sys->n_checkpoints;
 	export_vars.innodb_log_syncs= log_sys->n_syncs;

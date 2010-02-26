@@ -670,7 +670,13 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_flushed_preflush;/*!< srv_n_flushed_preflush */
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
 	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
+	ulint innodb_hash_nonsearches;		/*!< btr_cur_n_sea */
+	ulint innodb_hash_searches;		/*!< btr_cur_n_non_sea */
 	ibool innodb_have_atomic_builtins;	/*!< HAVE_ATOMIC_BUILTINS */
+	ulint innodb_ibuf_inserts;		/*!< ibuf->n_inserts */
+	ulint innodb_ibuf_merged_records;	/*!< ibuf->n_merged_recs */
+	ulint innodb_ibuf_merges;		/*!< ibuf->n_merges */
+	ulint innodb_ibuf_size;			/*!< ibuf->size */
 	ulint innodb_log_checkpoints;
 	ulint innodb_log_syncs;
 	ulint innodb_log_waits;			/*!< srv_log_waits */
