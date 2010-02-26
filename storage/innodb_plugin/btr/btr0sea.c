@@ -56,9 +56,21 @@ UNIV_INTERN ulint		btr_search_this_is_zero = 0;
 #ifdef UNIV_SEARCH_PERF_STAT
 /** Number of successful adaptive hash index lookups */
 UNIV_INTERN ulint		btr_search_n_succ	= 0;
+#endif /* UNIV_SEARCH_PERF_STAT */
+
 /** Number of failed adaptive hash index lookups */
 UNIV_INTERN ulint		btr_search_n_hash_fail	= 0;
-#endif /* UNIV_SEARCH_PERF_STAT */
+
+/* Number of times all rows on a page are added or removed */
+ulint	btr_search_n_pages_added	= 0;
+ulint	btr_search_n_pages_removed	= 0;
+
+/* Number of times a rows is added or removed */
+ulint	btr_search_n_rows_added		= 0;
+ulint	btr_search_n_rows_removed	= 0;
+
+/* Number of times the data for a row is updated */
+ulint	btr_search_n_rows_updated	= 0;
 
 /** padding to prevent other memory update
 hotspots from residing on the same memory
@@ -200,11 +212,13 @@ btr_search_disable(void)
 	mutex_enter(&btr_search_enabled_mutex);
 	rw_lock_x_lock(&btr_search_latch);
 
-	btr_search_enabled = FALSE;
-
 	/* Clear all block->is_hashed flags and remove all entries
 	from btr_search_sys->hash_index. */
 	buf_pool_drop_hash_index();
+
+	/* This must come after buf_pool_drop_hash_index() to avoid
+	an infinite loop at shutdown */
+	btr_search_enabled = FALSE;
 
 	/* btr_search_enabled_mutex should guarantee this. */
 	ut_ad(!btr_search_enabled);
@@ -271,6 +285,27 @@ btr_search_info_create(
 }
 
 /*****************************************************************//**
+Print statistics on the adaptive search system. */
+
+void
+btr_print(
+/*======*/
+	FILE*	ofile)	/* in: print output to this */
+{
+	fprintf(ofile,
+		"adaptive hash: %lu fail, "
+		"%lu pages added, %lu rows added, "
+		"%lu pages removed, %lu rows removed, "
+		"%lu rows updated\n",
+		btr_search_n_hash_fail,
+		btr_search_n_pages_added,
+		btr_search_n_rows_added,
+		btr_search_n_pages_removed,
+		btr_search_n_rows_removed,
+		btr_search_n_rows_updated);
+}
+
+/*********************************************************************
 Returns the value of ref_count. The value is protected by
 btr_search_latch.
 @return	ref_count value. */
@@ -561,6 +596,7 @@ btr_search_update_hash_ref(
 
 		ha_insert_for_fold(btr_search_sys->hash_index, fold,
 				   block, rec);
+		btr_search_n_rows_added++;
 	}
 }
 
@@ -602,9 +638,7 @@ btr_search_info_update_slow(
 	if (cursor->flag == BTR_CUR_HASH_FAIL) {
 		/* Update the hash node reference, if appropriate */
 
-#ifdef UNIV_SEARCH_PERF_STAT
 		btr_search_n_hash_fail++;
-#endif /* UNIV_SEARCH_PERF_STAT */
 
 		rw_lock_x_lock(&btr_search_latch);
 
@@ -1028,6 +1062,9 @@ btr_search_drop_page_hash_index(
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
+	if (!btr_search_enabled)
+		return;
+
 retry:
 	rw_lock_s_lock(&btr_search_latch);
 	page = block->frame;
@@ -1127,6 +1164,9 @@ next_rec:
 		mem_free(folds);
 		goto retry;
 	}
+
+	btr_search_n_pages_removed++;
+	btr_search_n_rows_removed += n_cached;
 
 	for (i = 0; i < n_cached; i++) {
 
@@ -1389,6 +1429,9 @@ btr_search_build_page_hash_index(
 	block->curr_left_side = left_side;
 	block->index = index;
 
+	btr_search_n_pages_added++;
+	btr_search_n_rows_added += n_cached;
+
 	for (i = 0; i < n_cached; i++) {
 
 		ha_insert_for_fold(table, folds[i], block, recs[i]);
@@ -1424,6 +1467,9 @@ btr_search_move_or_delete_hash_entries(
 	ulint	n_fields;
 	ulint	n_bytes;
 	ibool	left_side;
+
+	if (!btr_search_enabled)
+		return;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
@@ -1520,6 +1566,10 @@ btr_search_update_hash_on_delete(
 
 	found = ha_search_and_delete_if_found(table, fold, rec);
 
+	if (found) {
+		btr_search_n_rows_removed++;
+	}
+
 	rw_lock_x_unlock(&btr_search_latch);
 }
 
@@ -1563,8 +1613,10 @@ btr_search_update_hash_node_on_insert(
 
 		table = btr_search_sys->hash_index;
 
-		ha_search_and_update_if_found(table, cursor->fold, rec,
-					      block, page_rec_get_next(rec));
+		if (ha_search_and_update_if_found(table, cursor->fold, rec,
+				      block, page_rec_get_next(rec))) {
+			btr_search_n_rows_updated++;
+		}
 
 		rw_lock_x_unlock(&btr_search_latch);
 	} else {
@@ -1655,6 +1707,7 @@ btr_search_update_hash_on_insert(
 			locked = TRUE;
 
 			ha_insert_for_fold(table, ins_fold, block, ins_rec);
+			btr_search_n_rows_added++;
 		}
 
 		goto check_next_rec;
@@ -1671,8 +1724,10 @@ btr_search_update_hash_on_insert(
 
 		if (!left_side) {
 			ha_insert_for_fold(table, fold, block, rec);
+			btr_search_n_rows_added++;
 		} else {
 			ha_insert_for_fold(table, ins_fold, block, ins_rec);
+			btr_search_n_rows_added++;
 		}
 	}
 
@@ -1688,6 +1743,7 @@ check_next_rec:
 			}
 
 			ha_insert_for_fold(table, ins_fold, block, ins_rec);
+			btr_search_n_rows_added++;
 		}
 
 		goto function_exit;
@@ -1705,6 +1761,7 @@ check_next_rec:
 		if (!left_side) {
 
 			ha_insert_for_fold(table, ins_fold, block, ins_rec);
+			btr_search_n_rows_added++;
 			/*
 			fputs("Hash insert for ", stderr);
 			dict_index_name_print(stderr, cursor->index);
@@ -1712,6 +1769,7 @@ check_next_rec:
 			*/
 		} else {
 			ha_insert_for_fold(table, next_fold, block, next_rec);
+			btr_search_n_rows_added++;
 		}
 	}
 

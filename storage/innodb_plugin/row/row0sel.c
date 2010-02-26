@@ -3517,6 +3517,7 @@ row_search_for_mysql(
 	may be long and there may be externally stored fields */
 
 	if (UNIV_UNLIKELY(direction == 0)
+	    && btr_search_enabled
 	    && unique_search
 	    && dict_index_is_clust(index)
 	    && !prebuilt->templ_contains_blob
@@ -3591,13 +3592,18 @@ row_search_for_mysql(
 
 				err = DB_RECORD_NOT_FOUND;
 release_search_latch_if_needed:
-				if (trx->search_latch_timeout > 0
-				    && trx->has_search_latch) {
+				if (trx->has_search_latch) {
+					if (!srv_adaptive_hash_latch_cache) {
+						rw_lock_s_unlock(&btr_search_latch);
+						trx->has_search_latch = FALSE;
 
-					trx->search_latch_timeout--;
+					} else if (trx->search_latch_timeout > 0) {
 
-					rw_lock_s_unlock(&btr_search_latch);
-					trx->has_search_latch = FALSE;
+						trx->search_latch_timeout--;
+
+						rw_lock_s_unlock(&btr_search_latch);
+						trx->has_search_latch = FALSE;
+					}
 				}
 
 				/* NOTE that we do NOT store the cursor

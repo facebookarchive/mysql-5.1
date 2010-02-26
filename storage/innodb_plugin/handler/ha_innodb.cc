@@ -491,6 +491,16 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_hash_searches,              SHOW_LONG},
   {"adaptive_hash_misses",
   (char*) &export_vars.innodb_hash_nonsearches,           SHOW_LONG},
+  {"adaptive_hash_pages_added",
+  (char*) &export_vars.innodb_hash_pages_added,           SHOW_LONG},
+  {"adaptive_hash_pages_removed",
+  (char*) &export_vars.innodb_hash_pages_removed,         SHOW_LONG},
+  {"adaptive_hash_rows_added",
+  (char*) &export_vars.innodb_hash_rows_added,            SHOW_LONG},
+  {"adaptive_hash_rows_removed",
+  (char*) &export_vars.innodb_hash_rows_removed,          SHOW_LONG},
+  {"adaptive_hash_rows_updated",
+  (char*) &export_vars.innodb_hash_rows_updated,          SHOW_LONG},
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
   {"buffer_pool_pages_dirty",
@@ -10393,6 +10403,13 @@ static MYSQL_SYSVAR_BOOL(flush_neighbors_on_checkpoint,
   " is to be written during checkpoint. This is enabled by default.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(adaptive_hash_latch_cache,
+  srv_adaptive_hash_latch_cache,
+  PLUGIN_VAR_NOCMDARG,
+  "When TRUE allow the InnoDB adaptive hash index latch (rw-lock) be cached"
+  " across calls to InnoDB functions. This is only done when locked in read mode.",
+  NULL, NULL, TRUE);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -10453,6 +10470,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_lifo),
   MYSQL_SYSVAR(deadlock_detect),
   MYSQL_SYSVAR(flush_neighbors_on_checkpoint),
+  MYSQL_SYSVAR(adaptive_hash_latch_cache),
   NULL
 };
 

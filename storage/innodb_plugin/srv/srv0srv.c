@@ -365,6 +365,8 @@ UNIV_INTERN lint	srv_conc_n_threads	= 0;
 InnoDB */
 UNIV_INTERN ulint	srv_conc_n_waiting_threads = 0;
 
+UNIV_INTERN my_bool	srv_adaptive_hash_latch_cache = TRUE;
+
 /* Enables InnoDB readahead (prefetch) */
 UNIV_INTERN my_bool	srv_read_ahead_linear = TRUE;
 
@@ -1924,6 +1926,8 @@ srv_printf_innodb_monitor(
 	btr_cur_n_sea_old = btr_cur_n_sea;
 	btr_cur_n_non_sea_old = btr_cur_n_non_sea;
 
+	btr_print(file);
+
 	fputs("---\n"
 	      "LOG\n"
 	      "---\n", file);
@@ -2085,6 +2089,11 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_hash_searches= btr_cur_n_sea;
 	export_vars.innodb_hash_nonsearches= btr_cur_n_non_sea;
+
+        export_vars.innodb_hash_pages_added= btr_search_n_pages_added;
+        export_vars.innodb_hash_pages_removed= btr_search_n_pages_removed;
+        export_vars.innodb_hash_rows_added= btr_search_n_rows_added;
+        export_vars.innodb_hash_rows_removed= btr_search_n_rows_removed;
 
 #ifdef HAVE_ATOMIC_BUILTINS
 	export_vars.innodb_have_atomic_builtins = 1;

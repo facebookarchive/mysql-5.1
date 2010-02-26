@@ -34,6 +34,20 @@ Created 2/17/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "ha0ha.h"
 
+/* The btr_search_n_ variables count activity for the hash table used
+for the adaptive hash index. */
+
+/* Number of times all rows on a page are added or removed */
+extern ulint	btr_search_n_pages_added;
+extern ulint	btr_search_n_pages_removed;
+
+/* Number of times a rows is added or removed */
+extern ulint	btr_search_n_rows_added;
+extern ulint	btr_search_n_rows_removed;
+
+/* Number of times the data for a row is updated */
+extern ulint	btr_search_n_rows_updated;
+
 /*****************************************************************//**
 Creates and initializes the adaptive search system at a database start. */
 UNIV_INTERN
@@ -41,6 +55,13 @@ void
 btr_search_sys_create(
 /*==================*/
 	ulint	hash_size);	/*!< in: hash index hash table size */
+/*********************************************************************
+Prints statistics on the adaptive search system. */
+
+void
+btr_print(
+/*======*/
+	FILE*	ofile);	/* in: print output to this */
 /*****************************************************************//**
 Frees the adaptive search system at a database shutdown. */
 UNIV_INTERN
@@ -281,9 +302,9 @@ extern rw_lock_t*	btr_search_latch_temp;
 #ifdef UNIV_SEARCH_PERF_STAT
 /** Number of successful adaptive hash index lookups */
 extern ulint	btr_search_n_succ;
+#endif /* UNIV_SEARCH_PERF_STAT */
 /** Number of failed adaptive hash index lookups */
 extern ulint	btr_search_n_hash_fail;
-#endif /* UNIV_SEARCH_PERF_STAT */
 
 /** After change in n_fields or n_bytes in info, this many rounds are waited
 before starting the hash analysis again: this is to save CPU time when there

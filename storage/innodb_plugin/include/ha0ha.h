@@ -46,9 +46,10 @@ ha_search_and_get_data(
 Looks for an element when we know the pointer to the data and updates
 the pointer to data if found. */
 UNIV_INTERN
-void
+ibool
 ha_search_and_update_if_found_func(
 /*===============================*/
+				/* out: TRUE if found */
 	hash_table_t*	table,	/*!< in/out: hash table */
 	ulint		fold,	/*!< in: folded value of the searched data */
 	void*		data,	/*!< in: pointer to the data */

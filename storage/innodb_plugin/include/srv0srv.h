@@ -362,6 +362,10 @@ extern ulint srv_buf_pool_reads;
 /* When TRUE, flush dirty neighbor pages on checkpoint. */
 extern my_bool srv_flush_neighbors_on_checkpoint;
 
+/* When TRUE allow the adaptive hash rw-lock to be cached across calls
+   to InnoDB functions. TRUE is the original behavior. */
+extern my_bool srv_adaptive_hash_latch_cache;
+
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
 
@@ -681,6 +685,11 @@ struct export_var_struct{
 	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
 	ulint innodb_hash_nonsearches;		/*!< btr_cur_n_sea */
 	ulint innodb_hash_searches;		/*!< btr_cur_n_non_sea */
+	ulint innodb_hash_pages_added;		/*!< btr_search_n_pages_added */
+	ulint innodb_hash_pages_removed;	/*!< btr_search_n_pages_removed */
+	ulint innodb_hash_rows_added;		/*!< btr_search_n_rows_added */
+	ulint innodb_hash_rows_removed;		/*!< btr_search_n_rows_removed */
+	ulint innodb_hash_rows_updated;		/*!< btr_search_n_rows_updated */
 	ibool innodb_have_atomic_builtins;	/*!< HAVE_ATOMIC_BUILTINS */
 	ulint innodb_ibuf_inserts;		/*!< ibuf->n_inserts */
 	ulint innodb_ibuf_merged_records;	/*!< ibuf->n_merged_recs */
