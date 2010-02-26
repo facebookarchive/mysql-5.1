@@ -451,8 +451,10 @@ int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
 	handlerton* hton, /*!< in: Innodb handlerton */ 
-	THD*	thd);	/*!< in: MySQL thread handle of the user for whom
+	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
 			the transaction should be committed */
+	char*	binlog_file,/* out: binlog file for last commit */
+	ulonglong* binlog_offset);/* out: binlog offset for last commit */
 /****************************************************************//**
 Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
 the logs, and the name of this function should be innobase_checkpoint.
@@ -2524,10 +2526,13 @@ int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
         handlerton *hton, /*!< in: Innodb handlerton */ 
-	THD*	thd)	/*!< in: MySQL thread handle of the user for whom
+	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
 			the transaction should be committed */
+	char*	binlog_file,/* out: binlog file for last commit */
+	ulonglong* binlog_offset)/* out: binlog offset for last commit */
 {
 	trx_t*	trx;
+	int	error_result = 0;
 
 	DBUG_ENTER("innobase_start_trx_and_assign_read_view");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -2546,10 +2551,34 @@ innobase_start_trx_and_assign_read_view(
 
 	trx_start_if_not_started(trx);
 
+	if (binlog_file) {
+		/* When binlog_file is set, this code must return the current
+		binlog file and position for this snapshot. That can only
+		be done when the binlog is open and when the read view is
+		assigned now (not previously). Lock prepare_commit_mutex
+		to guarantee that InnoDB and the binlog agree on the current
+		commit -- otherwise, the commit may be done to the binlog
+		and in flight for InnoDB. */
+		if (!binlog_offset || trx->read_view || !mysql_bin_log_is_open()) {
+			error_result = 1;
+			goto cleanup;
+		}
+
+		pthread_mutex_lock(&prepare_commit_mutex);
+	}
+
 	/* Assign a read view if the transaction does not have it yet */
 
 	trx_assign_read_view(trx);
 
+	if (binlog_file) {
+		strcpy(binlog_file, mysql_bin_log_file_name());
+		*binlog_offset = mysql_bin_log_file_pos();
+
+		pthread_mutex_unlock(&prepare_commit_mutex);
+	}
+
+cleanup:
 	/* Set the MySQL flag to mark that there is an active transaction */
 
 	if (trx->active_trans == 0) {
@@ -2557,7 +2586,7 @@ innobase_start_trx_and_assign_read_view(
 		trx->active_trans = 1;
 	}
 
-	DBUG_RETURN(0);
+	DBUG_RETURN(error_result);
 }
 
 /*****************************************************************//**

@@ -249,6 +249,7 @@
 
 /* Options of START TRANSACTION statement (and later of SET TRANSACTION stmt) */
 #define MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT 1
+#define MYSQL_START_TRANS_OPT_WITH_CONS_INNODB_SNAPSHOT 2
 
 /* Flags for method is_fatal_error */
 #define HA_CHECK_DUP_KEY 1
@@ -663,7 +664,9 @@ struct handlerton
    handler *(*create)(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root);
    void (*drop_database)(handlerton *hton, char* path);
    int (*panic)(handlerton *hton, enum ha_panic_function flag);
-   int (*start_consistent_snapshot)(handlerton *hton, THD *thd);
+   int (*start_consistent_snapshot)(handlerton *hton, THD *thd,
+                                    char *binlog_file,
+                                    ulonglong* binlog_offset);
    bool (*flush_logs)(handlerton *hton);
    bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
    uint (*partition_flags)();
@@ -2026,7 +2029,8 @@ int ha_end_key_cache(KEY_CACHE *key_cache);
 int ha_release_temporary_latches(THD *thd);
 
 /* transactions: interface to handlerton functions */
-int ha_start_consistent_snapshot(THD *thd);
+int ha_start_consistent_snapshot(THD *thd, char *binlog_file,
+                                 ulonglong* binlog_offset);
 int ha_commit_or_rollback_by_xid(XID *xid, bool commit);
 int ha_commit_one_phase(THD *thd, bool all);
 int ha_rollback_trans(THD *thd, bool all);

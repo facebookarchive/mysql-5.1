@@ -6277,6 +6277,10 @@ start_transaction_opts:
           {
             $$= MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT;
           }
+        | WITH CONSISTENT_SYM INNOBASE_SYM SNAPSHOT_SYM
+          {
+             $$= MYSQL_START_TRANS_OPT_WITH_CONS_INNODB_SNAPSHOT;
+          }
         ;
 
 slave_thread_opts:

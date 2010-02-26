@@ -1540,6 +1540,33 @@ err:
 }
 
 
+bool show_master_offset(THD* thd, const char* file, ulonglong offset)
+{
+  Protocol *protocol= thd->protocol;
+  DBUG_ENTER("show_master_offset");
+  List<Item> field_list;
+  field_list.push_back(new Item_empty_string("File", FN_REFLEN));
+  field_list.push_back(new Item_return_int("Position",20,
+					   MYSQL_TYPE_LONGLONG));
+
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    DBUG_RETURN(TRUE);
+
+  protocol->prepare_for_resend();
+
+  int dir_len = dirname_length(file);
+  protocol->store(file + dir_len, &my_charset_bin);
+
+  protocol->store(offset);
+  if (protocol->write())
+    DBUG_RETURN(TRUE);
+
+  my_eof(thd);
+  DBUG_RETURN(FALSE);
+}
+
+
 /**
   Execute a SHOW MASTER STATUS statement.
 

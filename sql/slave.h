@@ -166,6 +166,7 @@ int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
 
 bool show_master_info(THD* thd, Master_info* mi);
 bool show_binlog_info(THD* thd);
+bool show_master_offset(THD* thd, const char* file, ulonglong offset);
 bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
                         bool (*pred)(const void *), const void *param);
 bool rpl_master_erroneous_autoinc(THD* thd);

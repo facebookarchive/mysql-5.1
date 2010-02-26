@@ -4118,10 +4118,28 @@ end_with_restore_list:
       goto error;
     if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
     {
-      if (ha_start_consistent_snapshot(thd))
+      if (ha_start_consistent_snapshot(thd, NULL, NULL))
         goto error;
+      my_ok(thd);
     }
-    my_ok(thd);
+#ifdef HAVE_REPLICATION
+    else if (lex->start_transaction_opt &
+             MYSQL_START_TRANS_OPT_WITH_CONS_INNODB_SNAPSHOT)
+    {
+      ulonglong binlog_offset;
+      char binlog_file[FN_REFLEN + 1];
+      if (ha_start_consistent_snapshot(thd, binlog_file, &binlog_offset))
+        goto error;
+      if (show_master_offset(thd, binlog_file, binlog_offset))
+        goto error;
+      /* When MYSQL_START_TRANS_OPT_WITH_CONS_INNODB_SNAPSHOT is set, the
+         result has already been sent so we omit the call to my_ok() */
+    }
+#endif
+    else
+    {
+      my_ok(thd);
+    }
     break;
   case SQLCOM_COMMIT:
     if (end_trans(thd, lex->tx_release ? COMMIT_RELEASE :

@@ -5915,6 +5915,15 @@ err1:
 
 #ifdef INNODB_COMPATIBILITY_HOOKS
 /**
+  Checks binlog status.
+  @return true if the binlog is open.
+*/
+extern "C"
+const my_bool mysql_bin_log_is_open(void)
+{
+  return mysql_bin_log.is_open();
+}
+/**
   Get the file name of the MySQL binlog.
   @return the name of the binlog file
 */

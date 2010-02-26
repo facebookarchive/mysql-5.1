@@ -218,6 +218,12 @@ extern "C" {
 struct charset_info_st *thd_charset(MYSQL_THD thd);
 char **thd_query(MYSQL_THD thd);
 
+/**
+  Checks binlog status.
+  @return true if the binlog is open.
+*/
+const my_bool mysql_bin_log_is_open(void);
+
 /** Get the file name of the MySQL binlog.
  * @return the name of the binlog file
  */
