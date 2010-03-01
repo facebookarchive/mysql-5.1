@@ -2361,12 +2361,12 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
     }
 
     /*
-      This info used to show up randomly, depending on whether the query
-      checked the query start time or not. now we always write current
-      timestamp to the slow log
+      The timestamp used to only be set when the query had checked the
+      start time. Now the slow log always logs the query start time.
+      This ensures logs can be used to replicate queries accurately.
     */
     end= strmov(end, ",timestamp=");
-    end= int10_to_str((long) current_time, end, 10);
+    end= int10_to_str((long) query_start_arg, end, 10);
 
     if (end != buff)
     {
