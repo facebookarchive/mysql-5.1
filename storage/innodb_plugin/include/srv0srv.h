@@ -277,6 +277,12 @@ extern ulint	srv_n_flushed_preflush;
 /** Pages flushed for other reasons */ 
 extern ulint	srv_n_flushed_other;
 
+/** Number of extra writes done in buf_flush_try_neighbors from LRU list */
+extern ulint srv_neighbors_flushed_lru;
+
+/** Number of extra writes done in buf_flush_try_neighbors from flush list */
+extern ulint srv_neighbors_flushed_list;
+
 extern my_bool	srv_read_ahead_linear;
 
 /** Seconds doing a checkpoint */
@@ -681,6 +687,8 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_flushed_max_dirty;/*!< srv_n_flushed_max_dirty */
 	ulint innodb_buffer_pool_flushed_other;/*!< srv_n_flushed_other */
 	ulint innodb_buffer_pool_flushed_preflush;/*!< srv_n_flushed_preflush */
+        ulint innodb_buffer_pool_neighbors_flushed_list;/*!< srv_neighbors_flushed_list */
+        ulint innodb_buffer_pool_neighbors_flushed_lru;/*!< srv_neighbors_flushed_lru */
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
 	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
 	ulint innodb_hash_nonsearches;		/*!< btr_cur_n_sea */

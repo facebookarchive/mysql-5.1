@@ -333,6 +333,12 @@ UNIV_INTERN ulint	srv_n_flushed_preflush		= 0;
 /** Pages flushed for other reasons */
 UNIV_INTERN ulint	srv_n_flushed_other		= 0;
 
+/** Number of extra writes done in buf_flush_try_neighbors from LRU list */
+UNIV_INTERN ulint	srv_neighbors_flushed_lru	= 0;
+
+/** Number of extra writes done in buf_flush_try_neighbors from flush list */
+UNIV_INTERN ulint	srv_neighbors_flushed_list	= 0;
+
 /* If the following is != 0 we do not allow inserts etc. This protects
 the user from forgetting the innodb_force_recovery keyword to my.cnf */
 
@@ -2086,6 +2092,11 @@ srv_export_innodb_status(void)
         export_vars.innodb_buffer_pool_flushed_max_dirty=
 		srv_n_flushed_max_dirty;
         export_vars.innodb_buffer_pool_flushed_preflush= srv_n_flushed_preflush;
+
+	export_vars.innodb_buffer_pool_neighbors_flushed_list=
+		srv_neighbors_flushed_list;
+	export_vars.innodb_buffer_pool_neighbors_flushed_lru=
+		srv_neighbors_flushed_lru;
 
 	export_vars.innodb_hash_searches= btr_cur_n_sea;
 	export_vars.innodb_hash_nonsearches= btr_cur_n_non_sea;

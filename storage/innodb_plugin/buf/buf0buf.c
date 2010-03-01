@@ -3614,7 +3614,8 @@ buf_print(void)
 		"n pending reads %lu\n"
 		"n pending flush LRU %lu list %lu single page %lu\n"
 		"pages made young %lu, not young %lu\n"
-		"pages read %lu, created %lu, written %lu\n",
+		"pages read %lu, created %lu, written %lu\n"
+		"neighbor pages flushed: %lu by list, %lu by LRU\n",
 		(ulong) size,
 		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
 		(ulong) UT_LIST_GET_LEN(buf_pool->free),
@@ -3628,7 +3629,9 @@ buf_print(void)
 		(ulong) buf_pool->stat.n_pages_not_made_young,
 		(ulong) buf_pool->stat.n_pages_read,
 		(ulong) buf_pool->stat.n_pages_created,
-		(ulong) buf_pool->stat.n_pages_written);
+		(ulong) buf_pool->stat.n_pages_written,
+		(ulong) srv_neighbors_flushed_list,
+		(ulong) srv_neighbors_flushed_lru);
 
 	/* Count the number of blocks belonging to each index in the buffer */
 
@@ -3851,7 +3854,8 @@ buf_print_io(
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n"
 		"Total writes: %lu LRU, %lu flush list, %lu single page\n"
 		"Write sources: free margin %lu, bg dirty %lu, preflush %lu, "
-		"adaptive %lu, other %lu\n",
+		"adaptive %lu, other %lu\n"
+		"Neighbor pages flushed: %lu from list, %lu from LRU\n",
 		(ulong) buf_pool->curr_size,
 		(ulong) UT_LIST_GET_LEN(buf_pool->free),
 		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
@@ -3873,7 +3877,9 @@ buf_print_io(
 		(ulong) srv_n_flushed_max_dirty,
 		(ulong) srv_n_flushed_preflush,
 		(ulong) srv_n_flushed_adaptive,
-		(ulong) srv_n_flushed_other);
+		(ulong) srv_n_flushed_other,
+		(ulong) srv_neighbors_flushed_list,
+		(ulong) srv_neighbors_flushed_lru);
 
 	current_time = time(NULL);
 	time_elapsed = 0.001 + difftime(current_time,
