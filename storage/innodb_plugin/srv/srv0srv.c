@@ -1610,12 +1610,22 @@ srv_suspend_mysql_thread(
 	ulint		sec;
 	ulint		ms;
 	ulong		lock_wait_timeout;
+	ib_time_t	now;
 
 	ut_ad(!mutex_own(&kernel_mutex));
 
 	trx = thr_get_trx(thr);
 
 	os_event_set(srv_lock_timeout_thread_event);
+
+	/* Do not call time() or gettimeofday() while holding kernel_mutex */
+	now = ut_time();
+
+	if (ut_usectime(&sec, &ms) == -1) {
+		start_time = -1;
+	} else {
+		start_time = (ib_int64_t)sec * 1000000 + ms;
+	}
 
 	mutex_enter(&kernel_mutex);
 
@@ -1649,17 +1659,11 @@ srv_suspend_mysql_thread(
 
 	os_event_reset(event);
 
-	slot->suspend_time = ut_time();
+	slot->suspend_time = now;
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		srv_n_lock_wait_count++;
 		srv_n_lock_wait_current_count++;
-
-		if (ut_usectime(&sec, &ms) == -1) {
-			start_time = -1;
-		} else {
-			start_time = (ib_int64_t) sec * 1000000 + ms;
-		}
 	}
 	/* Wake the lock timeout monitor thread, if it is suspended */
 
@@ -1716,21 +1720,22 @@ srv_suspend_mysql_thread(
 		srv_conc_force_enter_innodb(trx);
 	}
 
+	/* Do not call time() while holding kernel_mutex */
+	wait_time = ut_difftime(ut_time(), slot->suspend_time);
+
+	if (ut_usectime(&sec, &ms) == -1) {
+		finish_time = -1;
+	} else {
+		finish_time = (ib_int64_t)sec * 1000000 + ms;
+	}
+
 	mutex_enter(&kernel_mutex);
 
 	/* Release the slot for others to use */
 
 	slot->in_use = FALSE;
 
-	wait_time = ut_difftime(ut_time(), slot->suspend_time);
-
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
-		if (ut_usectime(&sec, &ms) == -1) {
-			finish_time = -1;
-		} else {
-			finish_time = (ib_int64_t) sec * 1000000 + ms;
-		}
-
 		diff_time = (ulint) (finish_time - start_time);
 
 		srv_n_lock_wait_current_count--;
