@@ -4324,7 +4324,9 @@ UNIV_INTERN
 void
 lock_print_info_summary(
 /*====================*/
-	FILE*	file)	/*!< in: file where to print */
+	FILE*	file,	/*!< in: file where to print */
+	ibool	keep_locked)/*!< in: lock_print_info_all_transactions
+			called next. Do not release locks. */
 {
 	lock_mutex_enter_kernel();
 
@@ -4362,6 +4364,10 @@ lock_print_info_summary(
 		"Total number of lock structs in row lock hash table %lu\n",
 		(ulong) lock_get_n_rec_locks());
 #endif /* PRINT_NUM_OF_LOCK_STRUCTS */
+
+	if (!keep_locked) {
+		lock_mutex_exit_kernel();
+	}
 }
 
 /*********************************************************************//**

@@ -618,7 +618,9 @@ UNIV_INTERN
 void
 lock_print_info_summary(
 /*====================*/
-	FILE*	file);	/*!< in: file where to print */
+	FILE*	file,	/*!< in: file where to print */
+	ibool	keep_locked);/*!< in: lock_print_info_all_transactions
+			called next. Do not release locks. */
 /*********************************************************************//**
 Prints info of locks for each transaction. */
 UNIV_INTERN

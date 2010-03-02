@@ -8371,10 +8371,6 @@ innodb_show_status(
 	stat_print_fn *stat_print)
 {
 	trx_t*			trx;
-	static const char	truncated_msg[] = "... truncated...\n";
-	const long		MAX_STATUS_SIZE = 64000;
-	ulint			trx_list_start = ULINT_UNDEFINED;
-	ulint			trx_list_end = ULINT_UNDEFINED;
 
 	DBUG_ENTER("innodb_show_status");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -8386,13 +8382,13 @@ innodb_show_status(
 	/* We let the InnoDB Monitor to output at most MAX_STATUS_SIZE
 	bytes of text. */
 
-	long	flen, usable_len;
+	long	flen;
 	char*	str;
 
 	mutex_enter(&srv_monitor_file_mutex);
 	rewind(srv_monitor_file);
-	srv_printf_innodb_monitor(srv_monitor_file,
-				&trx_list_start, &trx_list_end);
+	srv_printf_innodb_monitor(srv_monitor_file, FALSE);
+
 	flen = ftell(srv_monitor_file);
 	os_file_set_eof(srv_monitor_file);
 
@@ -8400,40 +8396,17 @@ innodb_show_status(
 		flen = 0;
 	}
 
-	if (flen > MAX_STATUS_SIZE) {
-		usable_len = MAX_STATUS_SIZE;
-	} else {
-		usable_len = flen;
-	}
-
 	/* allocate buffer for the string, and
 	read the contents of the temporary file */
 
-	if (!(str = (char*) my_malloc(usable_len + 1, MYF(0)))) {
+	if (!(str = (char*) my_malloc(flen + 1, MYF(0)))) {
 	  mutex_exit(&srv_monitor_file_mutex);
 	  DBUG_RETURN(TRUE);
 	}
 
 	rewind(srv_monitor_file);
-	if (flen < MAX_STATUS_SIZE) {
-		/* Display the entire output. */
-		flen = (long) fread(str, 1, flen, srv_monitor_file);
-	} else if (trx_list_end < (ulint) flen
-			&& trx_list_start < trx_list_end
-			&& trx_list_start + (flen - trx_list_end)
-			< MAX_STATUS_SIZE - sizeof truncated_msg - 1) {
-		/* Omit the beginning of the list of active transactions. */
-		long len = (long) fread(str, 1, trx_list_start, srv_monitor_file);
-		memcpy(str + len, truncated_msg, sizeof truncated_msg - 1);
-		len += sizeof truncated_msg - 1;
-		usable_len = (MAX_STATUS_SIZE - 1) - len;
-		fseek(srv_monitor_file, flen - usable_len, SEEK_SET);
-		len += (long) fread(str + len, 1, usable_len, srv_monitor_file);
-		flen = len;
-	} else {
-		/* Omit the end of the output. */
-		flen = (long) fread(str, 1, MAX_STATUS_SIZE - 1, srv_monitor_file);
-	}
+	/* Display the entire output. */
+	flen = (long) fread(str, 1, flen, srv_monitor_file);
 
 	mutex_exit(&srv_monitor_file_mutex);
 
