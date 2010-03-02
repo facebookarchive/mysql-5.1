@@ -7243,6 +7243,15 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
+
+  if (options & REFRESH_STATISTICS)
+  {
+    pthread_mutex_lock(&LOCK_global_table_stats);
+    free_global_table_stats();
+    init_global_table_stats();
+    pthread_mutex_unlock(&LOCK_global_table_stats);
+  }
+
  *write_to_binlog= tmp_write_to_binlog;
  /*
    If the query was killed then this function must fail.

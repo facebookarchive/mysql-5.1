@@ -1191,6 +1191,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  TABLESPACE
 %token  TABLE_REF_PRIORITY
 %token  TABLE_SYM                     /* SQL-2003-R */
+%token  STATISTICS_SYM
 %token  TABLE_CHECKSUM_SYM
 %token  TEMPORARY                     /* SQL-2003-N */
 %token  TEMPTABLE_SYM
@@ -10568,6 +10569,8 @@ flush_option:
           { Lex->type|= REFRESH_DES_KEY_FILE; }
         | RESOURCES
           { Lex->type|= REFRESH_USER_RESOURCES; }
+        | STATISTICS_SYM
+          { Lex->type |= REFRESH_STATISTICS; }
         ;
 
 opt_table_list:
@@ -11855,6 +11858,7 @@ keyword_sp:
         | SQL_BUFFER_RESULT        {}
         | SQL_NO_CACHE_SYM         {}
         | SQL_THREAD               {}
+        | STATISTICS_SYM           {}
         | STARTS_SYM               {}
         | STATUS_SYM               {}
         | STORAGE_SYM              {}

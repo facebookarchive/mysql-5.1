@@ -1057,11 +1057,20 @@ public:
   ulong update_time;
   uint block_size;			/* index block size */
 
+  /* Counts for TABLE_STATISTICS */
+  ulonglong rows_inserted;   /* count rows inserted */
+  ulonglong rows_updated;    /* count rows updated */
+  ulonglong rows_deleted;    /* count rows deleted */
+  ulonglong rows_read;       /* count row read attempts that return a row */
+  ulonglong rows_requested;  /* count row read attempts, successful or not */
+
   ha_statistics():
     data_file_length(0), max_data_file_length(0),
     index_file_length(0), delete_length(0), auto_increment_value(0),
     records(0), deleted(0), mean_rec_length(0), create_time(0),
-    check_time(0), update_time(0), block_size(0)
+    check_time(0), update_time(0), block_size(0),
+    rows_inserted(0), rows_updated(0), rows_deleted(0),
+    rows_read(0), rows_requested(0)
   {}
 };
 
@@ -1160,7 +1169,8 @@ public:
     ft_handler(0), inited(NONE),
     locked(FALSE), implicit_emptied(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
-    auto_inc_intervals_count(0)
+    auto_inc_intervals_count(0),
+    cached_table_stats(NULL), version_table_stats(0)
     {}
   virtual ~handler(void)
   {
@@ -1285,6 +1295,10 @@ public:
   {
     table= table_arg;
     table_share= share;
+    stats.rows_inserted = stats.rows_updated = stats.rows_deleted = 0;
+    stats.rows_read = stats.rows_requested = 0;
+    cached_table_stats= NULL;
+    version_table_stats= 0;
   }
   virtual double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
@@ -1758,6 +1772,11 @@ public:
     return 0;
   }
 
+  /* Update global per-table counters for work done by this handler. Should be
+     called at the end of a statement.
+  */
+  void update_global_table_stats();
+
 protected:
   /* Service methods for use by storage engines. */
   void ha_statistic_increment(ulong SSV::*offset) const;
@@ -1854,6 +1873,12 @@ private:
   { return 0; }
   virtual int check(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
+
+  /* cached_table_stats saves a hash table search when valid. It is valid when
+     not NULL and version_table_stats == global_table_stats_version.
+  */
+  TABLE_STATS *cached_table_stats;
+  int version_table_stats;
 
   /**
      In this method check_opt can be modified

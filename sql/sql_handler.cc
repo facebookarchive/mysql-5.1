@@ -142,9 +142,10 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables,
   if (*table_ptr)
   {
     (*table_ptr)->file->ha_index_or_rnd_end();
+    update_table_stats(*table_ptr, false); // Do this before LOCK_open is locked
     if (! is_locked)
       VOID(pthread_mutex_lock(&LOCK_open));
-    if (close_thread_table(thd, table_ptr))
+    if (close_thread_table(thd, table_ptr, false))
     {
       /* Tell threads waiting for refresh that something has happened */
       broadcast_refresh();

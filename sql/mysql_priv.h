@@ -1625,7 +1625,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 bool rm_temporary_table(handlerton *base, char *path);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
-bool close_thread_table(THD *thd, TABLE **table_ptr);
+bool close_thread_table(THD *thd, TABLE **table_ptr, bool update_stats);
 void close_temporary_tables(THD *thd);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables);
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
@@ -1644,6 +1644,18 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 void remove_db_from_cache(const char *db);
 void flush_tables();
+
+/* for SHOW GLOBAL TABLE STATUS */
+void update_table_stats(TABLE *table_ptr, bool follow_next);
+int get_table_stats(TABLE *table, handlerton *engine_type,
+                    TABLE_STATS **cached_stats, int *cached_version);
+extern HASH global_table_stats;
+extern pthread_mutex_t LOCK_global_table_stats;
+void init_global_table_stats(void);
+void free_global_table_stats(void);
+extern ST_FIELD_INFO table_stats_fields_info[];
+int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond);
+
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 char *make_default_log_name(char *buff,const char* log_ext);
 

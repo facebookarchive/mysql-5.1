@@ -2139,6 +2139,8 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       dup_ref=ref+ALIGN_SIZE(ref_length);
     cached_table_flags= table_flags();
   }
+  stats.rows_inserted = stats.rows_updated = stats.rows_deleted = 0;
+  stats.rows_read = stats.rows_requested = 0;
   DBUG_RETURN(error);
 }
 
@@ -4406,6 +4408,41 @@ TYPELIB *ha_known_exts(void)
   return &known_extensions;
 }
 
+/*
+  Updates global per-table counters with work done by this instance
+
+  SYNOPSIS
+    update_global_table_stats
+
+  NOTES
+    Should be called at the end of a statement.
+    TODO(mcallaghan): support more concurrency on update, shard the hash table
+*/
+void handler::update_global_table_stats() 
+{
+  if (!stats.rows_read && !stats.rows_requested &&
+      !stats.rows_inserted && !stats.rows_updated && !stats.rows_deleted) 
+  {
+    // Nothing to update
+    return;
+  }
+
+  pthread_mutex_lock(&LOCK_global_table_stats);
+
+  if (!get_table_stats(table, ht, &cached_table_stats,
+                       &version_table_stats))
+  {
+    cached_table_stats->rows_inserted += stats.rows_inserted;
+    cached_table_stats->rows_updated += stats.rows_updated;
+    cached_table_stats->rows_deleted += stats.rows_deleted;
+    cached_table_stats->rows_read += stats.rows_read;
+    cached_table_stats->rows_requested += stats.rows_requested;
+  }
+  stats.rows_read = stats.rows_requested = 0;
+  stats.rows_inserted = stats.rows_updated = stats.rows_deleted = 0;
+
+  pthread_mutex_unlock(&LOCK_global_table_stats);
+}
 
 static bool stat_print(THD *thd, const char *type, uint type_len,
                        const char *file, uint file_len,

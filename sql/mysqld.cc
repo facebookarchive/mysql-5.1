@@ -653,6 +653,7 @@ SHOW_COMP_OPTION have_community_features;
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
+pthread_mutex_t LOCK_global_table_stats;
 pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_mapped_file, LOCK_status, LOCK_global_read_lock,
 		LOCK_error_log, LOCK_uuid_generator,
@@ -1359,6 +1360,7 @@ void clean_up(bool print_message)
   x_free(opt_secure_file_priv);
   x_free(opt_perftools_profile_output);
   bitmap_free(&temp_pool);
+  free_global_table_stats();
   free_max_user_conn();
 #ifdef HAVE_REPLICATION
   end_slave_list();
@@ -1473,6 +1475,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
   (void) pthread_mutex_destroy(&LOCK_uuid_generator);
   (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
+  (void) pthread_mutex_destroy(&LOCK_global_table_stats);
   (void) pthread_cond_destroy(&COND_thread_count);
   (void) pthread_cond_destroy(&COND_refresh);
   (void) pthread_cond_destroy(&COND_global_read_lock);
@@ -3612,6 +3615,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_connection_count, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_global_table_stats, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
 #ifndef HAVE_YASSL
@@ -3987,6 +3991,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   my_init_fast_timer(1);
+
+  init_global_table_stats();
 
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);

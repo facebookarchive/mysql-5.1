@@ -511,6 +511,7 @@ static SYMBOL symbols[] = {
   { "SSL",		SYM(SSL_SYM)},
   { "START",		SYM(START_SYM)},
   { "STARTING",		SYM(STARTING)},
+  { "STATISTICS",       SYM(STATISTICS_SYM)},
   { "STARTS",		SYM(STARTS_SYM)},
   { "STATUS",		SYM(STATUS_SYM)},
   { "STOP",		SYM(STOP_SYM)},

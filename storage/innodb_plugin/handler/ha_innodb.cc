@@ -4600,6 +4600,9 @@ no_commit:
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
+	if (error == DB_SUCCESS)
+		stats.rows_inserted++;
+
 	/* Handle duplicate key errors */
 	if (auto_inc_used) {
 		ulint		err;
@@ -4896,6 +4899,9 @@ ha_innobase::update_row(
 
 	error = row_update_for_mysql((byte*) old_row, prebuilt);
 
+	if (error == DB_SUCCESS)
+		stats.rows_updated++;
+
 	/* We need to do some special AUTOINC handling for the following case:
 
 	INSERT INTO t (c1,c2) VALUES(x,y) ON DUPLICATE KEY UPDATE ...
@@ -4988,6 +4994,9 @@ ha_innobase::delete_row(
 	innodb_srv_conc_enter_innodb(trx);
 
 	error = row_update_for_mysql((byte*) record, prebuilt);
+
+	if (error == DB_SUCCESS)
+		stats.rows_deleted++;
 
 	innodb_srv_conc_exit_innodb(trx);
 
@@ -5300,10 +5309,12 @@ ha_innobase::index_read(
 		ret = DB_UNSUPPORTED;
 	}
 
+	stats.rows_requested++;
 	switch (ret) {
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
+		stats.rows_read++;
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
@@ -5493,10 +5504,12 @@ ha_innobase::general_fetch(
 
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
+	stats.rows_requested++;
 	switch (ret) {
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
+		stats.rows_read++;
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;

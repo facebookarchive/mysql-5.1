@@ -1,0 +1,44 @@
+drop table if exists x;
+flush statistics;
+create table x (i int primary key auto_increment, j char(255)) ;
+insert into x values (null, 'foobar');
+insert into x select null,'foobar' from x;
+insert into x select null,'foobar' from x;
+analyze table x;
+Table	Op	Msg_type	Msg_text
+test.x	analyze	status	OK
+select count(*) from x;
+count(*)
+4
+select i, max(j) from x group by i order by i;
+i	max(j)
+1	foobar
+2	foobar
+3	foobar
+4	foobar
+select * from information_schema.table_statistics where table_schema = 'test';
+TABLE_SCHEMA	TABLE_NAME	TABLE_ENGINE	ROWS_INSERTED	ROWS_UPDATED	ROWS_DELETED	ROWS_READ	ROWS_REQUESTED
+test	x	MyISAM	4	0	0	7	9
+flush statistics;
+create temporary table mt engine=myisam as select * from x;
+create temporary table tt as select * from x;
+select count(*) from mt;
+count(*)
+4
+select count(*) from tt;
+count(*)
+4
+select * from information_schema.table_statistics where table_name != 'x';
+TABLE_SCHEMA	TABLE_NAME	TABLE_ENGINE	ROWS_INSERTED	ROWS_UPDATED	ROWS_DELETED	ROWS_READ	ROWS_REQUESTED
+delete from x;
+flush statistics;
+insert into x values (1, 'foo');
+insert into x values (2, 'bar');
+update x set j='foo2' where i=1;
+update x set j='bar2' where i=2;
+delete from x where i=1;
+delete from x where i=2;
+select * from information_schema.table_statistics where table_name = 'x';
+TABLE_SCHEMA	TABLE_NAME	TABLE_ENGINE	ROWS_INSERTED	ROWS_UPDATED	ROWS_DELETED	ROWS_READ	ROWS_REQUESTED
+test	x	MyISAM	2	2	2	4	4
+drop table x;

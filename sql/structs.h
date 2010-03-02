@@ -237,6 +237,24 @@ typedef struct  user_conn {
   USER_RESOURCES user_resources;
 } USER_CONN;
 
+typedef struct st_table_stats {
+  char db[NAME_LEN + 1];     /* [db] + '\0' */
+  char table[NAME_LEN + 1];  /* [table] + '\0' */
+  /* Used for wildcard matches - [db] + '.' + [table] + '\0' */
+  char db_table[NAME_LEN * 2 + 2];
+  int db_table_len;          /* strlen(db_table) */
+  /* Hash table key, table->s->table_cache_key for the table */
+  char hash_key[NAME_LEN * 2 + 2];
+  int hash_key_len;          /* table->s->key_length for the table */
+  ulonglong rows_inserted;   /* Number of rows inserted */
+  ulonglong rows_updated;    /* Number of rows updated */
+  ulonglong rows_deleted;    /* Number of rows deleted */
+  ulonglong rows_read;       /* Number of rows read for this table */
+  ulonglong rows_requested;  /* Number of row read attempts for this table.
+                                This counts requests do not return a row. */
+  handlerton *engine_type;
+} TABLE_STATS;
+
 	/* Bits in form->update */
 #define REG_MAKE_DUPP		1	/* Make a copy of record when read */
 #define REG_NEW_RECORD		2	/* Write a new record if not found */

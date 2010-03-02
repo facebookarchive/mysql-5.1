@@ -1193,10 +1193,17 @@ static void close_open_tables(THD *thd)
 
   VOID(pthread_mutex_lock(&LOCK_open));
 
+  /*
+     Update global table stats before LOCK_open might be locked.
+     This is done for performance so it is OK when LOCK_open has been
+     locked by the caller.
+  */
+  update_table_stats(thd->open_tables, true);
+
   DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
 
   while (thd->open_tables)
-    found_old_table|= close_thread_table(thd, &thd->open_tables);
+    found_old_table|= close_thread_table(thd, &thd->open_tables, false);
   thd->some_tables_deleted= 0;
 
   /* Free tables to hold down open files */
@@ -1366,7 +1373,7 @@ void close_thread_tables(THD *thd)
 
 /* move one table to free list */
 
-bool close_thread_table(THD *thd, TABLE **table_ptr)
+bool close_thread_table(THD *thd, TABLE **table_ptr, bool update_stats)
 {
   bool found_old_table= 0;
   TABLE *table= *table_ptr;
@@ -1375,6 +1382,14 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   DBUG_ASSERT(!table->file || table->file->inited == handler::NONE);
   DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
                         table->s->table_name.str, (long) table));
+
+  /* Avoid a mutex hotspot by allowing some callers to update table stats
+     prior to calling this function.
+  */
+  if (update_stats && table->file)
+  {
+    table->file->update_global_table_stats();
+  }
 
   *table_ptr=table->next;
   /*
@@ -1913,6 +1928,7 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table)
   DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'",
                           table->s->db.str, table->s->table_name.str));
 
+  table->file->update_global_table_stats();
   free_io_cache(table);
   closefrm(table, 0);
   if (delete_table)
@@ -2019,7 +2035,7 @@ static void unlink_open_merge(THD *thd, TABLE *table, TABLE ***prev_pp)
         Remove parent from open_tables list and close it.
         This includes detaching and hence clearing parent references.
       */
-      close_thread_table(thd, prv_p);
+      close_thread_table(thd, prv_p, true);
     }
   }
   else if (table->child_l)
@@ -9081,6 +9097,8 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
   mysql_unlock_tables(thd, thd->lock);
   thd->lock= 0;
 
+  update_table_stats(thd->open_tables, true); // Do this before LOCK_open is locked
+
   pthread_mutex_lock(&LOCK_open);
 
   found_old_table= false;
@@ -9092,7 +9110,7 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
     other thread tries to abort the MERGE lock in between.
   */
   while (thd->open_tables)
-    found_old_table|= close_thread_table(thd, &thd->open_tables);
+    found_old_table|= close_thread_table(thd, &thd->open_tables, false);
 
   if (found_old_table)
     broadcast_refresh();
