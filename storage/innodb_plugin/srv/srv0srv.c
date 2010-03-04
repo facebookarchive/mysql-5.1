@@ -1153,7 +1153,7 @@ srv_can_enter_as_lifo(
 /*==================*/
 	trx_t*	trx)	/* in: current transaction */
 {
-#if defined(HAVE_GCC_ATOMIC_BUILTINS)
+#if defined(HAVE_ATOMIC_BUILTINS)
 	/* There is a race there but it should be harmless. The race can allow
 	 * more than the expected number of threads in via LIFO scheduling
 	 * policy. The assert is debug only to confirm it doesn't happen during
@@ -1162,7 +1162,7 @@ srv_can_enter_as_lifo(
 		(srv_thread_lifo_running < srv_thread_fifo_pending)) {
 
 		trx->trx_lifo = TRUE;
-		__sync_fetch_and_add(&srv_thread_lifo_running, 1);
+		os_atomic_increment(&srv_thread_lifo_running, 1);
 		ut_ad(srv_thread_lifo_running <= srv_thread_concurrency);
 		srv_thread_lifo_scheduled++;
 		return 1;
@@ -1327,8 +1327,8 @@ retry:
 
 	os_event_wait(trx->trx_event);
 
-#if defined(HAVE_GCC_ATOMIC_BUILTINS)
-	__sync_fetch_and_sub(&srv_thread_fifo_pending, 1);
+#if defined(HAVE_ATOMIC_BUILTINS)
+	os_atomic_increment(&srv_thread_fifo_pending, -1);
 	ut_ad(srv_thread_fifo_pending >= 0);
 #endif
 
@@ -1384,9 +1384,9 @@ srv_conc_force_exit_innodb(
 		return;
 	}
 
-#if defined(HAVE_GCC_ATOMIC_BUILTINS)
+#if defined(HAVE_ATOMIC_BUILTINS)
 	if (trx->trx_lifo && trx->declared_to_be_inside_innodb)  {
-		__sync_fetch_and_sub(&srv_thread_lifo_running, 1);
+		os_atomic_increment(&srv_thread_lifo_running, -1);
 		ut_ad(srv_thread_lifo_running >= 0);
 	}
 #endif
@@ -1426,8 +1426,8 @@ srv_conc_force_exit_innodb(
 	os_fast_mutex_unlock(&srv_conc_mutex);
 
 	if (slot != NULL) {
-#if defined(HAVE_GCC_ATOMIC_BUILTINS)
-		__sync_fetch_and_add(&srv_thread_fifo_pending, 1);
+#if defined(HAVE_ATOMIC_BUILTINS)
+		os_atomic_increment(&srv_thread_fifo_pending, 1);
 		ut_ad(srv_thread_fifo_pending <= srv_thread_concurrency);
 #endif
 		os_event_set(event);
