@@ -474,7 +474,8 @@ innodb_show_status(
 /*===============*/
 	handlerton*	hton,	/*!< in: the innodb handlerton */
 	THD*	thd,	/*!< in: the MySQL query thread of the caller */
-	stat_print_fn *stat_print);
+	stat_print_fn *stat_print,
+        bool	transaction); /*!< in: for SHOW INNODB TRANSACTION STATUS */
 static
 bool innobase_show_status(handlerton *hton, THD* thd, 
                           stat_print_fn* stat_print,
@@ -8368,7 +8369,8 @@ innodb_show_status(
 /*===============*/
 	handlerton*	hton,	/*!< in: the innodb handlerton */
 	THD*	thd,	/*!< in: the MySQL query thread of the caller */
-	stat_print_fn *stat_print)
+	stat_print_fn *stat_print,
+        bool	transaction)	/*!< in: for SHOW INNODB TRANSACTION STATUS */
 {
 	trx_t*			trx;
 
@@ -8387,7 +8389,11 @@ innodb_show_status(
 
 	mutex_enter(&srv_monitor_file_mutex);
 	rewind(srv_monitor_file);
-	srv_printf_innodb_monitor(srv_monitor_file, FALSE);
+	if (transaction) {
+		srv_printf_innodb_transaction(srv_monitor_file);
+	} else {
+		srv_printf_innodb_monitor(srv_monitor_file, FALSE);
+	}
 
 	flen = ftell(srv_monitor_file);
 	os_file_set_eof(srv_monitor_file);
@@ -8561,9 +8567,11 @@ bool innobase_show_status(handlerton *hton, THD* thd,
 
 	switch (stat_type) {
 	case HA_ENGINE_STATUS:
-		return innodb_show_status(hton, thd, stat_print);
+		return innodb_show_status(hton, thd, stat_print, false);
 	case HA_ENGINE_MUTEX:
 		return innodb_mutex_show_status(hton, thd, stat_print);
+	case HA_ENGINE_TRX:
+		return innodb_show_status(hton, thd, stat_print, true);
 	default:
 		return(FALSE);
 	}

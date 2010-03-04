@@ -2641,6 +2641,13 @@ mysql_execute_command(THD *thd, my_fast_timer_t *last_timer)
       res = ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_MUTEX);
       break;
     }
+  case SQLCOM_SHOW_ENGINE_TRX:
+    {
+      if (check_global_access(thd, PROCESS_ACL))
+        goto error;
+      res = ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_TRX);
+      break;
+    }
 #ifdef HAVE_REPLICATION
   case SQLCOM_LOAD_MASTER_TABLE:
   {

@@ -10255,6 +10255,19 @@ show_param:
             }
             WARN_DEPRECATED(yythd, "6.0", "SHOW INNODB STATUS", "'SHOW ENGINE INNODB STATUS'");
           }
+        | INNOBASE_SYM TRANSACTION_SYM STATUS_SYM
+          {
+            LEX *lex= Lex;
+            lex->sql_command = SQLCOM_SHOW_ENGINE_TRX;
+            if (!(lex->create_info.db_type=
+                  ha_resolve_by_legacy_type(YYTHD, DB_TYPE_INNODB)))
+            {
+              my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "InnoDB");
+              MYSQL_YYABORT;
+            }
+            WARN_DEPRECATED(yythd, "6.0", "SHOW INNODB TRANSACTION STATUS",
+                            "'SHOW ENGINE INNODB TRANSACTION STATUS'");
+          }
         | MUTEX_SYM STATUS_SYM
           {
             LEX *lex= Lex;
@@ -10407,6 +10420,8 @@ show_engine_param:
           { Lex->sql_command= SQLCOM_SHOW_ENGINE_MUTEX; }
         | LOGS_SYM
           { Lex->sql_command= SQLCOM_SHOW_ENGINE_LOGS; }
+        | TRANSACTION_SYM STATUS_SYM
+          { Lex->sql_command= SQLCOM_SHOW_ENGINE_TRX; }
         ;
 
 master_or_binary:
