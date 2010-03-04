@@ -246,12 +246,14 @@ typedef struct st_table_stats {
   /* Hash table key, table->s->table_cache_key for the table */
   char hash_key[NAME_LEN * 2 + 2];
   int hash_key_len;          /* table->s->key_length for the table */
-  ulonglong rows_inserted;   /* Number of rows inserted */
-  ulonglong rows_updated;    /* Number of rows updated */
-  ulonglong rows_deleted;    /* Number of rows deleted */
-  ulonglong rows_read;       /* Number of rows read for this table */
-  ulonglong rows_requested;  /* Number of row read attempts for this table.
-                                This counts requests do not return a row. */
+
+  volatile longlong rows_inserted;   /* Number of rows inserted */
+  volatile longlong rows_updated;    /* Number of rows updated */
+  volatile longlong rows_deleted;    /* Number of rows deleted */
+  volatile longlong rows_read;       /* Number of rows read for this table */
+  volatile longlong rows_requested;  /* Number of row read attempts for
+                                        this table.  This counts requests
+                                         that do not return a row. */
   handlerton *engine_type;
 } TABLE_STATS;
 

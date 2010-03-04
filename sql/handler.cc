@@ -24,6 +24,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "my_atomic.h"
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include <errno.h>
@@ -4427,21 +4428,19 @@ void handler::update_global_table_stats()
     return;
   }
 
-  pthread_mutex_lock(&LOCK_global_table_stats);
+  if (!table_stats)
+    table_stats = get_table_stats(table, ht);
 
-  if (!get_table_stats(table, ht, &cached_table_stats,
-                       &version_table_stats))
+  if (table_stats)
   {
-    cached_table_stats->rows_inserted += stats.rows_inserted;
-    cached_table_stats->rows_updated += stats.rows_updated;
-    cached_table_stats->rows_deleted += stats.rows_deleted;
-    cached_table_stats->rows_read += stats.rows_read;
-    cached_table_stats->rows_requested += stats.rows_requested;
+    my_atomic_add64(&table_stats->rows_inserted, stats.rows_inserted);
+    my_atomic_add64(&table_stats->rows_updated, stats.rows_updated);
+    my_atomic_add64(&table_stats->rows_deleted, stats.rows_deleted);
+    my_atomic_add64(&table_stats->rows_read, stats.rows_read);
+    my_atomic_add64(&table_stats->rows_requested, stats.rows_requested);
   }
   stats.rows_read = stats.rows_requested = 0;
   stats.rows_inserted = stats.rows_updated = stats.rows_deleted = 0;
-
-  pthread_mutex_unlock(&LOCK_global_table_stats);
 }
 
 static bool stat_print(THD *thd, const char *type, uint type_len,

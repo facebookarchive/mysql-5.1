@@ -1170,7 +1170,7 @@ public:
     locked(FALSE), implicit_emptied(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
-    cached_table_stats(NULL), version_table_stats(0)
+    table_stats(NULL)
     {}
   virtual ~handler(void)
   {
@@ -1297,8 +1297,7 @@ public:
     table_share= share;
     stats.rows_inserted = stats.rows_updated = stats.rows_deleted = 0;
     stats.rows_read = stats.rows_requested = 0;
-    cached_table_stats= NULL;
-    version_table_stats= 0;
+    table_stats= NULL;
   }
   virtual double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
@@ -1874,11 +1873,8 @@ private:
   virtual int check(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
 
-  /* cached_table_stats saves a hash table search when valid. It is valid when
-     not NULL and version_table_stats == global_table_stats_version.
-  */
-  TABLE_STATS *cached_table_stats;
-  int version_table_stats;
+  /* table_stats saves a hash table search when set. */
+  TABLE_STATS *table_stats;
 
   /**
      In this method check_opt can be modified

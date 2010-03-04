@@ -1647,12 +1647,11 @@ void flush_tables();
 
 /* for SHOW GLOBAL TABLE STATUS */
 void update_table_stats(TABLE *table_ptr, bool follow_next);
-int get_table_stats(TABLE *table, handlerton *engine_type,
-                    TABLE_STATS **cached_stats, int *cached_version);
+TABLE_STATS* get_table_stats(TABLE *table, handlerton *engine_type);
 extern HASH global_table_stats;
-extern pthread_mutex_t LOCK_global_table_stats;
 void init_global_table_stats(void);
 void free_global_table_stats(void);
+void reset_global_table_stats(void);
 extern ST_FIELD_INFO table_stats_fields_info[];
 int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond);
 

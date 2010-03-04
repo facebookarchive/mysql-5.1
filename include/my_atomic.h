@@ -101,6 +101,7 @@ make_atomic_cas(ptr)
 make_atomic_add( 8)
 make_atomic_add(16)
 make_atomic_add(32)
+make_atomic_add(64)
 
 make_atomic_load( 8)
 make_atomic_load(16)
