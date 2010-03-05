@@ -55,7 +55,6 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
-#include "my_perf.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0sync.h"
 # include "os0thread.h"
@@ -140,6 +139,8 @@ struct os_aio_slot_struct{
 					completed */
 	os_io_perf2_t*	io_perf2;	/*!< per fil_space_t performance 
 					counters */
+	struct st_table_stats*	table_stats;/*!< per-table performance
+					counters */
 #ifdef WIN_ASYNC_IO
 	os_event_t	event;		/*!< event object we need in the
 					OVERLAPPED struct */
@@ -195,7 +196,7 @@ static byte* os_aio_thread_buffer[SRV_MAX_N_IO_THREADS];
 static ulint os_aio_thread_buffer_size[SRV_MAX_N_IO_THREADS];
 
 /* Performance counters indexed by global segment number */
-static os_io_perf_t os_aio_perf[SRV_MAX_N_IO_THREADS];
+static my_io_perf_t os_aio_perf[SRV_MAX_N_IO_THREADS];
 
 #define OS_AIO_OLD_USECS 2000000
 
@@ -226,11 +227,11 @@ UNIV_INTERN ulint	os_n_fsyncs_old		= 0;
 UNIV_INTERN time_t	os_last_printout;
 
 /* Global counters for sync and async IO */
-os_io_perf_t os_async_read_perf;
-os_io_perf_t os_async_write_perf;
+my_io_perf_t os_async_read_perf;
+my_io_perf_t os_async_write_perf;
 
-os_io_perf_t os_sync_read_perf;
-os_io_perf_t os_sync_write_perf;
+my_io_perf_t os_sync_read_perf;
+my_io_perf_t os_sync_write_perf;
 
 /** Seconds waiting for fsync to finish */
 double os_file_flush_secs	= 0;
@@ -251,62 +252,45 @@ UNIV_INTERN ulint	os_n_pending_writes = 0;
 UNIV_INTERN ulint	os_n_pending_reads = 0;
 
 /***********************************************************************//**
-Initialize an os_io_perf_t struct. */
-
-void
-os_io_perf_init(
-/*=============*/
-	os_io_perf_t*	perf)
-{
-	perf->bytes = 0;
-	perf->requests = 0;
-	perf->svc_secs = 0;
-	perf->svc_secs_max = 0;
-	perf->wait_secs = 0;
-	perf->wait_secs_max = 0;
-	perf->old_ios = 0;
-}
-
-/***********************************************************************//**
-Update os_io_perf_t after an IO request. */
-
-UNIV_INLINE
-void
-os_io_perf_update_all(
-/*===============*/
-	os_io_perf_t*		perf,		/* in: struct to update */
-	ulint			bytes,		/* in: size of request */
-	double			svc_secs,	/* in: secs to perform IO */
-	my_fast_timer_t*	stop_timer,	/* in: timer for now */
-	my_fast_timer_t*	wait_start)	/* in: timer when IO request submitted */
-{
-	double	wait_secs = my_fast_timer_diff(wait_start, stop_timer);
-
-	perf->requests++;
-	perf->bytes += bytes;
-
-	perf->svc_secs += svc_secs;
-	perf->svc_secs_max = max(svc_secs, perf->svc_secs_max);
-
-	perf->wait_secs += wait_secs;
-	perf->wait_secs_max = max(wait_secs, perf->wait_secs_max);
-}
-
-/***********************************************************************//**
-Update wait stats for os_io_perf_t for all blocks after the first block in
+Update wait stats for my_io_perf_t for all blocks after the first block in
 a merged request. */
 
 UNIV_INLINE
 void
 os_io_perf_update_wait(
 /*===============*/
-	os_io_perf_t*		perf,		/* in: struct to update */
+	my_io_perf_t*		perf,		/* in: struct to update */
 	my_fast_timer_t*	stop_timer,	/* in: timer for now */
 	my_fast_timer_t*	wait_start)	/* in: timer when IO request submitted */
 {
 	double	wait_secs = my_fast_timer_diff(wait_start, stop_timer);
-	perf->wait_secs += wait_secs;
-	perf->wait_secs_max = max(wait_secs, perf->wait_secs_max);
+	ulonglong wait_usecs = (ulonglong)(1000000 * wait_secs);
+	perf->wait_usecs += wait_usecs;
+        perf->wait_usecs_max = max(perf->wait_usecs_max, wait_usecs);
+}
+
+/***********************************************************************//**
+Update my_io_perf_t after an IO request. */
+
+UNIV_INLINE
+void
+os_io_perf_update_all(
+/*===============*/
+	my_io_perf_t*		perf,		/* in: struct to update */
+	ulint			bytes,		/* in: size of request */
+	double			svc_secs,	/* in: secs to perform IO */
+	my_fast_timer_t*	stop_timer,	/* in: timer for now */
+	my_fast_timer_t*	wait_start)	/* in: timer when IO request submitted */
+{
+	perf->requests++;
+	perf->bytes += bytes;
+
+	ulonglong svc_usecs = (ulonglong)(1000000 * svc_secs);
+	perf->svc_usecs += svc_usecs;
+
+        perf->svc_usecs_max = max(perf->svc_usecs_max, svc_usecs);
+
+        os_io_perf_update_wait(perf, stop_timer, wait_start);
 }
 
 /***********************************************************************//**
@@ -3182,16 +3166,16 @@ os_aio_init(
 
 	for (i = 0; i < n_segments; i++) {
 		srv_set_io_thread_op_info(i, "not started yet");
-		os_io_perf_init(&os_aio_perf[i]);
+		my_io_perf_init(&os_aio_perf[i]);
 		os_aio_thread_buffer[i] = 0;
 		os_aio_thread_buffer_size[i] = 0;
 	}
  
-	os_io_perf_init(&os_async_read_perf);
-	os_io_perf_init(&os_async_write_perf);
+	my_io_perf_init(&os_async_read_perf);
+	my_io_perf_init(&os_async_write_perf);
 
-	os_io_perf_init(&os_sync_read_perf);
-	os_io_perf_init(&os_sync_write_perf);
+	my_io_perf_init(&os_sync_read_perf);
+	my_io_perf_init(&os_sync_write_perf);
 
 	/* fprintf(stderr, "Array n per seg %lu\n", n_per_seg); */
 
@@ -3404,6 +3388,8 @@ os_aio_array_reserve_slot(
 	void*		message2,/*!< in: message to be passed along with
 				the aio operation */
 	os_io_perf2_t*	io_perf2,/*!< in: per fil_space_t perf counters */
+	struct st_table_stats*	table_stats,/*!< in: per-table performance
+				counters */
 	os_file_t	file,	/*!< in: file handle */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
@@ -3483,6 +3469,7 @@ found:
 	slot->message1 = message1;
 	slot->message2 = message2;
 	slot->io_perf2 = io_perf2;
+	slot->table_stats = table_stats;
 	slot->file     = file;
 	slot->name     = name;
 	slot->len      = len;
@@ -3678,7 +3665,9 @@ os_aio(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
-	os_io_perf2_t*	io_perf2)/*!< in: per fil_space_t perf counters */
+	os_io_perf2_t*	io_perf2,/*!< in: per fil_space_t perf counters */
+	os_io_table_perf_t* table_io_perf)/*!< in/out: used for per-table
+				file stats */
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
@@ -3738,12 +3727,22 @@ os_aio(
 			/* Per fil_space_t counters */
 			os_io_perf_update_all(&(io_perf2->read), n,
 				elapsed_secs, &end_timer, &start_timer);
+			if (table_io_perf) {
+				/* Per table counters */
+				os_io_perf_update_all(&(table_io_perf->read), n,
+					elapsed_secs, &end_timer, &start_timer);
+			}
 		} else {
 			os_io_perf_update_all(&os_sync_write_perf, n,
 				elapsed_secs, &end_timer, &start_timer);
 			/* Per fil_space_t counters */
 			os_io_perf_update_all(&(io_perf2->write), n,
 				elapsed_secs, &end_timer, &start_timer);
+			if (table_io_perf) {
+				/* Per table counters */
+				os_io_perf_update_all(&(table_io_perf->write), n,
+					elapsed_secs, &end_timer, &start_timer);
+			}
 		}
 		return r;
 	}
@@ -3774,6 +3773,7 @@ try_again:
 	}
 
 	slot = os_aio_array_reserve_slot(type, array, message1, message2, io_perf2,
+					 table_io_perf ? table_io_perf->table_stats : NULL,
 					 file, name, buf, offset, offset_high, n);
 	if (type == OS_FILE_READ) {
 		if (os_aio_use_native_aio) {
@@ -4145,10 +4145,12 @@ restart:
 		goto wait_for_io;
 	}
 
+	ibool old_io = FALSE;
 	if (oldest_request) {
 		slot = oldest_request;
 		if (biggest_age >= OS_AIO_OLD_USECS) {
 			os_aio_perf[global_segment].old_ios += 1;
+			old_io = TRUE;
 		}
         } else {
 		slot = lowest_request;
@@ -4301,6 +4303,16 @@ restart:
 			n_consecutive * UNIV_PAGE_SIZE, elapsed_secs, &stop_timer,
 			&(slot->reservation_time));
 
+	// TODO(RDM) see if we need to scan the consecutive IO array to find
+	// the table_stats pointer
+	if (slot->table_stats) {
+		/* Per table counters */
+		async_update_table_stats(slot->table_stats,
+			(slot->type == OS_FILE_WRITE),
+			n_consecutive * UNIV_PAGE_SIZE, elapsed_secs,
+			&stop_timer, &(slot->reservation_time), old_io);
+ 	}
+
 	os_mutex_enter(array->mutex);
 
 	/* Mark the i/os done in slots */
@@ -4421,25 +4433,25 @@ void
 os_io_perf_print(
 /*==============*/
 	FILE*		file,
-	os_io_perf_t*	perf,
+	my_io_perf_t*	perf,
 	ibool		newline)
 {
 	double nzero_requests = max(perf->requests, 1);
 
 	fprintf(file,
-		"%lu requests, %u old, %.2f bytes/r, "
+		"%lld requests, %lld old, %.2f bytes/r, "
 		"svc: %.2f secs, %.2f msecs/r, %.2f max msecs, "
 		"wait: %.2f secs %.2f msecs/r, %.2f max msecs",
 		perf->requests, perf->old_ios,
 		perf->bytes / nzero_requests,
 		/* svc: starts here */
-		perf->svc_secs,
-		(perf->svc_secs * 1000.0) / nzero_requests,
-		perf->svc_secs_max * 1000.0,
+		perf->svc_usecs / 1000000.0,
+		(perf->svc_usecs / 1000.0) / nzero_requests,
+		perf->svc_usecs_max / 1000.0,
 		/* wait: starts here */
-		perf->wait_secs,
-		(perf->wait_secs * 1000.0) / nzero_requests,
-		perf->wait_secs_max * 1000.0);
+		perf->wait_usecs / 1000000.0,
+		(perf->wait_usecs / 1000.0) / nzero_requests,
+		perf->wait_usecs_max / 1000.0);
 
 	if (newline)
 		fprintf(file, "\n");

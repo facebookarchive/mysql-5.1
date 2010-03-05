@@ -1057,21 +1057,27 @@ public:
   ulong update_time;
   uint block_size;			/* index block size */
 
+  void reset_table_stats();
+  bool has_table_stats();
+
   /* Counts for TABLE_STATISTICS */
   ulonglong rows_inserted;   /* count rows inserted */
   ulonglong rows_updated;    /* count rows updated */
   ulonglong rows_deleted;    /* count rows deleted */
   ulonglong rows_read;       /* count row read attempts that return a row */
   ulonglong rows_requested;  /* count row read attempts, successful or not */
+  my_io_perf_t table_io_perf_read;/* per table IO perf counters */
+  my_io_perf_t table_io_perf_write;/* per table IO perf counters */
+  ulonglong index_inserts;   /* per table secondary index inserts */
 
   ha_statistics():
     data_file_length(0), max_data_file_length(0),
     index_file_length(0), delete_length(0), auto_increment_value(0),
     records(0), deleted(0), mean_rec_length(0), create_time(0),
-    check_time(0), update_time(0), block_size(0),
-    rows_inserted(0), rows_updated(0), rows_deleted(0),
-    rows_read(0), rows_requested(0)
-  {}
+    check_time(0), update_time(0), block_size(0)
+  {
+    reset_table_stats();
+  }
 };
 
 uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
@@ -1100,6 +1106,8 @@ protected:
   struct st_table_share *table_share;   /* The table definition */
   struct st_table *table;               /* The current open table */
   Table_flags cached_table_flags;       /* Set on init() and open() */
+  /* table_stats saves a hash table search when set. */
+  TABLE_STATS *table_stats;
 
   ha_rows estimation_rows_to_insert;
 public:
@@ -1163,14 +1171,14 @@ public:
 
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
+    table_stats(NULL),
     estimation_rows_to_insert(0), ht(ht_arg),
     ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
     locked(FALSE), implicit_emptied(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
-    auto_inc_intervals_count(0),
-    table_stats(NULL)
+    auto_inc_intervals_count(0)
     {}
   virtual ~handler(void)
   {
@@ -1295,9 +1303,9 @@ public:
   {
     table= table_arg;
     table_share= share;
-    stats.rows_inserted = stats.rows_updated = stats.rows_deleted = 0;
-    stats.rows_read = stats.rows_requested = 0;
     table_stats= NULL;
+    // TODO(RDM) Assert that stats have been saved.
+    stats.reset_table_stats();
   }
   virtual double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
@@ -1872,9 +1880,6 @@ private:
   { return 0; }
   virtual int check(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
-
-  /* table_stats saves a hash table search when set. */
-  TABLE_STATS *table_stats;
 
   /**
      In this method check_opt can be modified

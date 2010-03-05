@@ -2049,27 +2049,41 @@ srv_export_innodb_status(void)
 	export_vars.innodb_data_writes = os_n_file_writes;
 	export_vars.innodb_data_written = srv_data_written;
 
-        export_vars.innodb_data_async_read_bytes= os_async_read_perf.bytes;
-        export_vars.innodb_data_async_read_requests= os_async_read_perf.requests;
-        export_vars.innodb_data_async_read_svc_secs= os_async_read_perf.svc_secs ;
-        export_vars.innodb_data_sync_read_bytes= os_sync_read_perf.bytes;
-        export_vars.innodb_data_sync_read_requests= os_sync_read_perf.requests;
-        export_vars.innodb_data_sync_read_svc_secs= os_sync_read_perf.svc_secs;
+        export_vars.innodb_data_async_read_bytes=
+		os_async_read_perf.bytes;
+        export_vars.innodb_data_async_read_requests=
+		os_async_read_perf.requests;
+        export_vars.innodb_data_async_read_svc_secs=
+		os_async_read_perf.svc_usecs / 1000000.0;
+        export_vars.innodb_data_sync_read_bytes=
+		os_sync_read_perf.bytes;
+        export_vars.innodb_data_sync_read_requests=
+		os_sync_read_perf.requests;
+        export_vars.innodb_data_sync_read_svc_secs=
+		os_sync_read_perf.svc_usecs / 1000000.0;
 
-        export_vars.innodb_data_async_write_bytes= os_async_write_perf.bytes;
-        export_vars.innodb_data_async_write_requests= os_async_write_perf.requests;
-        export_vars.innodb_data_async_write_svc_secs= os_async_write_perf.svc_secs;
+        export_vars.innodb_data_async_write_bytes=
+		os_async_write_perf.bytes;
+        export_vars.innodb_data_async_write_requests=
+		os_async_write_perf.requests;
+        export_vars.innodb_data_async_write_svc_secs=
+		os_async_write_perf.svc_usecs / 1000000.0;
 
-        export_vars.innodb_data_sync_write_bytes= os_sync_write_perf.bytes;
-        export_vars.innodb_data_sync_write_requests= os_sync_write_perf.requests;
-        export_vars.innodb_data_sync_write_svc_secs= os_sync_write_perf.svc_secs;
+        export_vars.innodb_data_sync_write_bytes=
+		os_sync_write_perf.bytes;
+        export_vars.innodb_data_sync_write_requests=
+		os_sync_write_perf.requests;
+        export_vars.innodb_data_sync_write_svc_secs=
+		os_sync_write_perf.svc_usecs / 1000000.0;
 
- 	export_vars.innodb_buffer_pool_flushed_lru= buf_pool->n_flushed[BUF_FLUSH_LRU];
- 	export_vars.innodb_buffer_pool_flushed_list= buf_pool->n_flushed[BUF_FLUSH_LIST];
- 	export_vars.innodb_buffer_pool_flushed_page=
- 		buf_pool->n_flushed[BUF_FLUSH_SINGLE_PAGE];
+	export_vars.innodb_buffer_pool_flushed_lru=
+		buf_pool->n_flushed[BUF_FLUSH_LRU];
+	export_vars.innodb_buffer_pool_flushed_list=
+		buf_pool->n_flushed[BUF_FLUSH_LIST];
+	export_vars.innodb_buffer_pool_flushed_page=
+		buf_pool->n_flushed[BUF_FLUSH_SINGLE_PAGE];
  
- 	export_vars.innodb_buffer_pool_pct_dirty=
+	export_vars.innodb_buffer_pool_pct_dirty=
                 (((double) UT_LIST_GET_LEN(buf_pool->flush_list)) /
                         (UT_LIST_GET_LEN(buf_pool->LRU) + 1.0)) * 100.0;
 

@@ -3078,7 +3078,8 @@ btr_estimate_n_rows_in_range(
 	const dtuple_t*	tuple1,	/*!< in: range start, may also be empty tuple */
 	ulint		mode1,	/*!< in: search mode for range start */
 	const dtuple_t*	tuple2,	/*!< in: range end, may also be empty tuple */
-	ulint		mode2)	/*!< in: search mode for range end */
+	ulint		mode2,	/*!< in: search mode for range end */
+	trx_t*		trx)	/*!< in: trx */
 {
 	btr_path_t	path1[BTR_PATH_ARRAY_N_SLOTS];
 	btr_path_t	path2[BTR_PATH_ARRAY_N_SLOTS];
@@ -3092,7 +3093,7 @@ btr_estimate_n_rows_in_range(
 	ulint		i;
 	mtr_t		mtr;
 
-	mtr_start(&mtr);
+	mtr_start_trx(&mtr, trx);
 
 	cursor.path_arr = path1;
 
@@ -3109,7 +3110,7 @@ btr_estimate_n_rows_in_range(
 
 	mtr_commit(&mtr);
 
-	mtr_start(&mtr);
+	mtr_start_trx(&mtr, trx);
 
 	cursor.path_arr = path2;
 

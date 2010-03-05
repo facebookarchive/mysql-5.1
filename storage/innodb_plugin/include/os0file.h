@@ -53,6 +53,7 @@ Created 10/21/1995 Heikki Tuuri
 #define os0file_h
 
 #include "univ.i"
+#include "my_perf.h"
 
 #ifndef __WIN__
 #include <dirent.h>
@@ -240,45 +241,35 @@ typedef HANDLE	os_file_dir_t;	/*!< directory stream */
 typedef DIR*	os_file_dir_t;	/*!< directory stream */
 #endif
 
-/* Struct used for IO performance counters */
-struct os_io_perf_struct {
-	ulint	bytes;
-	ulint	requests;
-	double	svc_secs;	/*!< time to do read or write operation */
-	ulint	svc_secs_max;
-	double	wait_secs;	/*!< total time in the request array */
-	ulint	wait_secs_max;
-	uint	old_ios;	/*!< requests that take too long */
-};
-typedef struct os_io_perf_struct os_io_perf_t;
-
 /* Added so os_aio() can be called with one pointer for read and write
 performance counters. */
 struct os_io_perf2_struct {
-	os_io_perf_t	read;
-	os_io_perf_t	write;
+	my_io_perf_t	read;
+	my_io_perf_t	write;
 };
 typedef struct os_io_perf2_struct os_io_perf2_t;
 
+/* Added so os_aio() can be called with one pointer for table
+performance counters. */
+struct os_io_table_perf_struct {
+	my_io_perf_t	read;			/*!< sync read */
+	my_io_perf_t	write;			/*!< sync write */
+	longlong      	index_inserts;		/*!< secondary index inserts */
+	struct st_table_stats* table_stats;	/*!< async stats struct */
+};
+typedef struct os_io_table_perf_struct os_io_table_perf_t;
+
 /** Performance statistics for async reads */
-extern os_io_perf_t	os_async_read_perf;
+extern my_io_perf_t	os_async_read_perf;
 
 /** Performance statistics for async writes */
-extern os_io_perf_t	os_async_write_perf;
+extern my_io_perf_t	os_async_write_perf;
 
 /** Performance statistics for sync reads */
-extern os_io_perf_t	os_sync_read_perf;
+extern my_io_perf_t	os_sync_read_perf;
 
 /** Performance statistics for sync writes */
-extern os_io_perf_t	os_sync_write_perf;
-
-/***************************************************************************
-Initialize an os_io_perf_t struct. */
-
-void
-os_io_perf_init(
-/*=============*/
-	os_io_perf_t*	perf);
+extern my_io_perf_t	os_sync_write_perf;
  
 /**************************************************************************
 Prints IO statistics. */
@@ -287,7 +278,7 @@ void
 os_io_perf_print(
 /*==============*/
 	FILE*		file,
-	os_io_perf_t*	perf,
+	my_io_perf_t*	perf,
 	ibool		newline);
 
 /***********************************************************************//**
@@ -720,7 +711,10 @@ os_aio(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
-	os_io_perf2_t*	io_perf2);/*!< in: per fil_space_t performance counters */
+	os_io_perf2_t*	io_perf2,/*!< in: per fil_space_t performance
+				   counters */
+	os_io_table_perf_t* table_io_perf);/*!< in/out: used for per-table file
+					     stats */
 
 /************************************************************************//**
 Wakes up all async i/o threads so that they know to exit themselves in

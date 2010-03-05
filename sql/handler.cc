@@ -2140,9 +2140,27 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       dup_ref=ref+ALIGN_SIZE(ref_length);
     cached_table_flags= table_flags();
   }
-  stats.rows_inserted = stats.rows_updated = stats.rows_deleted = 0;
-  stats.rows_read = stats.rows_requested = 0;
+  stats.reset_table_stats();
+  table_stats = NULL;
   DBUG_RETURN(error);
+}
+
+
+void ha_statistics::reset_table_stats()
+{
+  rows_inserted = rows_updated = rows_deleted = 0;
+  rows_read = rows_requested = index_inserts = 0;
+  my_io_perf_init(&table_io_perf_read);
+  my_io_perf_init(&table_io_perf_write);
+}
+
+
+bool ha_statistics::has_table_stats()
+{
+  return (rows_read || rows_requested || index_inserts ||
+          rows_inserted || rows_updated || rows_deleted ||
+          table_io_perf_read.requests ||
+          table_io_perf_write.requests);
 }
 
 
@@ -4421,12 +4439,8 @@ TYPELIB *ha_known_exts(void)
 */
 void handler::update_global_table_stats() 
 {
-  if (!stats.rows_read && !stats.rows_requested &&
-      !stats.rows_inserted && !stats.rows_updated && !stats.rows_deleted) 
-  {
-    // Nothing to update
+  if (!stats.has_table_stats())
     return;
-  }
 
   if (!table_stats)
     table_stats = get_table_stats(table, ht);
@@ -4438,9 +4452,14 @@ void handler::update_global_table_stats()
     my_atomic_add64(&table_stats->rows_deleted, stats.rows_deleted);
     my_atomic_add64(&table_stats->rows_read, stats.rows_read);
     my_atomic_add64(&table_stats->rows_requested, stats.rows_requested);
+    my_io_perf_sum_atomic_helper(&table_stats->io_perf_read,
+                                 &stats.table_io_perf_read);
+    my_io_perf_sum_atomic_helper(&table_stats->io_perf_write,
+                                 &stats.table_io_perf_write);
+    my_atomic_add64(&table_stats->index_inserts, stats.index_inserts);
   }
-  stats.rows_read = stats.rows_requested = 0;
-  stats.rows_inserted = stats.rows_updated = stats.rows_deleted = 0;
+
+  stats.reset_table_stats();
 }
 
 static bool stat_print(THD *thd, const char *type, uint type_len,

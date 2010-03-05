@@ -674,6 +674,7 @@ void close_handle_and_leave_table_as_lock(TABLE *table)
   table->db_stat= 0;                            // Mark file closed
   release_table_share(table->s, RELEASE_NORMAL);
   table->s= share;
+  // TODO(RDM) Do we need to update the global table stats here?
   table->file->change_table_ptr(table, table->s);
 
   DBUG_VOID_RETURN;
@@ -3114,6 +3115,7 @@ bool reopen_table(TABLE *table)
 
   *table= tmp;
   table->default_column_bitmaps();
+  // TODO(RDM) Do we need to update the global table stats here?
   table->file->change_table_ptr(table, table->s);
 
   DBUG_ASSERT(table->alias != 0);

@@ -205,7 +205,7 @@ row_upd_check_references_constraints(
 
 	mtr_commit(mtr);
 
-	mtr_start(mtr);
+	mtr_start_trx(mtr, trx);
 
 	if (trx->dict_operation_lock_mode == 0) {
 		got_s_lock = TRUE;
@@ -1457,7 +1457,7 @@ row_upd_sec_index_entry(
 	ut_a(entry);
 
 	log_free_check();
-	mtr_start(&mtr);
+	mtr_start_trx(&mtr, trx);
 
 	found = row_search_index_entry(index, entry, BTR_MODIFY_LEAF, &pcur,
 				       &mtr);
@@ -1718,7 +1718,7 @@ row_upd_clust_rec(
 	/* We may have to modify the tree structure: do a pessimistic descent
 	down the index tree */
 
-	mtr_start(mtr);
+	mtr_start_trx(mtr, mtr->trx);
 
 	/* NOTE: this transaction has an s-lock or x-lock on the record and
 	therefore other transactions cannot modify the record when we have no
@@ -1741,7 +1741,7 @@ row_upd_clust_rec(
 		rec_t*		rec;
 		rec_offs_init(offsets_);
 
-		mtr_start(mtr);
+		mtr_start_trx(mtr, thr_get_trx(thr));
 
 		ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
 		rec = btr_cur_get_rec(btr_cur);
@@ -1848,7 +1848,7 @@ row_upd_clust_step(
 	/* We have to restore the cursor to its position */
 	mtr = &mtr_buf;
 
-	mtr_start(mtr);
+	mtr_start_trx(mtr, thr_get_trx(thr));
 
 	/* If the restoration does not succeed, then the same
 	transaction has deleted the record on which the cursor was,
@@ -1881,7 +1881,7 @@ row_upd_clust_step(
 
 		mtr_commit(mtr);
 
-		mtr_start(mtr);
+		mtr_start_trx(mtr, thr_get_trx(thr));
 
 		success = btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur,
 						    mtr);

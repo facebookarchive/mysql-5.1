@@ -37,8 +37,64 @@
 /* Various performance statistics utilities. */
 
 #include "my_perf.h"
+#include "my_atomic.h"
 
 double my_tsc_scale = 0;
+
+/***********************************************************************//**
+Initialize an my_io_perf_t struct. */
+void my_io_perf_init(my_io_perf_t* perf)
+{
+  perf->bytes = 0;
+  perf->requests = 0;
+  perf->svc_usecs = 0;
+  perf->svc_usecs_max = 0;
+  perf->wait_usecs = 0;
+  perf->wait_usecs_max = 0;
+  perf->old_ios = 0;
+}
+
+/**********************************************************************
+Accumulate per-table IO stats helper function */
+void my_io_perf_sum(my_io_perf_t* sum, const my_io_perf_t* perf)
+{
+  sum->bytes += perf->bytes;
+  sum->requests += perf->requests;
+  sum->svc_usecs += perf->svc_usecs;
+  sum->svc_usecs_max = max(sum->svc_usecs_max, perf->svc_usecs_max);
+  sum->wait_usecs += perf->wait_usecs;
+  sum->wait_usecs_max = max(sum->wait_usecs_max, perf->wait_usecs_max);
+  sum->old_ios += perf->old_ios;
+}
+
+/**********************************************************************
+Accumulate per-table IO stats helper function using atomic ops */
+void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
+    longlong requests, longlong svc_usecs, longlong wait_usecs,
+    longlong old_ios)
+{
+  my_atomic_add64(&sum->bytes, bytes);
+  my_atomic_add64(&sum->requests, requests);
+
+  my_atomic_add64(&sum->svc_usecs, svc_usecs);
+  my_atomic_add64(&sum->wait_usecs, wait_usecs);
+
+  // In the unlikely case that two threads attempt to update the max
+  // value at the same time, only the first will succeed.  It's possible
+  // that the second thread would have set a larger max value, but we
+  // would rather error on the side of simplicity and avoid looping the
+  // compare-and-swap.
+
+  longlong old_svc_usecs_max = sum->svc_usecs_max;
+  if (svc_usecs > old_svc_usecs_max)
+    my_atomic_cas64(&sum->svc_usecs_max, &old_svc_usecs_max, svc_usecs);
+
+  longlong old_wait_usecs_max = sum->wait_usecs_max;
+  if (wait_usecs > old_wait_usecs_max)
+    my_atomic_cas64(&sum->wait_usecs_max, &old_wait_usecs_max, wait_usecs);
+
+  my_atomic_add64(&sum->old_ios, old_ios);
+}
 
 void my_init_fast_timer(int seconds)
 {

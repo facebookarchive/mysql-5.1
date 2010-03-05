@@ -231,7 +231,7 @@ row_undo_mod_clust(
 
 	pcur = &(node->pcur);
 
-	mtr_start(&mtr);
+	mtr_start_trx(&mtr, thr_get_trx(thr));
 
 	/* Try optimistic processing of the record, keeping changes within
 	the index page */
@@ -244,7 +244,7 @@ row_undo_mod_clust(
 		/* We may have to modify tree structure: do a pessimistic
 		descent down the index tree */
 
-		mtr_start(&mtr);
+		mtr_start_trx(&mtr, thr_get_trx(thr));
 
 		err = row_undo_mod_clust_low(node, thr, &mtr, BTR_MODIFY_TREE);
 	}
@@ -253,7 +253,7 @@ row_undo_mod_clust(
 
 	if (err == DB_SUCCESS && node->rec_type == TRX_UNDO_UPD_DEL_REC) {
 
-		mtr_start(&mtr);
+		mtr_start_trx(&mtr, thr_get_trx(thr));
 
 		err = row_undo_mod_remove_clust_low(node, thr, &mtr,
 						    BTR_MODIFY_LEAF);
@@ -263,7 +263,7 @@ row_undo_mod_clust(
 			/* We may have to modify tree structure: do a
 			pessimistic descent down the index tree */
 
-			mtr_start(&mtr);
+			mtr_start_trx(&mtr, thr_get_trx(thr));
 
 			err = row_undo_mod_remove_clust_low(node, thr, &mtr,
 							    BTR_MODIFY_TREE);
@@ -317,7 +317,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	mtr_t		mtr_vers;
 
 	log_free_check();
-	mtr_start(&mtr);
+	mtr_start_trx(&mtr, thr_get_trx(thr));
 
 	found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
 
@@ -344,7 +344,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	which cannot be purged yet, requires its existence. If some requires,
 	we should delete mark the record. */
 
-	mtr_start(&mtr_vers);
+	mtr_start_trx(&mtr_vers, thr_get_trx(thr));
 
 	success = btr_pcur_restore_position(BTR_SEARCH_LEAF, &(node->pcur),
 					    &mtr_vers);
@@ -455,7 +455,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	}
 
 	log_free_check();
-	mtr_start(&mtr);
+	mtr_start_trx(&mtr, thr_get_trx(thr));
 
 	if (UNIV_UNLIKELY(!row_search_index_entry(index, entry,
 						  mode, &pcur, &mtr))) {

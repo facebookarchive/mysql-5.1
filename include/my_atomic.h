@@ -96,6 +96,7 @@ extern void my_atomic_store ## S(int ## S volatile *a, int ## S v);
 make_atomic_cas( 8)
 make_atomic_cas(16)
 make_atomic_cas(32)
+make_atomic_cas(64)
 make_atomic_cas(ptr)
 
 make_atomic_add( 8)

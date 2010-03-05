@@ -34,7 +34,51 @@
    this program; if not, write to the Free Software Foundation, Inc., 59 Temple
    Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Various performance statistics utilities. */
+/* Various performance statistics utilities.
+ *
+ *
+ * Fast timers derive from the CPU time stamp counter provide a very low
+ * overhead timer for performance metrics.  The values returned may be very
+ * large (greater than the maximum integral value that can be stored accurately
+ * in a double) so you should only convert elapsed times to doubles.
+ *
+ *
+ * Table stats are used to track per-table operation and IO statistics.  The
+ * data is stored in a global hash table of TABLE_STATS objects.  This hash
+ * table is protected by a mutex.
+ *
+ * During a query, operation counters (rows inserted, updated, deleted, read,
+ * and requested) are accumulated in the base handler class.  These values are
+ * updated by the derived ha_innodb and ha_myisam classes.  When the table is
+ * closed the values are added to the global TABLE_STATS object for the given
+ * table using atomic operations.  The TABLE_STATS pointer is cached in the
+ * handler to avoid redoing hash table lookups and locking the hash mutex.
+ *
+ * IO counters are currently only implemented for the innodb_plugin.  The trx_t
+ * struct has an added table_io_perf member that contains counters for
+ * synchronous IO operations and a pointer to the global TABLE_STATS used to
+ * track asynchronous IO through a callback.  Before entering into innodb, we
+ * check if the handler has a cached TABLE_STATS pointer.  If not it is
+ * retrieved from the global hash table and cached for reuse.
+ *
+ * Within innodb the trx_t pointer is stored in the mtr_t struct to make the
+ * table_io_perf available to lower level IO code (it may be preferable to
+ * store a table_io_perf pointer directly instead of a trx_t pointer).
+ *
+ * The os_aio function updates the synchronous IO counters in the
+ * table_io_perf.  When flow returns from innodb, these IO counters are
+ * accumulated into the handler's IO statistics and will be added to the global
+ * TABLE_STATS when the table is closed.
+ *
+ * Each access to a buffer pool page now updates a TABLE_STATS pointer stored
+ * in the buffer page header.  When a dirty buffer pool page is flushed, the
+ * TABLE_STATS pointer is stored in a stack-local table_io_perf object and
+ * passed into the os_aio function.  The TABLE_STATS pointer is retrieved from
+ * the stack-local table_io_perf object and stored in the async IO request
+ * slot.  When the async IO request is completed, the global TABLE_STATS is
+ * updated using atomic operations.  We assume that merged consecutive IO
+ * belongs to the same table.
+ */
 
 #ifndef _my_perf_h
 #define _my_perf_h
@@ -45,6 +89,58 @@ C_MODE_START
 
 /* Type used for low-overhead timers */
 typedef ulonglong my_fast_timer_t;
+
+/* Struct used for IO performance counters */
+struct my_io_perf_struct {
+  volatile longlong bytes;
+  volatile longlong requests;
+  volatile longlong svc_usecs; /*!< time to do read or write operation */
+  volatile longlong svc_usecs_max;
+  volatile longlong wait_usecs; /*!< total time in the request array */
+  volatile longlong wait_usecs_max;
+  volatile longlong old_ios; /*!< requests that take too long */
+};
+typedef struct my_io_perf_struct my_io_perf_t;
+
+/* Per-table operation and IO statistics */
+struct st_table_stats;
+struct st_table;
+struct handlerton;
+
+/***************************************************************************
+Initialize an my_io_perf_t struct. */
+void my_io_perf_init(my_io_perf_t* perf);
+
+/* Accumulates io perf values */
+void my_io_perf_sum(my_io_perf_t* sum, const my_io_perf_t* perf);
+
+/* Accumulates io perf values using atomic operations */
+void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
+    longlong requests, longlong svc_usecs, longlong wait_usecs,
+    longlong old_ios);
+
+/* Accumulates io perf values using atomic operations */
+static __inline__ void my_io_perf_sum_atomic_helper(my_io_perf_t* sum,
+                                                    const my_io_perf_t* perf)
+{
+  my_io_perf_sum_atomic(sum, perf->bytes, perf->requests, perf->svc_usecs,
+      perf->wait_usecs, perf->old_ios);
+}
+
+
+/* Fetches table stats for a given table */
+struct st_table_stats* get_table_stats(struct st_table *table,
+                                       struct handlerton *engine_type);
+
+/* Storage engine callback on completion of async IO */
+void async_update_table_stats(
+	struct st_table_stats* table_stats, /* in: table stats structure */
+	my_bool		write,          /* in: true if this is a write operation */
+	longlong	bytes,		/* in: size of request */
+	double		svc_secs,	/* in: secs to perform IO */
+	my_fast_timer_t* stop_timer,	/* in: timer for now */
+	my_fast_timer_t* wait_start,	/* in: timer when IO request submitted */
+	my_bool		old_io);	/* in: true if IO exceeded age threshold */
 
 /* The inverse of the CPU frequency used to convert the time stamp counter
    to seconds. */

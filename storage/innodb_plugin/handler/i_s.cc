@@ -1675,22 +1675,27 @@ i_s_file_status_fill_low(
 	TABLE*	        table,	  /*!< in/out: table to fill */
 	const char*	file_name,/*!< in: file name for this record */
 	const char*	operation,/*!< in: either "read" or "write" */
-	os_io_perf_t*	io_perf)  /*!< in: stats collected for the table */
+	my_io_perf_t*	io_perf)  /*!< in: stats collected for the table */
 {
 	DBUG_ENTER("i_s_file_status_fill_low");
+
+        double nzero_requests = max(io_perf->requests, 1);
 
         OK(field_store_string(table->field[0], file_name));
         OK(field_store_string(table->field[1], operation));
         OK(table->field[2]->store(io_perf->requests));
         OK(table->field[3]->store(io_perf->old_ios));
         OK(table->field[4]->store(io_perf->bytes));
-        OK(table->field[5]->store((double) io_perf->bytes / io_perf->requests));
-        OK(table->field[6]->store(io_perf->svc_secs));
-        OK(table->field[7]->store((io_perf->svc_secs * 1000.0) / io_perf->requests));
-        OK(table->field[8]->store((ulonglong)(io_perf->svc_secs_max * 1000.0)));
-        OK(table->field[9]->store(io_perf->wait_secs));
-        OK(table->field[10]->store((io_perf->wait_secs * 1000.0) / io_perf->requests));
-        OK(table->field[11]->store((ulonglong)(io_perf->wait_secs_max * 1000.0)));
+        OK(table->field[5]->store((double) io_perf->bytes /
+				  nzero_requests));
+        OK(table->field[6]->store(io_perf->svc_usecs / 1000000.0));
+        OK(table->field[7]->store((io_perf->svc_usecs / 1000.0) /
+				  nzero_requests));
+        OK(table->field[8]->store(io_perf->svc_usecs_max / 1000));
+        OK(table->field[9]->store(io_perf->wait_usecs / 1000000.0));
+        OK(table->field[10]->store((io_perf->wait_usecs / 1000.0) /
+				   nzero_requests));
+        OK(table->field[11]->store(io_perf->wait_usecs_max / 1000));
 
 	OK(schema_table_store_record(thd, table));
 

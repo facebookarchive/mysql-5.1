@@ -1350,7 +1350,7 @@ table_loop:
 
 	/* Open a cursor to index, or restore an open cursor position */
 
-	mtr_start(&mtr);
+	mtr_start_trx(&mtr, thr_get_trx(thr));
 
 	if (consistent_read && plan->unique_search && !plan->pcur_is_open
 	    && !plan->must_get_clust
@@ -1388,7 +1388,7 @@ table_loop:
 		plan_reset_cursor(plan);
 
 		mtr_commit(&mtr);
-		mtr_start(&mtr);
+		mtr_start_trx(&mtr, thr_get_trx(thr));
 	}
 
 	if (search_latch_locked) {
@@ -3505,7 +3505,7 @@ row_search_for_mysql(
 		}
 	}
 
-	mtr_start(&mtr);
+	mtr_start_trx(&mtr, trx);
 
 	/*-------------------------------------------------------------*/
 	/* PHASE 2: Try fast adaptive hash index search if possible */
@@ -3618,7 +3618,7 @@ release_search_latch_if_needed:
 			}
 shortcut_fails_too_big_rec:
 			mtr_commit(&mtr);
-			mtr_start(&mtr);
+			mtr_start_trx(&mtr, trx);
 		}
 	}
 
@@ -4405,7 +4405,7 @@ next_rec:
 		mtr_commit(&mtr);
 		mtr_has_extra_clust_latch = FALSE;
 
-		mtr_start(&mtr);
+		mtr_start_trx(&mtr, trx);
 		if (sel_restore_position_for_mysql(&same_user_rec,
 						   BTR_SEARCH_LEAF,
 						   pcur, moves_up, &mtr)) {
@@ -4469,7 +4469,7 @@ lock_wait_or_error:
 		/* It was a lock wait, and it ended */
 
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
-		mtr_start(&mtr);
+		mtr_start_trx(&mtr, trx);
 
 		sel_restore_position_for_mysql(&same_user_rec,
 					       BTR_SEARCH_LEAF, pcur,

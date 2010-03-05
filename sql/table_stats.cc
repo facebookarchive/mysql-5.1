@@ -1,5 +1,6 @@
 
 #include "mysql_priv.h"
+#include "my_atomic.h"
 
 HASH global_table_stats;
 static pthread_mutex_t LOCK_global_table_stats;
@@ -85,6 +86,9 @@ get_table_stats(TABLE *table, handlerton *engine_type)
     table_stats->rows_read= 0;
     table_stats->rows_requested= 0;
     table_stats->engine_type= engine_type;
+    my_io_perf_init(&table_stats->io_perf_read);
+    my_io_perf_init(&table_stats->io_perf_write);
+    table_stats->index_inserts = 0;
 
     if (my_hash_insert(&global_table_stats, (uchar*)table_stats))
     {
@@ -141,6 +145,9 @@ void reset_global_table_stats()
     table_stats->rows_deleted= 0;
     table_stats->rows_read= 0;
     table_stats->rows_requested= 0;
+    my_io_perf_init(&table_stats->io_perf_read);
+    my_io_perf_init(&table_stats->io_perf_write);
+    table_stats->index_inserts = 0;
   }
 
   pthread_mutex_unlock(&LOCK_global_table_stats);
@@ -156,6 +163,24 @@ ST_FIELD_INFO table_stats_fields_info[]=
   {"ROWS_DELETED", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
   {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
   {"ROWS_REQUESTED", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+
+  {"IO_READ_BYTES", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"IO_READ_REQUESTS", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"IO_READ_SVC_USECS", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"IO_READ_SVC_USECS_MAX", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"IO_READ_WAIT_USECS", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"IO_READ_WAIT_USECS_MAX", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"IO_READ_OLD_IOS", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+
+  {"IO_WRITE_BYTES", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"IO_WRITE_REQUESTS", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"IO_WRITE_SVC_USECS", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"IO_WRITE_SVC_USECS_MAX", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"IO_WRITE_WAIT_USECS", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"IO_WRITE_WAIT_USECS_MAX", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"IO_WRITE_OLD_IOS", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
+
+  {"IO_INDEX_INSERTS", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONG, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -190,11 +215,29 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     const char* engine= ha_resolve_storage_engine_name(table_stats->engine_type);
     table->field[2]->store(engine, strlen(engine), system_charset_info);
 
-    table->field[3]->store((longlong)table_stats->rows_inserted, TRUE);
-    table->field[4]->store((longlong)table_stats->rows_updated, TRUE);
-    table->field[5]->store((longlong)table_stats->rows_deleted, TRUE);
-    table->field[6]->store((longlong)table_stats->rows_read, TRUE);
-    table->field[7]->store((longlong)table_stats->rows_requested, TRUE);
+    table->field[3]->store(table_stats->rows_inserted, TRUE);
+    table->field[4]->store(table_stats->rows_updated, TRUE);
+    table->field[5]->store(table_stats->rows_deleted, TRUE);
+    table->field[6]->store(table_stats->rows_read, TRUE);
+    table->field[7]->store(table_stats->rows_requested, TRUE);
+
+    table->field[8]->store(table_stats->io_perf_read.bytes, TRUE);
+    table->field[9]->store(table_stats->io_perf_read.requests, TRUE);
+    table->field[10]->store(table_stats->io_perf_read.svc_usecs, TRUE);
+    table->field[11]->store(table_stats->io_perf_read.svc_usecs_max, TRUE);
+    table->field[12]->store(table_stats->io_perf_read.wait_usecs, TRUE);
+    table->field[13]->store(table_stats->io_perf_read.wait_usecs_max, TRUE);
+    table->field[14]->store(table_stats->io_perf_read.old_ios, TRUE);
+
+    table->field[15]->store(table_stats->io_perf_write.bytes, TRUE);
+    table->field[16]->store(table_stats->io_perf_write.requests, TRUE);
+    table->field[17]->store(table_stats->io_perf_write.svc_usecs, TRUE);
+    table->field[18]->store(table_stats->io_perf_write.svc_usecs_max, TRUE);
+    table->field[19]->store(table_stats->io_perf_write.wait_usecs, TRUE);
+    table->field[20]->store(table_stats->io_perf_write.wait_usecs_max, TRUE);
+    table->field[21]->store(table_stats->io_perf_write.old_ios, TRUE);
+
+    table->field[22]->store(table_stats->index_inserts, TRUE);
 
     if (schema_table_store_record(thd, table))
     {
@@ -207,3 +250,26 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
   DBUG_RETURN(0);
 }
 
+extern "C" {
+void async_update_table_stats(
+	struct st_table_stats* table_stats, /* in: table stats structure */
+	my_bool		write,          /* in: true if this is a write operation */
+	longlong	bytes,		/* in: size of request */
+	double		svc_secs,	/* in: secs to perform IO */
+	my_fast_timer_t* stop_timer,	/* in: timer for now */
+	my_fast_timer_t* wait_start,	/* in: timer when IO request submitted */
+	my_bool		old_io)		/* in: true if IO exceeded age threshold */
+{
+	longlong svc_usecs = (longlong)(1000000 * svc_secs);
+
+	double	wait_secs = my_fast_timer_diff(wait_start, stop_timer);
+	longlong wait_usecs = (longlong)(1000000 * wait_secs);
+
+	my_io_perf_t* perf = write ? &table_stats->io_perf_write :
+				     &table_stats->io_perf_read;
+
+        my_io_perf_sum_atomic(perf, bytes, /*requests*/ 1, svc_usecs,
+                              wait_usecs, old_io);
+}
+
+} // extern "C"

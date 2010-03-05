@@ -1056,8 +1056,8 @@ try_again:
 		    ut_fold_string(name), space);
 	space->is_in_unflushed_spaces = FALSE;
 
-	os_io_perf_init(&(space->io_perf2.read));
-	os_io_perf_init(&(space->io_perf2.write));
+	my_io_perf_init(&(space->io_perf2.read));
+	my_io_perf_init(&(space->io_perf2.write));
 
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
 
@@ -3721,7 +3721,7 @@ fil_extend_space_to_desired_size(
 				 node->name, node->handle, buf,
 				 offset_low, offset_high,
 				 page_size * n_pages,
-				 NULL, NULL, &space->io_perf2);
+				 NULL, NULL, &space->io_perf2, NULL);
 #endif
 		if (success) {
 			node->size += n_pages;
@@ -4048,7 +4048,7 @@ Reads or writes data. This operation is asynchronous (aio).
 i/o on a tablespace which does not exist */
 UNIV_INTERN
 ulint
-fil_io(
+_fil_io(
 /*===*/
 	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
 				ORed to OS_FILE_LOG, if a log i/o
@@ -4073,8 +4073,9 @@ fil_io(
 	void*	buf,		/*!< in/out: buffer where to store read data
 				or from where to write; in aio this must be
 				appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
+	void*	message,	/*!< in: message for aio handler if non-sync
 				aio used, else ignored */
+	os_io_table_perf_t* table_io_perf)/* in/out: per-table IO stats */
 {
 	ulint		mode;
 	fil_space_t*	space;
@@ -4244,7 +4245,8 @@ fil_io(
 #else
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
-		     offset_low, offset_high, len, node, message, &space->io_perf2);
+		     offset_low, offset_high, len, node, message,
+		     &space->io_perf2, table_io_perf);
 #endif
 	ut_a(ret);
 

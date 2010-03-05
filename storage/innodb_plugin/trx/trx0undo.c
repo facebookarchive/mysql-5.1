@@ -1075,7 +1075,7 @@ trx_undo_truncate_end(
 	rseg = trx->rseg;
 
 	for (;;) {
-		mtr_start(&mtr);
+		mtr_start_trx(&mtr, trx);
 
 		trunc_here = NULL;
 
@@ -1751,7 +1751,7 @@ trx_undo_assign_undo(
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 
-	mtr_start(&mtr);
+	mtr_start_trx(&mtr, trx);
 
 	ut_ad(!mutex_own(&kernel_mutex));
 

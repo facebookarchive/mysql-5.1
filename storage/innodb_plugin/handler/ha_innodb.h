@@ -95,6 +95,12 @@ class ha_innobase: public handler
 	dict_index_t* innobase_get_index(uint keynr);
  	ulonglong innobase_get_int_col_max_value(const Field* field);
 
+	void init_trx_table_stats(trx_t* trx, bool write);
+	void update_stats_from_trx(const trx_t* trx, bool write);
+
+	void innodb_srv_conc_enter_innodb(trx_t* trx, bool write);
+	void innodb_srv_conc_exit_innodb(trx_t* trx, bool write);
+
 	/* Init values for the class: */
  public:
 	ha_innobase(handlerton *hton, TABLE_SHARE *table_arg);

@@ -175,6 +175,8 @@ trx_create(
 	trx->global_read_view = NULL;
 	trx->read_view = NULL;
 
+	memset(&trx->table_io_perf, 0, sizeof(trx->table_io_perf));
+
 	/* Set X/Open XA transaction identification to NULL */
 	memset(&trx->xid, 0, sizeof(trx->xid));
 	trx->xid.formatID = -1;

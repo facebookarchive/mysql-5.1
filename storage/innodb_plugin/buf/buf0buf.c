@@ -683,6 +683,8 @@ buf_block_init(
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_create(&block->debug_latch, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
+
+	block->page.table_stats = NULL;
 }
 
 /********************************************************************//**
@@ -1697,7 +1699,7 @@ lookup:
 
 		buf_pool_mutex_exit();
 
-		buf_read_page(space, zip_size, offset);
+		buf_read_page(space, zip_size, offset, NULL);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		ut_a(++buf_dbg_counter % 37 || buf_validate());
@@ -2090,7 +2092,7 @@ loop2:
 			return(NULL);
 		}
 
-		buf_read_page(space, zip_size, offset);
+		buf_read_page(space, zip_size, offset, mtr->trx);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		ut_a(++buf_dbg_counter % 37 || buf_validate());
@@ -2101,6 +2103,9 @@ loop2:
 	ut_ad(page_zip_get_size(&block->page.zip) == zip_size);
 
 	must_read = buf_block_get_io_fix(block) == BUF_IO_READ;
+
+	if (mtr->trx && mtr->trx->table_io_perf.table_stats)
+		block->page.table_stats = mtr->trx->table_io_perf.table_stats;
 
 	if (must_read && mode == BUF_GET_IF_IN_POOL) {
 		/* The page is only being read to buffer */
@@ -2342,7 +2347,7 @@ wait_until_unfixed:
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
-		buf_read_ahead_linear(space, zip_size, offset);
+		buf_read_ahead_linear(space, zip_size, offset, mtr->trx);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -2452,7 +2457,8 @@ buf_page_optimistic_get_func(
 
 		buf_read_ahead_linear(buf_block_get_space(block),
 				      buf_block_get_zip_size(block),
-				      buf_block_get_page_no(block));
+				      buf_block_get_page_no(block),
+				      mtr->trx);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -2668,6 +2674,7 @@ buf_page_init_low(
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	bpage->file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
+        bpage->table_stats = NULL;
 }
 
 /********************************************************************//**

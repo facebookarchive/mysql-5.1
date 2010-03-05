@@ -34,6 +34,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "mtr0types.h"
 #include "page0types.h"
+#include "trx0types.h"
 
 /* Logging modes for a mini-transaction */
 #define MTR_LOG_ALL		21	/* default mode: log all operations
@@ -189,6 +190,16 @@ functions).  The page number parameter was originally written as 0. @{ */
 					MLOG_FILE_CREATE, MLOG_FILE_CREATE2 */
 /* @} */
 
+/***************************************************************//**
+Starts a mini-transaction and creates a mini-transaction handle
+and buffer in the memory buffer given by the caller.
+@return	mtr buffer which also acts as the mtr handle */
+UNIV_INLINE
+mtr_t*
+mtr_start_trx(
+/*======*/
+	mtr_t*	mtr,	/*!< in: memory buffer for the mtr buffer */
+	trx_t*	trx);	/*!< in: transaction */
 /***************************************************************//**
 Starts a mini-transaction and creates a mini-transaction handle
 and buffer in the memory buffer given by the caller.
@@ -402,6 +413,7 @@ struct mtr_struct{
 #ifdef UNIV_DEBUG
 	ulint		magic_n;
 #endif /* UNIV_DEBUG */
+	trx_t*		trx;	/*!< transaction */
 };
 
 #ifdef UNIV_DEBUG

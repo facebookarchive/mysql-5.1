@@ -35,9 +35,10 @@ and a buffer in the memory buffer given by the caller.
 @return	mtr buffer which also acts as the mtr handle */
 UNIV_INLINE
 mtr_t*
-mtr_start(
+mtr_start_trx(
 /*======*/
-	mtr_t*	mtr)	/*!< in: memory buffer for the mtr buffer */
+	mtr_t*	mtr,	/*!< in: memory buffer for the mtr buffer */
+	trx_t*	trx)	/*!< in: transaction */
 {
 	dyn_array_create(&(mtr->memo));
 	dyn_array_create(&(mtr->log));
@@ -45,11 +46,25 @@ mtr_start(
 	mtr->log_mode = MTR_LOG_ALL;
 	mtr->modifications = FALSE;
 	mtr->n_log_recs = 0;
+	mtr->trx = trx;
 
 	ut_d(mtr->state = MTR_ACTIVE);
 	ut_d(mtr->magic_n = MTR_MAGIC_N);
 
 	return(mtr);
+}
+
+/***************************************************************//**
+Starts a mini-transaction and creates a mini-transaction handle
+and a buffer in the memory buffer given by the caller.
+@return	mtr buffer which also acts as the mtr handle */
+UNIV_INLINE
+mtr_t*
+mtr_start(
+/*======*/
+	mtr_t*	mtr)	/*!< in: memory buffer for the mtr buffer */
+{
+	return mtr_start_trx(mtr, NULL);
 }
 
 /***************************************************//**

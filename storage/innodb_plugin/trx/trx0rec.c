@@ -1230,7 +1230,7 @@ trx_undo_report_row_operation(
 
 	page_no = undo->last_page_no;
 
-	mtr_start(&mtr);
+	mtr_start_trx(&mtr, trx);
 
 	for (;;) {
 		buf_block_t*	undo_block;
@@ -1291,7 +1291,7 @@ trx_undo_report_row_operation(
 
 		/* We have to extend the undo log by one page */
 
-		mtr_start(&mtr);
+		mtr_start_trx(&mtr, trx);
 
 		/* When we add a page to an undo log, this is analogous to
 		a pessimistic insert in a B-tree, and we must reserve the

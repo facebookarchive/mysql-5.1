@@ -1647,7 +1647,6 @@ void flush_tables();
 
 /* for SHOW GLOBAL TABLE STATUS */
 void update_table_stats(TABLE *table_ptr, bool follow_next);
-TABLE_STATS* get_table_stats(TABLE *table, handlerton *engine_type);
 extern HASH global_table_stats;
 void init_global_table_stats(void);
 void free_global_table_stats(void);

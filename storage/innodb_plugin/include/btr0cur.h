@@ -444,7 +444,8 @@ btr_estimate_n_rows_in_range(
 	const dtuple_t*	tuple1,	/*!< in: range start, may also be empty tuple */
 	ulint		mode1,	/*!< in: search mode for range start */
 	const dtuple_t*	tuple2,	/*!< in: range end, may also be empty tuple */
-	ulint		mode2);	/*!< in: search mode for range end */
+	ulint		mode2,	/*!< in: search mode for range end */
+	trx_t*		trx);	/*!< in: trx */
 /*******************************************************************//**
 Estimates the number of different key values in a given index, for
 each n-column prefix of the index where n <= dict_index_get_n_unique(index).
