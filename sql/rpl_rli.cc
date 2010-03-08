@@ -117,6 +117,107 @@ int init_relay_log_info(Relay_log_info* rli,
   unpack_filename(rli->slave_patternload_file, pattern);
   rli->slave_patternload_file_size= strlen(rli->slave_patternload_file);
 
+  /* During transactional replication, we need to adjust the reading header
+   * of both the I/O thread and SQL thread. We store the slave state in the InnoDB
+   * transaction system header. That can be used during recovery to overwrite
+   * values in relay-log.info.
+   */
+
+  char  group_relay_log_name[FN_REFLEN],
+        group_master_log_name[FN_REFLEN];
+  char *last_relay_log_name = NULL;
+  my_off_t group_master_log_pos, group_relay_log_pos;
+  bool  found_relay_info;
+  bool  need_check_master_log;
+
+  strmake(group_relay_log_name, "", FN_REFLEN);
+  group_relay_log_pos   = (my_off_t)-1;
+  found_relay_info      = false;
+  need_check_master_log = false;
+
+#ifdef HAVE_INNODB_BINLOG
+  if (innobase_have_innodb() && rpl_transaction_enabled)
+  {
+    /* data structure initialization */
+    rli->relay_log.set_master_info(active_mi);
+
+    if (innobase_get_mysql_relay_log_pos() == -1)
+    {
+      sql_print_information("init_relay_log_info: no adjustment"
+                            " from InnoDB because slave state not valid");
+    }
+    else
+    {
+      const char *name;
+      char llbuf1[22], llbuf2[22];
+
+      /*
+         update_master_info() might truncate relay-log to avoid re-appending
+         already appended events during a crash.  We do not want to truncate
+         before the sql thread has committed.  Otherwise, the sql thread will
+         get confused.  We read the commit information in InnoDB transaction log
+         to make sure that truncation would not operate before the point.
+       */
+      name = innobase_get_mysql_relay_log_name();
+      strmake(group_relay_log_name, name, strlen(name));
+      group_relay_log_pos = innobase_get_mysql_relay_log_pos();
+
+      name = innobase_get_mysql_master_log_name();
+      strmake(group_master_log_name, name, strlen(name));
+      group_master_log_pos = innobase_get_mysql_master_log_pos();
+
+      sql_print_information("init_relay_log_info: slave state from InnoDB: "
+                            "relay-log['%s'(%s)], master-log['%s'(%s)]",
+                            group_relay_log_name,
+                            llstr(group_relay_log_pos, llbuf1),
+                            group_master_log_name,
+                            llstr(group_master_log_pos, llbuf2));
+    }
+
+    /*
+       If InnoDB's transaction log does not have any information associated
+       with replication progress, then do not adjust master.info.  We
+       only do best effort and trust master.info is correct.  This can happen
+       under two situations:
+        - when we switch a database from an old binary to the new binary.
+        - the database is a new copy or from a backup.
+     */
+    if (strlen(group_relay_log_name) > 0 && group_relay_log_pos != -1)
+    {
+      char buf[FN_REFLEN];
+      const char *ln;
+      int error = 0;
+
+      ln = rli->relay_log.generate_name(opt_relay_logname, "-relay-bin",
+                                        1, buf);
+      if (rli->relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE))
+      {
+        sql_print_error("init_relay_log_info: failed opening index file");
+        error = 1;
+      }
+      else
+      {
+        error = rli->relay_log.update_master_info(current_thd,
+                                                  group_relay_log_name,
+                                                  group_relay_log_pos,
+                                                  group_master_log_name,
+                                                  group_master_log_pos,
+                                                  &need_check_master_log,
+                                                  &found_relay_info);
+        if (error != 0)
+          sql_print_error("Failed in master_info transaction check");
+      }
+
+      rli->relay_log.close_index_file();
+      if (error != 0)
+      {
+        pthread_mutex_unlock(&rli->data_lock);
+        DBUG_RETURN(1);
+      }
+    }
+  }
+#endif
+
   /*
     The relay log will now be opened, as a SEQ_READ_APPEND IO_CACHE.
     Note that the I/O thread flushes it to disk after writing every
@@ -194,6 +295,11 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
     rli->relay_log.is_relay_log= TRUE;
   }
 
+#ifdef HAVE_INNODB_BINLOG
+  if (!rpl_transaction_enabled)
+#endif
+    found_relay_info= !access(fname,F_OK);
+
   /* if file does not exist */
   if (access(fname,F_OK))
   {
@@ -232,6 +338,11 @@ file '%s', errno %d)", fname, my_errno);
   }
   else // file exists
   {
+    char file_relay_log_name[FN_REFLEN], file_master_log_name[FN_REFLEN];
+    int  file_master_log_pos;
+    int  file_relay_log_pos= 0;
+    bool use_relay_info= 0, read_relay_info_fail= 0;
+
     if (info_fd >= 0)
       reinit_io_cache(&rli->info_file, READ_CACHE, 0L,0,0);
     else
@@ -262,38 +373,135 @@ Failed to open the existing relay log info file '%s' (errno %d)",
       }
     }
 
+    /*
+       We are going to use relay-log.info under the following situations:
+        - transaction support is not enabled
+        - did not find relay information from InnoDB
+        - found relay information from InnoDB, but need to verify it
+     */
+    use_relay_info =
+#ifdef HAVE_INNODB_BINLOG
+      !rpl_transaction_enabled || !found_relay_info || need_check_master_log;
+#else
+      !found_relay_info || need_check_master_log;
+#endif
+
     rli->info_fd = info_fd;
     int relay_log_pos, master_log_pos;
-    if (init_strvar_from_file(rli->group_relay_log_name,
-                              sizeof(rli->group_relay_log_name),
+    if (init_strvar_from_file(file_relay_log_name,
+                              sizeof(file_relay_log_name),
                               &rli->info_file, "") ||
-       init_intvar_from_file(&relay_log_pos,
+       init_intvar_from_file(&file_relay_log_pos,
                              &rli->info_file, BIN_LOG_HEADER_SIZE) ||
-       init_strvar_from_file(rli->group_master_log_name,
-                             sizeof(rli->group_master_log_name),
+       init_strvar_from_file(file_master_log_name,
+                             sizeof(file_master_log_name),
                              &rli->info_file, "") ||
-       init_intvar_from_file(&master_log_pos, &rli->info_file, 0))
+       init_intvar_from_file(&file_master_log_pos, &rli->info_file, 0))
     {
-      msg="Error reading slave log configuration";
-      goto err;
+      read_relay_info_fail = 1;
+      if (use_relay_info)
+      {
+        msg="Error reading slave log configuration";
+        goto err;
+      }
     }
-    strmake(rli->event_relay_log_name,rli->group_relay_log_name,
+
+    if (read_relay_info_fail)
+    {
+      sql_print_error("init_relay_log_info: cannot read relay-log.info");
+    }
+    else
+    {
+      sql_print_information("init_relay_log_info: slave state in relay-log.info: "
+                            "relay-log['%s'(%d)], master-log['%s'(%d)]",
+                            file_relay_log_name, file_relay_log_pos,
+                            file_master_log_name, file_master_log_pos);
+#ifdef HAVE_INNODB_BINLOG
+      if (rpl_transaction_enabled && 
+          (strlen(group_relay_log_name) > 0 &&
+           group_relay_log_pos != -1) &&
+          (strcmp(file_master_log_name, group_master_log_name) != 0 ||
+           group_master_log_pos != (my_off_t)file_master_log_pos))
+      {
+        sql_print_error("init_relay_log_info: slave state mismatch between "
+                        "InnoDB and relay-log.info: will use InnoDB data.");
+      }
+#endif
+    }
+
+    if (use_relay_info)
+    {
+      if (need_check_master_log)
+      {
+        char llbuf[22];
+
+        if (strcmp(file_master_log_name, group_master_log_name) != 0 ||
+            group_master_log_pos != (my_off_t)file_master_log_pos)
+        {
+          sql_print_error("init_relay_log_info: slave state mismatch between "
+                          "InnoDB and relay-log.info cannot be fixed: "
+                          "innodb[%s(%s)], info[%s(%d)]",
+                          group_master_log_name,
+                          llstr(group_master_log_pos, llbuf),
+                          file_master_log_name, file_master_log_pos);
+          goto err;
+        }
+        else
+        {
+          sql_print_information(
+              "init_relay_log_info: slave state mismatch fixed by using "
+              "InnoDB data: innodb[%s(%s)], info[%s(%d)]",
+              group_relay_log_name, llstr(group_relay_log_pos, llbuf),
+              file_relay_log_name, file_relay_log_pos);
+        }
+      }
+
+      strmake(group_relay_log_name, file_relay_log_name,
+              sizeof(group_relay_log_name));
+      strmake(group_master_log_name, file_master_log_name,
+              sizeof(group_master_log_name));
+      group_master_log_pos = file_master_log_pos;
+      group_relay_log_pos  = file_relay_log_pos;
+      found_relay_info = true;
+    }
+  } // end "else file exists"
+
+ if (found_relay_info)
+ {
+    strmake(rli->event_relay_log_name, group_relay_log_name,
             sizeof(rli->event_relay_log_name)-1);
-    rli->group_relay_log_pos= rli->event_relay_log_pos= relay_log_pos;
-    rli->group_master_log_pos= master_log_pos;
+    strmake(rli->group_master_log_name, group_master_log_name,
+            sizeof(rli->group_master_log_name)-1);
+    rli->future_event_relay_log_pos = group_relay_log_pos;
+    rli->future_group_master_log_pos = group_master_log_pos;
+    rli->group_master_log_pos = group_master_log_pos;
 
     if (init_relay_log_pos(rli,
-                           rli->group_relay_log_name,
-                           rli->group_relay_log_pos,
-                           0 /* no data lock*/,
-                           &msg, 0))
+			   rli->event_relay_log_name,
+			   rli->future_event_relay_log_pos,
+			   0 /* no data lock*/,
+			   &msg, 1 /*look for a description_event*/))
     {
       char llbuf[22];
-      sql_print_error("Failed to open the relay log '%s' (relay_log_pos %s)",
-                      rli->group_relay_log_name,
-                      llstr(rli->group_relay_log_pos, llbuf));
+      sql_print_error("init_relay_log_info: failed to open the relay log "
+                      "'%s' (relay_log_pos %s)",
+		      rli->event_relay_log_name,
+		      llstr(rli->future_event_relay_log_pos, llbuf));
       goto err;
     }
+  }
+  else /* not finding relay-info */
+  {
+    /* Init relay log with first entry in the relay index file */
+    if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
+			   &msg, 1 /*look for a description_event*/))
+    {
+      sql_print_error("init_relay_log_info: Failed to open the relay "
+                      "log 'FIRST' (relay_log_pos 4)");
+      goto err;
+    }
+    rli->group_master_log_name[0]= 0;
+    rli->future_group_master_log_pos= 0;
   }
 
 #ifndef DBUG_OFF
@@ -313,7 +521,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
   */
   reinit_io_cache(&rli->info_file, WRITE_CACHE,0L,0,1);
   if ((error= flush_relay_log_info(rli)))
-    sql_print_error("Failed to flush relay log info file");
+    sql_print_error("innit:relay_log_info: failed to flush relay log info file");
   if (count_relay_log_space(rli))
   {
     msg="Error counting relay log space";
@@ -324,7 +532,8 @@ Failed to open the existing relay log info file '%s' (errno %d)",
   DBUG_RETURN(error);
 
 err:
-  sql_print_error("%s", msg);
+  if (msg)
+    sql_print_error("%s", msg);
   end_io_cache(&rli->info_file);
   if (info_fd >= 0)
     my_close(info_fd, MYF(0));
@@ -957,7 +1166,7 @@ int purge_relay_logs(Relay_log_info* rli, THD *thd, bool just_reset,
     rli->cur_log_fd= -1;
   }
 
-  if (rli->relay_log.reset_logs(thd))
+  if (rli->relay_log.reset_logs(thd, true))
   {
     *errmsg = "Failed during log reset";
     error=1;

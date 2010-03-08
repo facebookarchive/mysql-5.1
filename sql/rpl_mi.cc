@@ -300,6 +300,11 @@ file '%s')", fname);
     mi->connect_retry= (uint) connect_retry;
     mi->ssl= (my_bool) ssl;
     mi->ssl_verify_server_cert= ssl_verify_server_cert;
+
+    char llbuff[22];
+    sql_print_information("Read master.info: log_file_name: %s, pos: %s",
+                          mi->master_log_name,
+                          llstr(mi->master_log_pos, llbuff));
   }
   DBUG_PRINT("master_info",("log_file_name: %s  position: %ld",
                             mi->master_log_name,
@@ -308,6 +313,20 @@ file '%s')", fname);
   mi->rli.mi = mi;
   if (init_relay_log_info(&mi->rli, slave_info_fname))
     goto err;
+
+  if (strcmp(mi->master_log_name, mi->rli.group_master_log_name) == 0 &&
+      mi->master_log_pos > 0 &&
+      mi->master_log_pos < mi->rli.future_group_master_log_pos)
+  {
+    char llbuf1[22], llbuf2[22];
+
+    sql_print_error("init_master_info: SQL thread(%s) is ahead of "
+                    "I/O thread(%s): %s",
+                    llstr(mi->rli.future_group_master_log_pos, llbuf2),
+                    llstr(mi->master_log_pos, llbuf1),
+                    mi->master_log_name);
+    goto err;
+  }
 
   mi->inited = 1;
   // now change cache READ -> WRITE - must do this before flush_master_info

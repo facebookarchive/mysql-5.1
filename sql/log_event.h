@@ -136,6 +136,12 @@
 #define LINE_START_EMPTY	0x8
 #define ESCAPED_EMPTY		0x10
 
+/*
+   Indicates a special master-info event in relay-log. Enforce that this value
+   cannot be used otherwise.
+ */
+#define MASTER_INFO_SERVER_ID 0xffffffff
+
 /*****************************************************************************
 
   old_sql_ex struct
@@ -1088,6 +1094,8 @@ public:
   {
     return do_shall_skip(rli);
   }
+
+  void set_server_id(uint32 id) { server_id = id; }
 
 protected:
 

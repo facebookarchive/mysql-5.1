@@ -2099,6 +2099,11 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 int ha_reset_logs(THD *thd);
 int ha_binlog_index_purge_file(THD *thd, const char *file);
 void ha_reset_slave(THD *thd);
+void ha_set_slave(THD *thd, const char *relay_log_name,
+                  ulonglong relay_log_pos, const char *master_log_name,
+                  ulonglong master_log_pos);
+void ha_read_slave(THD *thd, int *result);
+
 void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          enum_binlog_command binlog_command,
                          const char *query, uint query_length,

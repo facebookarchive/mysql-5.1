@@ -1,0 +1,23 @@
+# Confirm that the slave doesn't crash when trying to use rpl_transaction_enabled.
+# In this case it cannot because InnoDB has not been configured on the slave.
+#
+
+source include/have_innodb.inc;
+source include/have_debug.inc;
+source include/master-slave.inc;
+
+--disable_warnings
+DROP TABLE IF EXISTS foobar;
+--enable_warnings
+
+CREATE TABLE foobar(i int);
+
+INSERT INTO foobar VALUES (1);
+SELECT * from foobar;
+
+--sync_slave_with_master
+SELECT * FROM foobar;
+
+# clean up
+connection master;
+DROP TABLE foobar;

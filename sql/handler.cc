@@ -4033,6 +4033,22 @@ void ha_reset_slave(THD* thd)
   binlog_func_foreach(thd, &bfn);
 }
 
+void ha_set_slave(THD *thd, const char *relay_log_name,
+                  ulonglong relay_log_pos, const char *master_log_name,
+                  ulonglong master_log_pos)
+{
+  binlog_func_set_st st= {relay_log_name, relay_log_pos,
+                          master_log_name, master_log_pos};
+  binlog_func_st bfn= {BFN_SET_SLAVE, &st};
+  binlog_func_foreach(thd, &bfn);
+}
+
+void ha_read_slave(THD *thd, int *result)
+{
+  binlog_func_st bfn= {BFN_READ_SLAVE, result};
+  binlog_func_foreach(thd, &bfn);
+}
+
 void ha_binlog_wait(THD* thd)
 {
   binlog_func_st bfn= {BFN_BINLOG_WAIT, 0};

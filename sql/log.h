@@ -16,6 +16,8 @@
 #ifndef LOG_H
 #define LOG_H
 
+class Master_info;
+
 class Relay_log_info;
 
 class Format_description_log_event;
@@ -284,6 +286,58 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   void new_file_without_locking();
   void new_file_impl(bool need_lock);
 
+  /* whether the log is associated with master-log's reading */
+  Master_info *active_mi;
+
+  /*
+     Find the master-log information specifed by relay-log position; find the
+     last valid event in the relay-log. If the index file is missing the
+     corresponding relay-log file, it means that the user has reset the
+     replication and wants to start from scratch again.
+
+     Input:
+      relay_log_name   - (IN)  the relay log filename to be opened
+      relay_log_pos    - (IN)  the relay log committed position
+                               (if -1, no commit information is available)
+      master_log_name  - (IN) master-log filename corresponding to relay pos
+      master_log_pos   - (IN) master-log position corresponding to relay pos
+      last_master_log_name - (OUT) last valid master-log filename
+      last_master_log_pos  - (OUT) last valid master-log position
+      relay_file_error  - (OUT) whether there is relay file reading error
+      last_valid_offset - (OUT) the last valid event's offset
+      relay_file_size   - (OUT) the relay-log file's size
+      errmsg            - (OUT) error message if there are any
+    
+     Returns: false on error
+   */
+  bool find_master_pos_inlog(const char *relay_log_name,
+                             ulonglong relay_log_pos,
+                             const char *master_log_name,
+                             ulonglong master_log_pos,
+                             char *last_master_log_name,
+                             ulonglong *last_master_log_pos,
+                             bool *relay_file_error,
+                             my_off_t *last_valid_offset,
+                             my_off_t *relay_file_size,
+                             const char **errmsg);
+
+  /*
+     Extract master-log's log filename and log position from the specified
+     event if the information is guaranteed to be correct.
+    
+     Input:
+      ev              - (IN)  the relay-log event to extract master information
+      adjust_pos      - (IN)  the len of the event to adjust from end to begin
+      master_log_name - (OUT) the extracted master's log name
+      master_log_pos  - (OUT) the extracted master's log position
+    
+     Return:
+      true:  the master-log information is extracted
+      false: otherwise
+   */
+  bool extract_master_info(Log_event* ev, char *master_log_name,
+                           my_off_t *master_log_pos);
+
 public:
   MYSQL_LOG::generate_name;
   MYSQL_LOG::is_open;
@@ -345,7 +399,7 @@ public:
   }
   void set_max_size(ulong max_size_arg);
   void signal_update();
-  void wait_for_update(THD* thd, bool master_or_slave);
+  void wait_for_update(THD* thd, const char* new_msg);
   void set_need_start_event() { need_start_event = 1; }
   void init(bool no_auto_events_arg, ulong max_size);
   void init_pthread_objects();
@@ -359,6 +413,7 @@ public:
             bool need_mutex);
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name, bool need_mutex);
+  int close_index_file();
   /* Use this to start writing a new log file */
   void new_file();
 
@@ -401,7 +456,7 @@ public:
   int register_create_index_entry(const char* entry);
   int purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                         bool need_mutex);
-  bool reset_logs(THD* thd);
+  bool reset_logs(THD* thd, bool need_lock);
   void close(uint exiting);
 
   // iterating through the log index file
@@ -421,6 +476,32 @@ public:
   inline void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
+
+  /*
+     Update master-log's log filename and log position based on events in
+     the last relay-log.
+    
+     Input:
+      thd               - current THD
+      relay_log_name    - (IN) replication's last committed relay-log name
+      relay_log_pos     - (IN) replication's last committed relay-log position
+      master_log_name   - (IN) replication's last committed master-log name
+      master_log_pos    - (IN) replication's last committed master-log position
+      need_check_master_log - (OUT) whether we need to check with relay-log.info
+      found_relay_info      - (OUT) indicating the the relay-log information
+                                    is valid
+     Returns: != 0 on error
+   */
+  int update_master_info(THD *thd,
+                         const char *relay_log_name,
+                         ulonglong relay_log_pos,
+                         const char *master_log_name,
+                         ulonglong master_log_pos,
+                         bool *need_check_master_log,
+                         bool *found_relay_info);
+
+  void set_master_info(Master_info *mi) { active_mi = mi; }
+  Master_info *get_master_info() { return active_mi; }
 };
 
 class Log_event_handler

@@ -45,6 +45,53 @@
 
 #include "rpl_tblmap.h"
 
+
+/* Transactional replication (rpl_transaction_enabled)
+
+Transactional replication keeps InnoDB and slave replication state (relay-log.info)
+synchronized after a crash. Slave state is stored in the InnoDB transaction system
+header. This is updated on each InnoDB commit by the slave SQL thread. It is also
+updated when the slave SQL thread stops. The state is then used to overwrite
+relay-log.info on startup. Without this change there can be a crash after the slave
+SQL thread commits to InnoDB and before relay-log.info is updated. The result of that
+would be duplicated transactions by the slave SQL thread.
+
+From the description above, changes to engines other than InnoDB are not made crash
+proof. For example, transactions to the MyISAM tables used for the mysql schema do
+not generate commits to InnoDB. Thus, the slave offset in the relay log can advance
+without changing the state in InnoDB. If this occurs immediately before a crash,
+this feature will restart the slave SQL thread at the last commit done to InnoDB
+which will repeat transactions for MyISAM. Pick your poison.
+
+The important functions for this are:
+* trx_sys_update_slave_state - updates slave state in the InnoDB transaction
+      system header
+* trx_sys_read_slave_state - reads slave state from the InnoDB transactions
+      system header
+
+trx_sys_update_slave_state is called by
+* trx_commit_off_kernel - on commit
+* set_mysql_slave_state which is called by
+    ** change_master - set to new offset
+    ** handle_slave_sql - when slave sql thread stops
+* reset_mysql_slave_state which is called by
+    ** update_master_info - when relay log not found
+    ** reset_slave - to handle RESET SLAVE
+    ** change_master - when CHANGE MASTER is used as a variant of RESET SLAVE
+
+trx_sys_read_slave_state is called by
+* next event via read_mysql_slave_state - determine whether purge can be done, note
+    that purge may be delayed when this feature is enabled as the relay log with
+    the most recent InnoDB commit cannot be purged
+
+On startup, init_relay_log_info calls get_mysql_relay_log_name and
+get_mysql_relay_log_pos to determine whether InnoDB and relay-log.info match. When
+they do not match the relay log may be truncated to remove events that InnoDB has
+not committed and relay-log.info is updated with the InnoDB values. On clean
+shutdown relay-log.info is frequently one event ahead of InnoDB because a STOP_EVENT
+is written to the relay log by the IO thread to signal the shutdown.
+ */
+
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 #define MAX_SLAVE_RETRY_PAUSE 5
@@ -2867,7 +2914,7 @@ int check_temp_dir(char* tmp_file)
 pthread_handler_t handle_slave_sql(void *arg)
 {
   THD *thd;                     /* needs to be first for thread_stack */
-  char llbuff[22],llbuff1[22];
+  char llbuff[22],llbuff1[22],llbuff2[22];
 
   Relay_log_info* rli = &((Master_info*)arg)->rli;
   const char *errmsg;
@@ -2984,8 +3031,9 @@ pthread_handler_t handle_slave_sql(void *arg)
                             llstr(rli->group_master_log_pos,llbuff)));
   if (global_system_variables.log_warnings)
     sql_print_information("Slave SQL thread initialized, starting replication in \
-log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
-                    llstr(rli->group_master_log_pos,llbuff),rli->group_relay_log_name,
+log '%s' at position %s and %s, relay log '%s' position: %s", RPL_LOG_NAME,
+		    llstr(rli->future_group_master_log_pos,llbuff),
+		    llstr(rli->group_master_log_pos,llbuff2),rli->group_relay_log_name,
                     llstr(rli->group_relay_log_pos,llbuff1));
 
   if (check_temp_dir(rli->slave_patternload_file))
@@ -3108,6 +3156,14 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
                         RPL_LOG_NAME, llstr(rli->group_master_log_pos,llbuff));
 
  err:
+
+  /*
+     Last event executed may not have been a commit to InnoDB. It may have
+     been a MyISAM change. Update InnoDB to prevent a replay of it.
+  */
+  sql_print_information("Slave SQL thread set state in InnoDB on shutdown");
+  ha_set_slave(thd, rli->group_relay_log_name, rli->group_relay_log_pos,
+               rli->group_master_log_name, rli->group_master_log_pos);
 
   /*
     Some events set some playgrounds, which won't be cleared because thread
@@ -3444,6 +3500,13 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     inc_pos= event_len;
     break;
   }
+
+  /*
+      Must update mi->master_log_pos before calling append() because a new
+      relay-log needs a correct master position for transactional replication.
+   */
+  mi->master_log_pos+= inc_pos;
+
   if (likely(!ignore_event))
   {
     if (ev->log_pos)
@@ -3456,12 +3519,13 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     {
       delete ev;
       pthread_mutex_unlock(&mi->data_lock);
+      mi->master_log_pos-= inc_pos;
       DBUG_RETURN(1);
     }
     rli->relay_log.harvest_bytes_written(&rli->log_space_total);
   }
   delete ev;
-  mi->master_log_pos+= inc_pos;
+
   DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(0);
@@ -3508,15 +3572,23 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     inc_pos= event_len;
     break;
   }
+
+  /*
+     Must update mi->master_log_pos before calling append() because a new
+     relay-log needs a correct master position for transactional replication.
+   */
+  mi->master_log_pos+= inc_pos;
+
   if (unlikely(rli->relay_log.append(ev)))
   {
     delete ev;
     pthread_mutex_unlock(&mi->data_lock);
+    mi->master_log_pos-= inc_pos;
     DBUG_RETURN(1);
   }
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
   delete ev;
-  mi->master_log_pos+= inc_pos;
+
 err:
   DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
   pthread_mutex_unlock(&mi->data_lock);
@@ -3698,15 +3770,23 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
   else
   {
+    /*
+       Must update mi->master_log_pos before calling appendv() because a new
+       relay-log needs a correct master position for transactional replication.
+     */
+    mi->master_log_pos+= inc_pos;
+
     /* write the event to the relay log */
     if (likely(!(rli->relay_log.appendv(buf,event_len,0))))
     {
-      mi->master_log_pos+= inc_pos;
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
     }
     else
+    {
       error= 3;
+      mi->master_log_pos-= inc_pos;
+    }
     rli->ign_master_log_name_end[0]= 0; // last event is not ignored
   }
   pthread_mutex_unlock(log_lock);
@@ -4034,6 +4114,8 @@ static Log_event* next_event(Relay_log_info* rli)
   pthread_mutex_t *log_lock = rli->relay_log.get_log_lock();
   const char* errmsg=0;
   THD* thd = rli->sql_thd;
+  int read_result;
+
   DBUG_ENTER("next_event");
 
   DBUG_ASSERT(thd != 0);
@@ -4236,7 +4318,9 @@ static Log_event* next_event(Relay_log_info* rli)
         pthread_mutex_unlock(&rli->log_space_lock);
         pthread_cond_broadcast(&rli->log_space_cond);
         // Note that wait_for_update unlocks lock_log !
-        rli->relay_log.wait_for_update(rli->sql_thd, 1);
+        rli->relay_log.wait_for_update(rli->sql_thd,
+                                       "Has read all relay log; waiting for"
+                                       "the I/O slave thread to update it");
         // re-acquire data lock since we released it earlier
         pthread_mutex_lock(&rli->data_lock);
         rli->last_master_timestamp= save_timestamp;
@@ -4252,7 +4336,55 @@ static Log_event* next_event(Relay_log_info* rli)
       my_close(rli->cur_log_fd, MYF(MY_WME));
       rli->cur_log_fd = -1;
 
-      if (relay_log_purge)
+      bool do_purge_log = relay_log_purge;
+
+#ifdef HAVE_INNODB_BINLOG
+      read_result= -1;
+
+      if (do_purge_log)
+      {
+        ha_read_slave(thd, &read_result);
+      }
+    
+      if (!read_result)
+      {
+        /* We can not purge files if InnoDB's replication status still
+         * references them. If we purge the files and stop the replication
+         * after the purge, then the replication can not continue because
+         * the files corresponding to InnoDB status were purged. We have to
+         * defer the purge in that case. Instead, we purge everything
+         * before the file InnoDB references.
+         *
+         * If InnoDb's status is still the default (empty string,-1),
+         * it could be that either no InnoDB tables are being updated or
+         * the SQL thread is still on the first transaction and that
+         * tranaction spans more than a single relay log. Don't purge in
+         * that case.
+         */
+        if ((strlen(innobase_get_mysql_relay_log_name()) > 0 &&
+             innobase_get_mysql_relay_log_pos() != -1))
+        {
+          /* Delete all files before InnoDB's current one. */
+          if (rli->relay_log.purge_logs(
+                  innobase_get_mysql_relay_log_name(),
+                  /*included*/0,
+                  /*need_mutex*/1,
+                  /*need_update_threads*/0,
+                  &rli->log_space_total) != 0 ||
+              rli->relay_log.find_log_pos(&rli->linfo,
+                                          rli->event_relay_log_name,
+                                          /*need_lock*/1) != 0)
+          {
+            errmsg = "Error purging old logs";
+            goto err;
+          }
+        }
+
+        do_purge_log = false;
+      }
+#endif
+
+      if (do_purge_log)
       {
         /*
           purge_first_log will properly set up relay log coordinates in rli.

@@ -1,0 +1,16 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP TABLE IF EXISTS foobar;
+CREATE TABLE foobar(i int);
+INSERT INTO foobar VALUES (1);
+SELECT * from foobar;
+i
+1
+SELECT * FROM foobar;
+i
+1
+DROP TABLE foobar;

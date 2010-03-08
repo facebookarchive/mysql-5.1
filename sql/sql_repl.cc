@@ -28,6 +28,59 @@ my_bool opt_sporadic_binlog_dump_fail = 0;
 static int binlog_dump_count = 0;
 #endif
 
+static const char* map_log_read_error(int log_read_error)
+{
+  switch (log_read_error)
+  {
+    case LOG_READ_EOF:         return "LOG_READ_EOF";
+    case LOG_READ_BOGUS:       return "LOG_READ_BOGUS";
+    case LOG_READ_IO:          return "LOG_READ_IO";
+    case LOG_READ_MEM:         return "LOG_READ_MEM";
+    case LOG_READ_TRUNC:       return "LOG_READ_TRUNC";
+    case LOG_READ_TOO_LARGE:   return "LOG_READ_TOO_LARGE";
+    default:                   return "unknown";
+  }
+}
+
+/*
+   Trace the detailed error message during binlog file switch.
+   
+   Input:
+    binlog        - (IN) MySQL binlog manager
+    old_offset    - (IN) the old offset 
+    log_file_name - (IN) the new log filename to switch to
+    linfo         - (IN) index file iteration information
+ */
+static void binlog_switch_file_error(MYSQL_BIN_LOG *binlog,
+                                     my_off_t    old_offset,
+                                     const char *log_file_name,
+                                     LOG_INFO   *linfo) {
+  MY_STAT file_stat;
+
+  if (my_fstat(binlog->get_index_file()->file, &file_stat, MYF(0)) == 0)
+  {
+    sql_print_error("binlog_dump switch file error: file(%s), "
+                    "old(%lu), new(%lu), index_file_size(%lu)",
+                    log_file_name, (ulong)old_offset,
+                    (ulong)linfo->index_file_offset,
+                    (ulong)file_stat.st_size);
+  }
+  else
+  {
+    sql_print_error("binlog_dump switch fstat error1: %d", my_errno);
+  }
+
+  if (my_stat(log_file_name, &file_stat, MYF(0)) != NULL)
+  {
+    sql_print_error("binlog_dump switch file error: file(%s), size(%lu)",
+                    log_file_name, (ulong)file_stat.st_size);
+  }
+  else
+  {
+    sql_print_error("binlog_dump switch fstat error2: %d", my_errno);
+  }
+}
+
 /*
     fake_rotate_event() builds a fake (=which does not exist physically in any
     binlog) Rotate event, which contains the name of the binlog we are going to
@@ -74,6 +127,8 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
   packet->append(p,ident_len);
   if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
   {
+    // TODO(mcallaghan): when should this be enabled?
+    // sql_print_error("Errno %d on my_net_write", net->last_errno);
     *errmsg = "failed on my_net_write()";
     DBUG_RETURN(-1);
   }
@@ -509,6 +564,8 @@ impossible position";
          /* send it */
          if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
          {
+           // TODO(mcallaghan): when should this be enabled?
+           // sql_print_error("Errno %d on my_net_write", net->last_errno);
            errmsg = "Failed on my_net_write()";
            my_errno= ER_UNKNOWN_ERROR;
            goto err;
@@ -567,6 +624,8 @@ impossible position";
 
       if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
       {
+        // TODO(mcallaghan): when should this be enabled?
+        // sql_print_error("Errno %d on my_net_write", net->last_errno);
 	errmsg = "Failed on my_net_write()";
 	my_errno= ER_UNKNOWN_ERROR;
 	goto err;
@@ -590,8 +649,19 @@ impossible position";
       here we were reading binlog that was not closed properly (as a result
       of a crash ?). treat any corruption as EOF
     */
+    if (error != LOG_READ_EOF)
+    {
+      sql_print_information("Error: mysql_binlog_send got read_log_event "
+                            "error %s (%d) ", map_log_read_error(error), error);
+    }
+
     if (binlog_can_be_corrupted && error != LOG_READ_MEM)
+    {
+      if (error != LOG_READ_EOF)
+        sql_print_information("Changed read_log_event error to LOG_READ_EOF");
       error=LOG_READ_EOF;
+    }
+
     /*
       TODO: now that we are logging the offset, check to make sure
       the recorded offset and the actual match.
@@ -610,6 +680,8 @@ impossible position";
       */
       if (net_flush(net))
       {
+        // TODO(mcallaghan): when should this be enabled?
+        // sql_print_error("Errno %d on net_flush", net->last_errno);
 	errmsg = "failed on net_flush()";
 	my_errno= ER_UNKNOWN_ERROR;
 	goto err;
@@ -662,7 +734,9 @@ impossible position";
 	  if (!thd->killed)
 	  {
 	    /* Note that the following call unlocks lock_log */
-	    mysql_bin_log.wait_for_update(thd, 0);
+	    mysql_bin_log.wait_for_update(thd,
+                                          "Has sent all binlog to slave; "
+                                          "waiting for binlog to be updated");
 	  }
 	  else
 	    pthread_mutex_unlock(log_lock);
@@ -680,6 +754,8 @@ impossible position";
 	  thd_proc_info(thd, "Sending binlog event to slave");
 	  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) )
 	  {
+            // TODO(mcallaghan): when should this be enabled?
+            // sql_print_error("Errno %d on my_net_write", net->last_errno);
 	    errmsg = "Failed on my_net_write()";
 	    my_errno= ER_UNKNOWN_ERROR;
 	    goto err;
@@ -709,6 +785,12 @@ impossible position";
       bool loop_breaker = 0;
       /* need this to break out of the for loop from switch */
 
+      my_off_t old_offset = linfo.index_file_offset;
+      char old_log_file_name[FN_REFLEN+1];
+
+      /* Keep the old filename. */
+      strmake(old_log_file_name, log_file_name, FN_REFLEN);
+
       thd_proc_info(thd, "Finished reading one binlog; switching to next binlog");
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case 0:
@@ -731,6 +813,20 @@ impossible position";
       end_io_cache(&log);
       (void) my_close(file, MYF(MY_WME));
 
+      /* 
+         Confirm the same binlog is not served twice because filenames are stored in
+         a .index file.
+       */
+      if (strcmp(old_log_file_name, log_file_name) >= 0)
+      {
+	errmsg = "Re-serving an already served binlog file.";
+	my_errno = ER_MASTER_FATAL_ERROR_READING_BINLOG;
+
+        binlog_switch_file_error(&mysql_bin_log, old_offset, log_file_name,
+                                 &linfo);
+	goto err;
+      }
+
       /*
         Call fake_rotate_event() in case the previous log (the one which
         we have just finished reading) did not contain a Rotate event
@@ -745,8 +841,12 @@ impossible position";
                             &errmsg))
       {
 	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+        binlog_switch_file_error(&mysql_bin_log, old_offset, log_file_name,
+                                 &linfo);
 	goto err;
       }
+
+      DBUG_PRINT("info", ("Binlog filename: new binlog %s", log_file_name));
 
       packet->length(0);
       packet->append('\0');
@@ -765,6 +865,10 @@ end:
   DBUG_VOID_RETURN;
 
 err:
+  // TODO(mcallaghan): when should these be printed
+  // sql_print_error(errmsg);
+  // sql_print_error("End binlog_dump in error: %d", thd->server_id);
+
   thd_proc_info(thd, "Waiting to finalize termination");
   end_io_cache(&log);
   /*
@@ -1019,6 +1123,20 @@ int reset_slave(THD *thd, Master_info* mi)
 
   ha_reset_slave(thd);
 
+  /*
+    Clear master's log coordinates and reset host/user/etc to the values
+    specified in mysqld's options (only for good display of SHOW SLAVE STATUS;
+    next init_master_info() (in start_slave() for example) would have set them
+    the same way; but here this is for the case where the user does SHOW SLAVE
+    STATUS; before doing START SLAVE;
+  */
+  init_master_info_with_options(mi);
+
+  /*
+     TODO(mcallaghan): remember why we moved this here. I think it was done
+     to avoid leaving replication in a bad state on an error.
+   */
+
   // delete relay logs, clear relay log coordinates
   if ((error= purge_relay_logs(&mi->rli, thd,
 			       1 /* just reset */,
@@ -1028,14 +1146,6 @@ int reset_slave(THD *thd, Master_info* mi)
     goto err;
   }
 
-  /*
-    Clear master's log coordinates and reset host/user/etc to the values
-    specified in mysqld's options (only for good display of SHOW SLAVE STATUS;
-    next init_master_info() (in start_slave() for example) would have set them
-    the same way; but here this is for the case where the user does SHOW SLAVE
-    STATUS; before doing START SLAVE;
-  */
-  init_master_info_with_options(mi);
   /*
      Reset errors (the idea is that we forget about the
      old master).
@@ -1336,6 +1446,24 @@ bool change_master(THD* thd, Master_info* mi)
   pthread_cond_broadcast(&mi->data_cond);
   pthread_mutex_unlock(&mi->rli.data_lock);
 
+#ifdef HAVE_INNODB_BINLOG
+  /*
+    If host is an empty string, that means the server is getting
+    promoted from a slave to a master. In that case, we want to
+    reset.
+  */
+  if (!mi->host[0])
+  {
+    ha_reset_slave(thd);
+  }
+  else
+  {
+    ha_set_slave(thd,
+                 mi->rli.group_relay_log_name, mi->rli.event_relay_log_pos,
+                 mi->master_log_name, mi->master_log_pos);
+  }
+#endif
+
   unlock_slave_threads(mi);
   thd_proc_info(thd, 0);
   my_ok(thd);
@@ -1360,7 +1488,7 @@ int reset_master(THD* thd)
                ER(ER_FLUSH_MASTER_BINLOG_CLOSED), MYF(ME_BELL+ME_WAITTANG));
     return 1;
   }
-  return mysql_bin_log.reset_logs(thd);
+  return mysql_bin_log.reset_logs(thd, true);
 }
 
 int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
@@ -1633,7 +1761,7 @@ bool show_binlogs(THD* thd)
   if (!mysql_bin_log.is_open())
   {
     my_message(ER_NO_BINARY_LOGGING, ER(ER_NO_BINARY_LOGGING), MYF(0));
-    DBUG_RETURN(TRUE);
+    return 1;
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));

@@ -9390,7 +9390,7 @@ UNIV_INTERN
 ulonglong
 innobase_get_mysql_relay_log_pos()
 /*==============================*/
-		/* out: pointer to buffer for relay log position */
+		/* out: relay log position */
 {
 	return(trx_sys_mysql_relay_log_pos);
 }
@@ -9407,8 +9407,8 @@ innobase_get_mysql_master_log_name()
 UNIV_INTERN
 ulonglong
 innobase_get_mysql_master_log_pos()
-/*================================*/
-		/* out: pointer to buffer for master log position */
+/*===============================*/
+		/* out: master log position */
 {
 	return(trx_sys_mysql_master_log_pos);
 }
@@ -9438,8 +9438,7 @@ innobase_read_mysql_slave_state(
 
 	mutex_enter(&kernel_mutex);
 
-	// TODO(mcallaghan): add this in a pending commit
-        // *result = trx_sys_read_slave_state(FALSE);
+        *result = trx_sys_read_slave_state(FALSE);
 
 	mutex_exit(&kernel_mutex);
 }
@@ -9485,13 +9484,11 @@ innobase_set_mysql_slave_state(
 		relay_log_name,
 		llstr((longlong)relay_log_pos, buf2));
 
-/* TODO(mcallaghan): add this in a future commit
 	mtr_start(&mtr);
 	trx_sys_update_slave_state(relay_log_name, relay_log_pos,
 				master_log_name, master_log_pos,
 				TRX_SYS_MYSQL_RELAY_INFO, &mtr, NULL, TRUE);
 	mtr_commit(&mtr);
-*/
 	/* TODO: return 0 */
 }
 

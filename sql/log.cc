@@ -40,6 +40,10 @@
 
 #include <mysql/plugin.h>
 
+/** The max InnoDB allowed replication binlog filename length: the value should
+    be the same as TRX_SYS_MYSQL_RELAY_NAME_LEN. */
+#define MAX_INNODB_BINLOG_FILENAME_LEN      250
+
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
 #define MAX_USER_HOST_SIZE 512
@@ -62,6 +66,18 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv);
 static int binlog_commit(handlerton *hton, THD *thd, bool all);
 static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
+
+struct QueryLogEvent {
+  const char *query_;
+  const int query_length_;
+};
+
+/** Queries with the correct log position in the event */
+QueryLogEvent query_with_log[] =
+{
+  { "BEGIN", strlen("BEGIN") },
+  { "COMMIT", strlen("COMMIT") }
+};
 
 /**
   Silence all errors and warnings reported when performing a write
@@ -2513,7 +2529,8 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG()
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
    need_start_event(TRUE), m_table_map_version(0),
    is_relay_log(0),
-   description_event_for_exec(0), description_event_for_queue(0)
+   description_event_for_exec(0), description_event_for_queue(0),
+   active_mi(NULL)
 {
   /*
     We don't want to initialize locks here as such initialization depends on
@@ -2627,6 +2644,17 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
 #endif
 
   return FALSE;
+}
+
+
+int MYSQL_BIN_LOG::close_index_file()
+{
+  if (my_b_inited(&index_file))
+  {
+    end_io_cache(&index_file);
+    my_close(index_file.file, MYF(0));
+  }
+  return 0;
 }
 
 
@@ -2767,6 +2795,43 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
         goto err;
       bytes_written+= description_event_for_queue->data_written;
     }
+
+    if (rpl_transaction_enabled)
+    {
+      /*
+         Make sure that filename is not longer than the limit inside
+         InnoDB's transaction header.
+       */
+      if (strlen(log_file_name) >= MAX_INNODB_BINLOG_FILENAME_LEN)
+      {
+        sql_print_error("Too long binlog filename(%s) for InnoDB: %d bytes",
+                        log_file_name, MAX_INNODB_BINLOG_FILENAME_LEN);
+        goto err;
+      }
+
+      /*
+        Need a special event in each relay-log file to make sure that each
+        file always has the correct master-log information itself. Always
+        write a Rotate_log_event with server_id as MASTER_INFO_SERVER_ID
+        at the beginning of the relay-log with the corresponding master-log
+        information.
+       */
+      Master_info *mi = get_master_info();
+      if (mi != NULL && strlen(mi->master_log_name) > 0)
+      {
+        Rotate_log_event mi_event(mi->master_log_name,
+                                  strlen(mi->master_log_name),
+                                  mi->master_log_pos, 0);
+        mi_event.set_server_id(MASTER_INFO_SERVER_ID);
+        if (mi_event.write(&log_file))
+        {
+          sql_print_error("Could not write MASTER Rotate_log_event");
+          goto err;
+        }
+        bytes_written += mi_event.data_written;
+      }
+    }
+
     if (flush_io_cache(&log_file) ||
         my_sync(log_file.file, MYF(MY_WME)))
       goto err;
@@ -2820,7 +2885,7 @@ shutdown the MySQL server and restart it.", name, errno);
   if (file >= 0)
     my_close(file,MYF(0));
   end_io_cache(&log_file);
-  end_io_cache(&index_file);
+  close_index_file();
   safeFree(name);
   log_state= LOG_CLOSED;
   if (need_mutex)
@@ -3033,6 +3098,7 @@ err:
   The new index file will only contain this file.
 
   @param thd		Thread
+  @param need_lock      Whether locks must be obtained
 
   @note
     If not called from slave thread, write start event to new log
@@ -3043,7 +3109,7 @@ err:
     1   error
 */
 
-bool MYSQL_BIN_LOG::reset_logs(THD* thd)
+bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool need_lock)
 {
   LOG_INFO linfo;
   bool error=0;
@@ -3051,12 +3117,18 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   DBUG_ENTER("reset_logs");
 
   ha_reset_logs(thd);
-  /*
-    We need to get both locks to be sure that no one is trying to
-    write to the index log file.
-  */
-  pthread_mutex_lock(&LOCK_log);
-  pthread_mutex_lock(&LOCK_index);
+
+  if (need_lock)
+  {
+    /*
+      We need to get both locks to be sure that no one is trying to
+      write to the index log file.
+    */
+    pthread_mutex_lock(&LOCK_log);
+    pthread_mutex_lock(&LOCK_index);
+  }
+  safe_mutex_assert_owner(&LOCK_log);
+  safe_mutex_assert_owner(&LOCK_index);
 
   /*
     The following mutex is needed to ensure that no threads call
@@ -3152,8 +3224,11 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 
 err:
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
-  pthread_mutex_unlock(&LOCK_index);
-  pthread_mutex_unlock(&LOCK_log);
+  if (need_lock)
+  {
+    pthread_mutex_unlock(&LOCK_index);
+    pthread_mutex_unlock(&LOCK_log);
+  }
   DBUG_RETURN(error);
 }
 
@@ -4940,9 +5015,7 @@ err:
   Wait until we get a signal that the binary log has been updated.
 
   @param thd		Thread variable
-  @param is_slave      If 0, the caller is the Binlog_dump thread from master;
-                       if 1, the caller is the SQL thread from the slave. This
-                       influences only thd->proc_info.
+  @param new_msg        New message to display for connection status
 
   @note
     One must have a lock on LOCK_log before calling this function.
@@ -4950,17 +5023,12 @@ err:
     THD::enter_cond() (see NOTES in sql_class.h).
 */
 
-void MYSQL_BIN_LOG::wait_for_update(THD* thd, bool is_slave)
+void MYSQL_BIN_LOG::wait_for_update(THD* thd, const char* new_msg)
 {
   const char *old_msg;
   DBUG_ENTER("wait_for_update");
 
-  old_msg= thd->enter_cond(&update_cond, &LOCK_log,
-                           is_slave ?
-                           "Has read all relay log; waiting for the slave I/O "
-                           "thread to update it" :
-                           "Has sent all binlog to slave; waiting for binlog "
-                           "to be updated");
+  old_msg= thd->enter_cond(&update_cond, &LOCK_log, new_msg);
   pthread_cond_wait(&update_cond, &LOCK_log);
   thd->exit_cond(old_msg);
   DBUG_VOID_RETURN;
@@ -5053,6 +5121,376 @@ void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg)
     max_size= max_size_arg;
   pthread_mutex_unlock(&LOCK_log);
   DBUG_VOID_RETURN;
+}
+
+bool MYSQL_BIN_LOG::extract_master_info(Log_event* ev,
+                                        char *master_log_name,
+                                        my_off_t *master_log_pos)
+{
+  bool extracted = false;
+  DBUG_ENTER("MYSQL_LOG::extract_master_info");
+
+  /*
+    Some events always have correct master log information, like:
+    Xid_event, Master_info_log_event, Rotate_log_event, etc
+    Some Query events have correct master log information (each query
+    event only has one query inside), like BEGIN/COMMIT.
+   */
+  switch (ev->get_type_code())
+  {
+  case QUERY_EVENT:
+  {
+    Query_log_event *query = (Query_log_event *)ev;
+
+    /*
+      Check whether the query event has the correct master log information:
+      if so, accept it.
+     */
+    for (int idx = 0; idx < sizeof(query_with_log)/sizeof(QueryLogEvent);
+         ++idx)
+      if ((query->q_len == query_with_log[idx].query_length_ &&
+           strncmp(query_with_log[idx].query_, query->query,
+                   query->q_len) == 0))
+    {
+      *master_log_pos = query->log_pos;
+      extracted = true;
+    }
+    break;
+  }
+  case ROTATE_EVENT:
+    /*
+      Because I/O thread can add rotate events for slave side purpose,
+      like exceed file size limit, and those events would not carry the
+      correct master side information, we skip them. Those events only
+      have slave side information.
+     */
+    if (ev->server_id != ::server_id)
+    {
+      Rotate_log_event *rotate = (Rotate_log_event *)ev;
+
+      /*
+        Rotate_log_event from the master always indicates the correct info.
+       */
+      strcpy(master_log_name, rotate->new_log_ident);
+      master_log_name[rotate->ident_len] = '\0';
+      *master_log_pos = rotate->pos;
+      extracted = true;
+    }
+    break;
+  case XID_EVENT:
+    /*
+      XID_EVENT is the same as COMMIT in relay-log. It carries the
+      correct master log information.
+     */
+    *master_log_pos = ev->log_pos;
+    extracted = true;
+    break;
+  case FORMAT_DESCRIPTION_EVENT:
+    /*
+      Format event would not cause re-transmit the same event from the master,
+      Assume its position in relay-log is correct.
+     */
+    extracted = true;
+    break;
+  default:
+    extracted = false;
+    break;
+  }
+  DBUG_RETURN(extracted);
+}
+
+/*
+  Determine whether we find the relay-log corresponding to the master-log info.
+ */
+bool MYSQL_BIN_LOG::find_master_pos_inlog(const char *relay_log_name,
+                                          ulonglong relay_log_pos,
+                                          const char *master_log_name,
+                                          ulonglong master_log_pos,
+                                          char *last_master_log_name,
+                                          ulonglong *last_master_log_pos,
+                                          bool *relay_file_error,
+                                          my_off_t *last_valid_offset,
+                                          my_off_t *relay_file_size,
+                                          const char **errmsg)
+{
+  IO_CACHE log_file;
+  DBUG_ENTER("MYSQL_LOG::find_master_pos_inlog");
+  file_id = open_binlog(&log_file, relay_log_name, errmsg);
+
+  /* Note that File may be -1 and file_id is uint. */
+  if ((File)file_id < 0)
+  {
+    file_id = 0; // make is_valid() return false
+    *relay_file_error = true;
+    DBUG_RETURN(false);
+  }
+
+  Format_description_log_event *desc_event =
+    new Format_description_log_event(3);
+
+  for (;;)
+  {
+    Log_event* ev = Log_event::read_log_event(&log_file, NULL, desc_event);
+    if (!ev)
+    {
+      break;
+    }
+
+    /*
+       If the relay-log event has been executed by slave sql thread, then we
+       can assume that the event is safe., strlen(master_log_name)
+       update_master_info() might shrink the last relay-log to make sure that
+       we would not re-append events.  Then, we would re-transmit all events
+       from the master.  If the last relay-log gets shrinked, we need to make
+       sure that re-appended relay-log is the same as the one before the
+       shrink.  Otherwise, the sql thread will get confused.
+      
+       TODO(wei): we still need to handle the situation that the last relay
+       log is corrupted and the shrink point is before the execution point.
+     */
+    my_off_t offset = my_b_tell(&log_file);
+
+    if (extract_master_info(ev, last_master_log_name, last_master_log_pos))
+    {
+      *last_valid_offset = offset;
+    }
+    else if (offset == relay_log_pos)
+    {
+      strmake(last_master_log_name, master_log_name, strlen(master_log_name));
+      *last_master_log_pos = master_log_pos;
+      *last_valid_offset = offset;
+    }
+
+    if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+    {
+      delete desc_event;
+      desc_event = (Format_description_log_event *)ev;
+
+      /*
+         If we have the correct last executed relay-log information, we can
+         seek to the position after getting the correct format event.
+       */
+      if (relay_log_pos != -1 && offset < relay_log_pos)
+      {
+        my_b_seek(&log_file, relay_log_pos);
+        strmake(last_master_log_name, master_log_name, strlen(master_log_name));
+        *last_master_log_pos = master_log_pos;
+        *last_valid_offset   = relay_log_pos;
+      }
+    }
+    else
+    {
+      delete ev;
+    }
+  }
+  *relay_file_error = log_file.error;
+  if (relay_file_size)
+    *relay_file_size = my_b_tell(&log_file);
+
+  my_close(file_id, MYF(MY_WME));
+  end_io_cache(&log_file);
+  delete desc_event;
+
+  DBUG_RETURN(!(*relay_file_error));
+}
+
+int MYSQL_BIN_LOG::update_master_info(THD *thd,
+                                      const char *relay_log_name,
+                                      ulonglong relay_log_pos,
+                                      const char *master_log_name,
+                                      ulonglong master_log_pos,
+                                      bool *need_check_master_log,
+                                      bool *found_relay_info)
+{
+  int error = 0;
+  LOG_INFO linfo;
+  char last_relay_log_name[FN_REFLEN];
+  char last_master_log_name[FN_REFLEN];
+
+  Master_info* mi = get_master_info();
+  const char *errmsg = NULL;
+
+  my_off_t last_valid_off = 0, last_master_log_pos;
+
+  bool found_relay_file = false;
+  bool relay_file_error = false;
+  my_off_t relay_file_size = 0;
+
+  /* Whether the specified relay_log_name, relay_log_pos are available */
+  bool relay_log_info_avail;
+
+  char buff1[22], buff2[22];
+
+  DBUG_ENTER("MYSQL_LOG::update_master_info");
+
+  *found_relay_info      = false;
+  *need_check_master_log = false;
+  relay_log_info_avail   = (strcmp(relay_log_name, "") != 0 &&
+                            relay_log_pos != -1);
+  strmake(last_master_log_name, "", FN_REFLEN);
+
+  if (find_log_pos(&linfo, NullS, true))
+  {
+    /*
+        This should be fine because we are going to retrieve all master-logs
+        from scratch.
+     */
+    ha_reset_slave(thd);
+    sql_print_information("update_master_info: relay-log file not found,"
+                          " will reset replication from scratch");
+
+    DBUG_RETURN(0);
+  }
+  else
+  {
+    /*
+       Find the last replication relay-log filename in relay-log.info and 
+       find the specified <relay_log_name> is in relay-log.info.
+     */
+    for (;;)
+    {
+      /* find the last log file from index_log_file */
+      strmake(last_relay_log_name, linfo.log_file_name, FN_REFLEN);
+      last_relay_log_name[FN_REFLEN - 1] = '\0';
+
+      /* check whether we found the specified relay-log file */
+      if (relay_log_info_avail && !found_relay_file &&
+          strcmp(last_relay_log_name, relay_log_name) == 0)
+      {
+        found_relay_file = true;
+      }
+      if (find_next_log(&linfo, true))
+        break;
+    }
+  }
+
+  if (relay_log_info_avail && !found_relay_file)
+  {
+    /*
+       This might be totally wrong because we could not find the last executed
+       relay-log based on InnoDB information.  It might be normal that there
+       is a relay-log switch which cause the old log purged.  We need to check
+       whether master-log information match relay-log.info.
+     */
+    *need_check_master_log = true;
+  }
+
+  if (relay_log_info_avail &&
+      strcmp(relay_log_name, last_relay_log_name) == 0)
+  {
+    if (!find_master_pos_inlog(relay_log_name, relay_log_pos,
+                               master_log_name, master_log_pos, 
+                               last_master_log_name, &last_master_log_pos, 
+                               &relay_file_error, &last_valid_off,
+                               &relay_file_size, &errmsg))
+    {
+      /* We could not read the relay-log file correctly. */
+      sql_print_information("update_master_info: open relay-log(%s) error %s",
+                            relay_log_name, errmsg);
+      DBUG_RETURN(1);
+    }
+  }
+  else
+  {
+    if (!find_master_pos_inlog(last_relay_log_name, (ulonglong) -1,
+                               NULL, (ulonglong) -1, 
+                               last_master_log_name, &last_master_log_pos, 
+                               &relay_file_error, &last_valid_off,
+                               &relay_file_size, &errmsg))
+    {
+      /* We could not read the relay-log file correctly. */
+      sql_print_information("update_master_info: open relay-log(%s) error %s",
+                            last_relay_log_name, errmsg);
+      DBUG_RETURN(1);
+    }
+  }
+
+  /*
+     If we do not find master-log reading information from all valid events,
+     we assume that the information in file master.log is correct based on
+     the protocol: we always write to file master.info before writing events
+     into relay-log.
+   */
+  if (strlen(last_master_log_name) > 0)
+  {
+    DBUG_PRINT("info",("found master log_file_name: '%s'  position: %s",
+                       last_master_log_name,
+                       llstr(last_master_log_pos, buff1)));
+
+    /* truncate the log to the last valid event */
+    if (relay_file_error || last_valid_off != relay_file_size)
+    {
+      File trunc_file_id = my_open(last_relay_log_name, O_WRONLY, MYF(MY_WME));
+      if (trunc_file_id < 0)
+      {
+        sql_print_error("update_master_info: open file '%s' for "
+                        "truncation failed; error: %d",
+                        last_relay_log_name, errno);
+        DBUG_RETURN(1);
+      }
+
+      /*
+         We might truncate the last file less than relay-log.info indicates the
+         file should be.  This is fine because we going to create a new
+         relay-log file after this one and the sql thread will be directed to
+         the new file to read relay events.
+       */
+      off_t new_len = (off_t)last_valid_off;
+      if (ftruncate(trunc_file_id, new_len))
+      {
+        sql_print_error("update_master_info: truncate file(%s) from %s to %s; "
+                        "error: %d\n", last_relay_log_name,
+                        llstr(relay_file_size, buff1),
+                        llstr(new_len, buff2), errno);
+        my_close(trunc_file_id, MYF(MY_WME));
+
+        DBUG_RETURN(1);
+      }
+      my_close(trunc_file_id, MYF(MY_WME));
+
+      sql_print_information("update_master_info: truncated file(%s) from %s to %s",
+                            last_relay_log_name, llstr(relay_file_size, buff1),
+                            llstr(new_len, buff2));
+    }
+
+    /* update offset for SQL thread (master log name and offset) */
+
+    if (strcmp(mi->master_log_name, last_master_log_name) != 0 ||
+        mi->master_log_pos != last_master_log_pos)
+    {
+      sql_print_information("update_master_info: adjust master offset:\n"
+                            "\tOld: file:'%s', position:%s\n"
+                            "\tNew: file:'%s', position:%s",
+                            mi->master_log_name,
+                            llstr(mi->master_log_pos, buff1),
+                            last_master_log_name,
+                            llstr(last_master_log_pos, buff2));
+      strcpy(mi->master_log_name, last_master_log_name);
+      mi->master_log_pos = last_master_log_pos;
+    }
+
+    /*
+       We must write the file to disk here even there are no changes because
+       MYSQL_BIN_LOG::open() might create a new relay-log file.
+     */
+    reinit_io_cache(&mi->file, WRITE_CACHE, 0L, 0, 1);
+    if ((error=test(flush_master_info(mi, 0))))
+    {
+      sql_print_error("update_master_info: failed to flush master info file");
+    }
+    else
+    {
+      error = my_sync(mi->file.file, MYF(MY_WME));
+    }
+  }
+  else if (relay_log_info_avail)
+  {
+    sql_print_warning("update_master_info: cannot find master information "
+                      "from the last relay-log: assume master.info is correct");
+  }
+
+  *found_relay_info = relay_log_info_avail;
+  DBUG_RETURN(error);
 }
 
 
