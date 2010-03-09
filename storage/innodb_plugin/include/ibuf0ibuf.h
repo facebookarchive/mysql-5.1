@@ -35,6 +35,30 @@ Created 7/19/1997 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "ibuf0types.h"
 
+/** Insert buffer struct */
+struct ibuf_struct{
+	ulint		size;		/*!< current size of the ibuf index
+					tree, in pages */
+	ulint		max_size;	/*!< recommended maximum size of the
+					ibuf index tree, in pages */
+	ulint		seg_size;	/*!< allocated pages of the file
+					segment containing ibuf header and
+					tree */
+	ibool		empty;		/*!< after an insert to the ibuf tree
+					is performed, this is set to FALSE,
+					and if a contract operation finds
+					the tree empty, this is set to
+					TRUE */
+	ulint		free_list_len;	/*!< length of the free list */
+	ulint		height;		/*!< tree height */
+	dict_index_t*	index;		/*!< insert buffer index */
+
+	ulint		n_inserts;	/*!< number of inserts made to
+					the insert buffer */
+	ulint		n_merges;	/*!< number of pages merged */
+	ulint		n_merged_recs;	/*!< number of records merged */
+};
+
 /** Combinations of operations that can be buffered.  Because the enum
 values are used for indexing innobase_change_buffering_values[], they
 should start at 0 and there should not be any gaps. */
