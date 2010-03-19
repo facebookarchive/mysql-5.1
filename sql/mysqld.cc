@@ -560,6 +560,8 @@ my_bool log_datagram= 0;
 ulong log_datagram_usecs= 0;
 int log_datagram_sock= -1;
 
+my_bool opt_log_slow_extra;
+
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -5870,6 +5872,7 @@ enum options_mysqld
   OPT_PERFTOOLS_PROFILE,
   OPT_LOG_DATAGRAM,
   OPT_LOG_DATAGRAM_USECS,
+  OPT_LOG_SLOW_EXTRA,
 };
 
 
@@ -7302,6 +7305,10 @@ The minimum value for this variable is 4096.",
    "Enable profiling using Google Perftools and write output to this file.",
    (uchar**) &opt_perftools_profile_output, (uchar**) &opt_perftools_profile_output,
    0, GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"log_slow_extra", OPT_LOG_SLOW_EXTRA,
+   "Print more attributes to the slow query log",
+   (uchar**) &opt_log_slow_extra, (uchar**) &opt_log_slow_extra,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7948,6 +7955,7 @@ static int mysql_init_variables(void)
 
   log_datagram= 0;
   log_datagram_usecs= 0;
+  opt_log_slow_extra= FALSE;
 
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;

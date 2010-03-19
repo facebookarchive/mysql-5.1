@@ -1,0 +1,7 @@
+select @@datadir;
+set timestamp=10;
+select unix_timestamp(), sleep(2);
+
+--exec [ "1" == `grep "SET timestamp=10;" $MYSQL_TEST_DIR/var/mysqld.1/mysqld-slow.log | wc -l` ]
+
+--exit

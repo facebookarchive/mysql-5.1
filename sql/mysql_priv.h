@@ -2176,6 +2176,8 @@ extern my_bool log_datagram;
 extern ulong log_datagram_usecs;
 extern int log_datagram_sock;
 
+extern my_bool opt_log_slow_extra;
+
 extern int orig_argc;
 extern char **orig_argv;
 extern const char *load_default_groups[];

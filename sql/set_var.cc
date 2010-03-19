@@ -938,10 +938,11 @@ static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_sl
 /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
 static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                           &opt_slow_log, QUERY_LOG_SLOW);
-sys_var_bool_ptr sys_log_datagram(&vars, "log_datagram", &log_datagram,
+static sys_var_bool_ptr sys_log_datagram(&vars, "log_datagram", &log_datagram,
                                   setup_datagram_socket);
-sys_var_long_ptr sys_log_datagram_usecs(&vars, "log_datagram_usecs",
+static sys_var_long_ptr sys_log_datagram_usecs(&vars, "log_datagram_usecs",
                                         &log_datagram_usecs);
+static sys_var_bool_ptr sys_log_slow_extra(&vars, "log_slow_extra", &opt_log_slow_extra);
 sys_var_str sys_var_general_log_path(&vars, "general_log_file", sys_check_log_path,
 				     sys_update_general_log_path,
 				     sys_default_general_log_path,
