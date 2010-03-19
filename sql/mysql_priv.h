@@ -1641,14 +1641,14 @@ TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list);
 int drop_temporary_table(THD *thd, TABLE_LIST *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
-void close_temporary(TABLE *table, bool free_share, bool delete_table);
+void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table);
 bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 void remove_db_from_cache(const char *db);
 void flush_tables();
 
 /* for SHOW GLOBAL TABLE STATUS */
-void update_table_stats(TABLE *table_ptr, bool follow_next);
+void update_table_stats(THD* thd, TABLE *table_ptr, bool follow_next);
 extern HASH global_table_stats;
 void init_global_table_stats(void);
 void free_global_table_stats(void);

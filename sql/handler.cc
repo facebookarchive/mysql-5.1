@@ -4437,7 +4437,7 @@ TYPELIB *ha_known_exts(void)
     Should be called at the end of a statement.
     TODO(mcallaghan): support more concurrency on update, shard the hash table
 */
-void handler::update_global_table_stats() 
+void handler::update_global_table_stats(THD *thd)
 {
   if (!stats.has_table_stats())
     return;
@@ -4457,6 +4457,12 @@ void handler::update_global_table_stats()
     my_io_perf_sum_atomic_helper(&table_stats->io_perf_write,
                                  &stats.table_io_perf_write);
     my_atomic_add64(&table_stats->index_inserts, stats.index_inserts);
+  }
+
+  if (thd)
+  {
+    my_io_perf_sum(&thd->io_perf_read, &stats.table_io_perf_read);
+    my_io_perf_sum(&thd->io_perf_write, &stats.table_io_perf_write);
   }
 
   stats.reset_table_stats();

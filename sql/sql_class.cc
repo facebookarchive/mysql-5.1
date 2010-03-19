@@ -841,6 +841,9 @@ void THD::init(void)
   bzero((char *) &status_var, sizeof(status_var));
   sql_log_bin_toplevel= options & OPTION_BIN_LOG;
 
+  my_io_perf_init(&io_perf_read);
+  my_io_perf_init(&io_perf_write);
+
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
   debug_sync_init_thread(this);

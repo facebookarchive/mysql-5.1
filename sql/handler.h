@@ -1782,7 +1782,7 @@ public:
   /* Update global per-table counters for work done by this handler. Should be
      called at the end of a statement.
   */
-  void update_global_table_stats();
+  void update_global_table_stats(THD *thd);
 
 protected:
   /* Service methods for use by storage engines. */

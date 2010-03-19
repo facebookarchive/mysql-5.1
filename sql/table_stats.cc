@@ -15,12 +15,12 @@ static pthread_mutex_t LOCK_global_table_stats;
       follow_next - when TRUE, update global stats for tables linked
                     via TABLE::next
  */
-void update_table_stats(TABLE *tablep, bool follow_next)
+void update_table_stats(THD *thd, TABLE *tablep, bool follow_next)
 {
   for (; tablep; tablep= tablep->next)
   {
     if (tablep->file)
-      tablep->file->update_global_table_stats();
+      tablep->file->update_global_table_stats(thd);
 
     if (!follow_next)
       return;

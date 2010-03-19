@@ -1419,6 +1419,9 @@ public:
   // track down slow pthread_create
   ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
+
+  my_io_perf_t io_perf_read;/* IO perf counters for slow query log */
+  my_io_perf_t io_perf_write;/* IO perf counters for slow query log */
   
   thr_lock_type update_lock_default;
   Delayed_insert *di;
