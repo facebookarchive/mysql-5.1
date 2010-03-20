@@ -171,7 +171,8 @@ public:
   bool open(const char *log_name,
             enum_log_type log_type,
             const char *new_name,
-            enum cache_type io_cache_type_arg);
+            enum cache_type io_cache_type_arg,
+            bool need_mutex);
   bool init_and_set_log_file_name(const char *log_name,
                                   const char *new_name,
                                   enum_log_type log_type_arg,
@@ -214,13 +215,13 @@ public:
   {
     char buf[FN_REFLEN];
     return open(generate_name(log_name, "-slow.log", 0, buf), LOG_NORMAL, 0,
-                WRITE_CACHE);
+                WRITE_CACHE, true);
   }
   bool open_query_log(const char *log_name)
   {
     char buf[FN_REFLEN];
     return open(generate_name(log_name, ".log", 0, buf), LOG_NORMAL, 0,
-                WRITE_CACHE);
+                WRITE_CACHE, true);
   }
 
 private:

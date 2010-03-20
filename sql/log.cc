@@ -1936,7 +1936,8 @@ bool MYSQL_LOG::init_and_set_log_file_name(const char *log_name,
 */
 
 bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
-                     const char *new_name, enum cache_type io_cache_type_arg)
+                     const char *new_name, enum cache_type io_cache_type_arg,
+                     bool need_mutex)
 {
   char buff[FN_REFLEN];
   File file= -1;
@@ -1945,6 +1946,9 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   DBUG_PRINT("enter", ("log_type: %d", (int) log_type_arg));
 
   write_error= 0;
+
+  if (need_mutex)
+    (void) pthread_mutex_lock(&LOCK_log);
 
   if (!(name= my_strdup(log_name, MYF(MY_WME))))
   {
@@ -1996,6 +2000,8 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   }
 
   log_state= LOG_OPENED;
+  if (need_mutex)
+    (void) pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(0);
 
 err:
@@ -2008,6 +2014,8 @@ shutdown the MySQL server and restart it.", name, errno);
   end_io_cache(&log_file);
   safeFree(name);
   log_state= LOG_CLOSED;
+  if (need_mutex)
+    (void) pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(1);
 }
 
@@ -2137,7 +2145,7 @@ void MYSQL_QUERY_LOG::reopen_file()
      Note that at this point, log_state != LOG_CLOSED (important for is_open()).
   */
 
-  open(save_name, log_type, 0, io_cache_type);
+  open(save_name, log_type, 0, io_cache_type, false);
   my_free(save_name, MYF(0));
 
   pthread_mutex_unlock(&LOCK_log);
@@ -2649,6 +2657,9 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
   DBUG_ENTER("MYSQL_BIN_LOG::open");
   DBUG_PRINT("enter",("log_type: %d",(int) log_type_arg));
 
+  if (need_mutex)
+    (void) pthread_mutex_lock(&LOCK_log);
+
   if (init_and_set_log_file_name(log_name, new_name, log_type_arg,
                                  io_cache_type_arg))
   {
@@ -2672,7 +2683,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
 
   /* open the main log file */
   if (MYSQL_LOG::open(log_name, log_type_arg, new_name,
-                      io_cache_type_arg))
+                      io_cache_type_arg, false))
   {
 #ifdef HAVE_REPLICATION
     close_purge_index_file();
@@ -2791,12 +2802,14 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
   close_purge_index_file();
 #endif
 
+  if (need_mutex)
+    (void) pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(0);
 
 err:
 #ifdef HAVE_REPLICATION
   if (is_inited_purge_index_file())
-    purge_index_entry(NULL, NULL, need_mutex);
+    purge_index_entry(NULL, NULL, false);
   close_purge_index_file();
 #endif
   sql_print_error("Could not use %s for logging (error %d). \
@@ -2809,6 +2822,8 @@ shutdown the MySQL server and restart it.", name, errno);
   end_io_cache(&index_file);
   safeFree(name);
   log_state= LOG_CLOSED;
+  if (need_mutex)
+    (void) pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(1);
 }
 
