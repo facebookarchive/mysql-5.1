@@ -38,8 +38,11 @@
 
 #include "my_perf.h"
 #include "my_atomic.h"
+#include "string.h"
 
 double my_tsc_scale = 0;
+
+my_bool my_fast_timer_enabled = 0;
 
 /***********************************************************************//**
 Initialize an my_io_perf_t struct. */
@@ -96,16 +99,61 @@ void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
   my_atomic_add64(&sum->old_ios, old_ios);
 }
 
+
 void my_init_fast_timer(int seconds)
 {
-  ulonglong delta;
-  int retry = 3;
+  /* We need to identify whether the time stamp counters are synchronized
+     between the CPUs.  We do this by setting the processor affinity to each HW
+     thread in turn, sleeping briefly, and then checking the time delta.  This
+     includes wrapping around to compare CPU 0 with CPU N-1.  We find the
+     smallest time delta between them.  If it is negative, then the CPUs are
+     out of sync and fast timers revert to using gettimeofday().  If it is
+     positive, we use this to compute the scale factor to convert between time
+     stamp counter values and seconds.  We use the smallest value for this
+     calibration because usleep may sleep longer depending on system load, so
+     the smallest non-negative value is most accurate. */
 
-  do {
-    ulonglong before = rdtsc();
-    sleep(seconds);
-    delta = rdtsc() - before;
-  } while (retry-- && delta < 0);
+  int usec = 0, ncpu = sysconf(_SC_NPROCESSORS_ONLN);
+  longlong min_delta = 0;
 
-  my_tsc_scale = (delta > 0) ? (double)seconds / delta : 0;
+  if (ncpu > 0)
+  {
+    usec = 1000000 * seconds / ncpu;
+
+    cpu_set_t mask;
+    CPU_ZERO(&mask);
+    CPU_SET(0, &mask);
+    if (sched_setaffinity(0, sizeof(mask), &mask) == 0)
+    {
+      sched_yield(); // make sure the scheduler is invoked to move to CPU 0
+
+      int cpu;
+      ulonglong last = rdtsc();
+      for (cpu = 1; cpu <= ncpu; cpu++)
+      {
+        CPU_CLR(cpu-1, &mask);
+        CPU_SET(cpu < ncpu ? cpu : 0, &mask); // wrap cpu == ncpu back to 0
+        if (sched_setaffinity(0, sizeof(mask), &mask) == -1)
+        {
+          min_delta = 0;
+          break;
+        }
+
+        usleep(usec);
+        ulonglong now = rdtsc();
+        longlong delta = now - last;
+        last = now;
+
+        if (cpu == 1 || delta < min_delta)
+          min_delta = delta;
+      }
+    }
+  }
+
+  my_fast_timer_enabled = (min_delta > 0);
+
+  if (my_fast_timer_enabled)
+    my_tsc_scale = usec / (min_delta * 1000000.0);
+  else
+    my_tsc_scale = 1.0 / 1000000.0;
 }

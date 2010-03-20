@@ -3998,7 +3998,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     }
   }
 
-  my_init_fast_timer(1);
+  my_init_fast_timer(2);
 
   init_global_table_stats();
 
@@ -4657,11 +4657,11 @@ we force server id to 2, but this MySQL server will not act as a slave.");
       unireg_abort(1);
   }
 
-  double scale = my_fast_timer_get_scale();
-  if (scale > 0) {
-    sql_print_information("time stamp counter resolution %.0f ticks/s, fast timers enabled", 1 / scale);
+  if (my_fast_timer_enabled) {
+    sql_print_information("fast timers enabled, resolution %d mticks/s",
+        (uint32)(.000001 / my_fast_timer_get_scale()));
   } else {
-    sql_print_error("unable to determine time stamp counter resolution, fast timers disabled");
+    sql_print_information("fast timers disabled, using gettimeofday()");
   }
 
   create_shutdown_thread();

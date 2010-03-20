@@ -120,8 +120,8 @@ void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
     longlong old_ios);
 
 /* Accumulates io perf values using atomic operations */
-static __inline__ void my_io_perf_sum_atomic_helper(my_io_perf_t* sum,
-                                                    const my_io_perf_t* perf)
+STATIC_INLINE void my_io_perf_sum_atomic_helper(my_io_perf_t* sum,
+                                                const my_io_perf_t* perf)
 {
   my_io_perf_sum_atomic(sum, perf->bytes, perf->requests, perf->svc_usecs,
       perf->wait_usecs, perf->old_ios);
@@ -146,20 +146,23 @@ void async_update_table_stats(
    to seconds. */
 extern double my_tsc_scale;
 
+/* True if fast timers are available. */
+extern my_bool my_fast_timer_enabled;
+
 /* Initialize the fast timer at startup Counts timer ticks for given seconds.
  */
 extern void my_init_fast_timer(int seconds);
 
 /* Reads the time stamp counter on an Intel processor */
-static __inline__ ulonglong rdtsc(void)
+STATIC_INLINE ulonglong rdtsc(void)
 {
   ulonglong tsc;
 
 #if defined(__GNUC__) && defined(__i386__)
-  __asm__ __volatile__ ("rdtsc" : "=A" (tsc));
+  asm volatile ("rdtsc" : "=A" (tsc));
 #elif defined(__GNUC__) && defined(__x86_64__)
   uint high, low;
-  __asm__ __volatile__ ("rdtsc" : "=a"(low), "=d"(high));
+  asm volatile ("rdtsc" : "=a"(low), "=d"(high));
   tsc = (((ulonglong)high)<<32) | low;
 #else
   tsc = 0;
@@ -170,15 +173,26 @@ static __inline__ ulonglong rdtsc(void)
 }
 
 /* Returns a fast timer suitable for performance measurements. */
-static __inline__ void my_get_fast_timer(my_fast_timer_t* timer)
+STATIC_INLINE void my_get_fast_timer(my_fast_timer_t* timer)
 {
-  *timer = rdtsc();
+  if (likely(my_fast_timer_enabled))
+  {
+    *timer = rdtsc();
+  }
+  else
+  {
+    struct timeval tv;
+    if (!gettimeofday(&tv, NULL))
+      *timer = ((ulonglong)tv.tv_sec * 1000000) + tv.tv_usec;
+    else
+      *timer = 0;
+  }
 }
 
 /* Returns the difference between stop and start in seconds. Returns 0
    when stop < start. */
-static __inline__ double my_fast_timer_diff(my_fast_timer_t const *start,
-                                            my_fast_timer_t const *stop)
+STATIC_INLINE double my_fast_timer_diff(my_fast_timer_t const *start,
+                                        my_fast_timer_t const *stop)
 {
   if (*stop <= *start)
     return 0;
@@ -191,10 +205,11 @@ static __inline__ double my_fast_timer_diff(my_fast_timer_t const *start,
 /* Returns the difference between now and the time from 'in' in seconds.  Also
    optionally returns current fast timer in 'out'.  It is safe to pass the same
    struct for 'in' and 'out'. */
-static __inline__ double my_fast_timer_diff_now(my_fast_timer_t const *in,
-                                                my_fast_timer_t *out)
+STATIC_INLINE double my_fast_timer_diff_now(my_fast_timer_t const *in,
+                                            my_fast_timer_t *out)
 {
-  my_fast_timer_t now = rdtsc();
+  my_fast_timer_t now;
+  my_get_fast_timer(&now);
 
   double diff = my_fast_timer_diff(in, &now);
 
@@ -206,8 +221,8 @@ static __inline__ double my_fast_timer_diff_now(my_fast_timer_t const *in,
 }
 
 /* Returns -1, 1, or 0 if *x is less than, greater than, or equal to *y */
-static __inline__ int my_fast_timer_cmp(my_fast_timer_t const *x,
-                                        my_fast_timer_t const *y)
+STATIC_INLINE int my_fast_timer_cmp(my_fast_timer_t const *x,
+                                    my_fast_timer_t const *y)
 {
   if (*x < *y)
     return -1;
@@ -218,27 +233,27 @@ static __inline__ int my_fast_timer_cmp(my_fast_timer_t const *x,
 }
 
 /* Sets a fast timer to an invalid value */
-static __inline__ void my_fast_timer_invalidate(my_fast_timer_t *timer)
+STATIC_INLINE void my_fast_timer_invalidate(my_fast_timer_t *timer)
 {
   *timer = 0;
 }
 
 /* Sets a fast timer to the value of another */
-static __inline__ void my_fast_timer_set(my_fast_timer_t *dest,
-                                         my_fast_timer_t const *src)
+STATIC_INLINE void my_fast_timer_set(my_fast_timer_t *dest,
+                                     my_fast_timer_t const *src)
 {
   *dest = *src;
 }
 
 /* Returns true if the timer is valid */
-static __inline__ my_bool my_fast_timer_is_valid(my_fast_timer_t const *timer)
+STATIC_INLINE my_bool my_fast_timer_is_valid(my_fast_timer_t const *timer)
 {
   return (*timer != 0);
 }
 
 /* Return the fast timer scale factor.  If this value is 0 fast timers are
    not initialized. */
-static __inline__ double my_fast_timer_get_scale()
+STATIC_INLINE double my_fast_timer_get_scale()
 {
   return my_tsc_scale;
 }
