@@ -3187,7 +3187,7 @@ static void dump_table(char *table, char *db)
     {
       dynstr_append_checked(&query_string, "/*!50084 SQL_NO_FCACHE */ ");
     }
-    dynstr_append_checked(&query_string, "* FROM ");
+    dynstr_append_checked(&query_string, "* INTO OUTFILE '");
     dynstr_append_checked(&query_string, filename);
     dynstr_append_checked(&query_string, "'");
 
@@ -3237,7 +3237,12 @@ static void dump_table(char *table, char *db)
       check_io(md_result_file);
     }
     
-    dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ * FROM ");
+    dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ ");
+    if (server_supports_sql_no_fcache)
+    {
+      dynstr_append_checked(&query_string, "/*!50084 SQL_NO_FCACHE */ ");
+    }
+    dynstr_append_checked(&query_string, "* FROM ");
     dynstr_append_checked(&query_string, result_table);
 
     if (where)
