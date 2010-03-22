@@ -231,9 +231,9 @@ static __inline__ void my_fast_timer_set(my_fast_timer_t *dest,
 }
 
 /* Returns true if the timer is valid */
-static __inline__ int my_fast_timer_is_valid(my_fast_timer_t const *timer)
+static __inline__ my_bool my_fast_timer_is_valid(my_fast_timer_t const *timer)
 {
-  return (int)(*timer);
+  return (*timer != 0);
 }
 
 /* Return the fast timer scale factor.  If this value is 0 fast timers are
