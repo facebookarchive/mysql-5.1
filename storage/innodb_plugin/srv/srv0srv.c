@@ -373,6 +373,15 @@ UNIV_INTERN ulint	srv_conc_n_waiting_threads = 0;
 
 UNIV_INTERN my_bool	srv_adaptive_hash_latch_cache = TRUE;
 
+/* Option to retry reads and writes one time when they fail with EIO */
+UNIV_INTERN my_bool	srv_retry_io_on_error = FALSE;
+
+/* Number of reads retried with srv_retry_io_on_error */
+ulint srv_data_retried_reads	= 0;
+
+/* Number of writes retried with srv_retry_io_on_error */
+ulint srv_data_retried_writes	= 0;
+
 /* Enables InnoDB readahead (prefetch) */
 UNIV_INTERN my_bool	srv_read_ahead_linear = TRUE;
 
@@ -2048,6 +2057,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_data_reads = os_n_file_reads;
 	export_vars.innodb_data_writes = os_n_file_writes;
 	export_vars.innodb_data_written = srv_data_written;
+	export_vars.innodb_data_retried_reads= srv_data_retried_reads;
+	export_vars.innodb_data_retried_writes= srv_data_retried_writes;
 
         export_vars.innodb_data_async_read_bytes=
 		os_async_read_perf.bytes;

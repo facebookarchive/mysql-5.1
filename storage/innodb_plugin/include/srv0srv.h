@@ -368,6 +368,15 @@ extern ulint srv_buf_pool_reads;
 /* When TRUE, flush dirty neighbor pages on checkpoint. */
 extern my_bool srv_flush_neighbors_on_checkpoint;
 
+/* Option to retry reads and writes one time when they fail with EIO */
+extern my_bool srv_retry_io_on_error;
+
+/* Number of reads retried with srv_retry_io_on_error */
+extern ulint srv_data_retried_reads;
+
+/* Number of writes retried with srv_retry_io_on_error */
+extern ulint srv_data_retried_writes;
+
 /* When TRUE allow the adaptive hash rw-lock to be cached across calls
    to InnoDB functions. TRUE is the original behavior. */
 extern my_bool srv_adaptive_hash_latch_cache;
@@ -655,6 +664,8 @@ struct export_var_struct{
 	ulint innodb_data_writes;		/*!< I/O write requests */
 	ulint innodb_data_written;		/*!< Data bytes written */
 	ulint innodb_data_reads;		/*!< I/O read requests */
+	ulint innodb_data_retried_reads;	/*!< I/O reads retried on EIO */
+	ulint innodb_data_retried_writes;	/*!< I/O writes retried on EIO */
 	ulint innodb_data_async_read_bytes;	/*!< #bytes for async reads */
 	ulint innodb_data_async_read_requests;	/*!< #requests for async reads */
 	double innodb_data_async_read_svc_secs;	/*!< service time for async reads */

@@ -481,6 +481,8 @@ os_file_get_last_error(
 		return(OS_FILE_ALREADY_EXISTS);
 	} else if (err == EXDEV || err == ENOTDIR || err == EISDIR) {
 		return(OS_FILE_PATH_ERROR);
+	} else if (err == EIO) {
+		return(OS_FILE_EIO);
 	} else {
 		return(100 + err);
 	}
@@ -498,8 +500,9 @@ os_file_handle_error_cond_exit(
 /*===========================*/
 	const char*	name,		/*!< in: name of a file or NULL */
 	const char*	operation,	/*!< in: operation */
-	ibool		should_exit)	/*!< in: call exit(3) if unknown error
+	ibool		should_exit,	/*!< in: call exit(3) if unknown error
 					and this parameter is TRUE */
+	ibool		retry_on_eio)	/*!< in: retry on EIO */
 {
 	ulint	err;
 
@@ -557,6 +560,13 @@ os_file_handle_error_cond_exit(
 		fprintf(stderr, "InnoDB: File operation call: '%s'.\n",
 			operation);
 
+		if (err == OS_FILE_EIO && retry_on_eio) {
+			fprintf(stderr, "InnoDB: retry one time on EIO\n");
+			/* Assume that os_file_write does not call this */
+			srv_data_retried_reads++;
+			return(TRUE);
+		}
+
 		if (should_exit) {
 			fprintf(stderr, "InnoDB: Cannot continue operation.\n");
 
@@ -577,10 +587,11 @@ ibool
 os_file_handle_error(
 /*=================*/
 	const char*	name,	/*!< in: name of a file or NULL */
-	const char*	operation)/*!< in: operation */
+	const char*	operation,/*!< in: operation */
+	ibool		retry_on_eio)/*!< in: when TRUE retry on EIO */
 {
 	/* exit in case of unknown error */
-	return(os_file_handle_error_cond_exit(name, operation, TRUE));
+	return(os_file_handle_error_cond_exit(name, operation, TRUE, retry_on_eio));
 }
 
 /****************************************************************//**
@@ -594,7 +605,7 @@ os_file_handle_error_no_exit(
 	const char*	operation)/*!< in: operation */
 {
 	/* don't exit in case of unknown error */
-	return(os_file_handle_error_cond_exit(name, operation, FALSE));
+	return(os_file_handle_error_cond_exit(name, operation, FALSE, FALSE));
 }
 
 #undef USE_FILE_LOCK
@@ -735,7 +746,7 @@ os_file_opendir(
 	if (dir == INVALID_HANDLE_VALUE) {
 
 		if (error_is_fatal) {
-			os_file_handle_error(dirname, "opendir");
+			os_file_handle_error(dirname, "opendir", FALSE);
 		}
 
 		return(NULL);
@@ -746,7 +757,7 @@ os_file_opendir(
 	dir = opendir(dirname);
 
 	if (dir == NULL && error_is_fatal) {
-		os_file_handle_error(dirname, "opendir");
+		os_file_handle_error(dirname, "opendir", FALSE);
 	}
 
 	return(dir);
@@ -977,7 +988,7 @@ os_file_create_directory(
 	      || (GetLastError() == ERROR_ALREADY_EXISTS
 		  && !fail_if_exists))) {
 		/* failure */
-		os_file_handle_error(pathname, "CreateDirectory");
+		os_file_handle_error(pathname, "CreateDirectory", FALSE);
 
 		return(FALSE);
 	}
@@ -990,7 +1001,7 @@ os_file_create_directory(
 
 	if (!(rcode == 0 || (errno == EEXIST && !fail_if_exists))) {
 		/* failure */
-		os_file_handle_error(pathname, "mkdir");
+		os_file_handle_error(pathname, "mkdir", FALSE);
 
 		return(FALSE);
 	}
@@ -1071,7 +1082,7 @@ try_again:
 
 		retry = os_file_handle_error(name,
 					     create_mode == OS_FILE_OPEN ?
-					     "open" : "create");
+					     "open" : "create", FALSE);
 		if (retry) {
 			goto try_again;
 		}
@@ -1121,7 +1132,7 @@ try_again:
 
 		retry = os_file_handle_error(name,
 					     create_mode == OS_FILE_OPEN ?
-					     "open" : "create");
+					     "open" : "create", FALSE);
 		if (retry) {
 			goto try_again;
 		}
@@ -1423,7 +1434,7 @@ try_again:
 		} else {
 			retry = os_file_handle_error(name,
 						create_mode == OS_FILE_CREATE ?
-						"create" : "open");
+						"create" : "open", FALSE);
 		}
 
 		if (retry) {
@@ -1510,7 +1521,7 @@ try_again:
 		} else {
 			retry = os_file_handle_error(name,
 						create_mode == OS_FILE_CREATE ?
-						"create" : "open");
+						"create" : "open", FALSE);
 		}
 
 		if (retry) {
@@ -1746,7 +1757,7 @@ os_file_close(
 		return(TRUE);
 	}
 
-	os_file_handle_error(NULL, "close");
+	os_file_handle_error(NULL, "close", FALSE);
 
 	return(FALSE);
 #else
@@ -1755,7 +1766,7 @@ os_file_close(
 	ret = close(file);
 
 	if (ret == -1) {
-		os_file_handle_error(NULL, "close");
+		os_file_handle_error(NULL, "close", FALSE);
 
 		return(FALSE);
 	}
@@ -2058,7 +2069,7 @@ os_file_flush(
 		return(TRUE);
 	}
 
-	os_file_handle_error(NULL, "flush");
+	os_file_handle_error(NULL, "flush", FALSE);
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
@@ -2118,7 +2129,7 @@ os_file_flush(
 	fprintf(stderr,
 		"  InnoDB: Error: the OS said file flush did not succeed\n");
 
-	os_file_handle_error(NULL, "flush");
+	os_file_handle_error(NULL, "flush", FALSE);
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
@@ -2423,6 +2434,7 @@ try_again:
 #else /* __WIN__ */
 	ibool	retry;
 	ssize_t	ret;
+  ibool first = TRUE;
 
 	os_bytes_read_since_printout += n;
 
@@ -2443,7 +2455,8 @@ try_again:
 #ifdef __WIN__
 error_handling:
 #endif
-	retry = os_file_handle_error(NULL, "read");
+	retry = os_file_handle_error(NULL, "read", first && srv_retry_io_on_error);
+  first = FALSE;
 
 	if (retry) {
 		goto try_again;
@@ -2747,6 +2760,9 @@ retry:
 	return(FALSE);
 #else
 	ssize_t	ret;
+	ibool first = TRUE;
+
+retry_pwrite:
 
 	ret = os_file_pwrite(file, buf, n, offset, offset_high);
 
@@ -2786,6 +2802,17 @@ retry:
 		os_has_said_disk_full = TRUE;
 	}
 
+	if (first &&
+		srv_retry_io_on_error &&
+		OS_FILE_EIO == os_file_get_last_error(TRUE)) {
+
+		/* Retry the write one time */		
+		first = FALSE;
+		srv_data_retried_writes++;
+		fprintf(stderr, "InnoDB: retry write after EIO\n");
+		goto retry_pwrite;
+	}
+
 	return(FALSE);
 #endif
 }
@@ -2813,7 +2840,7 @@ os_file_status(
 	} else if (ret) {
 		/* file exists, but stat call failed */
 
-		os_file_handle_error_no_exit(path, "stat");
+		os_file_handle_error_no_exit(path, "stat", FALSE);
 
 		return(FALSE);
 	}
@@ -2885,7 +2912,7 @@ os_file_get_status(
 	} else if (ret) {
 		/* file exists, but stat call failed */
 
-		os_file_handle_error_no_exit(path, "stat");
+		os_file_handle_error_no_exit(path, "stat", FALSE);
 
 		return(FALSE);
 	}
@@ -3846,7 +3873,7 @@ try_again:
 
 	retry = os_file_handle_error(name,
 				     type == OS_FILE_READ
-				     ? "aio read" : "aio write");
+				     ? "aio read" : "aio write", FALSE);
 	if (retry) {
 
 		goto try_again;
@@ -3948,7 +3975,7 @@ os_aio_windows_handle(
 			ut_a(TRUE == os_file_flush(slot->file));
 		}
 #endif /* UNIV_DO_FLUSH */
-	} else if (os_file_handle_error(slot->name, "Windows aio")) {
+	} else if (os_file_handle_error(slot->name, "Windows aio", FALSE)) {
 
 		retry = TRUE;
 	} else {

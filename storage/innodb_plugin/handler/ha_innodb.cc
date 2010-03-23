@@ -574,6 +574,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_data_writes,		  SHOW_LONG},
   {"data_written",
   (char*) &export_vars.innodb_data_written,		  SHOW_LONG},
+  {"data_retried_reads",
+  (char*) &export_vars.innodb_data_retried_reads,         SHOW_LONG},
+  {"data_retried_writes",
+  (char*) &export_vars.innodb_data_retried_writes,        SHOW_LONG},
   {"data_async_read_requests",
   (char*) &export_vars.innodb_data_async_read_requests,   SHOW_LONG},
   {"data_async_read_bytes",
@@ -10455,6 +10459,11 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   innodb_change_buffering_validate,
   innodb_change_buffering_update, NULL);
 
+static MYSQL_SYSVAR_BOOL(retry_io_on_error, srv_retry_io_on_error,
+  PLUGIN_VAR_NOCMDARG,
+  "Retry on I/O on EIO",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   PLUGIN_VAR_RQCMDARG,
   "Number of pages that must be accessed sequentially for InnoDB to"
@@ -10536,6 +10545,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(retry_io_on_error),
   MYSQL_SYSVAR(read_ahead_linear),
   MYSQL_SYSVAR(thread_lifo),
   MYSQL_SYSVAR(deadlock_detect),
