@@ -61,7 +61,7 @@ extern ulong fb_libmcc_errs;
 extern ulong fb_libmcc_keys;
 extern ulong fb_libmcc_long_reqs;
 extern ulong fb_libmcc_reqs;
-extern ulonglong fb_libmcc_usecs;
+extern double fb_libmcc_usecs;
 #endif
 
 class Parser_state;

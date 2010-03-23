@@ -28,7 +28,7 @@ ulong fb_libmcc_errs = 0;
 ulong fb_libmcc_keys = 0;
 ulong fb_libmcc_long_reqs = 0;
 ulong fb_libmcc_reqs = 0;
-ulonglong fb_libmcc_usecs = 0;
+double fb_libmcc_usecs = 0;
 #endif
 
 #include "sp_head.h"
@@ -5217,7 +5217,7 @@ finish:
         (opt_fb_always_dirty || (thd->system_thread & SYSTEM_THREAD_SLAVE_SQL)) &&
         !res && !thd->is_error()) {
       my_fast_timer_t timer;
-      double mcc_duration_us;
+      double mcc_duration_usecs;
       nstring_t *key_list = new nstring_t[key_cnt];
       List_iterator <String> mc_keys(lex->mc_key_list);
 
@@ -5234,13 +5234,14 @@ finish:
       (void) pthread_mutex_lock(&LOCK_memcache_call);
       my_get_fast_timer(&timer);
       mcc_req_t *reqs = mcc_delete(thd->mcHandle, key_list, key_cnt, 0);
-      mcc_duration_us = my_fast_timer_diff_now(&timer, NULL);
+      mcc_duration_usecs= my_fast_timer_diff_now(&timer, NULL) *
+                          1000000.0;
 
-      fb_libmcc_usecs += (ulonglong) mcc_duration_us;
+      fb_libmcc_usecs += mcc_duration_usecs;
       fb_libmcc_keys += key_cnt;
       fb_libmcc_reqs++;
 
-      if (mcc_duration_us >= opt_fb_libmcc_warn_us) {
+      if (mcc_duration_usecs >= opt_fb_libmcc_warn_us) {
         fb_libmcc_long_reqs++;
       }
       for (const mcc_err_t *err = mcc_get_last_err(thd->mcHandle); (err != NULL);

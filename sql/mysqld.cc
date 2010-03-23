@@ -7812,7 +7812,7 @@ SHOW_VAR status_vars[]= {
   {"Libmcc_keys",              (char*) &fb_libmcc_keys, SHOW_LONG},
   {"Libmcc_long_requests",     (char*) &fb_libmcc_long_reqs, SHOW_LONG},
   {"Libmcc_requests",          (char*) &fb_libmcc_reqs, SHOW_LONG},
-  {"Libmcc_usecs",             (char*) &fb_libmcc_usecs, SHOW_LONGLONG},
+  {"Libmcc_usecs",             (char*) &fb_libmcc_usecs, SHOW_DOUBLE},
 #endif
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
