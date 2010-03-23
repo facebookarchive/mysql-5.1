@@ -750,9 +750,15 @@ trx_commit_off_kernel(
 
 	rseg = trx->rseg;
 
+	if (for_commit)
+		srv_n_commit_all++;
+
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
 
 		mutex_exit(&kernel_mutex);
+
+		if (for_commit)
+			srv_n_commit_with_undo++;
 
 		mtr_start(&mtr);
 

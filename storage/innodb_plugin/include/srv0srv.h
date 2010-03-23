@@ -381,6 +381,18 @@ extern ulint srv_data_retried_writes;
    to InnoDB functions. TRUE is the original behavior. */
 extern my_bool srv_adaptive_hash_latch_cache;
 
+/** Number of commits */
+extern ulint srv_n_commit_all;
+
+/** Number of commits for which undo was generated */
+extern ulint srv_n_commit_with_undo;
+
+/** Number of full rollbacks */
+extern ulint srv_n_rollback_total;
+
+/** Number of partial rollbacks */
+extern ulint srv_n_rollback_partial;
+
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
 
@@ -780,6 +792,10 @@ struct export_var_struct{
 	double innodb_srv_ibuf_contract_secs;	/*!< srv_ibuf_contract_secs */
 	double innodb_srv_buf_flush_secs;	/*!< srv_ibuf_flush_secs */
 	double innodb_srv_purge_secs;		/*!< srv_purge_secs */
+	ulint innodb_trx_n_commit_all; /*!< srv_n_commit_with_undo */
+	ulint innodb_trx_n_commit_with_undo; /*!< srv_n_commit_with_undo */
+	ulint innodb_trx_n_rollback_partial; /*!< srv_n_rollback_partial */
+	ulint innodb_trx_n_rollback_total; /*!< srv_n_rollback_total */
 };
 
 /** The server system struct */

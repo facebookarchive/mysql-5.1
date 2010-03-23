@@ -787,6 +787,14 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_srv_buf_flush_secs,         SHOW_DOUBLE},
   {"srv_purge_seconds",
   (char*) &export_vars.innodb_srv_purge_secs,             SHOW_DOUBLE},
+  {"transaction_commit_all",
+  (char*) &export_vars.innodb_trx_n_commit_all,           SHOW_LONG},
+  {"transaction_commit_with_undo",
+  (char*) &export_vars.innodb_trx_n_commit_with_undo,     SHOW_LONG},
+  {"transaction_rollback_partial",
+  (char*) &export_vars.innodb_trx_n_rollback_partial,     SHOW_LONG},
+  {"transaction_rollback_total",
+  (char*) &export_vars.innodb_trx_n_rollback_total,       SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 

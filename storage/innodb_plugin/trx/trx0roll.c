@@ -1090,10 +1090,12 @@ trx_rollback(
 	if (sig->type == TRX_SIG_TOTAL_ROLLBACK) {
 
 		trx->roll_limit = ut_dulint_zero;
+		srv_n_rollback_total++;
 
 	} else if (sig->type == TRX_SIG_ROLLBACK_TO_SAVEPT) {
 
 		trx->roll_limit = (sig->savept).least_undo_no;
+		srv_n_rollback_partial++;
 
 	} else if (sig->type == TRX_SIG_ERROR_OCCURRED) {
 

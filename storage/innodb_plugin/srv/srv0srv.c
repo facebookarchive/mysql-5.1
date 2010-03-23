@@ -553,6 +553,11 @@ static ulint   srv_main_flush_loops		= 0;
 /* Log writes involving flush. */
 static ulint   srv_log_writes_and_flush		= 0;
 
+ulint	srv_n_commit_all	= 0;
+ulint	srv_n_commit_with_undo	= 0;
+ulint	srv_n_rollback_total	= 0;
+ulint	srv_n_rollback_partial	= 0;
+
 /* This is only ever touched by the master thread. It records the
 time when the last flush of log file has happened. The master
 thread ensures that we flush the log files at least once per
@@ -2255,6 +2260,11 @@ srv_export_innodb_status(void)
 	export_vars.innodb_srv_ibuf_contract_secs= srv_ibuf_contract_secs;
 	export_vars.innodb_srv_buf_flush_secs= srv_buf_flush_secs;
 	export_vars.innodb_srv_purge_secs= srv_purge_secs;
+
+	export_vars.innodb_trx_n_commit_all= srv_n_commit_all;
+	export_vars.innodb_trx_n_commit_with_undo= srv_n_commit_with_undo;
+	export_vars.innodb_trx_n_rollback_partial= srv_n_rollback_partial;
+	export_vars.innodb_trx_n_rollback_total= srv_n_rollback_total;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
