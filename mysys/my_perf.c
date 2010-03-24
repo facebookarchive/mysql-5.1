@@ -147,6 +147,10 @@ void my_init_fast_timer(int seconds)
         if (cpu == 1 || delta < min_delta)
           min_delta = delta;
       }
+
+      for (cpu = 0; cpu < ncpu; cpu++)
+        CPU_SET(cpu, &mask);
+      sched_setaffinity(0, sizeof(mask), &mask);
     }
   }
 
