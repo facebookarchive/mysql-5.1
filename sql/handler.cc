@@ -3965,7 +3965,7 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
   DBUG_RETURN(args.err);
 }
 
-#ifdef HAVE_NDB_BINLOG
+#if defined(HAVE_NDB_BINLOG) || defined(HAVE_INNODB_BINLOG)
 /*
   TODO: change this into a dynamic struct
   List<handlerton> does not work as

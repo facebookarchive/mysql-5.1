@@ -101,6 +101,12 @@
 #define HAVE_EXTERNAL_CLIENT
 #endif
 
+#ifdef HAVE_REPLICATION
+#ifdef WITH_INNODB_PLUGIN_STORAGE_ENGINE
+#define HAVE_INNODB_BINLOG 1
+#endif
+#endif
+
 /* Some defines to avoid ifdefs in the code */
 #ifndef NETWARE_YIELD
 #define NETWARE_YIELD

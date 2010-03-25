@@ -2085,7 +2085,7 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 #define trans_need_2pc(thd, all)                   ((total_ha_2pc > 1) && \
         !((all ? &thd->transaction.all : &thd->transaction.stmt)->no_2pc))
 
-#ifdef HAVE_NDB_BINLOG
+#if defined(HAVE_NDB_BINLOG) || defined(HAVE_INNODB_BINLOG)
 int ha_reset_logs(THD *thd);
 int ha_binlog_index_purge_file(THD *thd, const char *file);
 void ha_reset_slave(THD *thd);
