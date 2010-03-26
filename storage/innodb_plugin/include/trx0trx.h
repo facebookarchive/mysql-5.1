@@ -721,6 +721,27 @@ struct trx_struct{
 	/*------------------------------*/
 	os_io_table_perf_t table_io_perf;/*!< per table io perf counters */
 	/*------------------------------*/
+	const char*     mysql_master_log_file_name; 
+					/*!< if the database server is a MySQL
+					replication slave, we have here the
+					master binlog name up to which
+					replication has processed; otherwise
+					this is a pointer to a null
+                                        character */
+	ib_int64_t	mysql_master_log_pos;
+					/*!< if the database server is a MySQL
+					replication slave, this is the
+					position in the log file up to which
+					replication has processed */
+	const char*	mysql_relay_log_file_name;
+					/*!< relay-log name up to which
+ 					replication has processed, or NULL. For
+					rpl_transaction_enabled. */
+ 	ib_int64_t	mysql_relay_log_pos;
+ 					/*!< position in the relay-log up to
+					which replication has processed, or -1.
+					For rpl_transaction_enabled. */
+	/*------------------------------*/
 	char detailed_error[256];	/*!< detailed error message for last
 					error, or empty. */
 };

@@ -278,6 +278,26 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 */
 bool thd_binlog_filter_ok(const MYSQL_THD thd);
 #endif /* MYSQL_VERSION_ID > 50140 */
+
+/** Get the file name of the MySQL relaylog from active_mi.
+ * @return the name of the relaylog file from active_mi
+ */
+const char* active_relay_log_file_name(void);
+
+/** Get the current position of the MySQL relaylog from active_mi.
+ * @return byte offset from the beginning of the relaylog from active_mi
+ */
+ulonglong active_relay_log_file_pos(void);
+
+/** Get the file name of the MySQL binlog from active_mi.
+ * @return the name of the binlog file from active_mi
+ */
+const char* active_bin_log_file_name(void);
+
+/** Get the current position of the MySQL binlog from active_mi.
+ * @return byte offset from the beginning of the binlog from active_mi
+ */
+ulonglong active_bin_log_file_pos(void);
 }
 
 typedef struct trx_struct trx_t;

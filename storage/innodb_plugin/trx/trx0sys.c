@@ -70,8 +70,11 @@ post-4.1 format, i.e., we have successfully upgraded, or have created
 a new database installation */
 UNIV_INTERN ibool	trx_sys_multiple_tablespace_format	= FALSE;
 
-/** In a MySQL replication slave, in crash recovery we store the master log
-file name and position here. */
+/** In a MySQL replication slave, for crash recovery we store the master and
+ * relay log file name and positions here. When trx_sys_mysql_relay_log_ fields
+ * are valid and rpl_transaction_enabled is enabled, the data can be used to
+ * overwrite relay-log.info to keep slave state and InnoDB synchronized. When
+ * _pos == -1, it is invalid. */
 /* @{ */
 /** Master binlog file name */
 UNIV_INTERN char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
@@ -79,6 +82,12 @@ UNIV_INTERN char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 up to this position.  -1 means that no crash recovery was needed, or
 there was no master log position info inside InnoDB.*/
 UNIV_INTERN ib_int64_t	trx_sys_mysql_master_log_pos	= -1;
+
+/** Relay log name */
+UNIV_INTERN char	trx_sys_mysql_relay_log_name[TRX_SYS_MYSQL_RELAY_NAME_LEN];
+
+/** Relay log offset */
+UNIV_INTERN ib_int64_t	trx_sys_mysql_relay_log_pos	= -1;
 /* @} */
 
 /** If this MySQL server uses binary logging, after InnoDB has been inited

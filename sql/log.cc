@@ -28,6 +28,7 @@
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "rpl_rli.h"
+#include "rpl_mi.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -6027,6 +6028,45 @@ ulonglong mysql_bin_log_file_pos(void)
 {
   return (ulonglong) mysql_bin_log.get_log_file()->pos_in_file;
 }
+
+/** Get the file name of the MySQL relaylog from active_mi
+ * @return the name of the relaylog file from active_mi
+*/
+extern "C"
+const char* active_relay_log_file_name(void)
+{
+  return active_mi->rli.event_relay_log_name;
+}
+
+/**
+  Get the current position of the MySQL relaylog from active_mi
+  @return byte offset from the beginning of the relaylog from active_mi
+*/
+extern "C"
+ulonglong active_relay_log_file_pos(void)
+{
+  return (ulonglong) active_mi->rli.future_event_relay_log_pos;
+}
+
+/** Get the file name of the MySQL binlog from active_mi
+ * @return the name of the MySQL binlog from active_mi
+*/
+extern "C"
+const char* active_bin_log_file_name(void)
+{
+  return active_mi->rli.group_master_log_name;
+}
+
+/**
+  Get the current position of the MySQL relaylog from active_mi.
+  @return byte offset from the beginning of the relaylog from active_mi
+*/
+extern "C"
+ulonglong active_bin_log_file_pos(void)
+{
+  return (ulonglong) active_mi->rli.future_group_master_log_pos;
+}
+
 #endif /* INNODB_COMPATIBILITY_HOOKS */
 
 

@@ -606,6 +606,10 @@ static sys_var_long_ptr	sys_slow_launch_time(&vars, "slow_launch_time",
 					     &slow_launch_time);
 static sys_var_thd_ulong	sys_sort_buffer(&vars, "sort_buffer_size",
 					&SV::sortbuff_size);
+
+static sys_var_bool_ptr sys_rpl_transaction_enabled(&vars, "rpl_transaction_enabled",
+                                                    &rpl_transaction_enabled);
+
 /*
   sql_mode should *not* have binlog_mode=SESSION_VARIABLE_IN_BINLOG:
   even though it is written to the binlog, the slave ignores the

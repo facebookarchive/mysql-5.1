@@ -2181,6 +2181,29 @@ extern int log_datagram_sock;
 
 extern my_bool opt_log_slow_extra;
 
+extern my_bool rpl_transaction_enabled;
+
+#ifdef HAVE_INNODB_BINLOG
+/*
+  Added for rpl_transaction_enabled patch. Alas, this exports a few
+  functions specific to the InnoDB plugin. Forgive me.
+*/
+
+/** Returns slave replication state. These are not thread safe as
+ * the slave may concurrently update them. They can be called after
+ * innobase_read_mysql_slave_state has been called. */
+/* @{ */
+char *innobase_get_mysql_relay_log_name();
+ulonglong innobase_get_mysql_relay_log_pos();
+char* innobase_get_mysql_master_log_name();
+ulonglong innobase_get_mysql_master_log_pos();
+/* @} */
+
+/** Returns != 0 when the InnoDB plugin has been initialized. */
+int innobase_have_innodb();
+
+#endif /* HAVE_INNODB_BINLOG */
+
 extern int orig_argc;
 extern char **orig_argv;
 extern const char *load_default_groups[];

@@ -290,7 +290,17 @@ enum enum_binlog_func {
   BFN_RESET_SLAVE=       2,
   BFN_BINLOG_WAIT=       3,
   BFN_BINLOG_END=        4,
-  BFN_BINLOG_PURGE_FILE= 5
+  BFN_BINLOG_PURGE_FILE= 5,
+  BFN_SET_SLAVE=         6,
+  BFN_READ_SLAVE=        7,
+};
+
+struct binlog_func_set_st
+{
+  const char *relay_log_name;
+  ulonglong relay_log_pos;
+  const char *bin_log_name;
+  ulonglong bin_log_pos;
 };
 
 enum enum_binlog_command {

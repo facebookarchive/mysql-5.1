@@ -129,6 +129,12 @@ trx_create(
 	trx->mysql_log_file_name = NULL;
 	trx->mysql_log_offset = 0;
 
+	trx->mysql_master_log_file_name = "";
+	trx->mysql_master_log_pos = 0;
+
+	trx->mysql_relay_log_file_name = "";
+	trx->mysql_relay_log_pos = 0;
+
 	mutex_create(&trx->undo_mutex, SYNC_TRX_UNDO);
 
 	trx->rseg = NULL;

@@ -571,6 +571,8 @@ int log_datagram_sock= -1;
 
 my_bool opt_log_slow_extra;
 
+my_bool rpl_transaction_enabled= FALSE;
+
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -5961,7 +5963,8 @@ enum options_mysqld
   OPT_LOG_DATAGRAM,
   OPT_LOG_DATAGRAM_USECS,
   OPT_LOG_SLOW_EXTRA,
-  OPT_NET_COMPRESSION_LEVEL
+  OPT_NET_COMPRESSION_LEVEL,
+  OPT_RPL_TRANSACTION_ENABLED,
 };
 
 
@@ -7404,6 +7407,12 @@ The minimum value for this variable is 4096.",
    "Print more attributes to the slow query log",
    (uchar**) &opt_log_slow_extra, (uchar**) &opt_log_slow_extra,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_INNODB_BINLOG
+  {"rpl_transaction_enabled", OPT_RPL_TRANSACTION_ENABLED,
+   "Makes slave replication state mostly crash proof for InnoDB",
+   (uchar**) &rpl_transaction_enabled, (uchar**) &rpl_transaction_enabled,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+#endif /* HAVE_INNODB_BINLOG */
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7849,6 +7858,9 @@ SHOW_VAR status_vars[]= {
 #ifdef HAVE_REPLICATION
   {"Rpl_status",               (char*) &show_rpl_status,          SHOW_FUNC},
 #endif
+#ifdef HAVE_INNODB_BINLOG
+  {"Rpl_transaction_enabled",  (char*) &rpl_transaction_enabled,  SHOW_BOOL},
+#endif
   {"Select_full_join",         (char*) offsetof(STATUS_VAR, select_full_join_count), SHOW_LONG_STATUS},
   {"Select_full_range_join",   (char*) offsetof(STATUS_VAR, select_full_range_join_count), SHOW_LONG_STATUS},
   {"Select_range",             (char*) offsetof(STATUS_VAR, select_range_count), SHOW_LONG_STATUS},
@@ -8052,6 +8064,8 @@ static int mysql_init_variables(void)
   log_datagram= 0;
   log_datagram_usecs= 0;
   opt_log_slow_extra= FALSE;
+
+  rpl_transaction_enabled= FALSE;
 
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;

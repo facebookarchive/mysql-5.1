@@ -120,6 +120,9 @@ bool check_global_access(THD *thd, ulong want_access);
 #endif /* MYSQL_VERSION_ID < 50124 */
 #endif /* MYSQL_SERVER */
 
+/* Sorry */
+extern my_bool rpl_transaction_enabled;
+
 /** to protect innobase_open_files */
 static pthread_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
@@ -282,6 +285,49 @@ uint
 innobase_alter_table_flags(
 /*=======================*/
 	uint	flags);
+
+/** Reads replication state (relay/master log offset and position)
+from the transaction system header into global variables. After this
+has been called these can be used to get the relay/master log file
+name and position.
+  innobase_get_mysql_master_log_pos()
+  innobase_get_mysql_master_log_name()
+  innobase_get_mysql_relay_log_pos()
+  innobase_get_mysql_relay_log_name()
+Returns 0 in 'result' on success. */
+static
+void
+innobase_read_mysql_slave_state(
+/*============================*/
+	int	*result);
+
+/** Resets replication state (relay/master log offset and position)
+in the transaction system header. */
+static
+void
+innobase_reset_mysql_slave_state();
+
+/** Sets replication state (relay/master log offset and position)
+in the transaction system header. */
+static
+void
+innobase_set_mysql_slave_state(
+/*=============================*/
+	const char	*relay_log_name,
+	ulonglong	relay_log_pos,
+	const char	*master_log_name,
+	ulonglong	master_log_pos);
+
+/** Sets up binlog callbacks in the InnoDB handlerton */
+static
+int
+innobase_binlog_func(
+/*==================*/
+	handlerton		*hton,
+	THD			*thd,
+	enum_binlog_func	fn,
+	void			*arg);
+
 
 static const char innobase_hton_name[]= "InnoDB";
 
@@ -480,6 +526,15 @@ static
 bool innobase_show_status(handlerton *hton, THD* thd, 
                           stat_print_fn* stat_print,
                           enum ha_stat_type stat_type);
+
+/*****************************************************************//**
+Sets replication state for the current tx. */
+
+static
+void
+innobase_set_tx_replication_state(
+/*==============================*/
+	trx_t*	trx);	/* in: transaction handle */
 
 /*****************************************************************//**
 Commits a transaction in an InnoDB database. */
@@ -2158,6 +2213,10 @@ innobase_init(
         innobase_hton->release_temporary_latches=innobase_release_temporary_latches;
 	innobase_hton->alter_table_flags = innobase_alter_table_flags;
 
+#ifdef HAVE_INNODB_BINLOG
+	innobase_hton->binlog_func = innobase_binlog_func;
+#endif
+
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
         if (my_fast_timer_get_scale() == 0) {
@@ -2552,6 +2611,32 @@ innobase_alter_table_flags(
 }
 
 /*****************************************************************//**
+Sets replication state for the current tx. */
+
+static
+void
+innobase_set_tx_replication_state(
+/*==============================*/
+	trx_t*	trx)	/* in: transaction handle */
+{
+#ifdef HAVE_INNODB_BINLOG
+	THD *thd = (THD*) trx->mysql_thd;
+
+	if (thd && thd_is_replication_slave_thread(thd)) {
+		/* Set the slave replication state for this transaction */
+
+		trx->mysql_relay_log_file_name = active_relay_log_file_name();
+		trx->mysql_relay_log_pos =
+			(ib_int64_t) active_relay_log_file_pos();
+
+		trx->mysql_master_log_file_name = active_bin_log_file_name();
+		trx->mysql_master_log_pos =
+			(ib_int64_t) active_bin_log_file_pos();
+	}
+#endif /* HAVE_INNODB_BINLOG */
+}
+
+/*****************************************************************//**
 Commits a transaction in an InnoDB database. */
 static
 void
@@ -2563,6 +2648,8 @@ innobase_commit_low(
 
 		return;
 	}
+
+	innobase_set_tx_replication_state(trx);
 
 	trx_commit_for_mysql(trx);
 }
@@ -6840,6 +6927,12 @@ ha_innobase::delete_table(
 
 	ut_a(name_len < 1000);
 
+	/* Note, without this call, replication state will not be set during
+	drop table and a slave will replay this tx on startup when it was the
+	last one before shutdown. */
+
+	innobase_set_tx_replication_state(trx);
+
 	/* Drop the table in InnoDB */
 
 	error = row_drop_table_for_mysql(norm_name, trx,
@@ -6939,6 +7032,12 @@ innobase_drop_database(
 
 	srv_active_wake_master_thread();
 
+        /* Note, without this call, replication state will not be set during
+	drop database and a slave will replay this tx on startup when it was the
+	last one before shutdown. */
+
+	innobase_set_tx_replication_state(trx);
+
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
 }
@@ -6971,6 +7070,12 @@ innobase_rename_table(
 
 	normalize_table_name(norm_to, to);
 	normalize_table_name(norm_from, from);
+
+	/* Note, without this call, replication state will not be set during
+	rename table and a slave will replay this tx on startup when it was the
+	last one before shutdown. */
+
+	innobase_set_tx_replication_state(trx);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -9228,6 +9333,33 @@ ha_innobase::register_query_cache_table(
 							 engine_data));
 }
 
+static
+int
+innobase_binlog_func(
+/*==================*/
+	handlerton		*hton,
+	THD			*thd,
+	enum_binlog_func	fn,
+	void			*arg)
+{
+	switch(fn) {
+		case BFN_RESET_SLAVE:
+			innobase_reset_mysql_slave_state();
+			break;
+		case BFN_SET_SLAVE:
+		{
+			binlog_func_set_st *set_args = (binlog_func_set_st*) arg;
+			innobase_set_mysql_slave_state(
+				set_args->relay_log_name, set_args->relay_log_pos,
+				set_args->bin_log_name, set_args->bin_log_pos);
+			break;
+		}
+		case BFN_READ_SLAVE:
+			innobase_read_mysql_slave_state((int*)arg);
+	}
+	return 0;
+}
+
 UNIV_INTERN
 char*
 ha_innobase::get_mysql_bin_log_name()
@@ -9243,6 +9375,124 @@ ha_innobase::get_mysql_bin_log_pos()
 	(__int64 or longlong) so it's ok to cast it to ulonglong. */
 
 	return(trx_sys_mysql_bin_log_pos);
+}
+
+UNIV_INTERN
+char*
+innobase_get_mysql_relay_log_name()
+/*===============================*/
+		/* out: pointer to buffer for relay log name */
+{
+	return(trx_sys_mysql_relay_log_name);
+}
+
+UNIV_INTERN
+ulonglong
+innobase_get_mysql_relay_log_pos()
+/*==============================*/
+		/* out: pointer to buffer for relay log position */
+{
+	return(trx_sys_mysql_relay_log_pos);
+}
+
+UNIV_INTERN
+char*
+innobase_get_mysql_master_log_name()
+/*================================*/
+		/* out: pointer to buffer for master log name */
+{
+	return(trx_sys_mysql_master_log_name);
+}
+
+UNIV_INTERN
+ulonglong
+innobase_get_mysql_master_log_pos()
+/*================================*/
+		/* out: pointer to buffer for master log position */
+{
+	return(trx_sys_mysql_master_log_pos);
+}
+
+UNIV_INTERN
+int
+innobase_have_innodb()
+/*==================*/
+{
+	return (innodb_hton_ptr &&
+		innodb_hton_ptr->state == SHOW_OPTION_YES);
+}
+
+static
+void
+innobase_read_mysql_slave_state(
+/*============================*/
+	int	*result)
+{
+	*result = -1;
+
+	if (!innodb_hton_ptr ||
+            innodb_hton_ptr->state != SHOW_OPTION_YES ||
+            !rpl_transaction_enabled) {
+		return;
+        }
+
+	mutex_enter(&kernel_mutex);
+
+	// TODO(mcallaghan): add this in a pending commit
+        // *result = trx_sys_read_slave_state(FALSE);
+
+	mutex_exit(&kernel_mutex);
+}
+
+static
+void
+innobase_reset_mysql_slave_state()
+/*==============================*/
+{
+	innobase_set_mysql_slave_state("", (ulonglong) -1, "", (ulonglong) -1);
+}
+
+static
+void
+innobase_set_mysql_slave_state(
+/*===========================*/
+	const char *relay_log_name,
+	ulonglong relay_log_pos,
+	const char *master_log_name,
+	ulonglong master_log_pos)
+{
+	char buf1[22], buf2[22];
+	mtr_t mtr;
+
+	if (!innodb_hton_ptr ||
+            innodb_hton_ptr->state != SHOW_OPTION_YES ||
+            !rpl_transaction_enabled) {
+		/* TODO: return -1 */
+		return;
+        }
+  
+	sql_print_information("InnoDB changed master log from "
+		"'%s' position %s to '%s' position %s",
+		trx_sys_mysql_master_log_name,
+		llstr((longlong)trx_sys_mysql_master_log_pos, buf1),
+		master_log_name,
+		llstr((longlong)master_log_pos, buf2));
+
+	sql_print_information("InnoDB changed relay log from "
+		"'%s' position %s to '%s' position %s",
+		trx_sys_mysql_relay_log_name,
+		llstr((longlong)trx_sys_mysql_relay_log_pos, buf1),
+		relay_log_name,
+		llstr((longlong)relay_log_pos, buf2));
+
+/* TODO(mcallaghan): add this in a future commit
+	mtr_start(&mtr);
+	trx_sys_update_slave_state(relay_log_name, relay_log_pos,
+				master_log_name, master_log_pos,
+				TRX_SYS_MYSQL_RELAY_INFO, &mtr, NULL, TRUE);
+	mtr_commit(&mtr);
+*/
+	/* TODO: return 0 */
 }
 
 /******************************************************************//**

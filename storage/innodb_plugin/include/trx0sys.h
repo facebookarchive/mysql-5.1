@@ -52,6 +52,16 @@ there was no master log position info inside InnoDB.*/
 extern ib_int64_t	trx_sys_mysql_master_log_pos;
 /* @} */
 
+/** Used for rpl_transaction_enabled to store relay log offset.
+ * @see trx_sys_mysql_master_name
+ * */
+/* ${ */
+/** Relay log file name */
+extern char             trx_sys_mysql_relay_log_name[];
+/** Relay log offset */
+extern ib_int64_t       trx_sys_mysql_relay_log_pos;
+/* @} */
+
 /** If this MySQL server uses binary logging, after InnoDB has been inited
 and if it has done a crash recovery, we store the binlog file name and position
 here. */
@@ -468,6 +478,9 @@ specification slots in the transaction system array; rollback segment
 id must fit in one byte, therefore 256; each slot is currently 8 bytes
 in size */
 #define	TRX_SYS_N_RSEGS		256
+
+/** Max length in bytes of relay-log filename */
+#define TRX_SYS_MYSQL_RELAY_NAME_LEN     250
 
 /** Maximum length of MySQL binlog file name, in bytes.
 @see trx_sys_mysql_master_log_name
