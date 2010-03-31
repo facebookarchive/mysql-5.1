@@ -10489,6 +10489,12 @@ static MYSQL_SYSVAR_BOOL(adaptive_hash_latch_cache,
   " across calls to InnoDB functions. This is only done when locked in read mode.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_UINT(compression_level, page_compression_level,
+  PLUGIN_VAR_RQCMDARG,
+  "Compression level used for compressed row format.  0 is no compression"
+  " (only for testing), 1 is fastest, 9 is best compression, default is 6.",
+  NULL, NULL, 6, 0, 9, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -10551,6 +10557,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(deadlock_detect),
   MYSQL_SYSVAR(flush_neighbors_on_checkpoint),
   MYSQL_SYSVAR(adaptive_hash_latch_cache),
+  MYSQL_SYSVAR(compression_level),
   NULL
 };
 

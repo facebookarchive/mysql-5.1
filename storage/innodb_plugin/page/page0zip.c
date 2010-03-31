@@ -52,6 +52,8 @@ Created June 2005 by Marko Makela
 UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
 #endif /* !UNIV_HOTBACKUP */
 
+UNIV_INTERN uint page_compression_level = 6;
+
 /* Please refer to ../include/page0zip.ic for a description of the
 compressed page format. */
 
@@ -1239,7 +1241,7 @@ page_zip_compress(
 	/* Compress the data payload. */
 	page_zip_set_alloc(&c_stream, heap);
 
-	err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION,
+	err = deflateInit2(&c_stream, page_compression_level,
 			   Z_DEFLATED, UNIV_PAGE_SIZE_SHIFT,
 			   MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 	ut_a(err == Z_OK);

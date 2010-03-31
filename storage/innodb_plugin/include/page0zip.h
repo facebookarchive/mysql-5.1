@@ -447,6 +447,10 @@ page_zip_calc_checksum(
         ulint           size)   /*!< in: size of compressed page */
 	__attribute__((nonnull));
 
+/**  Compression level used for compressed row format.  0 is no compression
+  (only for testing), 1 is fastest, 9 is best compression, default is 6. */
+extern uint page_compression_level;
+
 #ifndef UNIV_HOTBACKUP
 /** Check if a pointer to an uncompressed page matches a compressed page.
 @param ptr	pointer to an uncompressed page frame
