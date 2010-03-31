@@ -91,6 +91,7 @@ void sql_print_error(const char *format,...);
 extern uint test_flags;
 extern ulong bytes_sent, bytes_received, net_big_packet_count;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
+extern ulong net_compression_level;
 #ifndef MYSQL_INSTANCE_MANAGER
 #ifdef HAVE_QUERY_CACHE
 #define USE_QUERY_CACHE
@@ -104,6 +105,7 @@ extern void query_cache_insert(NET *net, const char *packet, ulong length);
 #if !defined(MYSQL_SERVER) || defined(MYSQL_INSTANCE_MANAGER)
 #define update_statistics(A)
 #define thd_increment_bytes_sent(N)
+#define net_compression_level 6
 #endif
 
 #define TEST_BLOCKING		8
@@ -588,7 +590,7 @@ net_real_write(NET *net,const uchar *packet, size_t len)
     }
     memcpy(b+header_length,packet,len);
 
-    if (my_compress(b+header_length, &len, &complen))
+    if (my_compress(b+header_length, &len, &complen, net_compression_level))
       complen=0;
     int3store(&b[NET_HEADER_SIZE],complen);
     int3store(b,len);

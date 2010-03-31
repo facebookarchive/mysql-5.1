@@ -867,10 +867,10 @@ extern int my_search_option_files(const char *conf_file, int *argc,
 extern void free_defaults(char **argv);
 extern void my_print_default_files(const char *conf_file);
 extern void print_defaults(const char *conf_file, const char **groups);
-extern my_bool my_compress(uchar *, size_t *, size_t *);
+extern my_bool my_compress(uchar *, size_t *, size_t *, uint level);
 extern my_bool my_uncompress(uchar *, size_t , size_t *);
 extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
-                                size_t *complen);
+                                size_t *complen, uint level);
 extern int packfrm(uchar *, size_t, uchar **, size_t *);
 extern int unpackfrm(uchar **, size_t *, const uchar *);
 

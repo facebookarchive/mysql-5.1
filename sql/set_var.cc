@@ -678,6 +678,9 @@ static sys_var_const_str	sys_version_compile_os(&vars, "version_compile_os",
 static sys_var_thd_ulong	sys_net_wait_timeout(&vars, "wait_timeout",
 					     &SV::net_wait_timeout);
 
+static sys_var_long_ptr	sys_net_compression_level(&vars, "net_compression_level",
+					      &net_compression_level);
+
 /* Condition pushdown to storage engine */
 static sys_var_thd_bool
 sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",

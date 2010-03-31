@@ -556,6 +556,7 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 uint  max_user_connections= 0;
+ulong net_compression_level = 6;
 
 /* flashcache */
 int cachedev_fd;
@@ -5960,6 +5961,7 @@ enum options_mysqld
   OPT_LOG_DATAGRAM,
   OPT_LOG_DATAGRAM_USECS,
   OPT_LOG_SLOW_EXTRA,
+  OPT_NET_COMPRESSION_LEVEL
 };
 
 
@@ -7280,6 +7282,12 @@ The minimum value for this variable is 4096.",
    (uchar**) &slave_trans_retries, (uchar**) &slave_trans_retries, 0,
    GET_ULONG, REQUIRED_ARG, 10L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
 #endif /* HAVE_REPLICATION */
+  {"net_compression_level", OPT_NET_COMPRESSION_LEVEL,
+   "Compression level for compressed master/slave protocol (when enabled)"
+   " and client connections (when requested). 0 is no compression"
+   " (for testing), 1 is fastest, 9 is slowest, 6 is default.",
+   (uchar**) &net_compression_level, (uchar**) &net_compression_level,
+   0, GET_UINT, REQUIRED_ARG, 6, 0, 9, 0, 1, 0},
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",
    (uchar**) &slow_launch_time, (uchar**) &slow_launch_time, 0, GET_ULONG,
