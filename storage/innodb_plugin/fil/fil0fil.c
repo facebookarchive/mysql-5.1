@@ -420,6 +420,7 @@ fil_node_create(
 
 	node->modification_counter = 0;
 	node->flush_counter = 0;
+	node->flush_size = size;
 
 	space = fil_space_get_by_id(id);
 
@@ -596,6 +597,7 @@ fil_node_open_file(
 #ifdef UNIV_HOTBACKUP
 add_size:
 #endif /* UNIV_HOTBACKUP */
+		node->flush_size = node->size;
 		space->size += node->size;
 	}
 
@@ -4385,7 +4387,8 @@ fil_flush(
 #endif
 #ifdef UNIV_LINUX
 			if (space->purpose == FIL_TABLESPACE
-			    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
+			    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT &&
+			    node->flush_size == node->size) {
 				goto skip_flush;
 			}
 #endif
@@ -4424,6 +4427,7 @@ retry:
 			mutex_enter(&fil_system->mutex);
 
 			node->n_pending_flushes--;
+			node->flush_size = node->size;
 skip_flush:
 			if (node->flush_counter < old_mod_counter) {
 				node->flush_counter = old_mod_counter;
