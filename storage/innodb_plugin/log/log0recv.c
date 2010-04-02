@@ -3203,6 +3203,9 @@ recv_recovery_from_checkpoint_start_func(
 #undef LIMIT_LSN
 }
 
+/** Forgive me for this doing this. */
+extern my_bool	rpl_transaction_enabled;
+
 /********************************************************//**
 Completes recovery from a checkpoint. */
 UNIV_INTERN
@@ -3226,8 +3229,17 @@ recv_recovery_from_checkpoint_finish(void)
 	}
 #endif /* UNIV_DEBUG */
 
+        if (rpl_transaction_enabled || recv_needed_recovery) {
+		trx_sys_read_slave_state(TRUE);
+	}
+
+        if (recv_needed_recovery) {
+		fprintf(stderr,
+			" InnoDB: recv_recovery_from_checkpoint_finish()"
+			" - recovery is needed.\n");
+	}
+
 	if (recv_needed_recovery) {
-		trx_sys_print_mysql_master_log_pos();
 		trx_sys_print_mysql_binlog_offset();
 	}
 

@@ -2193,14 +2193,14 @@ extern my_bool rpl_transaction_enabled;
  * the slave may concurrently update them. They can be called after
  * innobase_read_mysql_slave_state has been called. */
 /* @{ */
-char *innobase_get_mysql_relay_log_name();
+const char *innobase_get_mysql_relay_log_name();
 ulonglong innobase_get_mysql_relay_log_pos();
-char* innobase_get_mysql_master_log_name();
+const char *innobase_get_mysql_master_log_name();
 ulonglong innobase_get_mysql_master_log_pos();
 /* @} */
 
 /** Returns != 0 when the InnoDB plugin has been initialized. */
-int innobase_have_innodb();
+SHOW_COMP_OPTION innobase_have_innodb();
 
 #endif /* HAVE_INNODB_BINLOG */
 

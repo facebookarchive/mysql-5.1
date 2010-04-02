@@ -71,13 +71,13 @@ a new database installation */
 UNIV_INTERN ibool	trx_sys_multiple_tablespace_format	= FALSE;
 
 /** In a MySQL replication slave, for crash recovery we store the master and
- * relay log file name and positions here. When trx_sys_mysql_relay_log_ fields
- * are valid and rpl_transaction_enabled is enabled, the data can be used to
- * overwrite relay-log.info to keep slave state and InnoDB synchronized. When
- * _pos == -1, it is invalid. */
+relay log file name and positions here. When trx_sys_mysql_relay_log_ fields
+are valid and rpl_transaction_enabled is enabled, the data can be used to
+overwrite relay-log.info to keep slave state and InnoDB synchronized. When
+_pos == -1, it is invalid. */
 /* @{ */
 /** Master binlog file name */
-UNIV_INTERN char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
+UNIV_INTERN char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_RELAY_NAME_LEN];
 /** Master binlog file position.  We have successfully got the updates
 up to this position.  -1 means that no crash recovery was needed, or
 there was no master log position info inside InnoDB.*/
@@ -683,9 +683,13 @@ trx_sys_update_mysql_binlog_offset(
 	ib_int64_t	offset,	/*!< in: position in that log file */
 	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
-	mtr_t*		mtr)	/*!< in: mtr */
+	mtr_t*		mtr,	/*!< in: mtr */
+	trx_sysf_t**	sys_header_ptr)/*!< out: fetched and locked here, may
+				be used by trx_sys_update_slave_state */
 {
 	trx_sysf_t*	sys_header;
+
+	*sys_header_ptr = NULL;
 
 	if (ut_strlen(file_name) >= TRX_SYS_MYSQL_LOG_NAME_LEN) {
 
@@ -694,7 +698,7 @@ trx_sys_update_mysql_binlog_offset(
 		return;
 	}
 
-	sys_header = trx_sysf_get(mtr);
+	*sys_header_ptr = sys_header = trx_sysf_get(mtr);
 
 	if (mach_read_from_4(sys_header + field
 			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
@@ -729,6 +733,111 @@ trx_sys_update_mysql_binlog_offset(
 			 + TRX_SYS_MYSQL_LOG_OFFSET_LOW,
 			 (ulint)(offset & 0xFFFFFFFFUL),
 			 MLOG_4BYTES, mtr);
+}
+
+/*****************************************************************//**
+In a MySQL replication slave updates the latest relay log and master
+log position up to which replication has proceeded. */
+
+UNIV_INTERN
+void
+trx_sys_update_slave_state(
+/*========================*/
+	const char*	relaylog_name,	/* in: relay-log file name */
+	ib_int64_t	relaylog_pos,	/* in: relay-log position */
+	const char*	masterlog_name,	/* in: master-log file name */
+	ib_int64_t	masterlog_pos,	/* in: master-log position */
+	ulint		field,	/* in: offset of the MySQL log info field in
+				the trx sys header */
+	mtr_t*		mtr,	/* in: mtr */
+	trx_sysf_t*	sys_header,	/* in: sys header fetched and locked
+					by caller */
+	ibool		lock_kernel_mutex)	/* in: lock mutex when TRUE */
+{
+	if (ut_strlen(relaylog_name) >= TRX_SYS_MYSQL_RELAY_NAME_LEN ||
+		ut_strlen(masterlog_name) >= TRX_SYS_MYSQL_RELAY_NAME_LEN) {
+		/* Each filename's length is limited to 250 bytes, which should
+		be more than enough for most applications.  We will fail during
+		replication if the filename is too long so that users can adjust. */
+
+		fprintf(stderr,
+			" InnoDB: trx_sys_update_mysql_relay_offset() filename "
+			"is too long - relay(%s), master(%s)",
+			relaylog_name, masterlog_name);
+		return;
+	}
+
+	trx_sys_mysql_relay_log_pos = relaylog_pos;
+	trx_sys_mysql_master_log_pos = masterlog_pos;
+
+	ut_memcpy(trx_sys_mysql_relay_log_name, relaylog_name,
+			ut_strlen(relaylog_name)+ 1);
+	ut_memcpy(trx_sys_mysql_master_log_name, masterlog_name,
+			strlen(masterlog_name) + 1);
+
+	if (lock_kernel_mutex)
+		mutex_enter(&kernel_mutex);
+
+	if (!sys_header) {
+		/* trx_sys_mysql_bin_log_update may have called this and gotten
+		the X lock already. If it is then locked again here, UNIV_SYNC_DEBUG
+		gets unhappy. */
+		sys_header = trx_sysf_get(mtr);
+	}
+
+	/* Write magic number if missing for relay log */
+	if (mach_read_from_4(sys_header + field + TRX_SYS_MYSQL_RELAYLOG_MAGIC_N_FLD)
+		!= TRX_SYS_MYSQL_LOG_MAGIC_N) {
+		mlog_write_ulint(sys_header + field + TRX_SYS_MYSQL_RELAYLOG_MAGIC_N_FLD,
+			TRX_SYS_MYSQL_LOG_MAGIC_N, MLOG_4BYTES, mtr);
+	}
+
+	/* Write magic number if missing for master log */
+	if (mach_read_from_4(sys_header + field + TRX_SYS_MYSQL_RELAYMASTER_MAGIC_OFF)
+		!= TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM) {
+		mlog_write_ulint(sys_header + field + TRX_SYS_MYSQL_RELAYMASTER_MAGIC_OFF,
+			TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM, MLOG_4BYTES, mtr);
+	}
+
+	/* write relay-log name */
+	if (0 != strcmp((char*) (sys_header + field + TRX_SYS_MYSQL_RELAYLOG_NAME_OFF),
+			relaylog_name)) {
+		mlog_write_string(sys_header + field + TRX_SYS_MYSQL_RELAYLOG_NAME_OFF,
+			(byte*) relaylog_name, 1 + ut_strlen(relaylog_name), mtr);
+	}
+
+	/* TODO(mcallaghan): I do not know why the high 4 bytes are conditionally
+	written and the low 4 bytes are always written. */
+
+	/* write high 4 bytes for relay-log position */
+	if (mach_read_from_4(sys_header + field + TRX_SYS_MYSQL_RELAYLOG_POS_HIGH) > 0
+		|| (relaylog_pos >> 32) > 0) {
+		mlog_write_ulint(sys_header + field + TRX_SYS_MYSQL_RELAYLOG_POS_HIGH,
+			(ulint)(relaylog_pos >> 32), MLOG_4BYTES, mtr);
+	}
+	/* write low 4 bytes for relay-log position */
+	mlog_write_ulint(sys_header + field + TRX_SYS_MYSQL_RELAYLOG_POS_LOW,
+		(ulint)(relaylog_pos & 0xFFFFFFFFUL), MLOG_4BYTES, mtr);
+
+	/* write master-log name */
+	if (0 != strcmp((char*) (sys_header + field + TRX_SYS_MYSQL_MASTERLOG_NAME_OFF),
+			masterlog_name)) {
+		mlog_write_string(sys_header + field + TRX_SYS_MYSQL_MASTERLOG_NAME_OFF,
+			(byte*) masterlog_name, 1 + ut_strlen(masterlog_name), mtr);
+	}
+
+	/* write high 4 bytes for master-log position */
+	if (mach_read_from_4(sys_header + field + TRX_SYS_MYSQL_MASTERLOG_POS_HIGH) > 0
+		|| (masterlog_pos >> 32) > 0) {
+		mlog_write_ulint(sys_header + field + TRX_SYS_MYSQL_MASTERLOG_POS_HIGH,
+			(ulint)(masterlog_pos >> 32), MLOG_4BYTES, mtr);
+	}
+	/* write low 4 bytes for master-log position */
+	mlog_write_ulint(sys_header + field + TRX_SYS_MYSQL_MASTERLOG_POS_LOW,
+			(ulint)(masterlog_pos & 0xFFFFFFFFUL), MLOG_4BYTES, mtr);
+
+	if (lock_kernel_mutex)
+		mutex_exit(&kernel_mutex);
 }
 
 /*****************************************************************//**
@@ -782,57 +891,93 @@ trx_sys_print_mysql_binlog_offset(void)
 }
 
 /*****************************************************************//**
-Prints to stderr the MySQL master log offset info in the trx system header if
-the magic number shows it valid. */
+Reads the replication slave relay-log/master-log offset from the trx
+system header if the magic number shows it valid. Optionally prints it to
+stderr. */
 UNIV_INTERN
-void
-trx_sys_print_mysql_master_log_pos(void)
-/*====================================*/
+int
+trx_sys_read_slave_state(
+/*======================*/
+				/* out: returns 0 on success */
+	ibool	print_msg) 	/*!< in: print to stderr when TRUE */
 {
 	trx_sysf_t*	sys_header;
 	mtr_t		mtr;
+	ulint		magic_num;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
 
 	sys_header = trx_sysf_get(&mtr);
 
-	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-	    != TRX_SYS_MYSQL_LOG_MAGIC_N) {
-
+	magic_num = mach_read_from_4(sys_header + TRX_SYS_MYSQL_RELAY_INFO
+					+ TRX_SYS_MYSQL_RELAYLOG_MAGIC_N_FLD);
+	if (magic_num != TRX_SYS_MYSQL_LOG_MAGIC_N) {
 		mtr_commit(&mtr);
-
-		return;
+		fprintf(stderr,
+			" InnoDB: Incorrect magic number(%lu) for relay-log information\n",
+			magic_num);
+		return -1;
 	}
 
-	fprintf(stderr,
-		"InnoDB: In a MySQL replication slave the last"
-		" master binlog file\n"
-		"InnoDB: position %lu %lu, file name %s\n",
-		(ulong) mach_read_from_4(sys_header
-					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-		(ulong) mach_read_from_4(sys_header
-					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-		+ TRX_SYS_MYSQL_LOG_NAME);
-	/* Copy the master log position info to global variables we can
-	use in ha_innobase.cc to initialize glob_mi to right values */
+	magic_num = mach_read_from_4(sys_header + TRX_SYS_MYSQL_RELAY_INFO
+					+ TRX_SYS_MYSQL_RELAYMASTER_MAGIC_OFF);
+	if (magic_num != TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM) {
+		mtr_commit(&mtr);
+		fprintf(stderr,
+			" InnoDB: Old magic number(%lu) for relay-log information\n",
+			magic_num);
+		return -1;
+	}
 
-	ut_memcpy(trx_sys_mysql_master_log_name,
-		  sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-		  + TRX_SYS_MYSQL_LOG_NAME,
-		  TRX_SYS_MYSQL_LOG_NAME_LEN);
+	/* We need the relay-log related information in ha_innobase.cc to initialize
+	glob_mi to correct values. */
 
-	trx_sys_mysql_master_log_pos
-		= (((ib_int64_t) mach_read_from_4(
-			    sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			    + TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
+	/* Copy the relay-log log position info to global variables */
+	ut_memcpy(trx_sys_mysql_relay_log_name,
+			sys_header + TRX_SYS_MYSQL_RELAY_INFO
+				+ TRX_SYS_MYSQL_RELAYLOG_NAME_OFF,
+			TRX_SYS_MYSQL_RELAY_NAME_LEN);
+
+	trx_sys_mysql_relay_log_pos =
+		(((ib_int64_t) mach_read_from_4(
+			sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_RELAYLOG_POS_HIGH)) << 32)
 		+ ((ib_int64_t) mach_read_from_4(
-			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
+			sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_RELAYLOG_POS_LOW));
+
+	/* Copy the master-log log position info to global variables */
+	ut_memcpy(trx_sys_mysql_master_log_name,
+		sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_MASTERLOG_NAME_OFF,
+		TRX_SYS_MYSQL_RELAY_NAME_LEN);
+
+	trx_sys_mysql_master_log_pos =
+		(((ib_int64_t) mach_read_from_4(
+			sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_MASTERLOG_POS_HIGH)) << 32)
+		+ ((ib_int64_t) mach_read_from_4(
+			sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_MASTERLOG_POS_LOW));
+
 	mtr_commit(&mtr);
+
+	if (print_msg) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+" InnoDB: reading slave state from the transaction system header\n"
+"                InnoDB: relay-log - filename %s, position (%lld)\n"
+"                InnoDB: master-log - filename %s, position (%lld)\n",
+			trx_sys_mysql_relay_log_name,
+			(long long int) trx_sys_mysql_relay_log_pos,
+			trx_sys_mysql_master_log_name,
+			(long long int) trx_sys_mysql_master_log_pos);
+	}
+	return 0;
 }
 
 /****************************************************************//**
@@ -938,6 +1083,59 @@ trx_sysf_create(
 					 mtr);
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
 	ut_a(page_no != FIL_NULL);
+
+        /* Initialize old-style master offset. This feature is deprecated. */
+        mlog_write_ulint(sys_header + TRX_SYS_MYSQL_LOG_INFO
+                         + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD,
+                         TRX_SYS_MYSQL_LOG_MAGIC_N,
+                         MLOG_4BYTES, mtr);
+
+        mlog_write_string(sys_header + TRX_SYS_MYSQL_LOG_INFO
+                          + TRX_SYS_MYSQL_LOG_NAME,
+                          "", 1 + ut_strlen(""), mtr);
+
+        mlog_write_ulint(sys_header + TRX_SYS_MYSQL_LOG_INFO
+                         + TRX_SYS_MYSQL_LOG_OFFSET_HIGH,
+                         0, MLOG_4BYTES, mtr);
+
+	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_LOG_INFO
+                         + TRX_SYS_MYSQL_LOG_OFFSET_LOW,
+                         0, MLOG_4BYTES, mtr);
+
+	/* Initialize new-style master and relay offsets updated by the
+	replication SQL slave thread. */
+
+	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_RELAYLOG_MAGIC_N_FLD,
+			TRX_SYS_MYSQL_LOG_MAGIC_N, MLOG_4BYTES, mtr);
+
+	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_RELAYMASTER_MAGIC_OFF,
+			TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM, MLOG_4BYTES, mtr);
+
+	mlog_write_string(sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_RELAYLOG_NAME_OFF,
+			(byte*) "", 1 + ut_strlen(""), mtr);
+
+	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_RELAYLOG_POS_HIGH,
+			0, MLOG_4BYTES, mtr);
+
+	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_RELAYLOG_POS_LOW,
+			0, MLOG_4BYTES, mtr);
+
+	mlog_write_string(sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_MASTERLOG_NAME_OFF,
+			(byte*) "", 1 + ut_strlen(""), mtr);
+
+	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_MASTERLOG_POS_HIGH,
+			0, MLOG_4BYTES, mtr);
+
+	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_RELAY_INFO
+			+ TRX_SYS_MYSQL_MASTERLOG_POS_LOW,
+			0, MLOG_4BYTES, mtr);
 
 	mutex_exit(&kernel_mutex);
 }

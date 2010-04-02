@@ -734,13 +734,15 @@ UNIV_INTERN
 void
 trx_commit_off_kernel(
 /*==================*/
-	trx_t*	trx)	/*!< in: transaction */
+	trx_t*	trx,		/*!< in: transaction */
+	ibool	for_commit)	/*!< in: FALSE for rollback */
 {
 	page_t*		update_hdr_page;
 	ib_uint64_t	lsn		= 0;
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
 	mtr_t		mtr;
+	trx_sysf_t*	sysf_ptr = NULL;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -801,8 +803,22 @@ trx_commit_off_kernel(
 			trx_sys_update_mysql_binlog_offset(
 				trx->mysql_log_file_name,
 				trx->mysql_log_offset,
-				TRX_SYS_MYSQL_LOG_INFO, &mtr);
+				TRX_SYS_MYSQL_LOG_INFO, &mtr, &sysf_ptr);
 			trx->mysql_log_file_name = NULL;
+		}
+
+
+		if (for_commit && trx->mysql_relay_log_file_name[0] != '\0') {
+
+			/* Work done on a MySQL replication slave on behalf of
+			rpl_transaction_enabled. */
+
+			trx_sys_update_slave_state(
+				trx->mysql_relay_log_file_name,
+				trx->mysql_relay_log_pos,
+				trx->mysql_master_log_file_name,
+				trx->mysql_master_log_pos,
+				TRX_SYS_MYSQL_RELAY_INFO, &mtr, sysf_ptr, FALSE);
 		}
 
 		/* The following call commits the mini-transaction, making the
@@ -1037,7 +1053,7 @@ trx_handle_commit_sig_off_kernel(
 
 	trx->que_state = TRX_QUE_COMMITTING;
 
-	trx_commit_off_kernel(trx);
+	trx_commit_off_kernel(trx, TRUE);
 
 	ut_ad(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
 
@@ -1578,7 +1594,7 @@ trx_commit_for_mysql(
 
 	mutex_enter(&kernel_mutex);
 
-	trx_commit_off_kernel(trx);
+	trx_commit_off_kernel(trx, TRUE);
 
 	mutex_exit(&kernel_mutex);
 

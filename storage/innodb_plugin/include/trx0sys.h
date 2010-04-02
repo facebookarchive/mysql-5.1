@@ -53,13 +53,13 @@ extern ib_int64_t	trx_sys_mysql_master_log_pos;
 /* @} */
 
 /** Used for rpl_transaction_enabled to store relay log offset.
- * @see trx_sys_mysql_master_name
- * */
+@see trx_sys_mysql_master_name
+*/
 /* ${ */
 /** Relay log file name */
-extern char             trx_sys_mysql_relay_log_name[];
+extern char		trx_sys_mysql_relay_log_name[];
 /** Relay log offset */
-extern ib_int64_t       trx_sys_mysql_relay_log_pos;
+extern ib_int64_t	trx_sys_mysql_relay_log_pos;
 /* @} */
 
 /** If this MySQL server uses binary logging, after InnoDB has been inited
@@ -307,7 +307,26 @@ trx_sys_update_mysql_binlog_offset(
 	ib_int64_t	offset,	/*!< in: position in that log file */
 	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr,	/*!< in: mtr */
+	trx_sysf_t**	sys_header_ptr);/* out: fetched and locked here, may
+				be used by trx_sys_update_slave_state */
+/*****************************************************************//**
+In a MySQL replication slave updates the latest relay log and master
+log position up to which replication has proceeded. */
+UNIV_INTERN
+void
+trx_sys_update_slave_state(
+/*=======================*/
+	const char*	relaylog_name,	/* in: relay-log file name */
+	ib_int64_t	relaylog_pos,	/* in: position in relay-log file */
+	const char*	masterlog_name,	/* in: relay-log file name */
+	ib_int64_t	masterlog_pos,	/* in: position in relay-log file */
+	ulint		field,		/* in: offset of the MySQL log info
+					field in the trx sys header */
+	mtr_t*		mtr,		/* in: mtr */
+	trx_sysf_t*	sys_header,	/* in: fetched and locked by
+					trx_sys_update_mysql_binlog_offset */
+	ibool		lock_kernel_mutex); /* in: lock kernel_mutex when TRUE */
 /*****************************************************************//**
 Prints to stderr the MySQL binlog offset info in the trx system header if
 the magic number shows it valid. */
@@ -316,12 +335,14 @@ void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
 /*****************************************************************//**
-Prints to stderr the MySQL master log offset info in the trx system header if
-the magic number shows it valid. */
+Reads replication slave relay-log and master-log offset info from the trx
+system header if the magic number shows it valid. Optionally prints it. */
 UNIV_INTERN
-void
-trx_sys_print_mysql_master_log_pos(void);
-/*====================================*/
+int
+trx_sys_read_slave_state(
+/*=====================*/
+				/* out: returns 0 on success */
+	ibool	print_msg);	/* in: print slave state to stderr */
 /*****************************************************************//**
 Initializes the tablespace tag system. */
 UNIV_INTERN
@@ -479,6 +500,57 @@ id must fit in one byte, therefore 256; each slot is currently 8 bytes
 in size */
 #define	TRX_SYS_N_RSEGS		256
 
+/** Offsets that determine where the relay and master log filenames
+and offsets are written for rpl_transaction_enabled.
+  offset 0:   magic number
+  offset 4:   0xfffffffe magic number indicating the format that
+              contains both relay-log and master-log information
+              (we need the four bytes to indicate the difference to the
+               old innodb relay-log only format because we want to
+               keep the first magic number unchanged).
+  offset 8:   relay-log position high 4 byte
+  offset 12:  relay-log position low  4 byte
+  offset 16:  master-log position high 4 byte
+  offset 20:  master-log position low  4 byte
+  offset 24:  relay-log filename
+  offset 274: master-log filename
+
+Each filename's length is limited to 250 bytes, which should be more than
+enough for most applications.  We will fail during MySQL replication if
+the filename is too long so that users can adjust.
+
+All relay-log information should end at offset 520.
+*/
+/* @{ */
+
+/** The offset of the MySQL replication info in the trx system header.
+Contains the same fields as TRX_SYS_MYSQL_LOG_INFO. */
+#define TRX_SYS_MYSQL_RELAY_INFO	(UNIV_PAGE_SIZE - 2000)
+
+#define	TRX_SYS_MYSQL_RELAYLOG_MAGIC_N_FLD  0
+#define TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM  0xfffffffe
+
+/** Magic number indicating both relay-log and master-log information */
+#define TRX_SYS_MYSQL_RELAYMASTER_MAGIC_OFF  4
+
+/** High 4 bytes of the offset within relay-log file */
+#define TRX_SYS_MYSQL_RELAYLOG_POS_HIGH  8
+
+/** Low 4 bytes of the offset within relay-log file */
+#define TRX_SYS_MYSQL_RELAYLOG_POS_LOW   12
+
+/** High 4 bytes of the offset within master-log file */
+#define TRX_SYS_MYSQL_MASTERLOG_POS_HIGH 16
+
+/** Low 4 bytes of the offset within relay-log file */
+#define TRX_SYS_MYSQL_MASTERLOG_POS_LOW  20
+
+/** Relay-log filename */
+#define TRX_SYS_MYSQL_RELAYLOG_NAME_OFF  24
+
+/** Master-log filename */
+#define TRX_SYS_MYSQL_MASTERLOG_NAME_OFF 274
+
 /** Max length in bytes of relay-log filename */
 #define TRX_SYS_MYSQL_RELAY_NAME_LEN     250
 
@@ -492,9 +564,16 @@ in size */
 #if UNIV_PAGE_SIZE < 4096
 # error "UNIV_PAGE_SIZE < 4096"
 #endif
-/** The offset of the MySQL replication info in the trx system header;
-this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
-#define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
+
+/** High 4 bytes of the offset within that file */
+#define TRX_SYS_MYSQL_LOG_OFFSET_HIGH	4
+
+/** Low 4 bytes of the offset within that file */
+#define TRX_SYS_MYSQL_LOG_OFFSET_LOW	8
+
+/** MySQL log file name */
+#define TRX_SYS_MYSQL_LOG_NAME		12
+/* @} */
 
 /** The offset of the MySQL binlog offset info in the trx system header */
 #define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 1000)

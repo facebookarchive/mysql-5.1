@@ -171,12 +171,13 @@ trx_start_if_not_started_low(
 /*=========================*/
 	trx_t*	trx);	/*!< in: transaction */
 /****************************************************************//**
-Commits a transaction. */
+Commits a transaction. Also does something for rollback. */
 UNIV_INTERN
 void
 trx_commit_off_kernel(
 /*==================*/
-	trx_t*	trx);	/*!< in: transaction */
+	trx_t*	trx,		/*!< in: transaction */
+	ibool	for_commit);	/*!< in: for rollback when FALSE */
 /****************************************************************//**
 Cleans up a transaction at database startup. The cleanup is needed if
 the transaction already got to the middle of a commit when the database

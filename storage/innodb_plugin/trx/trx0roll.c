@@ -1271,7 +1271,7 @@ trx_finish_rollback_off_kernel(
 	}
 #endif /* UNIV_DEBUG */
 
-	trx_commit_off_kernel(trx);
+	trx_commit_off_kernel(trx, FALSE);
 
 	/* Remove all TRX_SIG_TOTAL_ROLLBACK signals from the signal queue and
 	send reply messages to them */
