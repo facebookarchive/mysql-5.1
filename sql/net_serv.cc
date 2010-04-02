@@ -859,8 +859,24 @@ my_real_read(NET *net, size_t *complen)
 	    }
 	  }
 #endif /* (!defined(__WIN__) || defined(MYSQL_SERVER) */
-	  if (thr_alarm_in_use(&alarmed) && !thr_got_alarm(&alarmed) &&
-	      interrupted)
+	  if (thr_alarm_in_use(&alarmed) &&
+#ifndef NO_ALARM
+	      !thr_got_alarm(&alarmed) && interrupted
+#else
+              /* In the original behavior 'interrupted' is true if the socket
+                 error was EAGAIN, EINTR, or EWOULDBLOCK.  If this was the
+                 result of a timout we would avoid retrying because
+                 thr_got_alarm was set.  When compiling with -DNO_ALARM,
+                 the_got_alarm is always false so we must treat EAGAIN and
+                 EWOULDBLOCK as an indication of a socket timeout and not
+                 retry.  We only retry in the case of EINTR, which may have
+                 been caused by a user-generated signal.  KILL CONNECTION is
+                 supported by compiling with -DSIGNAL_WITH_VIO_CLOSE which will
+                 interrupt the read by closing the socket instead of setting
+                 the now nonexistent timer to expire. */
+	      vio_errno(net->vio) == SOCKET_EINTR
+#endif
+	     )
 	  {					/* Probably in MIT threads */
 	    if (retry_count++ < net->retry_count)
 	      continue;
