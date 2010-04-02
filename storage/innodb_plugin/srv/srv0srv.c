@@ -1777,6 +1777,10 @@ srv_suspend_mysql_thread(
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 		srv_lock_wait_timeouts++;
 	}
+
+	if (trx_is_interrupted(trx)) {
+		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
+	}
 }
 
 /********************************************************************//**
@@ -2384,9 +2388,9 @@ loop:
 			lock_wait_timeout = thd_lock_wait_timeout(
 				trx->mysql_thd);
 
-			if (lock_wait_timeout < 100000000
+			if (trx_is_interrupted(trx) || (lock_wait_timeout < 100000000
 			    && (wait_time > (double) lock_wait_timeout
-				|| wait_time < 0)) {
+				|| wait_time < 0))) {
 
 				/* Timeout exceeded or a wrap-around in system
 				time counter: cancel the lock request queued

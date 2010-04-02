@@ -1,0 +1,13 @@
+drop table if exists lockt;
+create table lockt(i int primary key) engine=innodb;
+insert into lockt values (1), (2);
+begin;
+select * from lockt where i=1 for update;
+i
+1
+select * from lockt where i=1 for update;
+show status like 'Innodb_row_lock_current_waits';
+Variable_name	Value
+Innodb_row_lock_current_waits	0
+rollback;
+drop table lockt;

@@ -1,0 +1,46 @@
+# Test kill query terminates innodb queries waiting on a row lock
+
+-- source include/have_innodb.inc
+
+
+#
+# setup
+#
+--disable_warnings
+drop table if exists lockt;
+--enable_warnings
+
+create table lockt(i int primary key) engine=innodb;
+insert into lockt values (1), (2);
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+
+#
+# verify killing terminates lock
+#
+connection con1;
+begin;
+select * from lockt where i=1 for update;
+
+connection con2;
+let $cid=`select connection_id()`
+begin;
+send select * from lockt where i=1 for update;
+
+connection con1;
+sleep 1;
+--disable_query_log
+eval kill query $cid;
+--enable_query_log
+sleep 2;
+# if innodb correctly responded to kill request then there should be 0 waits
+show status like 'Innodb_row_lock_current_waits';
+rollback;
+
+
+#
+# cleanup
+#
+drop table lockt;
