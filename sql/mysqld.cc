@@ -558,6 +558,13 @@ ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 uint  max_user_connections= 0;
 ulong net_compression_level = 6;
+my_bool connection_recycle=0;
+ulong connection_recycle_pct_connections_min=85;
+ulong connection_recycle_pct_connections_max=95;
+ulong connection_recycle_min_timeout_ms=500;
+ulong connection_recycle_poll_ms=100;
+ulong connection_recycle_count=0;
+ulong connection_recycle_idle_time_ms=0;
 
 /* flashcache */
 int cachedev_fd;
@@ -5973,6 +5980,11 @@ enum options_mysqld
   OPT_NET_COMPRESSION_LEVEL,
   OPT_RPL_TRANSACTION_ENABLED,
   OPT_FORCE_BINLOG_ORDER,
+  OPT_CONNECTION_RECYCLE,
+  OPT_CONNECTION_RECYCLE_PCT_CONNECTIONS_MIN,
+  OPT_CONNECTION_RECYCLE_PCT_CONNECTIONS_MAX,
+  OPT_CONNECTION_RECYCLE_MIN_TIMEOUT_MS,
+  OPT_CONNECTION_RECYCLE_POLL_MS,
 };
 
 
@@ -7026,6 +7038,37 @@ The minimum value for this variable is 4096.",
    "The number of simultaneous clients allowed.", (uchar**) &max_connections,
    (uchar**) &max_connections, 0, GET_ULONG, REQUIRED_ARG, 151, 1, 100000, 0, 1,
    0},
+  {"connection_recycle", OPT_CONNECTION_RECYCLE,
+   "Enable connection recycling..",
+   (uchar**) &connection_recycle,
+   (uchar**) &connection_recycle, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+  {"connection_recycle_pct_connections_min",
+   OPT_CONNECTION_RECYCLE_PCT_CONNECTIONS_MIN,
+   "As the number of connections exceeds this percentage of total connections"
+   " the effective idle connection timeout will begin begin to move from "
+   " wait_timeout towards connection_recycle_min_timeout_ms.",
+   (uchar**) &connection_recycle_pct_connections_min,
+   (uchar**) &connection_recycle_pct_connections_min,
+   0, GET_ULONG, REQUIRED_ARG, 85, 0, 100, 0, 1, 0},
+  {"connection_recycle_pct_connections_max",
+   OPT_CONNECTION_RECYCLE_PCT_CONNECTIONS_MAX,
+   "As the number of connections approaches this percentage of total"
+   " connections the effective idle connection timeout will approach"
+   " connection_recycle_min_timeout_ms.",
+   (uchar**) &connection_recycle_pct_connections_max,
+   (uchar**) &connection_recycle_pct_connections_max,
+   0, GET_ULONG, REQUIRED_ARG, 95, 0, 100, 0, 1, 0},
+  {"connection_recycle_min_timeout_ms", OPT_CONNECTION_RECYCLE_MIN_TIMEOUT_MS,
+   "Mininum idle time before considering recycling a connection.",
+   (uchar**) &connection_recycle_min_timeout_ms,
+   (uchar**) &connection_recycle_min_timeout_ms,
+   0, GET_ULONG, REQUIRED_ARG, 500, 1, 100000, 0, 1, 0},
+  {"connection_recycle_poll_ms", OPT_CONNECTION_RECYCLE_POLL_MS,
+   "Polling interval for each connection thread to check whether it should"
+   " be recycled.",
+   (uchar**) &connection_recycle_poll_ms,
+   (uchar**) &connection_recycle_poll_ms,
+   0, GET_ULONG, REQUIRED_ARG, 100, 1, 100000, 0, 1, 0},
   {"max_delayed_threads", OPT_MAX_DELAYED_THREADS,
    "Don't start more than this number of threads to handle INSERT DELAYED statements. If set to zero, which means INSERT DELAYED is not used.",
    (uchar**) &global_system_variables.max_insert_delayed_threads,
@@ -7837,6 +7880,8 @@ SHOW_VAR status_vars[]= {
   {"Command_slave_seconds",    (char*) &command_slave_seconds,  SHOW_DOUBLE},
   {"Compression",              (char*) &show_net_compression, SHOW_FUNC},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_NOFLUSH},
+  {"Connection_recycle_count", (char*) &connection_recycle_count,SHOW_LONG},
+  {"Connection_recycle_idle_time_ms",(char*) &connection_recycle_idle_time_ms,SHOW_LONG},
   {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONG_STATUS},
   {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},
   {"Created_tmp_tables",       (char*) offsetof(STATUS_VAR, created_tmp_tables), SHOW_LONG_STATUS},
@@ -9476,6 +9521,96 @@ void refresh_status(THD *thd)
   max_used_connections= thread_count-delayed_insert_threads;
   pthread_mutex_unlock(&LOCK_thread_count);
 }
+
+
+
+
+extern "C"
+{
+/* Utility function to map a value form a domain to a range */
+static inline long map_value(long value, long domain_min, long domain_max,
+                             long range_min, long range_max)
+{
+  /* Rescale value into range */
+  return range_min + ((int64)(range_max - range_min) *
+    (value - domain_min)) / (domain_max - domain_min);
+}
+
+/* Callback used by my_net_set_read_timeout_callback to allow idle
+   connections to be terminated easier than wait_timeout when the server
+   is approaching its connection limit.
+
+    We poll every connection_recycle_poll_ms miliseconds and will
+    disconnect early under the following conditions:
+
+    1. connection_recycle is enabled
+    2. this connection is from a non-SUPER user
+    3. this is a non-interactive connection
+    4. there are more than connection_recycle_pct_connections_min percent of
+       the total number of available connections in use
+    5. more than connection_recycle_min_timeout_ms miliseconds have elapsed
+
+    The checks for SUPER, transaction, and interactive connections are
+    done inside sql_parse.cc do_command() before setting the callback.  In
+    these cases the normal wait_timeout behavior is used.
+
+    The exact time at which we disconnect idle connections grows shorter as
+    the number of connections increases.  As the number of connections grows
+    from connection_recycle_pct_connections_min to
+    connection_recycle_pct_connections_max, the idle connection time shrinks
+    from wait_timeout down to connection_recycle_min_timeout_ms.
+
+    The thread_count checks are done intentionally outside of any mutexes.
+*/
+my_bool connection_recycle_callback(NET* net)
+{
+  /* Compute number of connections above which we may recycle */
+  ulong connection_recycle_connections_min = (max_connections *
+    connection_recycle_pct_connections_min) / 100;
+
+  /* If below the minimum always retry until wait_timeout */
+  if (thread_count <= connection_recycle_connections_min)
+    return true;
+
+  /* Compute number of connections at which we use the shortest
+     allowed timeout value (connection_recycle_min_timeout_ms) */
+  ulong connection_recycle_connections_max = (max_connections *
+    connection_recycle_pct_connections_max) / 100;
+
+  /* Compute the effective timeout given the current number of connections */
+  ulong timeout_for_current_thread_count;
+
+  if (connection_recycle_connections_min >= connection_recycle_connections_max
+      || thread_count >= connection_recycle_connections_max)
+  {
+    /* If min >= max or we are already above max, just use min timeout value */
+    timeout_for_current_thread_count = connection_recycle_min_timeout_ms;
+  }
+  else
+  {
+    /* Otherwise compute a timeout value given how far between the connection
+       count limits we are.  At max connections, we use the shortest timeout.
+       At min connections we use wait_timeout. */
+    timeout_for_current_thread_count = map_value(thread_count,
+      connection_recycle_connections_min, connection_recycle_connections_max,
+      net->read_total_timeout_ms, connection_recycle_min_timeout_ms);
+  }
+
+  /* If the total elapsed time has reached the effective timeout disconnect
+     the idle conneciton early */
+  if (net->read_total_elapsed_ms >= timeout_for_current_thread_count)
+  {
+    statistic_increment(connection_recycle_count,&LOCK_status);
+    statistic_add(connection_recycle_idle_time_ms,
+                  net->read_total_elapsed_ms,&LOCK_status);
+    return false;
+  }
+
+  return true;
+};
+
+} // extern "C"
+
 
 
 /*****************************************************************************

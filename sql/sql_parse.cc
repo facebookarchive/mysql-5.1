@@ -823,7 +823,43 @@ bool do_command(THD *thd)
     the client, the connection is closed or "net_wait_timeout"
     number of seconds has passed
   */
-  my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+  if (connection_recycle &&
+      (thd->server_status & SERVER_STATUS_IN_TRANS) == 0 &&
+      (thd->security_ctx->master_access & SUPER_ACL) == 0 &&
+      (thd->client_capabilities & CLIENT_INTERACTIVE) == 0 &&
+      (uint64)thd->variables.net_wait_timeout * 1000 >
+        max(connection_recycle_min_timeout_ms, connection_recycle_poll_ms))
+  {
+    /*
+      We poll every connection_recycle_poll_ms miliseconds and will
+      disconnect early under the following conditions:
+
+      1. connection_recycle is enabled
+      2. this connection is from a non-SUPER user
+      3. this is a non-interactive connection
+      4. there are more than connection_recycle_pct_connections_min percent of
+         the total number of available connections in use
+      5. more than connection_recycle_min_timeout_ms miliseconds have elapsed
+
+      The checks for connection_recycle_keep_pct_available is done inside
+      the callback function connection_recycle_callback.
+
+      The exact time at which we disconnect idle connections grows shorter as
+      the number of connections increases.  As the number of connections grows
+      from connection_recycle_pct_connections_min to
+      connection_recycle_pct_connections_max, the idle connection time shrinks
+      from wait_timeout down to connection_recycle_min_timeout_ms.
+    */
+    uint initial_timeout = max(connection_recycle_min_timeout_ms,
+                               connection_recycle_poll_ms);
+    my_net_set_read_retry_callback(net,
+        thd->variables.net_wait_timeout, initial_timeout,
+        connection_recycle_poll_ms, connection_recycle_callback);
+  }
+  else
+  {
+    my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+  }
 
   /*
     XXX: this code is here only to clear possible errors of init_connect. 
@@ -890,6 +926,7 @@ bool do_command(THD *thd)
 
   /* Restore read timeout value */
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+  my_net_set_read_retry_callback(net, 0, 0, 0, 0);
 
   DBUG_ASSERT(packet_length);
   return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));

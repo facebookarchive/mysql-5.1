@@ -689,6 +689,19 @@ static sys_var_thd_ulong	sys_net_wait_timeout(&vars, "wait_timeout",
 static sys_var_long_ptr	sys_net_compression_level(&vars, "net_compression_level",
 					      &net_compression_level);
 
+static sys_var_bool_ptr	sys_connection_recycle(&vars,
+    "connection_recycle", &connection_recycle);
+static sys_var_long_ptr	sys_connection_recycle_pct_connections_min(&vars,
+    "connection_recycle_pct_connections_min",
+    &connection_recycle_pct_connections_min);
+static sys_var_long_ptr	sys_connection_recycle_pct_connections_max(&vars,
+    "connection_recycle_pct_connections_max",
+    &connection_recycle_pct_connections_max);
+static sys_var_long_ptr	sys_connection_recycle_min_timeout_ms(&vars,
+    "connection_recycle_min_timeout_ms", &connection_recycle_min_timeout_ms);
+static sys_var_long_ptr	sys_connection_recycle_poll_ms(&vars,
+    "connection_recycle_poll_ms", &connection_recycle_poll_ms);
+
 /* Condition pushdown to storage engine */
 static sys_var_thd_bool
 sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",

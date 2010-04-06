@@ -61,6 +61,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->is_blocking	=vio_is_blocking;
 
     vio->timeout=vio_win32_timeout;
+    vio->timeout_ms= vio_win32_timeout_ms;
     /* Set default timeout */
     vio->read_timeout_ms= INFINITE;
     vio->write_timeout_ms= INFINITE;
@@ -87,6 +88,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
 
     /* Currently, shared memory is on Windows only, hence the below is ok*/
     vio->timeout= vio_win32_timeout; 
+    vio->timeout_ms= vio_win32_timeout_ms;
     /* Set default timeout */
     vio->read_timeout_ms= INFINITE;
     vio->write_timeout_ms= INFINITE;
@@ -110,6 +112,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->vioblocking	=vio_ssl_blocking;
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_timeout;
+    vio->timeout_ms	=vio_timeout_ms;
     DBUG_VOID_RETURN;
   }
 #endif /* HAVE_OPENSSL */
@@ -127,6 +130,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
   vio->vioblocking	=vio_blocking;
   vio->is_blocking	=vio_is_blocking;
   vio->timeout	=vio_timeout;
+  vio->timeout_ms	=vio_timeout_ms;
   DBUG_VOID_RETURN;
 }
 

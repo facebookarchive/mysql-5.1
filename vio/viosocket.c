@@ -381,21 +381,21 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
 }
 
 
-void vio_timeout(Vio *vio, uint which, uint timeout)
+void vio_timeout_ms(Vio *vio, uint which, uint64 timeout_ms)
 {
 #if defined(SO_SNDTIMEO) && defined(SO_RCVTIMEO)
   int r;
-  DBUG_ENTER("vio_timeout");
+  DBUG_ENTER("vio_timeout_ms");
 
   {
 #ifdef __WIN__
   /* Windows expects time in milliseconds as int */
-  int wait_timeout= (int) timeout * 1000;
+  int wait_timeout= (int) timeout_ms;
 #else
   /* POSIX specifies time as struct timeval. */
   struct timeval wait_timeout;
-  wait_timeout.tv_sec= timeout;
-  wait_timeout.tv_usec= 0;
+  wait_timeout.tv_sec= timeout_ms / 1000;
+  wait_timeout.tv_usec= (timeout_ms % 1000) * 1000;
 #endif
 
   r= setsockopt(vio->sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
@@ -416,6 +416,12 @@ void vio_timeout(Vio *vio, uint which, uint timeout)
   thr_alarm or just run without read/write timeout(s)
 */
 #endif
+}
+
+
+void vio_timeout(Vio *vio, uint which, uint timeout)
+{
+  vio_timeout_ms(vio, which, timeout * 1000UL);
 }
 
 
@@ -531,6 +537,16 @@ int vio_close_pipe(Vio * vio)
 }
 
 
+void vio_win32_timeout_ms(Vio *vio, uint which , DWORD timeout_ms)
+{
+    /* which == 1 means "write", which == 0 means "read".*/
+    if (which)
+      vio->write_timeout_ms= timeout_ms;
+    else
+      vio->read_timeout_ms= timeout_ms;
+}
+
+
 void vio_win32_timeout(Vio *vio, uint which , uint timeout_sec)
 {
     DWORD timeout_ms;
@@ -543,11 +559,7 @@ void vio_win32_timeout(Vio *vio, uint which , uint timeout_sec)
     else
       timeout_ms= timeout_sec * 1000;
 
-    /* which == 1 means "write", which == 0 means "read".*/
-    if(which)
-      vio->write_timeout_ms= timeout_ms;
-    else
-      vio->read_timeout_ms= timeout_ms;
+    vio_win32_timeout_ms(timeout_ms);
 }
 
 

@@ -2078,6 +2078,10 @@ extern char *shared_memory_base_name, *mysqld_unix_port;
 extern my_bool opt_enable_shared_memory;
 extern char *default_tz_name;
 extern ulong net_compression_level;
+extern my_bool connection_recycle;
+extern ulong connection_recycle_pct_connections_min;
+extern ulong connection_recycle_pct_connections_max;
+extern ulong connection_recycle_min_timeout_ms, connection_recycle_poll_ms;
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern my_bool opt_large_pages;
@@ -2508,6 +2512,12 @@ inline ulong sql_rnd_with_mutex()
   pthread_mutex_unlock(&LOCK_thread_count);
   return tmp;
 }
+
+extern "C" {
+/* Calback from network IO to check whether to retry reads or disconnect
+   idle connections early when running out of available connection slots */
+my_bool connection_recycle_callback(NET* net);
+};
 
 Comp_creator *comp_eq_creator(bool invert);
 Comp_creator *comp_ge_creator(bool invert);

@@ -68,7 +68,7 @@
   can't normally do this the client should have a bigger max_allowed_packet.
 */
 
-#if defined(__WIN__) || !defined(MYSQL_SERVER)
+#if (defined(__WIN__) || !defined(MYSQL_SERVER)) && !defined(NO_ALARM)
   /* The following is because alarms doesn't work on windows. */
 #define NO_ALARM
 #endif
@@ -137,6 +137,10 @@ my_bool my_net_init(NET *net, Vio* vio)
   query_cache_init_query(net);
 #else
   net->query_cache_query= 0;
+#endif
+
+#ifdef MYSQL_SERVER
+  net->read_retry_callback = NULL;
 #endif
 
   if (vio != 0)					/* If real connection */
@@ -803,6 +807,13 @@ my_real_read(NET *net, size_t *complen)
 
   net->reading_or_writing=1;
   thr_alarm_init(&alarmed);
+#ifdef MYSQL_SERVER
+  if (net->read_retry_callback)
+  {
+    my_net_set_read_timeout_ms(net, net->read_polling_initial_interval_ms);
+    net->read_total_elapsed_ms = 0;
+  }
+#endif
 #ifndef NO_ALARM
   if (net_blocking)
     thr_alarm(&alarmed,net->read_timeout,&alarm_buff);
@@ -869,6 +880,38 @@ my_real_read(NET *net, size_t *complen)
 		    my_progname,vio_errno(net->vio));
 #endif /* EXTRA_DEBUG */
 	  }
+
+#ifdef MYSQL_SERVER
+          /* If we timed out and the user provided a timeout retry callback
+             then call it */
+          if (net->read_retry_callback &&
+#ifndef NO_ALARM
+	      thr_alarm_in_use(&alarmed) && thr_got_alarm(&alarmed)
+#else
+	      vio_errno(net->vio) == SOCKET_EAGAIN
+#endif
+             )
+          {
+            net->read_total_elapsed_ms += net->read_timeout_ms;
+
+            /* Check if callback wants us to continue retrying, this provides
+               an opportunity to close idle connections early under load */
+            if (net->read_total_elapsed_ms < net->read_total_timeout_ms &&
+                net->read_retry_callback(net))
+            {
+              /* Subseuqent timeouts are minimum of read_polling_interval_ms
+                 or however much of read_total_timeout_ms remains */
+              uint next_timeout_ms = min(net->read_polling_interval_ms,
+                net->read_total_timeout_ms - net->read_total_elapsed_ms);
+
+              if (next_timeout_ms != net->read_timeout_ms)
+                my_net_set_read_timeout_ms(net, next_timeout_ms);
+
+              continue;
+            }
+          }
+#endif
+
 #if defined(THREAD_SAFE_CLIENT) && !defined(MYSQL_SERVER)
 	  if (vio_errno(net->vio) == SOCKET_EINTR)
 	  {
@@ -1145,6 +1188,35 @@ void my_net_set_read_timeout(NET *net, uint timeout)
   DBUG_VOID_RETURN;
 }
 
+#ifdef MYSQL_SERVER
+void my_net_set_read_retry_callback(NET *net, uint timeout,
+    uint polling_initial_interval_ms, uint polling_interval_ms,
+    my_bool (*retry_callback)(NET* net))
+{
+  DBUG_ENTER("my_net_set_read_retry_callback");
+
+  net->read_total_timeout_ms = (uint64)1000 * timeout;
+  net->read_polling_initial_interval_ms = polling_initial_interval_ms;
+  net->read_polling_interval_ms = polling_interval_ms;
+  net->read_retry_callback = retry_callback;
+
+  DBUG_VOID_RETURN;
+}
+
+void my_net_set_read_timeout_ms(NET *net, uint64 timeout_ms)
+{
+  DBUG_ENTER("my_net_set_read_timeout_ms");
+  DBUG_PRINT("enter", ("timeout_ms: %d", timeout_ms));
+  // when using alarms we must round up the polling interval to seconds
+  net->read_timeout= (timeout_ms + 999) / 1000;
+  net->read_timeout_ms = timeout_ms;
+#ifdef NO_ALARM
+  if (net->vio)
+    vio_timeout_ms(net->vio, 0, net->read_timeout_ms);
+#endif
+  DBUG_VOID_RETURN;
+}
+#endif
 
 void my_net_set_write_timeout(NET *net, uint timeout)
 {

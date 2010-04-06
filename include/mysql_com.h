@@ -264,6 +264,32 @@ typedef struct st_net {
     queries in cache that have not stored its results yet
   */
 #endif
+
+#ifdef MYSQL_SERVER
+  /* Support for dynamic read timeouts in the server to disconnect idle
+     connections early when runnings out of connection slots.  */
+
+  /* Callback function called when reads timeout */
+  my_bool (*read_retry_callback)(struct st_net* net);
+
+  /* The following 5 values are only used when the above callback is set */
+
+  /* Timeout of first read before calling callback */
+  uint read_polling_initial_interval_ms;
+
+  /* Timeout of subsequent reads when callback wants to continue to run */
+  uint read_polling_interval_ms;
+
+  /* Timeout set for most recent read */
+  uint read_timeout_ms;
+
+  /* Sum of all timeouts since read started */
+  uint64 read_total_elapsed_ms;
+
+  /* Maximum timeout before disconnecting idle connection */
+  uint64 read_total_timeout_ms;
+#endif
+
   /*
     'query_cache_query' should be accessed only via query cache
     functions and methods to maintain proper locking.
@@ -408,6 +434,14 @@ unsigned long my_net_read(NET *net);
 #ifdef _global_h
 void my_net_set_write_timeout(NET *net, uint timeout);
 void my_net_set_read_timeout(NET *net, uint timeout);
+
+#  ifdef MYSQL_SERVER
+void my_net_set_read_retry_callback(NET *net, uint timeout,
+    uint polling_initial_interval_ms, uint polling_interval_ms,
+    my_bool (*retry_callback)(NET* net));
+void my_net_init_read_timeout_ms(NET *net);
+void my_net_set_read_timeout_ms(NET *net, uint64 timeout_ms);
+#  endif
 #endif
 
 /*

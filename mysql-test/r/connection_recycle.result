@@ -1,0 +1,86 @@
+grant select on test.* to 'foo'@'%';
+set @@global.max_connections=2;
+set @@global.connection_recycle = 0;
+connect(127.0.0.1,foo,,test,13000,/data/users/ryandmack/mysql/5138-build/mysql-test/var/tmp/mysqld.1.sock);
+ERROR 08004: Too many connections
+SELECT 'con1 should still exist';
+con1 should still exist
+con1 should still exist
+set @@global.max_connections=2;
+set @@global.connection_recycle = 1;
+set @@global.connection_recycle_min_timeout_ms = 1500;
+set @@global.connection_recycle_poll_ms = 100;
+set @@global.connection_recycle_pct_connections_min=50;
+set @@global.connection_recycle_pct_connections_max=50;
+'con4 connect should fail'
+-- error 1040
+connect (con4,127.0.0.1,foo,,)
+SELECT 'con3 should still exist';
+con3 should still exist
+con3 should still exist
+SELECT 'con5 connect should succeed';
+con5 connect should succeed
+con5 connect should succeed
+SHOW STATUS LIKE 'connection_recycle_count';
+Variable_name	Value
+Connection_recycle_count	1
+SELECT 'con3 should have gone away';
+ERROR HY000: MySQL server has gone away
+set @@global.max_connections=6;
+set @@global.connection_recycle = 1;
+set @@global.connection_recycle_min_timeout_ms = 500;
+set @@global.connection_recycle_poll_ms = 100;
+set @@global.connection_recycle_pct_connections_min=90;
+set @@global.connection_recycle_pct_connections_max=90;
+begin;
+SELECT 'con5 should still exist';
+con5 should still exist
+con5 should still exist
+SELECT 'con6 should still exist';
+con6 should still exist
+con6 should still exist
+SELECT 'con7 should still exist';
+con7 should still exist
+con7 should still exist
+SELECT 'con8 should still exist';
+con8 should still exist
+con8 should still exist
+set @@global.connection_recycle_pct_connections_min=20;
+set @@global.connection_recycle_pct_connections_max=20;
+SELECT 'con5 should have gone away';
+ERROR HY000: MySQL server has gone away
+SELECT 'con6 should still exist (superuser)';
+con6 should still exist (superuser)
+con6 should still exist (superuser)
+SELECT 'con7 should have gone away';
+ERROR HY000: MySQL server has gone away
+SELECT 'con8 should still exist (in transaction)';
+con8 should still exist (in transaction)
+con8 should still exist (in transaction)
+ROLLBACK;
+SHOW STATUS LIKE 'connection_recycle_count';
+Variable_name	Value
+Connection_recycle_count	3
+set @@global.max_connections=6;
+set @@global.connection_recycle = 1;
+set @@global.connection_recycle_min_timeout_ms = 500;
+set @@global.connection_recycle_poll_ms = 2500;
+set @@global.connection_recycle_pct_connections_min=50;
+set @@global.connection_recycle_pct_connections_max=50;
+SELECT 'con9 should still exist';
+con9 should still exist
+con9 should still exist
+SELECT 'con10 should still exist';
+con10 should still exist
+con10 should still exist
+SELECT SLEEP(4.1);
+SLEEP(4.1)
+0
+SELECT 'con9 should have gone away';
+ERROR HY000: MySQL server has gone away
+SELECT 'con10 should have gone away';
+ERROR HY000: MySQL server has gone away
+SHOW STATUS LIKE 'connection_recycle_count';
+Variable_name	Value
+Connection_recycle_count	3
+drop user 'foo'@'%';

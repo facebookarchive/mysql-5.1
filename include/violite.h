@@ -164,6 +164,7 @@ void vio_end(void);
 #define vio_peer_addr(vio, buf, prt)		(vio)->peer_addr(vio, buf, prt)
 #define vio_in_addr(vio, in)			(vio)->in_addr(vio, in)
 #define vio_timeout(vio, which, seconds)	(vio)->timeout(vio, which, seconds)
+#define vio_timeout_ms(vio, which, ms)		(vio)->timeout_ms(vio, which, ms)
 #endif /* !defined(DONT_MAP_VIO) */
 
 /* This enumerator is used in parser - should be always visible */
@@ -208,6 +209,7 @@ struct st_vio
   my_bool (*was_interrupted)(Vio*);
   int     (*vioclose)(Vio*);
   void	  (*timeout)(Vio*, unsigned int which, unsigned int timeout);
+  void	  (*timeout_ms)(Vio*, unsigned int which, uint64 timeout_ms);
 #ifdef HAVE_OPENSSL
   void	  *ssl_arg;
 #endif

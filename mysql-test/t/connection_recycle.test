@@ -1,0 +1,219 @@
+###############################################################################
+# These tests cannot run with the embedded server
+-- source include/not_embedded.inc
+-- source include/have_innodb.inc
+-- source include/one_thread_per_connection.inc
+
+
+#
+# Record old values and configure server
+#
+
+--disable_query_log
+let $old_max_connections = `select @@global.max_connections`;
+let $old_connection_recycle = `select @@global.connection_recycle`;
+let $old_connection_recycle_min_timeout_ms = `select @@global.connection_recycle_min_timeout_ms`;
+let $old_connection_recycle_poll_ms = `select @@global.connection_recycle_poll_ms`;
+let $old_connection_recycle_pct_connections_min = `select @@global.connection_recycle_pct_connections_min`;
+let $old_connection_recycle_pct_connections_max = `select @@global.connection_recycle_pct_connections_max`;
+--enable_query_log
+
+grant select on test.* to 'foo'@'%';
+--disable_reconnect
+
+
+#
+# Test original behavior
+#
+
+# Disable connection recycling
+connection default;
+set @@global.max_connections=2;
+set @@global.connection_recycle = 0;
+
+# Establish first TCP/IP connection
+connect (con1,127.0.0.1,foo,,);
+--disable_reconnect
+
+# Wait 1 second
+sleep 1;
+
+# Connecting again should fail
+-- error 1040
+connect (con2,127.0.0.1,foo,,);
+
+# Original connection should still exist
+connection con1;
+SELECT 'con1 should still exist';
+
+# Close connection
+disconnect con1;
+
+
+#
+# Test connection recycling works
+#
+
+# Setup connection recycling
+connection default;
+set @@global.max_connections=2;
+set @@global.connection_recycle = 1;
+set @@global.connection_recycle_min_timeout_ms = 1500;
+set @@global.connection_recycle_poll_ms = 100;
+set @@global.connection_recycle_pct_connections_min=50;
+set @@global.connection_recycle_pct_connections_max=50;
+
+# Establish first TCP/IP connection
+connect (con3,127.0.0.1,foo,,);
+--disable_reconnect
+
+# Wait 1 second
+sleep 1;
+
+# Connecting again should fail (not enough time elapsed)
+echo 'con4 connect should fail'
+-- error 1040
+connect (con4,127.0.0.1,foo,,);
+
+# Original connection should still exist
+connection con3;
+SELECT 'con3 should still exist';
+
+# Wait 2 seconds
+sleep 2;
+
+# Connecting again should now succeed
+connect (con5,127.0.0.1,foo,,);
+SELECT 'con5 connect should succeed';
+SHOW STATUS LIKE 'connection_recycle_count';
+
+# Original connection should now be gone
+connection con3;
+-- error 2006
+SELECT 'con3 should have gone away';
+
+# Close connections
+disconnect con5;
+
+
+#
+# Test connection recycling doesn't kill connections when there's space
+#
+
+connection default;
+set @@global.max_connections=6;
+set @@global.connection_recycle = 1;
+set @@global.connection_recycle_min_timeout_ms = 500;
+set @@global.connection_recycle_poll_ms = 100;
+set @@global.connection_recycle_pct_connections_min=90;
+set @@global.connection_recycle_pct_connections_max=90;
+
+# Create some connections
+connect (con5,127.0.0.1,foo,,);
+--disable_reconnect
+connect (con6,127.0.0.1,root,,);
+--disable_reconnect
+connect (con7,127.0.0.1,foo,,);
+--disable_reconnect
+connect (con8,127.0.0.1,foo,,);
+--disable_reconnect
+begin;
+
+# Wait 1 second
+sleep 1;
+
+# Connections should remain open
+connection con5;
+SELECT 'con5 should still exist';
+connection con6;
+SELECT 'con6 should still exist';
+connection con7;
+SELECT 'con7 should still exist';
+connection con8;
+SELECT 'con8 should still exist';
+
+# Request more connections be kept available
+connection default;
+set @@global.connection_recycle_pct_connections_min=20;
+set @@global.connection_recycle_pct_connections_max=20;
+
+# Wait 1 second
+sleep 1;
+
+# Connections should now be closed
+connection con5;
+-- error 2006
+SELECT 'con5 should have gone away';
+connection con6;
+SELECT 'con6 should still exist (superuser)';
+connection con7;
+-- error 2006
+SELECT 'con7 should have gone away';
+connection con8;
+SELECT 'con8 should still exist (in transaction)';
+ROLLBACK;
+SHOW STATUS LIKE 'connection_recycle_count';
+
+# Close connections
+disconnect con6;
+disconnect con8;
+
+
+#
+# Test wait_timeout still works when recycling is enabled
+#
+
+connection default;
+set @@global.max_connections=6;
+set @@global.connection_recycle = 1;
+set @@global.connection_recycle_min_timeout_ms = 500;
+set @@global.connection_recycle_poll_ms = 2500;
+set @@global.connection_recycle_pct_connections_min=50;
+set @@global.connection_recycle_pct_connections_max=50;
+
+# Create some connections
+connect (con9,127.0.0.1,foo,,);
+--disable_reconnect
+connect (con10,127.0.0.1,root,,);
+--disable_reconnect
+
+# Wait 3 seconds
+sleep 3;
+
+# Connections should remain open
+connection con9;
+SELECT 'con9 should still exist';
+connection con10;
+SELECT 'con10 should still exist';
+
+# Keep default alive
+connection default;
+SELECT SLEEP(4.1);
+
+# Connections should now be closed
+connection con9;
+-- error 2006
+SELECT 'con9 should have gone away';
+connection con10;
+-- error 2006
+SELECT 'con10 should have gone away';
+
+
+#
+# Restore globals to original values
+#
+
+connection default;
+SHOW STATUS LIKE 'connection_recycle_count';
+
+--disable_query_log
+eval set @@global.max_connections = $old_max_connections;
+eval set @@global.connection_recycle = $old_connection_recycle;
+eval set @@global.connection_recycle_min_timeout_ms = $old_connection_recycle_min_timeout_ms;
+eval set @@global.connection_recycle_poll_ms = $old_connection_recycle_poll_ms;
+eval set @@global.connection_recycle_pct_connections_min = $old_connection_recycle_pct_connections_min;
+eval set @@global.connection_recycle_pct_connections_max = $old_connection_recycle_pct_connections_max;
+--enable_query_log
+drop user 'foo'@'%';
+
+exit;

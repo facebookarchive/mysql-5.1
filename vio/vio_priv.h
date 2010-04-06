@@ -24,9 +24,11 @@
 
 #ifdef _WIN32
 void	vio_win32_timeout(Vio *vio, uint which, uint timeout);
+void	vio_win32_timeout_ms(Vio *vio, uint which, DWORD timeout);
 #endif
 
 void	vio_timeout(Vio *vio,uint which, uint timeout);
+void	vio_timeout_ms(Vio *vio,uint which, uint64 timeout);
 
 #ifdef HAVE_OPENSSL
 #include "my_net.h"			/* needed because of struct in_addr */

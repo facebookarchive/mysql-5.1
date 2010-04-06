@@ -1,0 +1,1 @@
+--wait_timeout=4 --reserved_super_connections=0 --innodb
