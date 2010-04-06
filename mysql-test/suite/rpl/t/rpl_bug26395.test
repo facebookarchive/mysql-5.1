@@ -35,6 +35,8 @@
 source include/have_innodb.inc;
 # have_debug is needed since we use the @@debug variable on master
 source include/have_debug.inc;
+# disable when using --valgrind for http://bugs.mysql.com/bug.php?id=52629
+source include/not_valgrind.inc;
 source include/master-slave.inc;
 
 
