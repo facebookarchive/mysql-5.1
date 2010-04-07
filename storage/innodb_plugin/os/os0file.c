@@ -3266,6 +3266,8 @@ os_aio_free(void)
 
 	for (i = 0; i < os_aio_n_segments; i++) {
 		os_event_free(os_aio_segment_wait_events[i]);
+		if (os_aio_thread_buffer[i])
+			ut_free(os_aio_thread_buffer[i]);
 	}
 
 	ut_free(os_aio_segment_wait_events);
