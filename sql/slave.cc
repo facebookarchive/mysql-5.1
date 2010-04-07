@@ -4362,7 +4362,7 @@ static Log_event* next_event(Relay_log_info* rli)
          * that case.
          */
         if ((strlen(innobase_get_mysql_relay_log_name()) > 0 &&
-             innobase_get_mysql_relay_log_pos() != -1))
+             innobase_get_mysql_relay_log_pos() != RPL_BAD_POS))
         {
           /* Delete all files before InnoDB's current one. */
           if (rli->relay_log.purge_logs(

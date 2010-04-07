@@ -9356,6 +9356,9 @@ innobase_binlog_func(
 		}
 		case BFN_READ_SLAVE:
 			innobase_read_mysql_slave_state((int*)arg);
+		default:
+			// Don't need to handle the other cases
+			break;
 	}
 	return 0;
 }

@@ -125,8 +125,8 @@ int init_relay_log_info(Relay_log_info* rli,
 
   char  group_relay_log_name[FN_REFLEN],
         group_master_log_name[FN_REFLEN];
-  char *last_relay_log_name = NULL;
-  my_off_t group_master_log_pos, group_relay_log_pos;
+  my_off_t group_master_log_pos= -1;
+  my_off_t group_relay_log_pos;
   bool  found_relay_info;
   bool  need_check_master_log;
 
@@ -141,7 +141,7 @@ int init_relay_log_info(Relay_log_info* rli,
     /* data structure initialization */
     rli->relay_log.set_master_info(active_mi);
 
-    if (innobase_get_mysql_relay_log_pos() == -1)
+    if (innobase_get_mysql_relay_log_pos() == RPL_BAD_POS)
     {
       sql_print_information("init_relay_log_info: no adjustment"
                             " from InnoDB because slave state not valid");
@@ -182,7 +182,7 @@ int init_relay_log_info(Relay_log_info* rli,
         - when we switch a database from an old binary to the new binary.
         - the database is a new copy or from a backup.
      */
-    if (strlen(group_relay_log_name) > 0 && group_relay_log_pos != -1)
+    if (strlen(group_relay_log_name) > 0 && group_relay_log_pos != RPL_BAD_POS)
     {
       char buf[FN_REFLEN];
       const char *ln;
@@ -387,7 +387,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
 #endif
 
     rli->info_fd = info_fd;
-    int relay_log_pos, master_log_pos;
+
     if (init_strvar_from_file(file_relay_log_name,
                               sizeof(file_relay_log_name),
                               &rli->info_file, "") ||
@@ -419,7 +419,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
 #ifdef HAVE_INNODB_BINLOG
       if (rpl_transaction_enabled && 
           (strlen(group_relay_log_name) > 0 &&
-           group_relay_log_pos != -1) &&
+           group_relay_log_pos != RPL_BAD_POS) &&
           (strcmp(file_master_log_name, group_master_log_name) != 0 ||
            group_master_log_pos != (my_off_t)file_master_log_pos))
       {

@@ -20,6 +20,8 @@
 #include "rpl_reporting.h"
 #include "rpl_utility.h"
 
+#define RPL_BAD_POS ((ulonglong) -1)
+
 struct RPL_TABLE_LIST;
 class Master_info;
 

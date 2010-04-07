@@ -1821,7 +1821,7 @@ bool write_log_to_socket(int sockfd, THD *thd, ulonglong end_utime)
     if (thd->command < COM_END)
       len += snprintf(buf + len, buf_sz - len,
                       "# administrator command: %s\n",
-                      command_name[thd->command]);
+                      command_name[thd->command].str);
     else
       len += snprintf(buf + len, buf_sz - len,
                       "# unknown command: %d\n", thd->command);

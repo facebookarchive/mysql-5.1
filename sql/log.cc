@@ -69,7 +69,7 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 
 struct QueryLogEvent {
   const char *query_;
-  const int query_length_;
+  const size_t query_length_;
 };
 
 /** Queries with the correct log position in the event */
@@ -2528,9 +2528,9 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 MYSQL_BIN_LOG::MYSQL_BIN_LOG()
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
    need_start_event(TRUE), m_table_map_version(0),
+   active_mi(NULL),
    is_relay_log(0),
-   description_event_for_exec(0), description_event_for_queue(0),
-   active_mi(NULL)
+   description_event_for_exec(0), description_event_for_queue(0)
 {
   /*
     We don't want to initialize locks here as such initialization depends on
@@ -4391,7 +4391,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 {
   THD *thd= event_info->thd;
   bool error= 1;
-  IO_CACHE *file;
+  IO_CACHE *file= NULL;
   DBUG_ENTER("MYSQL_BIN_LOG::write(Log_event *)");
 
   if (thd->binlog_evt_union.do_union)
@@ -5146,7 +5146,7 @@ bool MYSQL_BIN_LOG::extract_master_info(Log_event* ev,
       Check whether the query event has the correct master log information:
       if so, accept it.
      */
-    for (int idx = 0; idx < sizeof(query_with_log)/sizeof(QueryLogEvent);
+    for (size_t idx = 0; idx < sizeof(query_with_log)/sizeof(QueryLogEvent);
          ++idx)
       if ((query->q_len == query_with_log[idx].query_length_ &&
            strncmp(query_with_log[idx].query_, query->query,
@@ -5270,7 +5270,7 @@ bool MYSQL_BIN_LOG::find_master_pos_inlog(const char *relay_log_name,
          If we have the correct last executed relay-log information, we can
          seek to the position after getting the correct format event.
        */
-      if (relay_log_pos != -1 && offset < relay_log_pos)
+      if (relay_log_pos != RPL_BAD_POS && offset < relay_log_pos)
       {
         my_b_seek(&log_file, relay_log_pos);
         strmake(last_master_log_name, master_log_name, strlen(master_log_name));
@@ -5326,7 +5326,7 @@ int MYSQL_BIN_LOG::update_master_info(THD *thd,
   *found_relay_info      = false;
   *need_check_master_log = false;
   relay_log_info_avail   = (strcmp(relay_log_name, "") != 0 &&
-                            relay_log_pos != -1);
+                            relay_log_pos != RPL_BAD_POS);
   strmake(last_master_log_name, "", FN_REFLEN);
 
   if (find_log_pos(&linfo, NullS, true))

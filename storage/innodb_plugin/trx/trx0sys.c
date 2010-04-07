@@ -715,7 +715,7 @@ trx_sys_update_mysql_binlog_offset(
 
 		mlog_write_string(sys_header + field
 				  + TRX_SYS_MYSQL_LOG_NAME,
-				  (byte*) file_name, 1 + ut_strlen(file_name),
+				  (const byte*) file_name, 1 + ut_strlen(file_name),
 				  mtr);
 	}
 
@@ -803,7 +803,7 @@ trx_sys_update_slave_state(
 	if (0 != strcmp((char*) (sys_header + field + TRX_SYS_MYSQL_RELAYLOG_NAME_OFF),
 			relaylog_name)) {
 		mlog_write_string(sys_header + field + TRX_SYS_MYSQL_RELAYLOG_NAME_OFF,
-			(byte*) relaylog_name, 1 + ut_strlen(relaylog_name), mtr);
+			(const byte*) relaylog_name, 1 + ut_strlen(relaylog_name), mtr);
 	}
 
 	/* TODO(mcallaghan): I do not know why the high 4 bytes are conditionally
@@ -823,7 +823,7 @@ trx_sys_update_slave_state(
 	if (0 != strcmp((char*) (sys_header + field + TRX_SYS_MYSQL_MASTERLOG_NAME_OFF),
 			masterlog_name)) {
 		mlog_write_string(sys_header + field + TRX_SYS_MYSQL_MASTERLOG_NAME_OFF,
-			(byte*) masterlog_name, 1 + ut_strlen(masterlog_name), mtr);
+			(const byte*) masterlog_name, 1 + ut_strlen(masterlog_name), mtr);
 	}
 
 	/* write high 4 bytes for master-log position */
@@ -1092,7 +1092,7 @@ trx_sysf_create(
 
         mlog_write_string(sys_header + TRX_SYS_MYSQL_LOG_INFO
                           + TRX_SYS_MYSQL_LOG_NAME,
-                          "", 1 + ut_strlen(""), mtr);
+                          (const byte*)"", 1 + ut_strlen(""), mtr);
 
         mlog_write_ulint(sys_header + TRX_SYS_MYSQL_LOG_INFO
                          + TRX_SYS_MYSQL_LOG_OFFSET_HIGH,
@@ -1115,7 +1115,7 @@ trx_sysf_create(
 
 	mlog_write_string(sys_header + TRX_SYS_MYSQL_RELAY_INFO
 			+ TRX_SYS_MYSQL_RELAYLOG_NAME_OFF,
-			(byte*) "", 1 + ut_strlen(""), mtr);
+			(const byte*) "", 1 + ut_strlen(""), mtr);
 
 	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_RELAY_INFO
 			+ TRX_SYS_MYSQL_RELAYLOG_POS_HIGH,
@@ -1127,7 +1127,7 @@ trx_sysf_create(
 
 	mlog_write_string(sys_header + TRX_SYS_MYSQL_RELAY_INFO
 			+ TRX_SYS_MYSQL_MASTERLOG_NAME_OFF,
-			(byte*) "", 1 + ut_strlen(""), mtr);
+			(const byte*) "", 1 + ut_strlen(""), mtr);
 
 	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_RELAY_INFO
 			+ TRX_SYS_MYSQL_MASTERLOG_POS_HIGH,
