@@ -8086,6 +8086,8 @@ static int mysql_init_variables(void)
 
   log_datagram= 0;
   log_datagram_usecs= 0;
+  log_datagram_sock= -1;
+
   opt_log_slow_extra= FALSE;
 
   rpl_transaction_enabled= FALSE;
