@@ -4070,13 +4070,19 @@ err:
 bool MYSQL_BIN_LOG::flush_and_sync()
 {
   int err=0, fd=log_file.file;
+  my_fast_timer_t fsync_start;
+  double fsync_time;
   safe_mutex_assert_owner(&LOCK_log);
   if (flush_io_cache(&log_file))
     return 1;
   if (++sync_binlog_counter >= sync_binlog_period && sync_binlog_period)
   {
     sync_binlog_counter= 0;
+    my_get_fast_timer(&fsync_start);
     err=my_sync(fd, MYF(MY_WME));
+    fsync_time = my_fast_timer_diff_now(&fsync_start, NULL);
+    statistic_increment(binlog_fsync_count, &LOCK_status);
+    statistic_add(binlog_fsync_total_time, fsync_time, &LOCK_status);
   }
   return err;
 }

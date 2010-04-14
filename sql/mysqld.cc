@@ -569,6 +569,10 @@ my_bool log_datagram= 0;
 ulong log_datagram_usecs= 0;
 int log_datagram_sock= -1;
 
+ulonglong binlog_fsync_count= 0;
+double binlog_fsync_total_time= 0.0;
+ulonglong binlog_fsync_grouped= 0;
+
 my_bool opt_log_slow_extra;
 
 my_bool rpl_transaction_enabled= FALSE;
@@ -7450,6 +7454,19 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 }
 #endif
 
+static int show_binlog_fsync_avg_time(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_DOUBLE;
+  var->value= buff;
+  if (binlog_fsync_count) {
+    *((double *)buff)= (double) (binlog_fsync_total_time / binlog_fsync_count);
+  } else {
+    *((double *)buff)= 0.0;
+  }
+
+  return 0;
+}
+
 #ifdef HAVE_REPLICATION
 static int show_rpl_status(THD *thd, SHOW_VAR *var, char *buff)
 {
@@ -7785,6 +7802,10 @@ SHOW_VAR status_vars[]= {
   {"Aborted_connects",         (char*) &aborted_connects,       SHOW_LONG},
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
+  {"Binlog_fsync_avg_time",    (char*) &show_binlog_fsync_avg_time, SHOW_FUNC},
+  {"Binlog_fsync_count",       (char*) &binlog_fsync_count,     SHOW_LONGLONG},
+  {"Binlog_fsync_grouped",     (char*) &binlog_fsync_grouped,   SHOW_LONGLONG},
+  {"Binlog_fsync_total_time",  (char*) &binlog_fsync_total_time,SHOW_DOUBLE},
   {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received), SHOW_LONGLONG_STATUS},
   {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent), SHOW_LONGLONG_STATUS},
   {"Com",                      (char*) com_status_vars, SHOW_ARRAY},
@@ -8042,6 +8063,8 @@ static int mysql_init_variables(void)
   delayed_insert_errors= thread_created= 0;
   specialflag= 0;
   binlog_cache_use=  binlog_cache_disk_use= 0;
+  binlog_fsync_total_time= 0.0;
+  binlog_fsync_count= binlog_fsync_grouped= 0;
   max_used_connections= slow_launch_threads = 0;
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
   opt_perftools_profile_output= 0;

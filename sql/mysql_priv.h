@@ -2179,6 +2179,10 @@ extern my_bool log_datagram;
 extern ulong log_datagram_usecs;
 extern int log_datagram_sock;
 
+extern ulonglong binlog_fsync_count;
+extern double binlog_fsync_total_time;
+extern ulonglong binlog_fsync_grouped;
+
 extern my_bool opt_log_slow_extra;
 
 extern my_bool rpl_transaction_enabled;
