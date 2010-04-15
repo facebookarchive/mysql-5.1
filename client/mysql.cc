@@ -137,7 +137,7 @@ enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
 
 static MYSQL mysql;			/* The connection */
-static my_bool ignore_errors=0,wait_flag=0,quick=0,
+static my_bool ignore_errors=0,ignore_foreign_keys=0,wait_flag=0,quick=0,
                connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
 	       opt_rehash=1,skip_updates=0,safe_updates=0,one_database=0,
 	       opt_compress=0, using_opt_local_infile=0,
@@ -1166,6 +1166,12 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
+  if (ignore_foreign_keys){
+          mysql_query(&mysql, "SET FOREIGN_KEY_CHECKS = 0;");
+          put_info("Foreign key checks are disabled! \\g.",
+                   INFO_INFO);
+  }
+
 #ifdef HAVE_READLINE
   initialize_readline((char*) my_progname);
   if (!status.batch && !quick && !opt_html && !opt_xml)
@@ -1391,6 +1397,10 @@ static struct my_option my_long_options[] =
   {"force", 'f', "Continue even if we get an SQL error.",
    (uchar**) &ignore_errors, (uchar**) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
+  {"ignore-foreign-keys", 'k',
+     "Ignore foreign key checks while importing data.",
+     (uchar**) &ignore_foreign_keys, (uchar**) &ignore_foreign_keys, 0, GET_BOOL, NO_ARG,
+     0, 0, 0, 0, 0, 0},
   {"named-commands", 'G',
    "Enable named commands. Named commands mean this program's internal commands; see mysql> help . When enabled, the named commands can be used from any line of the query, otherwise only from the first line, before an enter. Disable with --disable-named-commands. This option is disabled by default.",
    (uchar**) &named_cmds, (uchar**) &named_cmds, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
