@@ -122,6 +122,7 @@ int thd_tx_isolation(const void* thd);
 char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 void thd_inc_row_count(void* thd);
+void thd_binlog_enqueue(void* thd);
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
 unsigned long thd_get_thread_id(const void* thd);

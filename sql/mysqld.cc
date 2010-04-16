@@ -577,6 +577,8 @@ my_bool opt_log_slow_extra;
 
 my_bool rpl_transaction_enabled= FALSE;
 
+my_bool force_binlog_order= 0;
+
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -5969,6 +5971,7 @@ enum options_mysqld
   OPT_LOG_SLOW_EXTRA,
   OPT_NET_COMPRESSION_LEVEL,
   OPT_RPL_TRANSACTION_ENABLED,
+  OPT_FORCE_BINLOG_ORDER,
 };
 
 
@@ -6189,6 +6192,11 @@ struct my_option my_long_options[] =
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   /* We must always support the next option to make scripts like mysqltest
      easier to do */
+  {"force-binlog-order", OPT_FORCE_BINLOG_ORDER,
+   "Force binlog to be written in same order as innodb. "
+   "Has no effect if prepare_commit_mutex is held. ",
+   (uchar**) &force_binlog_order, (uchar**) &force_binlog_order,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"gdb", OPT_DEBUGGING,
    "Set up signals usable for debugging.",
    (uchar**) &opt_debugging, (uchar**) &opt_debugging,

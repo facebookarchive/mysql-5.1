@@ -232,7 +232,26 @@ private:
 
 class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
- private:
+private:
+  /**
+   * If force_binlog_order is enabled, we use a ticket-based queue
+   * to ensure that innodb and the binlog commit in the same order.
+   *
+   * As each transaction is prepared for commit in innobase_xa_prepare(),
+   * the thread running that transaction is given a ticket based on the
+   * value of next_ticket, which is then incremented.
+   *
+   * As the binlog enters flush_and_sync(), it waits on binlog_commit_cond
+   * for it's ticket to come up (which means thd->ticket == current_ticket).
+   * After a ticket comes up, current_ticket is incremented and waiting
+   * threads are woken.
+   *
+   * When the binlog does flush, LOCK_log is held, so all binlog entries
+   * will be in the same order as innodb commits in the innodb transaction log.
+   */
+  ulonglong current_ticket;
+  volatile uint64 next_ticket;
+  pthread_cond_t binlog_commit_cond;
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   pthread_mutex_t LOCK_index;
   pthread_mutex_t LOCK_prep_xids;
@@ -421,7 +440,7 @@ public:
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
   bool write_incident(THD *thd, bool lock);
 
-  int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+  int  write_cache(IO_CACHE *cache, bool lock_log);
   void set_write_error(THD *thd);
   bool check_write_error(THD *thd);
 
@@ -440,7 +459,10 @@ public:
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
   void rotate_and_purge(uint flags);
-  bool flush_and_sync();
+  void enqueue_thread(THD* thd);
+  void next_thread_broadcast();
+  void dequeue_thread_in_order(THD *thd);
+  bool flush_and_sync(THD *thd);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);

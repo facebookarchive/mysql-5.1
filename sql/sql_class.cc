@@ -308,6 +308,11 @@ void thd_inc_row_count(THD *thd)
   thd->row_count++;
 }
 
+extern "C"
+void thd_binlog_enqueue(THD *thd)
+{
+  mysql_bin_log.enqueue_thread(thd);
+}
 
 /**
   Dumps a text description of a thread, its security context
@@ -589,10 +594,11 @@ THD::THD()
    bootstrap(0),
    derived_tables_processing(FALSE),
    spcont(NULL),
-   m_parser_state(NULL)
+   m_parser_state(NULL),
 #if defined(ENABLED_DEBUG_SYNC)
-   , debug_sync_control(0)
+   debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+   ticket(0)
 {
   ulong tmp;
 

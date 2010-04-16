@@ -9671,6 +9671,9 @@ innobase_xa_prepare(
 		if (innobase_prepare_commit_mutex) {
 			pthread_mutex_lock(&prepare_commit_mutex);
 			trx->active_trans = 2;
+		} else {
+			/* grab a ticket or no-op, depending on server variable */
+			thd_binlog_enqueue(thd);
 		}
 	}
 

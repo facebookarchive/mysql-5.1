@@ -1935,6 +1935,7 @@ static sys_var_sync_binlog_period sys_sync_binlog_period(&vars, "sync_binlog", &
 static sys_var_long_ptr sys_sync_relay_info_period(&vars, "sync_relay_info", &sync_relay_info_period);
 static sys_var_slave_skip_counter sys_slave_skip_counter(&vars, "sql_slave_skip_counter");
 
+static sys_var_bool_ptr sys_force_binlog_order(&vars, "force_binlog_order", &force_binlog_order);
 
 bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
 {

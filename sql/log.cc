@@ -29,6 +29,7 @@
 #include "rpl_filter.h"
 #include "rpl_rli.h"
 #include "rpl_mi.h"
+#include "my_atomic.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -2526,7 +2527,9 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 
 
 MYSQL_BIN_LOG::MYSQL_BIN_LOG()
-  :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
+  :current_ticket(1),
+   next_ticket(1),
+   bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
    need_start_event(TRUE), m_table_map_version(0),
    active_mi(NULL),
    is_relay_log(0),
@@ -2557,6 +2560,7 @@ void MYSQL_BIN_LOG::cleanup()
     (void) pthread_mutex_destroy(&LOCK_log);
     (void) pthread_mutex_destroy(&LOCK_index);
     (void) pthread_cond_destroy(&update_cond);
+    (void) pthread_cond_destroy(&binlog_commit_cond);
   }
   DBUG_VOID_RETURN;
 }
@@ -2580,6 +2584,7 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   (void) pthread_mutex_init(&LOCK_log, MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
   (void) pthread_cond_init(&update_cond, 0);
+  (void) pthread_cond_init(&binlog_commit_cond, 0);
 }
 
 
@@ -4066,13 +4071,70 @@ err:
   DBUG_RETURN(error);
 }
 
+/**
+ * Enqueue the given thread for flushing to the binlog
+ *
+ * Enqueuing is actually done by ticket numbers,
+ * but that is an implementation detail
+ */
+void MYSQL_BIN_LOG::enqueue_thread(THD *thd) {
+  if (force_binlog_order)
+  {
+    // thd->ticket and next_ticket are unsigned, but my_atomic_add
+    // only operates on signed integers. So we cast to int64 to get
+    // the atomic add, but rely on the types to keep the rest of the
+    // operations (ie, comparisons) unsigned.
+    thd->ticket = my_atomic_add64((volatile int64*)&next_ticket, 1);
+  }
+}
 
-bool MYSQL_BIN_LOG::flush_and_sync()
+/**
+ * Increment current ticket and let other waiting threads
+ * know that it may be their turn in the queue
+ */
+void MYSQL_BIN_LOG::next_thread_broadcast() {
+  safe_mutex_assert_owner(&LOCK_log);
+  current_ticket++;
+  pthread_cond_broadcast(&binlog_commit_cond);
+}
+
+/**
+ * Will not return until it is the current thread's turn.
+ *
+ * Ensures that threads are written to the binlog in same order as to innodb
+ */
+void MYSQL_BIN_LOG::dequeue_thread_in_order(THD *thd)
+{
+  if (force_binlog_order)
+  {
+    safe_mutex_assert_owner(&LOCK_log);
+    // thd->ticket is initialized to zero when a new thd is created, and it is
+    // only currently set to nonzero by innobase_xa_prepare().
+    // current_ticket starts at 1 and only increases (well, until 2^64-1 innodb
+    // transactions have completed, after which it will roll over)
+    // So, thd->ticket <= current_ticket for all non-innodb-transaction binlog
+    // writes, so this will only affect innodb transactions in the binlog
+    while (thd->ticket > current_ticket) {
+      pthread_cond_wait(&binlog_commit_cond, &LOCK_log);
+    }
+  }
+  // even if we are not enforcing order, we may still have a ticket number,
+  // if binlog_force_order had just been turned off, for example
+  if (thd->ticket) {
+    thd->ticket = 0;
+    next_thread_broadcast();
+  }
+}
+
+bool MYSQL_BIN_LOG::flush_and_sync(THD *thd)
 {
   int err=0, fd=log_file.file;
   my_fast_timer_t fsync_start;
   double fsync_time;
   safe_mutex_assert_owner(&LOCK_log);
+
+  dequeue_thread_in_order(thd);
+
   if (flush_io_cache(&log_file))
     return 1;
   if (++sync_binlog_counter >= sync_binlog_period && sync_binlog_period)
@@ -4373,7 +4435,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 
     if (file == &log_file)
     {
-      error= flush_and_sync();
+      error= flush_and_sync(thd);
       if (!error)
       {
         signal_update();
@@ -4568,7 +4630,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 
     if (file == &log_file) // we are writing to the real log (disk)
     {
-      if (flush_and_sync())
+      if (flush_and_sync(thd))
 	goto err;
       signal_update();
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
@@ -4716,7 +4778,7 @@ uint MYSQL_BIN_LOG::next_file_id()
     be reset as a READ_CACHE to be able to read the contents from it.
  */
 
-int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
+int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log)
 {
   Mutex_sentry sentry(lock_log ? &LOCK_log : NULL);
 
@@ -4837,9 +4899,6 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
 
   DBUG_ASSERT(carry == 0);
 
-  if (sync_log)
-    flush_and_sync();
-
   return 0;                                     // All OK
 }
 
@@ -4885,7 +4944,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
   error= ev.write(&log_file);
   if (lock)
   {
-    if (!error && !(error= flush_and_sync()))
+    if (!error && !(error= flush_and_sync(thd)))
     {
       signal_update();
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
@@ -4957,14 +5016,15 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
 
       DBUG_EXECUTE_IF("crash_before_writing_xid",
                       {
-                        if ((write_error= write_cache(cache, false, true)))
+                        if ((write_error= write_cache(cache, false)))
                           DBUG_PRINT("info", ("error writing binlog cache: %d",
                                                write_error));
+                        flush_and_sync(thd);
                         DBUG_PRINT("info", ("crashing before writing xid"));
                         abort();
                       });
 
-      if ((write_error= write_cache(cache, false, false)))
+      if ((write_error= write_cache(cache, false)))
         goto err;
 
       if (commit_event && commit_event->write(&log_file))
@@ -4973,7 +5033,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
       if (incident && write_incident(thd, FALSE))
         goto err;
 
-      if (flush_and_sync())
+      if (flush_and_sync(thd))
         goto err;
       DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););
       if (cache->error)				// Error on read
