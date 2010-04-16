@@ -538,6 +538,9 @@ UNIV_INTERN FILE*	srv_misc_tmpfile;
 UNIV_INTERN ulint	srv_main_thread_process_no	= 0;
 UNIV_INTERN ulint	srv_main_thread_id		= 0;
 
+/* Should prepare_commit_mutex be aquired before writing to binlog? */
+UNIV_INTERN my_bool	innobase_prepare_commit_mutex	= TRUE;
+
 /* The following count work done by srv_master_thread. */
 
 /* Iterations by the 'once per second' loop. */

@@ -9667,8 +9667,11 @@ innobase_xa_prepare(
 		In this case we cannot know how many minutes or hours
 		will be between XA PREPARE and XA COMMIT, and we don't want
 		to block for undefined period of time. */
-		pthread_mutex_lock(&prepare_commit_mutex);
-		trx->active_trans = 2;
+
+		if (innobase_prepare_commit_mutex) {
+			pthread_mutex_lock(&prepare_commit_mutex);
+			trx->active_trans = 2;
+		}
 	}
 
 	return(error);
@@ -10570,6 +10573,11 @@ static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
   "innodb_thread_concurrency is reached (0 by default)",
   NULL, NULL, 0, 0, ~0UL, 0);
 
+static MYSQL_SYSVAR_BOOL(prepare_commit_mutex, innobase_prepare_commit_mutex,
+  PLUGIN_VAR_NOCMDARG,
+  "Lock the prepare_commit_mutex before writing to binlog",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of a memory pool InnoDB uses to store data dictionary information and other internal data structures.",
@@ -10816,6 +10824,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_neighbors_on_checkpoint),
   MYSQL_SYSVAR(adaptive_hash_latch_cache),
   MYSQL_SYSVAR(compression_level),
+  MYSQL_SYSVAR(prepare_commit_mutex),
   NULL
 };
 
