@@ -1234,7 +1234,7 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
     goto error_create;
   }
   DBUG_PRINT("info", ("partition %s created", part_name));
-  if ((error= file->ha_open(tbl, part_name, m_mode, m_open_test_lock)))
+  if ((error= file->ha_open(tbl, part_name, m_mode, m_open_test_lock, TRUE)))
     goto error_open;
   DBUG_PRINT("info", ("partition %s opened", part_name));
   /*
@@ -2524,7 +2524,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
                           FALSE);
     if ((error= (*file)->ha_open(table, (const char*) name_buff, mode,
-                                 test_if_locked)))
+                                 test_if_locked, TRUE)))
       goto err_handler;
     m_no_locks+= (*file)->lock_count();
     name_buffer_ptr+= strlen(name_buffer_ptr) + 1;
@@ -2625,7 +2625,8 @@ handler *ha_partition::clone(MEM_ROOT *mem_root)
   if (new_handler && !new_handler->ha_open(table,
                                            table->s->normalized_path.str,
                                            table->db_stat,
-                                           HA_OPEN_IGNORE_IF_LOCKED))
+                                           HA_OPEN_IGNORE_IF_LOCKED,
+                                           TRUE))
     return new_handler;
   return NULL;
 }

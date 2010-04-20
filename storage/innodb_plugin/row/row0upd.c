@@ -229,7 +229,7 @@ row_upd_check_references_constraints(
 
 			if (foreign->foreign_table == NULL) {
 				dict_table_get(foreign->foreign_table_name,
-					       FALSE);
+					       FALSE, TRUE);
 			}
 
 			if (foreign->foreign_table) {

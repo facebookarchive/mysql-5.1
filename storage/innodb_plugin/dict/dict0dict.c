@@ -638,8 +638,10 @@ dict_table_t*
 dict_table_get(
 /*===========*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		inc_mysql_count)/*!< in: whether to increment the open
+	ibool		inc_mysql_count,/*!< in: whether to increment the open
 					handle count on the table */
+	ibool		get_stats)	/*!< in: whether to defer call to
+					dict_update_statistics */
 {
 	dict_table_t*	table;
 
@@ -653,13 +655,11 @@ dict_table_get(
 
 	mutex_exit(&(dict_sys->mutex));
 
-	if (table != NULL) {
-		if (!table->stat_initialized) {
-			/* If table->ibd_file_missing == TRUE, this will
-			print an error message and return without doing
-			anything. */
-			dict_update_statistics(table);
-		}
+	if (table != NULL && get_stats) {
+		/* If table->ibd_file_missing == TRUE, this will
+		print an error message and return without doing
+		anything. */
+		dict_update_statistics(table, FALSE);
 	}
 
 	return(table);
@@ -4108,13 +4108,25 @@ void
 dict_update_statistics_low(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
-	ibool		has_dict_mutex __attribute__((unused)))
+	ibool		has_dict_mutex __attribute__((unused)),
 					/*!< in: TRUE if the caller has the
 					dictionary mutex */
+	ibool		force)		/*!< in: TRUE if stats are collected
+					when the already exist */
 {
 	dict_index_t*	index;
 	ulint		size;
 	ulint		sum_of_index_sizes	= 0;
+
+	/* See Bug#38996. Prevent current calls to
+	dict_update_statistics for one table. */
+
+	mutex_enter(&(table->stats_mutex));
+
+	if (table->stat_initialized && !force) {
+		mutex_exit(&(table->stats_mutex));
+		return;
+	}
 
 	if (table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
@@ -4125,6 +4137,7 @@ dict_update_statistics_low(
 			"InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 			table->name);
 
+		mutex_exit(&(table->stats_mutex));
 		return;
 	}
 
@@ -4133,6 +4146,7 @@ dict_update_statistics_low(
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
+		mutex_exit(&(table->stats_mutex));
 		return;
 	}
 
@@ -4144,6 +4158,7 @@ dict_update_statistics_low(
 	if (index == NULL) {
 		/* Table definition is corrupt */
 
+		mutex_exit(&(table->stats_mutex));
 		return;
 	}
 
@@ -4181,6 +4196,8 @@ dict_update_statistics_low(
 	table->stat_initialized = TRUE;
 
 	table->stat_modified_counter = 0;
+
+	mutex_exit(&(table->stats_mutex));
 }
 
 /*********************************************************************//**
@@ -4190,9 +4207,11 @@ UNIV_INTERN
 void
 dict_update_statistics(
 /*===================*/
-	dict_table_t*	table)	/*!< in/out: table */
+	dict_table_t*	table,	/*!< in/out: table */
+	ibool		force)	/*!< in: whether to force collection
+				when stats exist */
 {
-	dict_update_statistics_low(table, FALSE);
+	dict_update_statistics_low(table, FALSE, force);
 }
 
 /**********************************************************************//**
@@ -4272,7 +4291,7 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_update_statistics_low(table, TRUE);
+	dict_update_statistics_low(table, TRUE, TRUE);
 
 	fprintf(stderr,
 		"--------------------------------------\n"

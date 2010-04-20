@@ -456,6 +456,9 @@ struct dict_table_struct{
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
+	mutex_t		stats_mutex;
+				/*!< mutex used in dict_update_statistics_low
+				to prevent concurrent collection for a table */
 	ib_int64_t	stat_n_rows;
 				/*!< approximate number of rows in the table;
 				we periodically calculate new estimates */

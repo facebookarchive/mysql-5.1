@@ -1,0 +1,38 @@
+drop table if exists open_deferred_fail;
+create table open_deferred_fail(i int primary key) engine=innodb;
+insert into open_deferred_fail values (1);
+flush tables;
+select * from open_deferred_fail;
+i
+1
+flush tables;
+select * from open_deferred_fail;
+i
+1
+flush tables;
+select * from open_deferred_fail;
+i
+1
+flush tables;
+select * from open_deferred_fail;
+i
+1
+flush tables;
+select * from open_deferred_fail;
+i
+1
+ERROR 42S02: Table 'foo.open_deferred_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_fail' doesn't exist
+flush tables;
+select * from open_deferred_fail;
+i
+1
+drop table open_deferred_fail;

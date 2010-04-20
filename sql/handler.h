@@ -1203,7 +1203,14 @@ public:
   }
   /* ha_ methods: pubilc wrappers for private virtual API */
 
-  int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
+  /**
+    When stats_on_open is FALSE then handler::open_fast will be called.
+    The caller of ha_open must guarantee that handler::open_deferred will be
+    called later and hopefully after LOCK_open has been unlocked.
+  */
+  int ha_open(TABLE *table, const char *name, int mode, int test_if_locked,
+              bool stats_on_open);
+
   int ha_index_init(uint idx, bool sorted)
   {
     int result;
@@ -1794,6 +1801,13 @@ public:
   */
   void update_global_table_stats(THD *thd);
 
+  /**
+    This does work deferred from the ::open_fast call to do work that was
+    too slow to be done when LOCK_open was locked.
+    @return 0 on success
+  */
+  virtual int open_deferred() { return 0; }
+
 protected:
   /* Service methods for use by storage engines. */
   void ha_statistic_increment(ulong SSV::*offset) const;
@@ -1822,6 +1836,14 @@ private:
     overridden by the storage engine class. To call these methods, use
     the corresponding 'ha_*' method above.
   */
+
+  /**
+    Similar to ::open except it is allowed to defer slow operations to
+    the ::open_deferred call that will immediately follow after LOCK_open
+    has been unlocked.
+  */
+  virtual int open_fast(const char *name, int mode, uint test_if_locked)
+  { return open(name, mode, test_if_locked); }
 
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
   virtual int index_init(uint idx, bool sorted) { active_index= idx; return 0; }

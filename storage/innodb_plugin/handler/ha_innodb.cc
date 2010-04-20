@@ -3408,6 +3408,37 @@ ha_innobase::open(
 	int		mode,		/*!< in: not used */
 	uint		test_if_locked)	/*!< in: not used */
 {
+	return open_internal(name, mode, test_if_locked, TRUE);
+}
+
+/*****************************************************************//**
+Faster than ::open, ::open_deferred will be called later after
+LOCK_open has been unlocked.
+@return	1 if error, 0 if success */
+UNIV_INTERN
+int
+ha_innobase::open_fast(
+/*==============*/
+	const char*	name,		/*!< in: table name */
+	int		mode,		/*!< in: not used */
+	uint		test_if_locked)	/*!< in: not used */
+{
+	return open_internal(name, mode, test_if_locked, FALSE);
+}
+
+/*****************************************************************//**
+Creates and opens a handle to a table which already exists in an InnoDB
+database.
+@return	1 if error, 0 if success */
+UNIV_INTERN
+int
+ha_innobase::open_internal(
+/*==============*/
+	const char*	name,		/*!< in: table name */
+	int		mode,		/*!< in: not used */
+	uint		test_if_locked,	/*!< in: not used */
+	bool		get_stats)	/*!< in: whether to get stats */
+{
 	dict_table_t*	ib_table;
 	char		norm_name[1000];
 	THD*		thd;
@@ -3462,7 +3493,7 @@ ha_innobase::open(
 	is_part = strstr(norm_name, "#P#");
 retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
-	ib_table = dict_table_get(norm_name, TRUE);
+	ib_table = dict_table_get(norm_name, TRUE, get_stats);
 	
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
@@ -3596,6 +3627,42 @@ retry:
 			dict_table_get_format(prebuilt->table));
 	}
 
+	if (get_stats)
+		sample_table_stats();
+        
+	DBUG_RETURN(0);
+}
+
+/*****************************************************************//**
+Collects statistics and initializes autoincrement fields. This work
+might not be done in ::open to reduce duration for which LOCK_open
+is locked.
+
+@return	!0 if error, 0 if success */
+UNIV_INTERN
+int
+ha_innobase::open_deferred()
+/*=====================*/
+{
+	DBUG_ENTER("ha_innobase::open_stats");
+
+	dict_update_statistics(prebuilt->table, FALSE);
+
+	sample_table_stats();
+
+	DBUG_RETURN(0);
+}
+
+/*****************************************************************//**
+Helper function for ::open and ::open_stats to get table stats. */
+
+UNIV_INTERN
+void
+ha_innobase::sample_table_stats()
+/*=============================*/
+{
+	DBUG_ENTER("ha_innobase::sample_table_stats");
+
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
 	/* Only if the table has an AUTOINC column. */
@@ -3608,6 +3675,7 @@ retry:
 		data dictionary, we only init the autoinc counter once, the
 		first time the table is loaded. We can safely reuse the
 		autoinc value from a previous MySQL open. */
+
 		if (dict_table_autoinc_read(prebuilt->table) == 0) {
 
 			error = innobase_initialize_autoinc();
@@ -3617,8 +3685,9 @@ retry:
 		dict_table_autoinc_unlock(prebuilt->table);
 	}
 
-	DBUG_RETURN(0);
+	DBUG_VOID_RETURN;
 }
+
 
 UNIV_INTERN
 uint
@@ -6751,7 +6820,7 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_get(norm_name, FALSE);
+	innobase_table = dict_table_get(norm_name, FALSE, TRUE);
 
 	DBUG_ASSERT(innobase_table != 0);
 
@@ -7459,7 +7528,7 @@ ha_innobase::info(
 
 			prebuilt->trx->op_info = "updating table statistics";
 
-			dict_update_statistics(ib_table);
+			dict_update_statistics(ib_table, TRUE);
 
 			prebuilt->trx->op_info = "returning various info to MySQL";
 		}
@@ -7680,14 +7749,8 @@ ha_innobase::analyze(
 	THD*		thd,		/*!< in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
-	/* Serialize ANALYZE TABLE inside InnoDB, see
-	Bug#38996 Race condition in ANALYZE TABLE */
-	pthread_mutex_lock(&analyze_mutex);
-
 	/* Simply call ::info() with all the flags */
 	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
-
-	pthread_mutex_unlock(&analyze_mutex);
 
 	return(0);
 }

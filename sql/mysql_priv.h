@@ -2188,6 +2188,10 @@ extern my_bool opt_log_slow_extra;
 
 extern my_bool rpl_transaction_enabled;
 
+extern ulonglong opened_fast, opened_not_fast;
+
+extern double opened_tables_secs;
+
 #ifdef HAVE_INNODB_BINLOG
 /*
   Added for rpl_transaction_enabled patch. Alas, this exports a few
@@ -2297,7 +2301,8 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
 void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-                          TABLE *outparam, bool is_create_table);
+                          TABLE *outparam, bool is_create_table,
+                          bool stats_on_open);
 int readfrm(const char *name, uchar **data, size_t *length);
 int writefrm(const char* name, const uchar* data, size_t len);
 int closefrm(TABLE *table, bool free_share);

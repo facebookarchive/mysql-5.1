@@ -1532,7 +1532,7 @@ row_ins_check_foreign_constraints(
 
 			if (foreign->referenced_table == NULL) {
 				dict_table_get(foreign->referenced_table_name,
-					       FALSE);
+					       FALSE, TRUE);
 			}
 
 			if (0 == trx->dict_operation_lock_mode) {

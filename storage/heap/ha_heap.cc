@@ -150,7 +150,7 @@ handler *ha_heap::clone(MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
   if (new_handler && !new_handler->ha_open(table, file->s->name, table->db_stat,
-                                           HA_OPEN_IGNORE_IF_LOCKED))
+                                           HA_OPEN_IGNORE_IF_LOCKED, TRUE))
     return new_handler;
   return NULL;  /* purecov: inspected */
 }

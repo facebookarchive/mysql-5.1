@@ -10621,7 +10621,8 @@ static bool open_tmp_table(TABLE *table)
 {
   int error;
   if ((error=table->file->ha_open(table, table->s->table_name.str,O_RDWR,
-                                  HA_OPEN_TMP_TABLE | HA_OPEN_INTERNAL_TABLE)))
+                                  HA_OPEN_TMP_TABLE | HA_OPEN_INTERNAL_TABLE,
+                                  TRUE)))
   {
     table->file->print_error(error,MYF(0)); /* purecov: inspected */
     table->db_stat=0;

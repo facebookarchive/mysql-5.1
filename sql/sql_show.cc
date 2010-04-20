@@ -3225,7 +3225,7 @@ static int fill_schema_table_from_frm(THD *thd,TABLE *table,
       !open_table_from_share(thd, share, table_name->str, 0,
                              (READ_KEYINFO | COMPUTE_TYPES |
                               EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
-                             thd->open_options, &tbl, FALSE))
+                             thd->open_options, &tbl, FALSE, TRUE))
   {
     tbl.s= share;
     table_list.table= &tbl;

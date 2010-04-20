@@ -654,7 +654,7 @@ ha_innobase::add_index(
 	trx_start_if_not_started(trx);
 
 	innodb_table = indexed_table
-		= dict_table_get(prebuilt->table->name, FALSE);
+		= dict_table_get(prebuilt->table->name, FALSE, TRUE);
 
 	/* Check if the index name is reserved. */
 	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {

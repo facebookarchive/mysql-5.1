@@ -471,7 +471,7 @@ handler *ha_myisammrg::clone(MEM_ROOT *mem_root)
   }
 
   if (new_handler->ha_open(table, table->s->normalized_path.str, table->db_stat,
-                            HA_OPEN_IGNORE_IF_LOCKED))
+                            HA_OPEN_IGNORE_IF_LOCKED, TRUE))
   {
     delete new_handler;
     return NULL;

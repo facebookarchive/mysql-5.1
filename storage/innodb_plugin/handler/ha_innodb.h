@@ -101,7 +101,10 @@ class ha_innobase: public handler
 	void innodb_srv_conc_enter_innodb(trx_t* trx, bool write);
 	void innodb_srv_conc_exit_innodb(trx_t* trx, bool write);
 
-	/* Init values for the class: */
+	void sample_table_stats();
+	int open_internal(const char *name, int mode, uint test_if_locked,
+                          bool get_stats);
+
  public:
 	ha_innobase(handlerton *hton, TABLE_SHARE *table_arg);
 	~ha_innobase();
@@ -122,6 +125,8 @@ class ha_innobase: public handler
 	const key_map* keys_to_use_for_scanning();
 
 	int open(const char *name, int mode, uint test_if_locked);
+	int open_fast(const char *name, int mode, uint test_if_locked);
+	int open_deferred();
 	int close(void);
 	double scan_time();
 	double read_time(uint index, uint ranges, ha_rows rows);

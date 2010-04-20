@@ -4374,7 +4374,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(0);				// Can't open frm file
     }
 
-    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE))
+    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE, TRUE))
     {
       release_table_share(share, RELEASE_NORMAL);
       pthread_mutex_unlock(&LOCK_open);

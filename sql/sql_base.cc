@@ -30,6 +30,9 @@
 #include <io.h>
 #endif
 
+// Time in open_table() when LOCK_open is locked
+double opened_tables_secs= 0;
+
 #define FLAGSTR(S,F) ((S) & (F) ? #F " " : "")
 
 /**
@@ -99,7 +102,7 @@ static bool table_def_inited= 0;
 static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
 			     const char *alias,
                              char *cache_key, uint cache_key_length,
-			     MEM_ROOT *mem_root, uint flags);
+			     MEM_ROOT *mem_root, uint flags, bool stats_on_open);
 static void free_cache_entry(TABLE *entry);
 static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                          uint db_stat, uint prgflag,
@@ -2286,7 +2289,8 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in)
 
   if (open_unireg_entry(thd, table, table_list, table_name,
                         table->s->table_cache_key.str,
-                        table->s->table_cache_key.length, thd->mem_root, 0))
+                        table->s->table_cache_key.length, thd->mem_root, 0,
+                        TRUE))
   {
     intern_close_table(table);
     /*
@@ -2543,7 +2547,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
   char	*alias= table_list->alias;
+  my_bool new_table= FALSE;
   HASH_SEARCH_STATE state;
+  my_fast_timer_t timer;
+
+  my_get_fast_timer(&timer);
+
   DBUG_ENTER("open_table");
 
   /* Parsing of partitioning information from .frm needs thd->lex set up. */
@@ -2693,7 +2702,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         table= &tab;
         VOID(pthread_mutex_lock(&LOCK_open));
         if (!open_unireg_entry(thd, table, table_list, alias,
-                              key, key_length, mem_root, 0))
+                              key, key_length, mem_root, 0, TRUE))
         {
           DBUG_ASSERT(table_list->view != 0);
           VOID(pthread_mutex_unlock(&LOCK_open));
@@ -2933,8 +2942,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       DBUG_RETURN(NULL);
     }
 
+    new_table= TRUE;
     error= open_unireg_entry(thd, table, table_list, alias, key, key_length,
-                             mem_root, (flags & OPEN_VIEW_NO_PARSE));
+                             mem_root, (flags & OPEN_VIEW_NO_PARSE), FALSE);
     if (error > 0)
     {
       my_free((uchar*)table, MYF(0));
@@ -2968,6 +2978,43 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   check_unused();				// Debugging call
 
   VOID(pthread_mutex_unlock(&LOCK_open));
+
+  opened_tables_secs += my_fast_timer_diff_now(&timer, NULL);
+
+  if (new_table)
+  {
+    /* For engines that collect stats on open (innodb) do that now after
+       LOCK_open has been released.
+    */
+    int error= table->file->open_deferred();
+
+    DBUG_EXECUTE_IF("open_deferred_fail",
+                    {
+                      // After five opens, fail 10 times for open_deferred_fail
+                      static int counter=0;
+                      if (!strcmp("open_deferred_fail",
+                                  table->s->table_name.str))
+                      {
+                        if (counter > 5)
+                        {
+                          error= HA_ERR_NO_SUCH_TABLE;
+                          my_error(ER_NO_SUCH_TABLE, MYF(0), "foo",
+                                   "open_deferred_fail");
+                        }
+                        counter++;
+                        if (counter > 15) { counter= 0; }
+                      }
+                    });
+
+    if (error)
+    {
+      VOID(pthread_mutex_lock(&LOCK_open));
+      VOID(hash_delete(&open_cache,(uchar*) table));
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      DBUG_RETURN(NULL);
+    }
+  }
+
   if (refresh)
   {
     table->next=thd->open_tables;		/* Link into simple list */
@@ -3077,7 +3124,7 @@ bool reopen_table(TABLE *table)
 			table->alias,
                         table->s->table_cache_key.str,
                         table->s->table_cache_key.length,
-                        thd->mem_root, 0))
+                        thd->mem_root, 0, TRUE))
     goto end;
 
   /* This list copies variables set by open_table */
@@ -3850,6 +3897,7 @@ check_and_update_table_version(THD *thd,
     mem_root		temporary mem_root for parsing
     flags               the OPEN_VIEW_NO_PARSE flag to be passed to
                         openfrm()/open_new_frm()
+    stats_on_open       collect table stats in call to handler::open
 
   NOTES
    Extra argument for open is taken from thd->open_options
@@ -3863,7 +3911,7 @@ check_and_update_table_version(THD *thd,
 static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
                              const char *alias,
                              char *cache_key, uint cache_key_length,
-                             MEM_ROOT *mem_root, uint flags)
+                             MEM_ROOT *mem_root, uint flags, bool stats_on_open)
 {
   int error;
   TABLE_SHARE *share;
@@ -3945,7 +3993,8 @@ retry:
                                                HA_TRY_READ_ONLY),
                                        (READ_KEYINFO | COMPUTE_TYPES |
                                         EXTRA_RECORD),
-                                       thd->open_options, entry, FALSE)))
+                                       thd->open_options, entry, FALSE,
+                                       stats_on_open)))
   {
     if (error == 7)                             // Table def changed
     {
@@ -4008,7 +4057,7 @@ retry:
                                        HA_TRY_READ_ONLY),
                                READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                                ha_open_options | HA_OPEN_FOR_REPAIR,
-                               entry, FALSE) || ! entry->file ||
+                               entry, FALSE, stats_on_open) || ! entry->file ||
         (entry->file->is_crashed() && entry->file->ha_check_and_repair(thd)))
      {
        /* Give right error message */
@@ -5560,7 +5609,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
                                     HA_GET_INDEX),
                             READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                             ha_open_options,
-                            tmp_table, FALSE))
+                            tmp_table, FALSE, TRUE))
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);

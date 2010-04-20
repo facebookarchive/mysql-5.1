@@ -53,6 +53,12 @@ ulong total_ha_2pc= 0;
 /* size of savepoint storage area (see ha_init) */
 ulong savepoint_alloc_size= 0;
 
+/** Count number of times ha_open called with stats collection enabled */
+ulonglong opened_fast= 0;
+
+/** Count number of times ha_open called with stats collection disabled */
+ulonglong opened_not_fast= 0;
+
 static const LEX_STRING sys_table_aliases[]=
 {
   { C_STRING_WITH_LEN("INNOBASE") },  { C_STRING_WITH_LEN("INNODB") },
@@ -2064,7 +2070,8 @@ handler *handler::clone(MEM_ROOT *mem_root)
   if (new_handler && !new_handler->ha_open(table,
                                            table->s->normalized_path.str,
                                            table->db_stat,
-                                           HA_OPEN_IGNORE_IF_LOCKED))
+                                           HA_OPEN_IGNORE_IF_LOCKED,
+                                           TRUE))
     return new_handler;
   return NULL;
 }
@@ -2096,7 +2103,7 @@ THD *handler::ha_thd(void) const
     Don't wait for locks if not HA_OPEN_WAIT_IF_LOCKED is set
 */
 int handler::ha_open(TABLE *table_arg, const char *name, int mode,
-                     int test_if_locked)
+                     int test_if_locked, bool stats_on_open)
 {
   int error;
   DBUG_ENTER("handler::ha_open");
@@ -2109,7 +2116,18 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   DBUG_ASSERT(table->s == table_share);
   DBUG_ASSERT(alloc_root_inited(&table->mem_root));
 
-  if ((error=open(name,mode,test_if_locked)))
+  if (stats_on_open)
+  {
+    error=open(name,mode,test_if_locked);
+    statistic_increment(opened_not_fast, &LOCK_status);
+  }
+  else
+  {
+    error=open_fast(name,mode,test_if_locked);
+    statistic_increment(opened_fast, &LOCK_status);
+  }
+
+  if (error)
   {
     if ((error == EACCES || error == EROFS) && mode == O_RDWR &&
 	(table->db_stat & HA_TRY_READ_ONLY))
@@ -2118,6 +2136,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       error=open(name,O_RDONLY,test_if_locked);
     }
   }
+
   if (error)
   {
     my_errno= error;                            /* Safeguard */
@@ -3637,7 +3656,7 @@ int ha_create_table(THD *thd, const char *path,
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
   if (open_table_def(thd, &share, 0) ||
       open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
-                            TRUE))
+                            TRUE, TRUE))
     goto err;
 
   if (update_create_info)
@@ -3706,7 +3725,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   {
     DBUG_RETURN(3);
   }
-  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE))
+  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE, TRUE))
   {
     free_table_share(&share);
     DBUG_RETURN(3);

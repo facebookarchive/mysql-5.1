@@ -1625,6 +1625,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     prgflag   		READ_ALL etc..
     ha_open_flags	HA_OPEN_ABORT_IF_LOCKED etc..
     outparam       	result table
+    stats_on_open       FALSE when handler::open_fast, handler::open_deferred
+                        will be used instead of handler::open
 
   RETURN VALUES
    0	ok
@@ -1638,7 +1640,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-                          TABLE *outparam, bool is_create_table)
+                          TABLE *outparam, bool is_create_table,
+                          bool stats_on_open)
 {
   int error;
   uint records, i, bitmap_size;
@@ -1892,7 +1895,8 @@ partititon_err:
                            HA_OPEN_WAIT_IF_LOCKED :
                            (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
                           HA_OPEN_ABORT_IF_LOCKED :
-                           HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags))))
+                           HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags,
+                          stats_on_open))))
     {
       /* Set a flag if the table is crashed and it can be auto. repaired */
       share->crashed= ((ha_err == HA_ERR_CRASHED_ON_USAGE) &&

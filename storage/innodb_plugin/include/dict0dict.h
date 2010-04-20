@@ -385,9 +385,11 @@ dict_table_t*
 dict_table_get(
 /*===========*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		inc_mysql_count);
+	ibool		inc_mysql_count,
 					/*!< in: whether to increment the open
 					handle count on the table */
+	ibool		get_stats);	/*!< in: whether to call
+					dict_update_statistics */
 /**********************************************************************//**
 Returns a index object, based on table and index id, and memoryfixes it.
 @return	index, NULL if does not exist */
@@ -1038,8 +1040,10 @@ void
 dict_update_statistics_low(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
-	ibool		has_dict_mutex);/*!< in: TRUE if the caller has the
+	ibool		has_dict_mutex,	/*!< in: TRUE if the caller has the
 					dictionary mutex */
+	ibool		force);		/*!< in: TRUE if stats are collected
+					when they already exist */
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
@@ -1047,7 +1051,10 @@ UNIV_INTERN
 void
 dict_update_statistics(
 /*===================*/
-	dict_table_t*	table);	/*!< in/out: table */
+	dict_table_t*	table,	/*!< in/out: table */
+	ibool		force_update);
+				/*!< in: whether to collect stats when
+				they already exist */
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */
 UNIV_INTERN

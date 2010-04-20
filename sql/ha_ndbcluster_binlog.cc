@@ -353,7 +353,7 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
     DBUG_RETURN(error);
   }
   if ((error= open_table_from_share(thd, table_share, "", 0 /* fon't allocate buffers */, 
-                                    (uint) READ_ALL, 0, table, FALSE)))
+                                    (uint) READ_ALL, 0, table, FALSE, TRUE)))
   {
     DBUG_PRINT("error", ("open_table_from_share failed %d my_errno: %d", error, my_errno));
     free_table_share(table_share);
