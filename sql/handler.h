@@ -1071,14 +1071,14 @@ public:
   bool has_table_stats();
 
   /* Counts for TABLE_STATISTICS */
-  ulonglong rows_inserted;   /* count rows inserted */
-  ulonglong rows_updated;    /* count rows updated */
-  ulonglong rows_deleted;    /* count rows deleted */
-  ulonglong rows_read;       /* count row read attempts that return a row */
-  ulonglong rows_requested;  /* count row read attempts, successful or not */
+  my_atomic_bigint rows_inserted;   /* count rows inserted */
+  my_atomic_bigint rows_updated;    /* count rows updated */
+  my_atomic_bigint rows_deleted;    /* count rows deleted */
+  my_atomic_bigint rows_read;       /* count row read attempts that return a row */
+  my_atomic_bigint rows_requested;  /* count row read attempts, successful or not */
   my_io_perf_t table_io_perf_read;/* per table IO perf counters */
   my_io_perf_t table_io_perf_write;/* per table IO perf counters */
-  ulonglong index_inserts;   /* per table secondary index inserts */
+  my_atomic_bigint index_inserts;   /* per table secondary index inserts */
 
   ha_statistics():
     data_file_length(0), max_data_file_length(0),

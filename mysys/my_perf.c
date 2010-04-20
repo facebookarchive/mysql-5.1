@@ -76,11 +76,11 @@ void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
     longlong requests, longlong svc_usecs, longlong wait_usecs,
     longlong old_ios)
 {
-  my_atomic_add64(&sum->bytes, bytes);
-  my_atomic_add64(&sum->requests, requests);
+  my_atomic_add_bigint(&sum->bytes, bytes);
+  my_atomic_add_bigint(&sum->requests, requests);
 
-  my_atomic_add64(&sum->svc_usecs, svc_usecs);
-  my_atomic_add64(&sum->wait_usecs, wait_usecs);
+  my_atomic_add_bigint(&sum->svc_usecs, svc_usecs);
+  my_atomic_add_bigint(&sum->wait_usecs, wait_usecs);
 
   // In the unlikely case that two threads attempt to update the max
   // value at the same time, only the first will succeed.  It's possible
@@ -88,15 +88,15 @@ void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
   // would rather error on the side of simplicity and avoid looping the
   // compare-and-swap.
 
-  longlong old_svc_usecs_max = sum->svc_usecs_max;
+  my_atomic_bigint old_svc_usecs_max = sum->svc_usecs_max;
   if (svc_usecs > old_svc_usecs_max)
-    my_atomic_cas64(&sum->svc_usecs_max, &old_svc_usecs_max, svc_usecs);
+    my_atomic_cas_bigint(&sum->svc_usecs_max, &old_svc_usecs_max, svc_usecs);
 
-  longlong old_wait_usecs_max = sum->wait_usecs_max;
+  my_atomic_bigint old_wait_usecs_max = sum->wait_usecs_max;
   if (wait_usecs > old_wait_usecs_max)
-    my_atomic_cas64(&sum->wait_usecs_max, &old_wait_usecs_max, wait_usecs);
+    my_atomic_cas_bigint(&sum->wait_usecs_max, &old_wait_usecs_max, wait_usecs);
 
-  my_atomic_add64(&sum->old_ios, old_ios);
+  my_atomic_add_bigint(&sum->old_ios, old_ios);
 }
 
 

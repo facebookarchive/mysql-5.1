@@ -92,13 +92,13 @@ typedef ulonglong my_fast_timer_t;
 
 /* Struct used for IO performance counters */
 struct my_io_perf_struct {
-  volatile longlong bytes;
-  volatile longlong requests;
-  volatile longlong svc_usecs; /*!< time to do read or write operation */
-  volatile longlong svc_usecs_max;
-  volatile longlong wait_usecs; /*!< total time in the request array */
-  volatile longlong wait_usecs_max;
-  volatile longlong old_ios; /*!< requests that take too long */
+  volatile my_atomic_bigint bytes;
+  volatile my_atomic_bigint requests;
+  volatile my_atomic_bigint svc_usecs; /*!< time to do read or write operation */
+  volatile my_atomic_bigint svc_usecs_max;
+  volatile my_atomic_bigint wait_usecs; /*!< total time in the request array */
+  volatile my_atomic_bigint wait_usecs_max;
+  volatile my_atomic_bigint old_ios; /*!< requests that take too long */
 };
 typedef struct my_io_perf_struct my_io_perf_t;
 

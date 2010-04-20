@@ -1592,6 +1592,25 @@ static inline double rint(double x)
 }
 #endif /* HAVE_RINT */
 
+/* TODO: improve this for other platforms on which atomic cas and add work
+         on 64-bit integers. This can define MY_ATOMIC_64. This must define
+         the my_atomic_bigint typedef.
+*/
+#if defined(__x86_64__)
+
+/* Largest integer for which atomic operations are supported. */
+typedef int64 my_atomic_bigint;
+
+/* Set when atomic operations are supported for 64-bit integers */
+#define MY_ATOMIC_64 1
+
+#else
+
+typedef int32 my_atomic_bigint;
+#undef MY_ATOMIC_64
+
+#endif
+
 /* 
   MYSQL_PLUGIN_IMPORT macro is used to export mysqld data
   (i.e variables) for usage in storage engine loadable plugins.

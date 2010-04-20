@@ -4471,7 +4471,8 @@ os_io_perf_print(
 		"%lld requests, %lld old, %.2f bytes/r, "
 		"svc: %.2f secs, %.2f msecs/r, %.2f max msecs, "
 		"wait: %.2f secs %.2f msecs/r, %.2f max msecs",
-		perf->requests, perf->old_ios,
+		(long long) perf->requests,
+		(long long) perf->old_ios,
 		perf->bytes / nzero_requests,
 		/* svc: starts here */
 		perf->svc_usecs / 1000000.0,

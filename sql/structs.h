@@ -247,16 +247,16 @@ typedef struct st_table_stats {
   char hash_key[NAME_LEN * 2 + 2];
   int hash_key_len;          /* table->s->key_length for the table */
 
-  volatile longlong rows_inserted;   /* Number of rows inserted */
-  volatile longlong rows_updated;    /* Number of rows updated */
-  volatile longlong rows_deleted;    /* Number of rows deleted */
-  volatile longlong rows_read;       /* Number of rows read for this table */
-  volatile longlong rows_requested;  /* Number of row read attempts for
+  volatile my_atomic_bigint rows_inserted;   /* Number of rows inserted */
+  volatile my_atomic_bigint rows_updated;    /* Number of rows updated */
+  volatile my_atomic_bigint rows_deleted;    /* Number of rows deleted */
+  volatile my_atomic_bigint rows_read;       /* Number of rows read for this table */
+  volatile my_atomic_bigint rows_requested;  /* Number of row read attempts for
                                         this table.  This counts requests
                                          that do not return a row. */
   my_io_perf_t io_perf_read;         /* Read IO performance counters */
   my_io_perf_t io_perf_write;        /* Write IO performance counters */
-  volatile longlong index_inserts;  /* Number of secondary index inserts. */
+  volatile my_atomic_bigint index_inserts;  /* Number of secondary index inserts. */
   handlerton *engine_type;
 } TABLE_STATS;
 

@@ -96,13 +96,34 @@ extern void my_atomic_store ## S(int ## S volatile *a, int ## S v);
 make_atomic_cas( 8)
 make_atomic_cas(16)
 make_atomic_cas(32)
+
+#if defined(MY_ATOMIC_64)
+
 make_atomic_cas(64)
+#define my_atomic_cas_bigint(a,b,c) my_atomic_cas64((a),(b),(c))
+
+#else
+
+#define my_atomic_cas_bigint(a,b,c) my_atomic_cas32((a),(b),(c))
+
+#endif
+
 make_atomic_cas(ptr)
 
 make_atomic_add( 8)
 make_atomic_add(16)
 make_atomic_add(32)
+
+#if defined(MY_ATOMIC_64)
+
 make_atomic_add(64)
+#define my_atomic_add_bigint(a,b) my_atomic_add64((a),(b))
+
+#else
+
+#define my_atomic_add_bigint(a,b) my_atomic_add32((a),(b))
+
+#endif
 
 make_atomic_load( 8)
 make_atomic_load(16)
