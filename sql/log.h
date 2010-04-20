@@ -249,8 +249,8 @@ private:
    * When the binlog does flush, LOCK_log is held, so all binlog entries
    * will be in the same order as innodb commits in the innodb transaction log.
    */
-  ulonglong current_ticket;
-  volatile uint64 next_ticket;
+  my_atomic_bigint current_ticket;
+  volatile my_atomic_bigint next_ticket;
   pthread_cond_t binlog_commit_cond;
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   pthread_mutex_t LOCK_index;

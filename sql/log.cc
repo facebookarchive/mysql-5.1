@@ -4080,11 +4080,7 @@ err:
 void MYSQL_BIN_LOG::enqueue_thread(THD *thd) {
   if (force_binlog_order)
   {
-    // thd->ticket and next_ticket are unsigned, but my_atomic_add
-    // only operates on signed integers. So we cast to int64 to get
-    // the atomic add, but rely on the types to keep the rest of the
-    // operations (ie, comparisons) unsigned.
-    thd->ticket = my_atomic_add64((volatile int64*)&next_ticket, 1);
+    thd->ticket = my_atomic_add_bigint(&next_ticket, 1);
   }
 }
 
@@ -4108,13 +4104,21 @@ void MYSQL_BIN_LOG::dequeue_thread_in_order(THD *thd)
   if (force_binlog_order)
   {
     safe_mutex_assert_owner(&LOCK_log);
+    // We prefer to reason about the tickets assuming the range is 0 to maxval
+    // for unsigned 4 or 8 byte int. But atomic operations are provided for
+    // signed int. So we do that math using signed ints and comparisons using
+    // unsigned ints.
+    //
     // thd->ticket is initialized to zero when a new thd is created, and it is
     // only currently set to nonzero by innobase_xa_prepare().
-    // current_ticket starts at 1 and only increases (well, until 2^64-1 innodb
-    // transactions have completed, after which it will roll over)
-    // So, thd->ticket <= current_ticket for all non-innodb-transaction binlog
-    // writes, so this will only affect innodb transactions in the binlog
-    while (thd->ticket > current_ticket) {
+    // current_ticket starts at 1 and only increases (well, until the maxval
+    // for my_atomic_bigint transactions have completed, after which it will
+    // roll over) So, thd->ticket <= current_ticket for all
+    // non-innodb-transaction binlog writes, so this will only affect innodb
+    // transactions in the binlog
+    //
+    // TODO(rmcelroy): make this work when the next_ticket rolls over
+    while ((ulonglong) thd->ticket > (ulonglong) current_ticket) {
       pthread_cond_wait(&binlog_commit_cond, &LOCK_log);
     }
   }

@@ -2354,7 +2354,7 @@ private:
   MEM_ROOT main_mem_root;
 public:
   /** ticket for in-order commit */
-  ulonglong ticket;
+  my_atomic_bigint ticket;
 };
 
 
