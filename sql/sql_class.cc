@@ -1970,16 +1970,20 @@ bool select_export::send_data(List<Item> &items)
                      (!exchange->opt_enclosed || result_type == STRING_RESULT));
     res=item->str_result(&tmp);
     if (res && !my_charset_same(write_cs, res->charset()) &&
-        !my_charset_same(write_cs, &my_charset_bin))
+        !my_charset_same(write_cs, &my_charset_bin) &&
+        !my_charset_same(res->charset(), &my_charset_bin))
     {
       const char *well_formed_error_pos;
       const char *cannot_convert_error_pos;
       const char *from_end_pos;
       const char *error_pos;
       uint32 bytes;
-      bytes= well_formed_copy_nchars(write_cs, cvt_buff, sizeof(cvt_buff),
+      if (res->length() * MAX_MBWIDTH + 1 > cvt_str.alloced_length())
+        cvt_str.realloc(res->length() * MAX_MBWIDTH + 1);
+      bytes= well_formed_copy_nchars(write_cs, cvt_str.c_ptr_quick(),
+                                     cvt_str.alloced_length(),
                                      res->charset(), res->ptr(), res->length(),
-                                     sizeof(cvt_buff),
+                                     cvt_str.alloced_length(),
                                      &well_formed_error_pos,
                                      &cannot_convert_error_pos,
                                      &from_end_pos);
