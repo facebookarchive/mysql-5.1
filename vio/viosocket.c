@@ -240,11 +240,20 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
 
 
 my_bool
-vio_should_retry(Vio * vio __attribute__((unused)))
+vio_should_retry(Vio * vio)
 {
-  int en = socket_errno;
-  return (en == SOCKET_EAGAIN || en == SOCKET_EINTR ||
-	  en == SOCKET_EWOULDBLOCK);
+ int en = socket_errno;
+ /*
+   man 2 read write
+     EAGAIN or EWOULDBLOCK when a socket is a non-blocking mode means
+     that the read/write would block.
+   man 7 socket
+     EAGAIN or EWOULDBLOCK when a socket is in a blocking mode means
+     that the corresponding receiving or sending timeout was reached.
+ */
+ return  en == SOCKET_EINTR ||
+         (!vio_is_blocking(vio) &&
+           (en == SOCKET_EAGAIN || en == SOCKET_EWOULDBLOCK));
 }
 
 
