@@ -1196,10 +1196,13 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 CREATE TABLE t1  (c1 INTEGER AUTO_INCREMENT, PRIMARY KEY (c1)) ENGINE=InnoDB;
 INSERT INTO  t1 VALUES (NULL), (2), (-685113344), (NULL);
-ERROR HY000: Failed to read auto-increment value from storage engine
 INSERT INTO  t1 VALUES (4), (5), (6), (NULL);
-SELECT * FROM t1 where c1 >= 4;
+SELECT * FROM t1;
 c1
+-685113344
+1
+2
+3
 4
 5
 6
