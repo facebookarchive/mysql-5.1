@@ -2592,10 +2592,7 @@ innobase_alter_table_flags(
 {
 	return(HA_ONLINE_ADD_INDEX_NO_WRITES
 		| HA_ONLINE_DROP_INDEX_NO_WRITES
-		/* Current InnoDB doesn't sort unique indexes along mysqld's order
-		   It is dangerous to use index. So it is disabled until
-		   the bug http://bugs.mysql.com/47622 */
-		/* | HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES */
+		| HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES
 		| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES
 		| HA_ONLINE_ADD_PK_INDEX_NO_WRITES);
 }
