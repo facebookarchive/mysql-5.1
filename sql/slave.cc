@@ -3185,6 +3185,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
 
  err:
 
+#ifdef HAVE_INNODB_BINLOG
   /*
      Last event executed may not have been a commit to InnoDB. It may have
      been a MyISAM change. Update InnoDB to prevent a replay of it.
@@ -3192,6 +3193,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   sql_print_information("Slave SQL thread set state in InnoDB on shutdown");
   ha_set_slave(thd, rli->group_relay_log_name, rli->group_relay_log_pos,
                rli->group_master_log_name, rli->group_master_log_pos);
+#endif
 
   /*
     Some events set some playgrounds, which won't be cleared because thread
