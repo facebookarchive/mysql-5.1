@@ -1206,7 +1206,7 @@ void my_net_set_read_retry_callback(NET *net, uint timeout,
 void my_net_set_read_timeout_ms(NET *net, uint64 timeout_ms)
 {
   DBUG_ENTER("my_net_set_read_timeout_ms");
-  DBUG_PRINT("enter", ("timeout_ms: %d", timeout_ms));
+  DBUG_PRINT("enter", ("timeout_ms: %lld", timeout_ms));
   // when using alarms we must round up the polling interval to seconds
   net->read_timeout= (timeout_ms + 999) / 1000;
   net->read_timeout_ms = timeout_ms;
