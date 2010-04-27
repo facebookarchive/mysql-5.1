@@ -4143,6 +4143,7 @@ bool MYSQL_BIN_LOG::flush_and_sync(THD *thd)
   double fsync_time;
   safe_mutex_assert_owner(&LOCK_log);
 
+  // If thd has already been dequeued, this is a no-op. Nifty!
   dequeue_thread_in_order(thd);
 
   if (flush_io_cache(&log_file))
@@ -4399,11 +4400,14 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       Decide if we should write to the log file directly or to the
       transaction log.
     */
-    if (pending->get_cache_stmt() || my_b_tell(&trx_data->trans_log))
+    if (pending->get_cache_stmt() || my_b_tell(&trx_data->trans_log)) {
       file= &trx_data->trans_log;
+    } else {
+      dequeue_thread_in_order(thd);
+    }
 
     /*
-      If we are writing to the log file directly, we could avoid
+      If we are not writing to the log file directly, we could avoid
       locking the log. This does not work since we need to step the
       m_table_map_version below, and that change has to be protected
       by the LOCK_log mutex.
@@ -4566,6 +4570,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     if (file == &log_file)
     {
       pthread_mutex_lock(&LOCK_log);
+      dequeue_thread_in_order(thd);
     }
 
     /*
@@ -4948,8 +4953,10 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
     { C_STRING_WITH_LEN("error writing to the binary log") };
   Incident incident= INCIDENT_LOST_EVENTS;
   Incident_log_event ev(thd, incident, write_error_msg);
-  if (lock)
+  if (lock) {
     pthread_mutex_lock(&LOCK_log);
+    dequeue_thread_in_order(thd);
+  }
   error= ev.write(&log_file);
   if (lock)
   {
@@ -4992,6 +4999,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
 {
   DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
   VOID(pthread_mutex_lock(&LOCK_log));
+  dequeue_thread_in_order(thd);
 
   /* NULL would represent nothing to replicate after ROLLBACK */
   DBUG_ASSERT(commit_event != NULL);
