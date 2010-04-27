@@ -172,16 +172,19 @@ struct os_aio_array_struct{
 /** Array of events used in simulated aio */
 static os_event_t*	os_aio_segment_wait_events	= NULL;
 
-/* Per thread buffer used for merged IO requests. Used by
+/** Per thread buffer used for merged IO requests. Used by
 os_aio_simulated_handle so that a buffer doesn't have to be allocated
-for each request. */
+for each request. @{ */
 static byte* os_aio_thread_buffer[SRV_MAX_N_IO_THREADS];
 static ulint os_aio_thread_buffer_size[SRV_MAX_N_IO_THREADS];
+/* @} */
 
-/* Performance counters indexed by global segment number */
+/** Performance counters indexed by global segment number */
 static my_io_perf_t os_aio_perf[SRV_MAX_N_IO_THREADS];
 
-#define OS_AIO_OLD_USECS 2000000
+/** AIO requests are scheduled in file offset order until they are at least
+   this old and then they have priority. */
+UNIV_INTERN ulint	os_aio_old_usecs	= 2000000;
 
 /** The aio arrays for non-ibuf i/o and ibuf i/o, as well as sync aio. These
 are NULL when the module has not yet been initialized. @{ */
@@ -209,12 +212,13 @@ UNIV_INTERN ulint	os_n_file_writes_old	= 0;
 UNIV_INTERN ulint	os_n_fsyncs_old		= 0;
 UNIV_INTERN time_t	os_last_printout;
 
-/* Global counters for sync and async IO */
+/** Global counters for sync and async IO @{ */
 my_io_perf_t os_async_read_perf;
 my_io_perf_t os_async_write_perf;
 
 my_io_perf_t os_sync_read_perf;
 my_io_perf_t os_sync_write_perf;
+/* @} */
 
 /** Seconds waiting for fsync to finish */
 double os_file_flush_secs	= 0;
@@ -249,7 +253,10 @@ os_io_perf_update_wait(
 	double	wait_secs = my_fast_timer_diff(wait_start, stop_timer);
 	ulonglong wait_usecs = (ulonglong)(1000000 * wait_secs);
 	perf->wait_usecs += wait_usecs;
-        perf->wait_usecs_max = max(perf->wait_usecs_max, wait_usecs);
+	perf->wait_usecs_max = max(perf->wait_usecs_max, wait_usecs);
+
+	if (wait_usecs >= os_aio_old_usecs)
+		perf->old_ios += 1;
 }
 
 /***********************************************************************//**
@@ -4126,7 +4133,7 @@ restart:
 
 	n_consecutive = 0;
 
-	/* If there are at least OS_AIO_OLD_USECS old requests, then pick the oldest
+	/* If there are at least os_aio_old_usecs old requests, then pick the oldest
 	one to prevent starvation. If several requests have the same age,
 	then pick the one at the lowest offset. */
 
@@ -4141,8 +4148,8 @@ restart:
 			age = my_fast_timer_diff(&slot->reservation_time, &now) * 1000000;
 
                         /* Now that age is a float, age will rarely == biggest_age */
-			if ((age >= OS_AIO_OLD_USECS && age > biggest_age)
-			    || (age >= OS_AIO_OLD_USECS && age == biggest_age
+			if ((age >= os_aio_old_usecs && age > biggest_age)
+			    || (age >= os_aio_old_usecs && age == biggest_age
 				&& slot->offset < oldest_offset)) {
 
 				/* Found an i/o request */
@@ -4171,7 +4178,7 @@ restart:
 	ibool old_io = FALSE;
 	if (oldest_request) {
 		slot = oldest_request;
-		if (biggest_age >= OS_AIO_OLD_USECS) {
+		if (biggest_age >= os_aio_old_usecs) {
 			os_aio_perf[global_segment].old_ios += 1;
 			old_io = TRUE;
 		}

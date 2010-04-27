@@ -11376,6 +11376,12 @@ static MYSQL_SYSVAR_UINT(compression_level, page_compression_level,
   " (only for testing), 1 is fastest, 9 is best compression, default is 6.",
   NULL, NULL, 6, 0, 9, 0);
 
+static MYSQL_SYSVAR_ULONG(aio_old_usecs, os_aio_old_usecs,
+  PLUGIN_VAR_RQCMDARG,
+  "AIO requests are scheduled in file offset order until they are at least"
+  " this old and then they are scheduled oldest first.",
+  NULL, NULL, 2000000, 0, 10000000, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -11440,6 +11446,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(adaptive_hash_latch_cache),
   MYSQL_SYSVAR(compression_level),
   MYSQL_SYSVAR(prepare_commit_mutex),
+  MYSQL_SYSVAR(aio_old_usecs),
   NULL
 };
 

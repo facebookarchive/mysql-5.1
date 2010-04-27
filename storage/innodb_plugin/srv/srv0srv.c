@@ -1172,7 +1172,7 @@ srv_can_enter_as_lifo(
 		(srv_thread_lifo_running < srv_thread_fifo_pending)) {
 
 		trx->trx_lifo = TRUE;
-		os_atomic_increment(&srv_thread_lifo_running, 1);
+		(void) os_atomic_increment(&srv_thread_lifo_running, 1);
 		ut_ad(srv_thread_lifo_running <= srv_thread_concurrency);
 		srv_thread_lifo_scheduled++;
 		return 1;
@@ -1338,7 +1338,7 @@ retry:
 	os_event_wait(trx->trx_event);
 
 #if defined(HAVE_ATOMIC_BUILTINS)
-	os_atomic_increment(&srv_thread_fifo_pending, -1);
+	(void) os_atomic_increment(&srv_thread_fifo_pending, -1);
 	ut_ad(srv_thread_fifo_pending >= 0);
 #endif
 
@@ -1396,7 +1396,7 @@ srv_conc_force_exit_innodb(
 
 #if defined(HAVE_ATOMIC_BUILTINS)
 	if (trx->trx_lifo && trx->declared_to_be_inside_innodb)  {
-		os_atomic_increment(&srv_thread_lifo_running, -1);
+		(void) os_atomic_increment(&srv_thread_lifo_running, -1);
 		ut_ad(srv_thread_lifo_running >= 0);
 	}
 #endif
@@ -1437,7 +1437,7 @@ srv_conc_force_exit_innodb(
 
 	if (slot != NULL) {
 #if defined(HAVE_ATOMIC_BUILTINS)
-		os_atomic_increment(&srv_thread_fifo_pending, 1);
+		(void) os_atomic_increment(&srv_thread_fifo_pending, 1);
 		ut_ad(srv_thread_fifo_pending <= srv_thread_concurrency);
 #endif
 		os_event_set(event);
