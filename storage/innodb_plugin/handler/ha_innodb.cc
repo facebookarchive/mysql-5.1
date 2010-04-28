@@ -49,6 +49,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include <mysys_err.h>
 #include <mysql/plugin.h>
 
+#include "debug_sync.h"
+
 /** @file ha_innodb.cc */
 
 /* Include necessary InnoDB headers */
@@ -10323,6 +10325,7 @@ innobase_xa_prepare(
 		}
 	}
 
+	DEBUG_SYNC(thd, "after_innobase_xa_prepare");
 	return(error);
 }
 
