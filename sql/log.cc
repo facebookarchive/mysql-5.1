@@ -2326,7 +2326,6 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
     /* Explicitly done before LOCK_log is locked */
     if (current_time != last_time)
     {
-      last_time= current_time;
       struct tm start;
       localtime_r(&current_time, &start);
 
@@ -2369,8 +2368,6 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
       if (current_time != last_time)
       {
         last_time= current_time;
-        struct tm start;
-        localtime_r(&current_time, &start);
 
         /* Note that my_b_write() assumes it knows the length for this */
         if (my_b_write(&log_file, (uchar*) buff, buff_len))
