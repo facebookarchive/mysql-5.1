@@ -19983,8 +19983,8 @@ fi
 
 strip_mysql_opt_dbg_flags()
 {
-  MYSQL_CFLAGS=`echo "$MYSQL_CFLAGS" | sed "s/-Os//" | sed "s/-O3//" | sed "s/-O2//" | sed "s/-O//" | sed "s/-g[A-Za-z0-9]*//g"`
-  MYSQL_CXXFLAGS=`echo "$MYSQL_CXXFLAGS" | sed "s/-Os//" | sed "s/-O3//" | sed "s/-O2//" | sed "s/-O//" | sed "s/-g[A-Za-z0-9]*//g"`
+  MYSQL_CFLAGS=`echo "$MYSQL_CFLAGS" | sed "s/-O[0123s]\\?//" | sed "s/-g[A-Za-z0-9]*//g"`
+  MYSQL_CXXFLAGS=`echo "$MYSQL_CXXFLAGS" | sed "s/-O[0123s]\\?//" | sed "s/-g[A-Za-z0-9]*//g"`
 }
 
 # ----- AC_ARG_WITH(debug
