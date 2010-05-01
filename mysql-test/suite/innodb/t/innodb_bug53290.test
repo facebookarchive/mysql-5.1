@@ -1,0 +1,23 @@
+-- source include/have_innodb.inc
+-- source suite/innodb/include/have_innodb_plugin.inc
+
+create table foo (x bigint) engine=innodb;
+
+insert into foo () values (),(),(),(),(),(),(),(),(),(),(),();
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+insert into foo select * from foo;
+
+alter table foo add unique index `idx` (x);
+
+drop table foo;
