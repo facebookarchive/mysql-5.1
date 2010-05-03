@@ -352,6 +352,7 @@ buf_buddy_relocate_block(
 	buf_page_t*	dpage)	/*!< in: free block to relocate to */
 {
 	buf_page_t*	b;
+	mutex_t*	hash_mutex;
 
 	ut_ad(buf_pool_mutex_own());
 
@@ -371,9 +372,14 @@ buf_buddy_relocate_block(
 		break;
 	}
 
+	buf_page_hash_get(bpage->space,
+			  bpage->offset,
+			  &hash_mutex);
+
 	mutex_enter(&buf_pool_zip_mutex);
 
 	if (!buf_page_can_relocate(bpage)) {
+		buf_page_hash_mutex_exit(hash_mutex);
 		mutex_exit(&buf_pool_zip_mutex);
 		return(FALSE);
 	}
@@ -393,6 +399,7 @@ buf_buddy_relocate_block(
 
 	UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
+	buf_page_hash_mutex_exit(hash_mutex);
 	mutex_exit(&buf_pool_zip_mutex);
 	return(TRUE);
 }
@@ -446,7 +453,7 @@ buf_buddy_relocate(
 			mach_read_from_4((const byte*) src
 					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
 			mach_read_from_4((const byte*) src
-					 + FIL_PAGE_OFFSET));
+					 + FIL_PAGE_OFFSET), NULL);
 
 		if (!bpage || bpage->zip.data != src) {
 			/* The block has probably been freshly

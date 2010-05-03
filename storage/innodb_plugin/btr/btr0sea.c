@@ -185,6 +185,10 @@ btr_search_sys_create(
 	btr_search_sys = mem_alloc(sizeof(btr_search_sys_t));
 
 	btr_search_sys->hash_index = ha_create(hash_size, 0, 0);
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	btr_search_sys->hash_index->adaptive = TRUE;
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
 }
 
 /*****************************************************************//**
@@ -1827,6 +1831,7 @@ btr_search_validate(void)
 			const buf_block_t*	block
 				= buf_block_align(node->data);
 			const buf_block_t*	hash_block;
+			mutex_t*		hash_mutex;
 
 			if (UNIV_LIKELY(buf_block_get_state(block)
 					== BUF_BLOCK_FILE_PAGE)) {
@@ -1838,13 +1843,15 @@ btr_search_validate(void)
 				assertion and the comment below) */
 				hash_block = buf_block_hash_get(
 					buf_block_get_space(block),
-					buf_block_get_page_no(block));
+					buf_block_get_page_no(block),
+					&hash_mutex);
 			} else {
 				hash_block = NULL;
 			}
 
 			if (hash_block) {
 				ut_a(hash_block == block);
+				buf_page_hash_mutex_exit(hash_mutex);
 			} else {
 				/* When a block is being freed,
 				buf_LRU_search_and_free_block() first
