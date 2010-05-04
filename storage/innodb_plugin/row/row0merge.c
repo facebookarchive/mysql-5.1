@@ -1076,7 +1076,7 @@ row_merge_cmp(
 	const ulint*		offsets1,	/*!< in: first record offsets */
 	const ulint*		offsets2,	/*!< in: second record offsets */
 	const dict_index_t*	index,		/*!< in: index */
-	ibool*			null_eq)	/*!< out: set to true if
+	ibool*			null_eq)	/*!< out: set to TRUE if
 						found matching null values */
 {
 	int	cmp;
@@ -1447,7 +1447,7 @@ corrupt:
 	}
 
 	while (mrec0 && mrec1) {
-		ibool null_eq = 0;
+		ibool null_eq = FALSE;
 		switch (row_merge_cmp(mrec0, mrec1,
 				      offsets0, offsets1, index,
 				      &null_eq)) {

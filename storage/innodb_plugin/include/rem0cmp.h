@@ -149,7 +149,7 @@ cmp_rec_rec_simple(
 	const ulint*		offsets1,/*!< in: rec_get_offsets(rec1, ...) */
 	const ulint*		offsets2,/*!< in: rec_get_offsets(rec2, ...) */
 	const dict_index_t*	index,	/*!< in: data dictionary index */
-	ibool*			null_eq);/*!< out: set to true if
+	ibool*			null_eq);/*!< out: set to TRUE if
 					found matching null values */
 /*************************************************************//**
 This function is used to compare two physical records. Only the common
