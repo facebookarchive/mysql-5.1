@@ -1955,6 +1955,7 @@ static sys_var_const    sys_slave_skip_errors(&vars, "slave_skip_errors",
 static sys_var_long_ptr	sys_slave_trans_retries(&vars, "slave_transaction_retries",
 						&slave_trans_retries);
 static sys_var_sync_binlog_period sys_sync_binlog_period(&vars, "sync_binlog", &sync_binlog_period);
+static sys_var_long_ptr sys_sync_binlog_timeout_usecs(&vars, "sync_binlog_timeout_usecs", &sync_binlog_timeout_usecs);
 static sys_var_long_ptr sys_sync_relay_info_period(&vars, "sync_relay_info", &sync_relay_info_period);
 static sys_var_slave_skip_counter sys_slave_skip_counter(&vars, "sql_slave_skip_counter");
 

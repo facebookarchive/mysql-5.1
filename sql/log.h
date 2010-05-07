@@ -252,6 +252,7 @@ private:
   my_atomic_bigint current_ticket;
   volatile my_atomic_bigint next_ticket;
   pthread_cond_t binlog_commit_cond;
+  pthread_cond_t binlog_cond;
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   pthread_mutex_t LOCK_index;
   pthread_mutex_t LOCK_prep_xids;

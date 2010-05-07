@@ -587,6 +587,8 @@ my_bool rpl_transaction_enabled= FALSE;
 
 my_bool force_binlog_order= 0;
 
+ulong sync_binlog_timeout_usecs = 0;
+
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -5917,6 +5919,7 @@ enum options_mysqld
   OPT_QUERY_ALLOC_BLOCK_SIZE, OPT_QUERY_PREALLOC_SIZE,
   OPT_TRANS_ALLOC_BLOCK_SIZE, OPT_TRANS_PREALLOC_SIZE,
   OPT_SYNC_FRM, OPT_SYNC_BINLOG,
+  OPT_SYNC_BINLOG_TIMEOUT_USECS,
   OPT_SYNC_REPLICATION,
   OPT_SYNC_REPLICATION_SLAVE_ID,
   OPT_SYNC_REPLICATION_TIMEOUT,
@@ -7393,6 +7396,11 @@ The minimum value for this variable is 4096.",
    "Use 0 (default) to disable synchronous flushing.",
    (uchar**) &sync_binlog_period, (uchar**) &sync_binlog_period, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
+  {"sync-binlog-timeout-usecs", OPT_SYNC_BINLOG_TIMEOUT_USECS,
+   "Maximum time in us to wait to sync the binlog; longer periods allow fewer fsyncs, but make individual queries return more slowly"
+   "Use 0 (default) to disable timed waits, max value of 1,000,000 == 1 second",
+   (uchar**) &sync_binlog_timeout_usecs, (uchar**) &sync_binlog_timeout_usecs,
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, 1000000, 0, 1, 0},
   {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default.",
    (uchar**) &opt_sync_frm, (uchar**) &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
    0, 0, 0, 0},

@@ -2029,6 +2029,7 @@ extern ulong MYSQL_PLUGIN_IMPORT specialflag;
 #ifdef MYSQL_SERVER
 extern ulong current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
+extern ulong sync_binlog_timeout_usecs;
 extern my_bool force_binlog_order;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;

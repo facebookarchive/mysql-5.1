@@ -2563,6 +2563,7 @@ void MYSQL_BIN_LOG::cleanup()
     (void) pthread_mutex_destroy(&LOCK_index);
     (void) pthread_cond_destroy(&update_cond);
     (void) pthread_cond_destroy(&binlog_commit_cond);
+    (void) pthread_cond_destroy(&binlog_cond);
   }
   DBUG_VOID_RETURN;
 }
@@ -2587,6 +2588,7 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
   (void) pthread_cond_init(&update_cond, 0);
   (void) pthread_cond_init(&binlog_commit_cond, 0);
+  (void) pthread_cond_init(&binlog_cond, 0);
 }
 
 
@@ -4137,6 +4139,10 @@ bool MYSQL_BIN_LOG::flush_and_sync(THD *thd)
   int err=0, fd=log_file.file;
   my_fast_timer_t fsync_start;
   double fsync_time;
+
+  timespec cond_wake_time;
+  ulonglong my_fsync_count;
+
   safe_mutex_assert_owner(&LOCK_log);
 
   // If thd has already been dequeued, this is a no-op. Nifty!
@@ -4144,14 +4150,48 @@ bool MYSQL_BIN_LOG::flush_and_sync(THD *thd)
 
   if (flush_io_cache(&log_file))
     return 1;
+
   if (++sync_binlog_counter >= sync_binlog_period && sync_binlog_period)
   {
-    sync_binlog_counter= 0;
-    my_get_fast_timer(&fsync_start);
-    err=my_sync(fd, MYF(MY_WME));
-    fsync_time = my_fast_timer_diff_now(&fsync_start, NULL);
-    statistic_increment(binlog_fsync_count, &LOCK_status);
-    statistic_add(binlog_fsync_total_time, fsync_time, &LOCK_status);
+    if (sync_binlog_timeout_usecs)
+    {
+      my_fsync_count = binlog_fsync_count;
+      // it would be fun to wait here forever
+      while(clock_gettime(CLOCK_REALTIME, &cond_wake_time))
+        ;
+      // this will overflow if sync_binlog_timeout_usecs > (2^32 / 1000)
+      cond_wake_time.tv_nsec += (1000 * sync_binlog_timeout_usecs);
+      cond_wake_time.tv_sec += cond_wake_time.tv_nsec / (1000 * 1000 * 1000);
+      cond_wake_time.tv_nsec %= (1000 * 1000 * 1000);
+
+      err = pthread_cond_timedwait(&binlog_cond, &LOCK_log, &cond_wake_time);
+
+      // only do a sync if no one else has synced
+      if (my_fsync_count == binlog_fsync_count)
+      {
+        sync_binlog_counter= 0;
+        my_get_fast_timer(&fsync_start);
+        err= my_sync(fd, MYF(MY_WME));
+        fsync_time = my_fast_timer_diff_now(&fsync_start, NULL);
+        pthread_cond_broadcast(&binlog_cond);
+        statistic_increment(binlog_fsync_count, &LOCK_status);
+        statistic_add(binlog_fsync_total_time, fsync_time, &LOCK_status);
+      }
+      else
+      {
+        // a grouped commit happened
+        statistic_increment(binlog_fsync_grouped, &LOCK_status);
+      }
+    }
+    else
+    {
+      sync_binlog_counter= 0;
+      my_get_fast_timer(&fsync_start);
+      err= my_sync(fd, MYF(MY_WME));
+      fsync_time= my_fast_timer_diff_now(&fsync_start, NULL);
+      statistic_increment(binlog_fsync_count, &LOCK_status);
+      statistic_add(binlog_fsync_total_time, fsync_time, &LOCK_status);
+    }
   }
   return err;
 }
