@@ -392,6 +392,9 @@ extern srv_sys_t*	srv_sys;
 /** Should prepare_commit_mutex be aquired before writing to binlog? */
 extern my_bool innobase_prepare_commit_mutex;
 
+/** Release locks in prepare step */
+extern my_bool innobase_release_locks_early;
+
 /** Types of raw partitions in innodb_data_file_path */
 enum {
 	SRV_NOT_RAW = 0,	/*!< Not a raw partition */

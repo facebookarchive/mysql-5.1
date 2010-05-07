@@ -10264,6 +10264,12 @@ innobase_xa_prepare(
 		} else {
 			/* grab a ticket or no-op, depending on server variable */
 			thd_binlog_enqueue(thd);
+			if (innobase_release_locks_early)
+			{
+				mutex_enter(&kernel_mutex);
+				lock_release_off_kernel(trx);
+				mutex_exit(&kernel_mutex);
+			}
 		}
 	}
 
@@ -11382,6 +11388,11 @@ static MYSQL_SYSVAR_ULONG(aio_old_usecs, os_aio_old_usecs,
   " this old and then they are scheduled oldest first.",
   NULL, NULL, 2000000, 0, 10000000, 0);
 
+static MYSQL_SYSVAR_BOOL(release_locks_early, innobase_release_locks_early,
+  PLUGIN_VAR_NOCMDARG,
+  "Release row locks in the prepare stage instead of in the commit stage",
+  NULL, NULL, FALSE);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -11447,6 +11458,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(compression_level),
   MYSQL_SYSVAR(prepare_commit_mutex),
   MYSQL_SYSVAR(aio_old_usecs),
+  MYSQL_SYSVAR(release_locks_early),
   NULL
 };
 
