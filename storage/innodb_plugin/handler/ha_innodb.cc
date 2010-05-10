@@ -83,6 +83,7 @@ extern "C" {
 #include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
+#include "page0zip.h"
 }
 
 #include "ha_innodb.h"

@@ -51,6 +51,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "dict0dict.h"
 #include "log0recv.h"
 #include "page0zip.h"
+#include "trx0trx.h"
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
