@@ -1385,7 +1385,7 @@ buf_pool_page_hash_rebuild(void)
 	hash_table_free(buf_pool->page_hash);
 	buf_pool->page_hash = page_hash
 			    = ha_create(2 * buf_pool->curr_size,
-					64, SYNC_BUF_PAGE_HASH);
+					256, SYNC_BUF_PAGE_HASH);
 	zip_hash = hash_create(2 * buf_pool->curr_size);
 
 	HASH_MIGRATE(buf_pool->zip_hash, zip_hash, buf_page_t, hash,
@@ -1704,6 +1704,8 @@ buf_block_try_discard_uncompressed(
 	bpage = buf_page_hash_get(space, offset, NULL);
 
 	if (bpage) {
+		ut_ad(!buf_page_hash_mutex_own(bpage));
+		ut_ad(!mutex_own(buf_page_get_mutex(bpage)));
 		buf_LRU_free_block(bpage, FALSE, NULL);
 	}
 
