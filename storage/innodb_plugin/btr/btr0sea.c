@@ -216,13 +216,11 @@ btr_search_disable(void)
 	mutex_enter(&btr_search_enabled_mutex);
 	rw_lock_x_lock(&btr_search_latch);
 
+	btr_search_enabled = FALSE;
+
 	/* Clear all block->is_hashed flags and remove all entries
 	from btr_search_sys->hash_index. */
 	buf_pool_drop_hash_index();
-
-	/* This must come after buf_pool_drop_hash_index() to avoid
-	an infinite loop at shutdown */
-	btr_search_enabled = FALSE;
 
 	/* btr_search_enabled_mutex should guarantee this. */
 	ut_ad(!btr_search_enabled);
@@ -1035,10 +1033,11 @@ failure:
 }
 
 /********************************************************************//**
-Drops a page hash index. */
+Drops a page hash index. Ignores btr_search_enabled flag and can be
+called during shutdown. */
 UNIV_INTERN
 void
-btr_search_drop_page_hash_index(
+btr_search_drop_page_hash_index_low(
 /*============================*/
 	buf_block_t*	block)	/*!< in: block containing index page,
 				s- or x-latched, or an index page
@@ -1065,9 +1064,6 @@ btr_search_drop_page_hash_index(
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-
-	if (!btr_search_enabled)
-		return;
 
 retry:
 	rw_lock_s_lock(&btr_search_latch);
@@ -1285,6 +1281,9 @@ btr_search_build_page_hash_index(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
+
+	if (!btr_search_enabled)
+		return;
 
 	ut_ad(index);
 	ut_a(!dict_index_is_ibuf(index));

@@ -1106,7 +1106,7 @@ buf_pool_drop_hash_index(void)
 				anything.  block->is_hashed can only
 				be set on uncompressed file pages. */
 
-				btr_search_drop_page_hash_index(block);
+				btr_search_drop_page_hash_index_low(block);
 
 				rw_lock_x_unlock(&block->lock);
 

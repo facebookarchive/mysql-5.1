@@ -82,3 +82,21 @@ btr_search_info_update(
 
 	btr_search_info_update_slow(info, cursor);
 }
+
+
+/********************************************************************//**
+Drops a page hash index. */
+UNIV_INLINE
+void
+btr_search_drop_page_hash_index(
+/*============================*/
+	buf_block_t*	block)	/*!< in: block containing index page,
+				s- or x-latched, or an index page
+				for which we know that
+				block->buf_fix_count == 0 */
+{
+	if (!btr_search_enabled)
+		return;
+
+	btr_search_drop_page_hash_index_low(block);
+}
