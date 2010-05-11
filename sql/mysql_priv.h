@@ -101,16 +101,8 @@ extern query_id_t global_query_id;
 /* increment query_id and return it.  */
 inline query_id_t next_query_id() { return global_query_id++; }
 
-/* Seconds handling client commands for non-replication clients */
-extern double command_seconds;
 /* Seconds handling client commands for replication */
 extern double command_slave_seconds;
-/* Seconds parsing client commands */
-extern double parse_seconds;
-/* Seconds doing work post-parse but before execution */
-extern double pre_exec_seconds;
-/* Seconds executing client commands */
-extern double exec_seconds;
 
 /* useful constants */
 extern MYSQL_PLUGIN_IMPORT const key_map key_map_empty;
@@ -2180,8 +2172,6 @@ extern my_bool opt_log_slow_extra;
 extern my_bool rpl_transaction_enabled;
 
 extern ulonglong opened_fast, opened_not_fast;
-
-extern double opened_tables_secs;
 
 #ifdef HAVE_INNODB_BINLOG
 /*

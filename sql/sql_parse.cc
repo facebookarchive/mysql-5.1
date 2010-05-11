@@ -52,18 +52,6 @@ double fb_libmcc_usecs = 0;
    (LP)->sql_command == SQLCOM_DROP_FUNCTION ? \
    "FUNCTION" : "PROCEDURE")
 
-/* Seconds handling client commands */
-double command_seconds = 0;
-
-/* Seconds parsing client commands */
-double parse_seconds = 0;
-
-/* Seconds doing work post-parse but before execution */
-double pre_exec_seconds = 0;
-
-/* Seconds executing client commands */
-double exec_seconds = 0;
-
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables, my_fast_timer_t *last_timer);
 static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
 
@@ -1711,7 +1699,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
      slave as that runs a long time. */
   if (command != COM_BINLOG_DUMP)
   {
-    command_seconds += my_fast_timer_diff_now(&init_timer, &last_timer);
+    thd->status_var.command_seconds += my_fast_timer_diff_now(&init_timer, &last_timer);
   }
   DBUG_RETURN(error);
 }
@@ -5236,7 +5224,7 @@ error:
 finish:
   if (last_timer && lex->sql_command != SQLCOM_SELECT)
   {
-    exec_seconds += my_fast_timer_diff_now(last_timer, last_timer);
+    thd->status_var.exec_seconds += my_fast_timer_diff_now(last_timer, last_timer);
   }
   if (need_start_waiting)
   {
@@ -5325,7 +5313,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables, my_fast_time
   res= open_and_lock_tables(thd, all_tables);
   if (last_timer)
   {
-    pre_exec_seconds += my_fast_timer_diff_now(last_timer, last_timer);
+    thd->status_var.pre_exec_seconds += my_fast_timer_diff_now(last_timer, last_timer);
   }
   if (!res)
   {
@@ -5369,7 +5357,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables, my_fast_time
   }
   if (last_timer)
   {
-    exec_seconds += my_fast_timer_diff_now(last_timer, last_timer);
+    thd->status_var.exec_seconds += my_fast_timer_diff_now(last_timer, last_timer);
   }
   return res;
 }
@@ -6253,7 +6241,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
 
     if (last_timer)
     {
-      parse_seconds += my_fast_timer_diff_now(last_timer, last_timer);
+      thd->status_var.parse_seconds += my_fast_timer_diff_now(last_timer, last_timer);
     }
 
     if (!err)

@@ -2352,8 +2352,7 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
     sprintf(start_time_buff,"%2d:%02d:%02d",
             tm_tmp.tm_hour, tm_tmp.tm_min, tm_tmp.tm_sec);
 
-    sprintf(read_time_buff,"%.6f",
-        ulonglong2double(thd->io_perf_read.svc_usecs)/1000000.0);
+    sprintf(read_time_buff,"%.6f", thd->status_var.read_seconds);
   }
 
   (void) pthread_mutex_lock(&LOCK_log);
@@ -2430,7 +2429,7 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
                       (ulong) thd->status_var.created_tmp_disk_tables,
                       (ulong) thd->status_var.created_tmp_tables,
                       start_time_buff, end_time_buff,
-                      (ulong) thd->io_perf_read.requests,
+                      (ulong) thd->status_var.read_requests,
                       read_time_buff) == (uint) -1)
         tmp_errno=errno;
     }

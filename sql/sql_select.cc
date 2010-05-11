@@ -2333,6 +2333,7 @@ JOIN::exec()
 
   /* Accumulate the counts from all join iterations of all join parts. */
   thd->examined_row_count+= curr_join->examined_rows;
+  thd->status_var.rows_examined+= curr_join->examined_rows;
   DBUG_PRINT("counts", ("thd->examined_row_count: %lu",
                         (ulong) thd->examined_row_count));
 

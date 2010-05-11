@@ -465,6 +465,9 @@ typedef struct system_status_var
   ulong com_stmt_fetch;
   ulong com_stmt_reset;
   ulong com_stmt_close;
+  ulong read_requests;      /* Number of synchronous read requests */
+  ulong rows_examined;
+  ulong rows_sent;
   /*
     Number of statements sent from the client
   */
@@ -478,6 +481,15 @@ typedef struct system_status_var
     global status variable counter
   */
   double last_query_cost;
+
+  /* Performance counters */
+  double command_seconds;       /* Seconds handling client commands */
+  double parse_seconds;         /* Seconds parsing client commands */
+  double pre_exec_seconds;      /* Seconds doing work post-parse but before execution */
+  double exec_seconds;          /* Seconds executing client commands */
+  double open_table_seconds;    /* Time in open_table() when LOCK_open is locked */
+  double collect_stats_seconds; /* Time collecting table statistics */
+  double read_seconds;          /* Time doing synchronous reads */
 } STATUS_VAR;
 
 /*
@@ -487,6 +499,13 @@ typedef struct system_status_var
 */
 
 #define last_system_status_var questions
+
+/*
+  These bound the double values that should be accumulated into the global
+  status variables.
+*/
+#define first_double_status_var command_seconds
+#define last_double_status_var read_seconds
 
 void mark_transaction_to_rollback(THD *thd, bool all);
 

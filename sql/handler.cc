@@ -4498,6 +4498,10 @@ void handler::update_global_table_stats(THD *thd)
   {
     my_io_perf_sum(&thd->io_perf_read, &stats.table_io_perf_read);
     my_io_perf_sum(&thd->io_perf_write, &stats.table_io_perf_write);
+
+    thd->status_var.read_requests = thd->io_perf_read.requests;
+    thd->status_var.read_seconds =
+      ulonglong2double(thd->io_perf_read.svc_usecs)/1000000.0;
   }
 
   stats.reset_table_stats();

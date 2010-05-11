@@ -1038,6 +1038,13 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
 
   while (to != end)
     *(to++)+= *(from++);
+
+  double *dend= &to_var->last_double_status_var + 1;
+  double *dto= &to_var->first_double_status_var;
+  double *dfrom= &from_var->first_double_status_var;
+
+  while (dto != dend)
+    *(dto++)+= *(dfrom++);
 }
 
 /*
@@ -1063,6 +1070,14 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 
   while (to != end)
     *(to++)+= *(from++) - *(dec++);
+
+  double *dend= &to_var->last_double_status_var + 1;
+  double *dto= &to_var->first_double_status_var;
+  double *dfrom= &from_var->first_double_status_var;
+  double *ddec= &dec_var->first_double_status_var;
+
+  while (dto != dend)
+    *(dto++)+= *(dfrom++) - *(ddec++);
 }
 
 
@@ -1667,6 +1682,7 @@ bool select_send::send_data(List<Item> &items)
     buffer.set(buff, sizeof(buff), &my_charset_bin);
   }
   thd->sent_row_count++;
+  thd->status_var.rows_sent++;
   if (thd->is_error())
   {
     protocol->remove_last_row();

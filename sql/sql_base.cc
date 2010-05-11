@@ -30,8 +30,6 @@
 #include <io.h>
 #endif
 
-// Time in open_table() when LOCK_open is locked
-double opened_tables_secs= 0;
 
 #define FLAGSTR(S,F) ((S) & (F) ? #F " " : "")
 
@@ -2990,7 +2988,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   VOID(pthread_mutex_unlock(&LOCK_open));
 
-  opened_tables_secs += my_fast_timer_diff_now(&timer, NULL);
+  thd->status_var.open_table_seconds += my_fast_timer_diff_now(&timer, &timer);
 
   if (new_table)
   {
@@ -3016,6 +3014,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                         if (counter > 15) { counter= 0; }
                       }
                     });
+
+    thd->status_var.collect_stats_seconds += my_fast_timer_diff_now(&timer, NULL);
 
     if (error)
     {
