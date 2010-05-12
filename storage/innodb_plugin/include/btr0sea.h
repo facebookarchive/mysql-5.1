@@ -153,7 +153,7 @@ btr_search_move_or_delete_hash_entries(
 	dict_index_t*	index);		/*!< in: record descriptor */
 /********************************************************************//**
 Drops a page hash index. */
-UNIV_INTERN
+UNIV_INLINE
 void
 btr_search_drop_page_hash_index(
 /*============================*/
