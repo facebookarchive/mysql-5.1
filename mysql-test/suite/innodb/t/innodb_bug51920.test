@@ -39,6 +39,13 @@ sleep 2;
 show status like 'Innodb_row_lock_current_waits';
 rollback;
 
+connection con2;
+--error ER_QUERY_INTERRUPTED
+reap;
+
+connection default;
+disconnect con1;
+disconnect con2;
 
 #
 # cleanup

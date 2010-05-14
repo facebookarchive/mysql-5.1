@@ -10,4 +10,5 @@ show status like 'Innodb_row_lock_current_waits';
 Variable_name	Value
 Innodb_row_lock_current_waits	0
 rollback;
+ERROR 70100: Query execution was interrupted
 drop table lockt;

@@ -1783,7 +1783,7 @@ srv_suspend_mysql_thread(
 	}
 
 	if (trx_is_interrupted(trx)) {
-		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
+		trx->error_state = DB_INTERRUPTED;
 	}
 }
 
@@ -1946,7 +1946,7 @@ srv_printf_innodb_monitor(
 	      "FILE I/O\n"
 	      "--------\n", file);
 	os_aio_print(file);
- 
+
 	fputs("--------\n"
 		"TABLESPACE I/O\n"
 		"--------\n", file);
@@ -2108,7 +2108,7 @@ srv_export_innodb_status(void)
 		buf_pool->n_flushed[BUF_FLUSH_LIST];
 	export_vars.innodb_buffer_pool_flushed_page=
 		buf_pool->n_flushed[BUF_FLUSH_SINGLE_PAGE];
- 
+
 	export_vars.innodb_buffer_pool_pct_dirty=
                 (((double) UT_LIST_GET_LEN(buf_pool->flush_list)) /
                         (UT_LIST_GET_LEN(buf_pool->LRU) + 1.0)) * 100.0;

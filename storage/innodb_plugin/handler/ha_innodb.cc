@@ -366,7 +366,7 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
 
 
 static handler *innobase_create_handler(handlerton *hton,
-                                        TABLE_SHARE *table, 
+                                        TABLE_SHARE *table,
                                         MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_innobase(hton, table);
@@ -479,7 +479,7 @@ static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
-	handlerton* hton, /*!< in: Innodb handlerton */ 
+	handlerton* hton, /*!< in: Innodb handlerton */
 	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 	char*	binlog_file,/* out: binlog file for last commit */
@@ -506,7 +506,7 @@ innodb_show_status(
 	stat_print_fn *stat_print,
         bool	transaction); /*!< in: for SHOW INNODB TRANSACTION STATUS */
 static
-bool innobase_show_status(handlerton *hton, THD* thd, 
+bool innobase_show_status(handlerton *hton, THD* thd,
                           stat_print_fn* stat_print,
                           enum ha_stat_type stat_type);
 
@@ -1031,7 +1031,8 @@ convert_error_code_to_mysql(
 
 	case DB_INTERRUPTED:
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
-		/* fall through */
+		return(HA_ERR_GENERIC);
+
 	case DB_ERROR:
 	default:
 		return(-1); /* unspecified error */
@@ -2369,7 +2370,7 @@ mem_free_and_error:
 	innobase_file_format_name is used in the MySQL set variable
 	interface and so can't be const. */
 
-	innobase_file_format_name = 
+	innobase_file_format_name =
 		(char*) trx_sys_file_format_id_to_name(format_id);
 
 	/* Process innobase_file_format_check variable */
@@ -2652,7 +2653,7 @@ static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
+        handlerton *hton, /*!< in: Innodb handlerton */
 	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 	char*	binlog_file,/* out: binlog file for last commit */
@@ -2724,7 +2725,7 @@ static
 int
 innobase_commit(
 /*============*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
+        handlerton *hton, /*!< in: Innodb handlerton */
 	THD* 	thd,	/*!< in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 	bool	all)	/*!< in:	TRUE - commit transaction
@@ -2869,7 +2870,7 @@ static
 int
 innobase_rollback(
 /*==============*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
+        handlerton *hton, /*!< in: Innodb handlerton */
 	THD*	thd,	/*!< in: handle to the MySQL thread of the user
 			whose transaction should be rolled back */
 	bool	all)	/*!< in:	TRUE - commit transaction
@@ -2949,7 +2950,7 @@ static
 int
 innobase_rollback_to_savepoint(
 /*===========================*/
-        handlerton *hton,       /*!< in: Innodb handlerton */ 
+        handlerton *hton,       /*!< in: Innodb handlerton */
 	THD*	thd,		/*!< in: handle to the MySQL thread of the user
 				whose transaction should be rolled back */
 	void*	savepoint)	/*!< in: savepoint data */
@@ -3785,7 +3786,7 @@ ha_innobase::open_internal(
 retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_get(norm_name, TRUE, get_stats);
-	
+
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
 			++retries;
@@ -3980,7 +3981,7 @@ retry:
 
 	if (get_stats)
 		sample_table_stats();
-        
+
 	DBUG_RETURN(0);
 }
 
@@ -5629,7 +5630,7 @@ convert_search_mode_to_innobase(
 		return(PAGE_CUR_GE);
 	case HA_READ_KEY_OR_PREV:
 		return(PAGE_CUR_LE);
-	case HA_READ_AFTER_KEY:	
+	case HA_READ_AFTER_KEY:
 		return(PAGE_CUR_G);
 	case HA_READ_BEFORE_KEY:
 		return(PAGE_CUR_L);
@@ -6682,7 +6683,7 @@ create_options_are_valid(
 			ret = FALSE;
 		}
 	}
-	
+
 	/* If KEY_BLOCK_SIZE was specified, check for its
 	dependencies. */
 	if (kbs_specified && !srv_file_per_table) {
@@ -9306,7 +9307,7 @@ innodb_mutex_show_status(
 }
 
 static
-bool innobase_show_status(handlerton *hton, THD* thd, 
+bool innobase_show_status(handlerton *hton, THD* thd,
                           stat_print_fn* stat_print,
                           enum ha_stat_type stat_type)
 {
@@ -9468,7 +9469,7 @@ ha_innobase::store_lock(
 
 		/* MySQL calls this function in DROP TABLE though this table
 		handle may belong to another thd that is running a query. Let
-		us in that case skip any changes to the prebuilt struct. */ 
+		us in that case skip any changes to the prebuilt struct. */
 
 	} else if ((lock_type == TL_READ && in_lock_tables)
 		   || (lock_type == TL_READ_HIGH_PRIORITY && in_lock_tables)
@@ -9623,7 +9624,7 @@ ha_innobase::innobase_get_autoinc(
 	ulonglong*	value)		/*!< out: autoinc value */
 {
  	*value = 0;
- 
+
 	prebuilt->autoinc_error = innobase_lock_autoinc();
 
 	if (prebuilt->autoinc_error == DB_SUCCESS) {
@@ -9642,7 +9643,7 @@ ha_innobase::innobase_get_autoinc(
 }
 
 /*******************************************************************//**
-This function reads the global auto-inc counter. It doesn't use the 
+This function reads the global auto-inc counter. It doesn't use the
 AUTOINC lock even if the lock mode is set to TRADITIONAL.
 @return	the autoinc value */
 UNIV_INTERN
@@ -10071,7 +10072,7 @@ innobase_set_mysql_slave_state(
 		/* TODO: return -1 */
 		return;
         }
-  
+
 	sql_print_information("InnoDB changed master log from "
 		"'%s' position %s to '%s' position %s",
 		trx_sys_mysql_master_log_name,
