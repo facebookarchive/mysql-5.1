@@ -1631,6 +1631,8 @@ public:
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
+  virtual int flush_memory_cache()
+  { return (HA_ERR_WRONG_COMMAND); }
   virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
   { return (HA_ERR_WRONG_COMMAND); }
   virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,

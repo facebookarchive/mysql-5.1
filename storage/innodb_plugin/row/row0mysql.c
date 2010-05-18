@@ -51,6 +51,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0sea.h"
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
+#include "buf0lru.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -2298,6 +2299,28 @@ row_add_table_to_background_drop_list(
 
 	return(TRUE);
 }
+
+/*********************************************************************//**
+Removes all clean pages for a table from the buffer pool.
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+int
+row_flush_memory_cache_for_mysql(
+/*=============================*/
+	dict_table_t*	table)	/*!< in: table handle */
+{
+	if (table->space == 0) {
+		ut_print_timestamp(stderr);
+		fputs("InnoDB: is in the system tablespace 0"
+		      " which cannot be flushed from the memory cache\n", stderr);
+		return DB_ERROR;
+	}
+
+	buf_LRU_free_tablespace(table->space);
+
+	return DB_SUCCESS;
+}
+
 
 /*********************************************************************//**
 Discards the tablespace of a table which stored in an .ibd file. Discarding

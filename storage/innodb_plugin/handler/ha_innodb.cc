@@ -7196,6 +7196,22 @@ cleanup:
 	DBUG_RETURN(error);
 }
 
+
+UNIV_INTERN
+int
+ha_innobase::flush_memory_cache(void)
+{
+	int		err;
+
+	DBUG_ENTER("ha_innobase::flush_memory_cache");
+
+	err = row_flush_memory_cache_for_mysql(prebuilt->table);
+
+	err = convert_error_code_to_mysql(err, prebuilt->table->flags, NULL);
+
+	DBUG_RETURN(err);
+}
+
 /*****************************************************************//**
 Discards or imports an InnoDB tablespace.
 @return	0 == success, -1 == error */

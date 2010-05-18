@@ -1661,6 +1661,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 #define RTFC_OWNED_BY_THD_FLAG      0x0001
 #define RTFC_WAIT_OTHER_THREAD_FLAG 0x0002
 #define RTFC_CHECK_KILLED_FLAG      0x0004
+#define RTFC_CLEAR_MEMORY_CACHE     0x0008
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
                              uint flags);
 
@@ -1794,7 +1795,8 @@ TABLE *open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
 void close_performance_schema_table(THD *thd, Open_tables_state *backup);
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
-                         bool wait_for_refresh, bool wait_for_placeholders);
+                         bool wait_for_refresh, bool wait_for_placeholders,
+                         bool clear_memory_cache);
 bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
                                     LEX_STRING *connect_string,
                                     bool have_lock = FALSE);

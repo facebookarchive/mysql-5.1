@@ -458,6 +458,11 @@ void
 row_mysql_drop_temp_tables(void);
 /*============================*/
 
+UNIV_INTERN
+int
+row_flush_memory_cache_for_mysql(
+/*=============================*/
+	dict_table_t*	table);	/*!< in: table handle */
 /*********************************************************************//**
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for

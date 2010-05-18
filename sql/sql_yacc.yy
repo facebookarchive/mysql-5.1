@@ -10553,7 +10553,7 @@ flush_options:
 flush_option:
           table_or_tables
           { Lex->type|= REFRESH_TABLES; }
-          opt_table_list {}
+          opt_table_list_opt_memory_cache {}
         | TABLES WITH READ_SYM LOCK_SYM
           { Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK; }
         | QUERY_SYM CACHE_SYM
@@ -10576,6 +10576,13 @@ flush_option:
           { Lex->type|= REFRESH_USER_RESOURCES; }
         | STATISTICS_SYM
           { Lex->type |= REFRESH_STATISTICS; }
+        ;
+
+opt_table_list_opt_memory_cache:
+          /* empty */ {}
+        | table_list {}
+        | table_list WITH MEMORY_SYM CACHE_SYM
+          { Lex->type|=REFRESH_MEMORY_CACHE; }
         ;
 
 opt_table_list:

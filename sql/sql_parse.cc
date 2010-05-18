@@ -7215,7 +7215,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       if (lock_global_read_lock(thd))
 	return 1;                               // Killed
       if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
-                              FALSE : TRUE, TRUE))
+                              FALSE : TRUE, TRUE, FALSE))
           result= 1;
       
       if (make_global_read_lock_block_commit(thd)) // Killed
@@ -7228,7 +7228,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     else
     {
       if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
-                              FALSE : TRUE, FALSE))
+                              FALSE : TRUE, FALSE,
+                              (options & REFRESH_MEMORY_CACHE) ? TRUE: FALSE))
         result= 1;
     }
     my_dbopt_cleanup();

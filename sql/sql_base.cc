@@ -133,7 +133,7 @@ void table_cache_free(void)
   DBUG_ENTER("table_cache_free");
   if (table_def_inited)
   {
-    close_cached_tables(NULL, NULL, FALSE, FALSE, FALSE);
+    close_cached_tables(NULL, NULL, FALSE, FALSE, FALSE, FALSE);
     if (!open_cache.records)			// Safety first
       hash_free(&open_cache);
   }
@@ -851,7 +851,8 @@ void free_io_cache(TABLE *table)
 */
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
-                         bool wait_for_refresh, bool wait_for_placeholders)
+                         bool wait_for_refresh, bool wait_for_placeholders,
+                         bool clear_memory_cache)
 {
   bool result=0;
   DBUG_ENTER("close_cached_tables");
@@ -932,7 +933,8 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     for (TABLE_LIST *table= tables; table; table= table->next_local)
     {
       if (remove_table_from_cache(thd, table->db, table->table_name,
-                                  RTFC_OWNED_BY_THD_FLAG))
+            RTFC_OWNED_BY_THD_FLAG | (clear_memory_cache ?
+                                      RTFC_CLEAR_MEMORY_CACHE : 0)));
 	found=1;
     }
     if (!found)
@@ -1073,7 +1075,7 @@ bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
   }
 
   if (tables)
-    result= close_cached_tables(thd, tables, TRUE, FALSE, FALSE);
+    result= close_cached_tables(thd, tables, TRUE, FALSE, FALSE, FALSE);
 
   if (!have_lock)
     VOID(pthread_mutex_unlock(&LOCK_open));
@@ -8557,6 +8559,11 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
                             table->s->table_name.str, (long) table));
 
       table->s->version=0L;		/* Free when thread is ready */
+      if (flags & RTFC_CLEAR_MEMORY_CACHE)
+      {
+        table->file->flush_memory_cache();
+        flags &= ~RTFC_CLEAR_MEMORY_CACHE; /* Only clear cache once */
+      }
       if (!(in_use=table->in_use))
       {
         DBUG_PRINT("info",("Table was not in use"));

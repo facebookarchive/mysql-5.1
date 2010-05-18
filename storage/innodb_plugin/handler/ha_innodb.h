@@ -207,6 +207,7 @@ class ha_innobase: public handler
                                         ulonglong *first_value,
                                         ulonglong *nb_reserved_values);
 	int reset_auto_increment(ulonglong value);
+	int flush_memory_cache();
 
 	virtual bool get_error_message(int error, String *buf);
 
