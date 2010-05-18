@@ -39,6 +39,7 @@ connect (con1,127.0.0.1,foo,,);
 sleep 1;
 
 # Connecting again should fail
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 -- error 1040
 connect (con2,127.0.0.1,foo,,);
 

@@ -1,7 +1,7 @@
 grant select on test.* to 'foo'@'%';
 set @@global.max_connections=2;
 set @@global.connection_recycle = 0;
-connect(127.0.0.1,foo,,test,13000,/data/users/ryandmack/mysql/5138-build/mysql-test/var/tmp/mysqld.1.sock);
+connect(127.0.0.1,foo,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 08004: Too many connections
 SELECT 'con1 should still exist';
 con1 should still exist
