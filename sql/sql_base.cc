@@ -934,7 +934,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     {
       if (remove_table_from_cache(thd, table->db, table->table_name,
             RTFC_OWNED_BY_THD_FLAG | (clear_memory_cache ?
-                                      RTFC_CLEAR_MEMORY_CACHE : 0)));
+                                      RTFC_CLEAR_MEMORY_CACHE : 0)))
 	found=1;
     }
     if (!found)
