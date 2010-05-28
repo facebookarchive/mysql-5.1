@@ -1043,8 +1043,9 @@ dict_update_statistics_low(
 	dict_table_t*	table,		/*!< in/out: table */
 	ibool		has_dict_mutex,	/*!< in: TRUE if the caller has the
 					dictionary mutex */
-	ibool		force);		/*!< in: TRUE if stats are collected
+	ibool		force,		/*!< in: TRUE if stats are collected
 					when they already exist */
+	trx_t*		trx);
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
@@ -1053,9 +1054,10 @@ void
 dict_update_statistics(
 /*===================*/
 	dict_table_t*	table,	/*!< in/out: table */
-	ibool		force_update);
+	ibool		force_update,
 				/*!< in: whether to collect stats when
 				they already exist */
+	trx_t*		trx);
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */
 UNIV_INTERN

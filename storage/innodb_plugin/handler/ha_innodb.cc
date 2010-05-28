@@ -3747,7 +3747,7 @@ ha_innobase::open_internal(
 	ulint		retries = 0;
 	char*		is_part = NULL;
 
-	DBUG_ENTER("ha_innobase::open");
+	DBUG_ENTER("ha_innobase::open_internal");
 
 	UT_NOT_USED(mode);
 	UT_NOT_USED(test_if_locked);
@@ -4003,14 +4003,24 @@ is locked.
 @return	!0 if error, 0 if success */
 UNIV_INTERN
 int
-ha_innobase::open_deferred()
+ha_innobase::open_deferred(THD *thd)
 /*=====================*/
 {
-	DBUG_ENTER("ha_innobase::open_stats");
+	DBUG_ENTER("ha_innobase::open_deferred");
 
-	dict_update_statistics(prebuilt->table, FALSE);
+	trx_t*	trx = thd_to_trx(thd);
+
+	if (trx) {
+		init_trx_table_stats(trx, FALSE);
+	}
+
+	dict_update_statistics(prebuilt->table, FALSE, trx);
 
 	sample_table_stats();
+
+	if (trx) {
+		update_stats_from_trx(trx, FALSE);
+	}
 
 	DBUG_RETURN(0);
 }
@@ -7877,7 +7887,7 @@ ha_innobase::info(
 
 			prebuilt->trx->op_info = "updating table statistics";
 
-			dict_update_statistics(ib_table, TRUE);
+			dict_update_statistics(ib_table, TRUE, prebuilt->trx);
 
 			prebuilt->trx->op_info = "returning various info to MySQL";
 		}

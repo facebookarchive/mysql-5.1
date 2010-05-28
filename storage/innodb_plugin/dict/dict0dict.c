@@ -708,7 +708,7 @@ dict_table_get(
 		/* If table->ibd_file_missing == TRUE, this will
 		print an error message and return without doing
 		anything. */
-		dict_update_statistics(table, FALSE);
+		dict_update_statistics(table, FALSE, NULL);
 	}
 
 	return(table);
@@ -4161,8 +4161,9 @@ dict_update_statistics_low(
 	ibool		has_dict_mutex __attribute__((unused)),
 					/*!< in: TRUE if the caller has the
 					dictionary mutex */
-	ibool		force)		/*!< in: TRUE if stats are collected
+	ibool		force,		/*!< in: TRUE if stats are collected
 					when the already exist */
+	trx_t*		trx)
 {
 	dict_index_t*	index;
 	ulint		size;
@@ -4228,7 +4229,7 @@ dict_update_statistics_low(
 
 		index->stat_n_leaf_pages = size;
 
-		btr_estimate_number_of_different_key_vals(index);
+		btr_estimate_number_of_different_key_vals(index, trx);
 
 		index = dict_table_get_next_index(index);
 	}
@@ -4262,10 +4263,11 @@ void
 dict_update_statistics(
 /*===================*/
 	dict_table_t*	table,	/*!< in/out: table */
-	ibool		force)	/*!< in: whether to force collection
+	ibool		force,	/*!< in: whether to force collection
 				when stats exist */
+	trx_t*		trx)
 {
-	dict_update_statistics_low(table, FALSE, force);
+	dict_update_statistics_low(table, FALSE, force, trx);
 }
 
 /**********************************************************************//**
@@ -4345,7 +4347,7 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_update_statistics_low(table, TRUE, TRUE);
+	dict_update_statistics_low(table, TRUE, TRUE, NULL);
 
 	fprintf(stderr,
 		"--------------------------------------\n"

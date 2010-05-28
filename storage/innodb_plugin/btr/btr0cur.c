@@ -3219,7 +3219,8 @@ UNIV_INTERN
 void
 btr_estimate_number_of_different_key_vals(
 /*======================================*/
-	dict_index_t*	index)	/*!< in: index */
+	dict_index_t*	index,	/*!< in: index */
+	trx_t*		trx)
 {
 	btr_cur_t	cursor;
 	page_t*		page;
@@ -3263,7 +3264,7 @@ btr_estimate_number_of_different_key_vals(
 
 	for (i = 0; i < n_sample_pages; i++) {
 		rec_t*	supremum;
-		mtr_start(&mtr);
+		mtr_start_trx(&mtr, trx);
 
 		btr_cur_open_at_rnd_pos(index, BTR_SEARCH_LEAF, &cursor, &mtr);
 

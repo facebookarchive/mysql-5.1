@@ -1808,7 +1808,7 @@ public:
     too slow to be done when LOCK_open was locked.
     @return 0 on success
   */
-  virtual int open_deferred() { return 0; }
+  virtual int open_deferred(THD *thd) { return 0; }
 
 protected:
   /* Service methods for use by storage engines. */

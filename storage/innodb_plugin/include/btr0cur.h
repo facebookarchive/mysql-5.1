@@ -464,7 +464,8 @@ UNIV_INTERN
 void
 btr_estimate_number_of_different_key_vals(
 /*======================================*/
-	dict_index_t*	index);	/*!< in: index */
+	dict_index_t*	index,	/*!< in: index */
+	trx_t*		trx);
 /*******************************************************************//**
 Marks not updated extern fields as not-owned by this record. The ownership
 is transferred to the updated record which is inserted elsewhere in the

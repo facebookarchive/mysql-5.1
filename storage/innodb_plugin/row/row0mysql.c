@@ -846,7 +846,8 @@ UNIV_INLINE
 void
 row_update_statistics_if_needed(
 /*============================*/
-	dict_table_t*	table)	/*!< in: table */
+	dict_table_t*	table,	/*!< in: table */
+	trx_t*		trx)
 {
 	ulint	counter;
 
@@ -863,7 +864,7 @@ row_update_statistics_if_needed(
 	if (counter > 2000000000
 	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
 
-		dict_update_statistics(table, TRUE);
+		dict_update_statistics(table, TRUE, trx);
 	}
 }
 
@@ -1169,7 +1170,7 @@ run_again:
 		prebuilt->table->stat_n_rows--;
 	}
 
-	row_update_statistics_if_needed(prebuilt->table);
+	row_update_statistics_if_needed(prebuilt->table, trx);
 	trx->op_info = "";
 
 	return((int) err);
@@ -1421,7 +1422,7 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
-	row_update_statistics_if_needed(prebuilt->table);
+	row_update_statistics_if_needed(prebuilt->table, trx);
 
 	trx->op_info = "";
 
@@ -1624,7 +1625,7 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
-	row_update_statistics_if_needed(table);
+	row_update_statistics_if_needed(table, trx);
 
 	return(err);
 }
@@ -2963,7 +2964,7 @@ next_rec:
 	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
-	dict_update_statistics(table, TRUE);
+	dict_update_statistics(table, TRUE, trx);
 
 	trx_commit_for_mysql(trx);
 

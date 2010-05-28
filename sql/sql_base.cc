@@ -2997,7 +2997,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     /* For engines that collect stats on open (innodb) do that now after
        LOCK_open has been released.
     */
-    int error= table->file->open_deferred();
+    int error= table->file->open_deferred(thd);
 
     DBUG_EXECUTE_IF("open_deferred_fail",
                     {

@@ -141,7 +141,7 @@ class ha_innobase: public handler
 
 	int open(const char *name, int mode, uint test_if_locked);
 	int open_fast(const char *name, int mode, uint test_if_locked);
-	int open_deferred();
+	int open_deferred(THD* thd);
 	int close(void);
 	double scan_time();
 	double read_time(uint index, uint ranges, ha_rows rows);
