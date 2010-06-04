@@ -930,7 +930,7 @@ sub collect_one_test_case {
     push(@{$tinfo->{'slave_opt'}}, "--loose-federated");
   }
 
-  if ( $tinfo->{'innodb_test'} )
+  if ( $tinfo->{'innodb_test'} or $tinfo->{'innodb_plugin_test'} )
   {
     # This is a test that needs innodb
     if ( $::mysqld_variables{'innodb'} eq "OFF" ||
