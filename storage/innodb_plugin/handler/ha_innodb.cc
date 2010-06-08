@@ -8046,6 +8046,7 @@ ha_innobase::info(
 			}
 
 			for (j = 0; j < table->key_info[i].key_parts; j++) {
+				ib_int64_t n_diff_key_vals;
 
 				if (j + 1 > index->n_uniq) {
 					sql_print_error(
@@ -8060,17 +8061,24 @@ ha_innobase::info(
 					break;
 				}
 
-				dict_index_stat_mutex_enter(index);
+				/* See note in dict_index_stat_mutex_enter declaration.
+				Even when that is fixed I think it is better to allow
+				a dirty read here than potentially contend on a mutex */
 
-				if (index->stat_n_diff_key_vals[j + 1] == 0) {
+				/* dict_index_stat_mutex_enter(index); */
+
+				/* Cache the value here because it can change. */
+				n_diff_key_vals = index->stat_n_diff_key_vals[j + 1];
+
+				if (n_diff_key_vals == 0) {
 
 					rec_per_key = stats.records;
 				} else {
-					rec_per_key = (ha_rows)(stats.records /
-					 index->stat_n_diff_key_vals[j + 1]);
+					rec_per_key = (ha_rows)(stats.records / n_diff_key_vals);
 				}
 
-				dict_index_stat_mutex_exit(index);
+				/* See note in dict_index_stat_mutex_enter declaration */
+				/* dict_index_stat_mutex_exit(index); */
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend

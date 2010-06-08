@@ -1070,6 +1070,12 @@ UNIV_INTERN
 void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
+
+/* dict_index_stat_mutex_enter and dict_index_stat_mutex_exit are disabled
+   for now because mcallaghan thinks the fix for bug 53046 by InnoDB is wrong.
+   See http://bugs.mysql.com/bug.php?id=53046
+*/
+
 /**********************************************************************//**
 Lock the appropriate mutex to protect index->stat_n_diff_key_vals[].
 index->id is used to pick the right mutex and it should not change

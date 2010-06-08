@@ -248,6 +248,8 @@ dict_mutex_exit_for_mysql(void)
 	(&dict_index_stat_mutex[ut_fold_dulint(index->id) \
 	 			% DICT_INDEX_STAT_MUTEX_SIZE])
 
+#undef ndef
+#ifdef ndef
 /**********************************************************************//**
 Lock the appropriate mutex to protect index->stat_n_diff_key_vals[].
 index->id is used to pick the right mutex and it should not change
@@ -265,6 +267,7 @@ dict_index_stat_mutex_enter(
 
 	mutex_enter(GET_INDEX_STAT_MUTEX(index));
 }
+#endif
 
 /**********************************************************************//**
 Unlock the appropriate mutex that protects index->stat_n_diff_key_vals[]. */
@@ -4236,12 +4239,14 @@ dict_update_statistics_low(
 
 	index = dict_table_get_first_index(table);
 
-	dict_index_stat_mutex_enter(index);
+	/* See note in dict_index_stat_mutex_enter declaration */
+	/* dict_index_stat_mutex_enter(index); */
 
 	table->stat_n_rows = index->stat_n_diff_key_vals[
 		dict_index_get_n_unique(index)];
 
-	dict_index_stat_mutex_exit(index);
+	/* See note in dict_index_stat_mutex_enter declaration */
+	/* dict_index_stat_mutex_exit(index); */
 
 	table->stat_clustered_index_size = index->stat_index_size;
 
@@ -4425,7 +4430,8 @@ dict_index_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_index_stat_mutex_enter(index);
+	/* See note in dict_index_stat_mutex_enter declaration */
+	/* dict_index_stat_mutex_enter(index); */
 
 	if (index->n_user_defined_cols > 0) {
 		n_vals = index->stat_n_diff_key_vals[
@@ -4434,7 +4440,8 @@ dict_index_print_low(
 		n_vals = index->stat_n_diff_key_vals[1];
 	}
 
-	dict_index_stat_mutex_exit(index);
+	/* See note in dict_index_stat_mutex_enter declaration */
+	/* dict_index_stat_mutex_exit(index); */
 
 	if (dict_index_is_clust(index)) {
 		type_string = "clustered index";
