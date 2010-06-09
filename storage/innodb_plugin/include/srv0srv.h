@@ -192,6 +192,7 @@ extern unsigned long long	srv_stats_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
+extern my_bool	srv_use_fast_checksums;
 
 extern ibool	srv_set_thread_priorities;
 extern int	srv_query_thread_priority;

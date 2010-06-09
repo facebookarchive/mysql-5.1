@@ -907,10 +907,16 @@ buf_flush_init_for_writing(
 
 	/* Store the new formula checksum */
 
+	ulint checksum;
+	if (!srv_use_checksums)
+		checksum = BUF_NO_CHECKSUM_MAGIC;
+	else if (srv_use_fast_checksums)
+		checksum = buf_calc_page_fast_checksum(page);
+	else
+		checksum = buf_calc_page_new_checksum(page);
+
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
-			srv_use_checksums
-			? buf_calc_page_new_checksum(page)
-			: BUF_NO_CHECKSUM_MAGIC);
+			checksum);
 
 	/* We overwrite the first 4 bytes of the end lsn field to store
 	the old formula checksum. Since it depends also on the field

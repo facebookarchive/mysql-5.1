@@ -475,6 +475,16 @@ on 32-bit and 64-bit architectures.
 @return	checksum */
 UNIV_INTERN
 ulint
+buf_calc_page_fast_checksum(
+/*=======================*/
+	const byte*	page);	/*!< in: buffer page */
+/********************************************************************//**
+Calculates a page checksum which is stored to the page when it is written
+to a file. Note that we must be careful to calculate the same value
+on 32-bit and 64-bit architectures.
+@return	checksum */
+UNIV_INTERN
+ulint
 buf_calc_page_new_checksum(
 /*=======================*/
 	const byte*	page);	/*!< in: buffer page */

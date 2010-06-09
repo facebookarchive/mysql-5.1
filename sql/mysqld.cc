@@ -4017,6 +4017,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   my_init_fast_timer(2);
 
+  my_init_cpu_optimizations();
+
   init_global_table_stats();
 
   /* call ha_init_key_cache() on all key caches to init them */

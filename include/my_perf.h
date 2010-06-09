@@ -258,6 +258,15 @@ STATIC_INLINE double my_fast_timer_get_scale()
   return my_tsc_scale;
 }
 
+/* Enable hardware-optimized functions based on CPUID */
+void my_init_cpu_optimizations();
+
+
+/* Fast crc32 implementation using SSE4.2 if available and slice-8 if not.
+   This is not compatible with the zlib crc32 implementation because the
+   SSE4.2 routine uses a different polynomial */
+uint32 my_fast_crc32(const uchar* data, ulong length);
+
 C_MODE_END
 
 #endif /* _my_perf_h */

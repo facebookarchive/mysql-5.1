@@ -161,3 +161,58 @@ void my_init_fast_timer(int seconds)
   else
     my_tsc_scale = 1.0 / 1000000.0;
 }
+
+
+static my_bool my_cpuid(uint32 vend[3], uint32* model,
+                        uint32* family, uint32* stepping,
+                        uint32* features_ecx, uint32* features_edx)
+{
+#if defined(__GNUC__) && defined(__x86_64__)
+  uint32 sig;
+  asm ("cpuid" : "=b" (vend[0]), "=c" (vend[2]), "=d" (vend[1]) : "a" (0));
+  asm ("cpuid" : "=a" (sig), "=c" (*features_ecx), "=d" (*features_edx)
+               : "a" (1)
+               : "ebx");
+
+  *model = ((sig >> 4) & 0xF);
+  *family = ((sig >> 8) & 0xF);
+  *stepping = (sig & 0xF);
+
+  if (memcmp(vend, "GenuineIntel", 12) == 0 ||
+      (memcmp(vend, "AuthenticAMD", 12) == 0 && *family == 0xF))
+  {
+    *model += (((sig >> 16) & 0xF) << 4);
+    *family += ((sig >> 20) & 0xFF);
+  }
+
+  fprintf(stderr,
+      "CPUID %.12s model %d family %d stepping %d features %08X %08X\n",
+      (char*)vend, *model, *family, *stepping, *features_ecx, *features_edx);
+
+  return 1;
+#endif
+  return 0;
+}
+
+
+
+void my_fast_crc32_init(my_bool cpuid_has_crc32);
+
+void my_init_cpu_optimizations()
+{
+  my_bool cpuid_has_crc32 = 0;
+
+#if defined(__GNUC__) && defined(__x86_64__)
+  uint32 vend[3], model, family, stepping, features_ecx, features_edx;
+
+  my_cpuid(vend, &model, &family, &stepping, &features_ecx, &features_edx);
+
+  cpuid_has_crc32 = (features_ecx >> 20) & 1;
+#endif
+
+  fprintf(stderr, "SSE4.2 CRC32 is %s\n",
+		  cpuid_has_crc32 ? "enabled" : "disabled");
+
+  my_fast_crc32_init(cpuid_has_crc32);
+}
+

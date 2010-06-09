@@ -11121,6 +11121,13 @@ static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
   "Disable with --skip-innodb-checksums.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(fast_checksums, srv_use_fast_checksums,
+  PLUGIN_VAR_NOCMDARG,
+  "Enable fast InnoDB checksum algorithm (disabled by default). "
+  "Files updated while fast checsums was enabled are no longer backwards "
+  "compatible with prior releases.",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
   PLUGIN_VAR_READONLY,
   "The common part for InnoDB table spaces.",
@@ -11451,6 +11458,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(checksums),
+  MYSQL_SYSVAR(fast_checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
   MYSQL_SYSVAR(data_file_path),

@@ -287,6 +287,37 @@ to a file. Note that we must be careful to calculate the same value on
 @return	checksum */
 UNIV_INTERN
 ulint
+buf_calc_page_fast_checksum(
+/*=======================*/
+	const byte*	page)	/*!< in: buffer page */
+{
+	ulint checksum;
+
+	/* Since the field FIL_PAGE_FILE_FLUSH_LSN, and in versions <= 4.1.x
+	..._ARCH_LOG_NO, are written outside the buffer pool to the first
+	pages of data files, we have to skip them in the page checksum
+	calculation.
+	We must also skip the field FIL_PAGE_SPACE_OR_CHKSUM where the
+	checksum is stored, and also the last 8 bytes of page because
+	there we store the old formula checksum. */
+
+	checksum = my_fast_crc32(page + FIL_PAGE_OFFSET,
+			    FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET)
+		+ my_fast_crc32(page + FIL_PAGE_DATA,
+			   UNIV_PAGE_SIZE - FIL_PAGE_DATA
+			   - FIL_PAGE_END_LSN_OLD_CHKSUM);
+	checksum = checksum & 0xFFFFFFFFUL;
+
+	return(checksum);
+}
+
+/********************************************************************//**
+Calculates a page checksum which is stored to the page when it is written
+to a file. Note that we must be careful to calculate the same value on
+32-bit and 64-bit architectures.
+@return	checksum */
+UNIV_INTERN
+ulint
 buf_calc_page_new_checksum(
 /*=======================*/
 	const byte*	page)	/*!< in: buffer page */
@@ -428,6 +459,8 @@ buf_page_is_corrupted(
 		if (checksum_field != 0
 		    && checksum_field != BUF_NO_CHECKSUM_MAGIC
 		    && checksum_field
+		    != buf_calc_page_fast_checksum(read_buf)
+		    && checksum_field
 		    != buf_calc_page_new_checksum(read_buf)) {
 
 			return(TRUE);
@@ -452,6 +485,7 @@ buf_page_print(
 #endif /* !UNIV_HOTBACKUP */
 	ulint		checksum;
 	ulint		old_checksum;
+	ulint		fast_checksum;
 	ulint		size	= zip_size;
 
 	if (!size) {
@@ -539,11 +573,13 @@ buf_page_print(
 		? buf_calc_page_new_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
 	old_checksum = srv_use_checksums
 		? buf_calc_page_old_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
+	fast_checksum = srv_use_checksums
+		? buf_calc_page_fast_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		"  InnoDB: Page checksum %lu, prior-to-4.0.14-form"
-		" checksum %lu\n"
+		" checksum %lu, fast checksum %lu\n"
 		"InnoDB: stored checksum %lu, prior-to-4.0.14-form"
 		" stored checksum %lu\n"
 		"InnoDB: Page lsn %lu %lu, low 4 bytes of lsn"
@@ -551,7 +587,7 @@ buf_page_print(
 		"InnoDB: Page number (if stored to page already) %lu,\n"
 		"InnoDB: space id (if created with >= MySQL-4.1.1"
 		" and stored already) %lu\n",
-		(ulong) checksum, (ulong) old_checksum,
+		(ulong) checksum, (ulong) old_checksum, (ulong) fast_checksum,
 		(ulong) mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
 		(ulong) mach_read_from_4(read_buf + UNIV_PAGE_SIZE
 					 - FIL_PAGE_END_LSN_OLD_CHKSUM),

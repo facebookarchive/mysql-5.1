@@ -52,6 +52,11 @@
 
 typedef unsigned long int ulint;
 typedef unsigned char uchar;
+typedef unsigned int uint32;
+typedef unsigned long ulong;
+
+void my_init_cpu_optimizations();
+uint32 my_fast_crc32(const uchar* data, ulong length);
 
 /* innodb function in name; modified slightly to not have the ASM version (lots of #ifs that didn't apply) */
 ulint mach_read_from_4(uchar *b)
@@ -92,6 +97,31 @@ ut_fold_binary(
     }
 
     return(fold);
+}
+
+ulint
+buf_calc_page_fast_checksum(
+/*=======================*/
+               /* out: checksum */
+    uchar*    page) /* in: buffer page */
+{
+    ulint checksum;
+
+    /* Since the fields FIL_PAGE_FILE_FLUSH_LSN and ..._ARCH_LOG_NO
+    are written outside the buffer pool to the first pages of data
+    files, we have to skip them in the page checksum calculation.
+    We must also skip the field FIL_PAGE_SPACE_OR_CHKSUM where the
+    checksum is stored, and also the last 8 bytes of page because
+    there we store the old formula checksum. */
+
+    checksum= my_fast_crc32(page + FIL_PAGE_OFFSET,
+                             FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET)
+            + my_fast_crc32(page + FIL_PAGE_DATA,
+                             UNIV_PAGE_SIZE - FIL_PAGE_DATA
+                             - FIL_PAGE_END_LSN_OLD_CHKSUM);
+    checksum= checksum & 0xFFFFFFFF;
+
+    return(checksum);
 }
 
 ulint
@@ -143,7 +173,7 @@ int main(int argc, char **argv)
   ulint ct;                    /* current page number (0 based) */
   int now;                     /* current time */
   int lastt;                   /* last time */
-  ulint oldcsum, oldcsumfield, csum, csumfield, logseq, logseqfield; /* ulints for checksum storage */
+  ulint oldcsum, oldcsumfield, csum, csumfield, fastcsum, logseq, logseqfield; /* ulints for checksum storage */
   struct stat st;              /* for stat, if you couldn't guess */
   unsigned long long int size; /* size of file (has to be 64 bits) */
   ulint pages;                 /* number of pages in file */
@@ -258,6 +288,8 @@ int main(int argc, char **argv)
   /* allocate buffer for reading (so we don't realloc every time) */
   p= (uchar *)malloc(UNIV_PAGE_SIZE);
 
+  my_init_cpu_optimizations();
+
   /* main checksumming loop */
   ct= start_page;
   lastt= 0;
@@ -295,10 +327,12 @@ int main(int argc, char **argv)
 
     /* now check the new method */
     csum= buf_calc_page_new_checksum(p);
+    fastcsum= buf_calc_page_fast_checksum(p);
     csumfield= mach_read_from_4(p + FIL_PAGE_SPACE_OR_CHKSUM);
     if (debug)
-      printf("page %lu: new style: calculated = %lu; recorded = %lu\n", ct, csum, csumfield);
-    if (csumfield != 0 && csum != csumfield)
+      printf("page %lu: new style: calculated = %lu; fast = %lu; recorded = %lu\n",
+          ct, csum, fastcsum, csumfield);
+    if (csumfield != 0 && fastcsum != csumfield && csum != csumfield)
     {
       fprintf(stderr, "page %lu invalid (fails new style checksum)\n", ct);
       return 1;
