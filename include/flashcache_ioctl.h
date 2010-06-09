@@ -1,11 +1,13 @@
 /****************************************************************************
  *  flashcache_ioctl.h
- *  Device mapper target for block-level disk caching
+ *  FlashCache: Device mapper target for block-level disk caching
  *
- *  Copyright (C) International Business Machines Corp., 2006
- *  Copyright (C) Facebook, 2009
- *  Author: Ming Zhao (mingzhao@ufl.edu)
- *  Author: Mohan Srinivasan (mohan@facebook.com) rewrote all of this.
+ *  Copyright 2010 Facebook, Inc.
+ *  Author: Mohan Srinivasan (mohan@facebook.com)
+ *
+ *  Based on DM-Cache:
+ *   Copyright (C) International Business Machines Corp., 2006
+ *   Author: Ming Zhao (mingzhao@ufl.edu)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,10 +18,8 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  ****************************************************************************/
 
 #ifndef FLASHCACHE_IOCTL_H
@@ -33,10 +33,21 @@ enum {
 	FLASHCACHEADDNCPID_CMD=200,
 	FLASHCACHEDELNCPID_CMD,
 	FLASHCACHEDELNCALL_CMD,
+	FLASHCACHEADDWHITELIST_CMD,
+	FLASHCACHEDELWHITELIST_CMD,
+	FLASHCACHEDELWHITELISTALL_CMD,
 };
 
 #define FLASHCACHEADDNCPID	_IOW(FLASHCACHE_IOCTL, FLASHCACHEADDNCPID_CMD, pid_t)
 #define FLASHCACHEDELNCPID	_IOW(FLASHCACHE_IOCTL, FLASHCACHEDELNCPID_CMD, pid_t)
 #define FLASHCACHEDELNCALL	_IOW(FLASHCACHE_IOCTL, FLASHCACHEDELNCALL_CMD, pid_t)
+
+#define FLASHCACHEADDBLACKLIST		FLASHCACHEADDNCPID
+#define FLASHCACHEDELBLACKLIST		FLASHCACHEDELNCPID
+#define FLASHCACHEDELALLBLACKLIST	FLASHCACHEDELNCALL
+
+#define FLASHCACHEADDWHITELIST		_IOW(FLASHCACHE_IOCTL, FLASHCACHEADDWHITELIST_CMD, pid_t)
+#define FLASHCACHEDELWHITELIST		_IOW(FLASHCACHE_IOCTL, FLASHCACHEDELWHITELIST_CMD, pid_t)
+#define FLASHCACHEDELALLWHITELIST	_IOW(FLASHCACHE_IOCTL, FLASHCACHEDELWHITELISTALL_CMD, pid_t)
 
 #endif
