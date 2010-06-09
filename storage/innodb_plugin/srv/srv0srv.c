@@ -1775,15 +1775,13 @@ srv_suspend_mysql_thread(
 	innodb_lock_wait_timeout, because trx->mysql_thd == NULL. */
 	lock_wait_timeout = thd_lock_wait_timeout(trx->mysql_thd);
 
-	if (trx_is_interrupted(trx)
-	    || (lock_wait_timeout < 100000000
-		&& wait_time > (double) lock_wait_timeout)) {
+	if (lock_wait_timeout < 100000000
+		&& wait_time > (double) lock_wait_timeout) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 		srv_lock_wait_timeouts++;
 	}
-
-	if (trx_is_interrupted(trx)) {
+	else if (trx_is_interrupted(trx)) {
 		trx->error_state = DB_INTERRUPTED;
 	}
 }
