@@ -54,7 +54,7 @@ typedef struct st_key_part_info {	/* Info about a key part */
   uint	offset;				/* offset in record (from 0) */
   uint	null_offset;			/* Offset to null_bit in record */
   uint16 length;                        /* Length of keypart value in bytes */
-  /* 
+  /*
     Number of bytes required to store the keypart value. This may be
     different from the "length" field as it also counts
      - possible NULL-flag byte (see HA_KEY_NULL_LENGTH)
@@ -204,6 +204,41 @@ typedef struct user_resources {
   uint specified_limits;
 } USER_RESOURCES;
 
+#define USER_STATS_MAGIC 0x17171717
+
+/** Counts resources consumed per-user.
+    Data is exported via IS.user_statistics.
+*/
+
+typedef struct st_user_stats {
+  my_atomic_bigint wall_usecs;
+  my_atomic_bigint cpu_usecs;
+  my_atomic_bigint bytes_received;
+  my_atomic_bigint bytes_sent;
+  my_atomic_bigint binlog_bytes_written;
+  my_atomic_bigint rows_fetched, rows_read;
+  my_atomic_bigint rows_inserted, rows_updated, rows_deleted;
+  my_atomic_bigint select_commands, other_commands;
+  my_atomic_bigint insert_commands, update_commands, delete_commands;
+  my_atomic_bigint commit_trans, rollback_trans;
+  my_atomic_bigint global_max_denied_connections; // global limit exceeded
+  my_atomic_bigint user_max_denied_connections;   // per user limit exceeded
+  my_atomic_bigint lost_connections;              // closed on error
+  my_atomic_bigint access_denied_errors;          // denied access to table or db
+  my_atomic_bigint empty_queries;
+  uint magic;
+
+  /* TODO(mcallaghan) -- failed_queries, disk IO, parse and records_in_range
+     seconds, slow queries. I also want to count connections that fail
+     authentication but the hash_user_connections key is (user,host) and when
+     auth fails you know which user/host the login provided but you don't know
+     which pair it wanted to use. Read the docs for how auth uses mysql.user
+     table for more details. When auth failure occurs mysqld doesn't have
+     a referenced to a USER_STATS entry. This probably requires another hash
+     table keyed only by the login name.
+  */
+} USER_STATS;
+
 
 /*
   This structure is used for counting resources consumed and for checking
@@ -235,6 +270,10 @@ typedef struct  user_conn {
   uint conn_per_hour, updates, questions;
   /* Maximum amount of resources which account is allowed to consume. */
   USER_RESOURCES user_resources;
+
+  /* Counts resources consumed for this user */
+  USER_STATS user_stats;
+
 } USER_CONN;
 
 typedef struct st_table_stats {
@@ -259,6 +298,19 @@ typedef struct st_table_stats {
   volatile my_atomic_bigint index_inserts;  /* Number of secondary index inserts. */
   handlerton *engine_type;
 } TABLE_STATS;
+
+/* Resets counters to zero for all users */
+extern int
+reset_all_user_stats();
+
+/* Intialize an instance of USER_STATS */
+extern void
+init_user_stats(USER_STATS *user_stats);
+
+/* Increment values of an instance of 'to' from the values in 'from' and clear 'from' */
+extern void
+copy_user_stats(USER_STATS *to, USER_STATS *from);
+
 
 	/* Bits in form->update */
 #define REG_MAKE_DUPP		1	/* Make a copy of record when read */
@@ -349,7 +401,7 @@ private:
   uint                  elements; // number of elements
   void set_members(Discrete_interval *h, Discrete_interval *t,
                    Discrete_interval *c, uint el)
-  {  
+  {
     head= h;
     tail= t;
     current= c;

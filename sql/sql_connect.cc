@@ -19,6 +19,7 @@
 */
 
 #include "mysql_priv.h"
+#include "my_atomic.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -48,6 +49,25 @@ extern void win_install_sigabrt_handler();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 static HASH hash_user_connections;
+
+/** Undo the work done by get_or_create_user_conn and increment the failed
+    connection counters.
+*/
+static void fix_user_conn(THD *thd, bool global_max)
+{
+  DBUG_ASSERT(thd->user_connect->user_stats.magic == USER_STATS_MAGIC);
+
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+  thd->user_connect->connections--;
+
+  if (global_max)
+    thd->user_connect->user_stats.global_max_denied_connections++;
+  else
+    thd->user_connect->user_stats.user_max_denied_connections++;
+
+  thd->user_connect= NULL;
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
+}
 
 static int get_or_create_user_conn(THD *thd, const char *user,
 				   const char *host,
@@ -90,6 +110,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
       return_val= 1;
       goto end;
     }
+    init_user_stats(&(uc->user_stats));
   }
   thd->user_connect=uc;
   uc->connections++;
@@ -102,7 +123,7 @@ end:
 
 /*
   check if user has already too many connections
-  
+
   SYNOPSIS
   check_for_max_user_connections()
   thd			Thread handle
@@ -153,8 +174,6 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   uc->conn_per_hour++;
 
 end:
-  if (error)
-    uc->connections--; // no need for decrease_user_connections() here
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
@@ -183,11 +202,8 @@ void decrease_user_connections(USER_CONN *uc)
   DBUG_ENTER("decrease_user_connections");
   (void) pthread_mutex_lock(&LOCK_user_conn);
   DBUG_ASSERT(uc->connections);
-  if (!--uc->connections && !mqh_used)
-  {
-    /* Last connection for user; Delete it */
-    (void) hash_delete(&hash_user_connections,(uchar*) uc);
-  }
+  uc->connections--;
+  /* To preserve data in uc->user_stats, delete is no longer done */
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_VOID_RETURN;
 }
@@ -327,9 +343,9 @@ check_user(THD *thd, enum enum_server_command command,
   pthread_mutex_lock(&LOCK_global_system_variables);
   opt_secure_auth_local= opt_secure_auth;
   pthread_mutex_unlock(&LOCK_global_system_variables);
-  
+
   /*
-    If the server is running in secure auth mode, short scrambles are 
+    If the server is running in secure auth mode, short scrambles are
     forbidden.
   */
   if (opt_secure_auth_local && passwd_len == SCRAMBLE_LENGTH_323)
@@ -366,6 +382,7 @@ check_user(THD *thd, enum enum_server_command command,
       general_log_print(thd, COM_CONNECT, ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
                         thd->main_security_ctx.user,
                         thd->main_security_ctx.host_or_ip);
+      // TODO(mcallaghan): count this per user name
       DBUG_RETURN(1);
     }
     /* We have to read very specific packet size */
@@ -374,6 +391,7 @@ check_user(THD *thd, enum enum_server_command command,
     {
       inc_host_errors(&thd->remote.sin_addr);
       my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      // TODO(mcallaghan): count this per user name
       DBUG_RETURN(1);
     }
     /* Final attempt to check the user based on reply */
@@ -400,24 +418,6 @@ check_user(THD *thd, enum enum_server_command command,
                   thd->main_security_ctx.master_access,
                   (thd->db ? thd->db : "*none*")));
 
-//  (max_connections - min(max_connections, reserved_super_connections)) +
-
-      if (check_count)
-      {
-        ulong use_max_conns = max_connections -
-            min(max_connections, reserved_super_connections);
-        pthread_mutex_lock(&LOCK_connection_count);
-        bool count_ok= connection_count <= use_max_conns ||
-                       (thd->main_security_ctx.master_access & SUPER_ACL);
-        VOID(pthread_mutex_unlock(&LOCK_connection_count));
-
-        if (!count_ok)
-        {                                         // too many connections
-          my_error(ER_CON_COUNT_ERROR, MYF(0));
-          DBUG_RETURN(1);
-        }
-      }
-
       /*
         Log the command before authentication checks, so that the user can
         check the log for the tried login tried and also to detect
@@ -439,10 +439,8 @@ check_user(THD *thd, enum enum_server_command command,
       */
       thd->main_security_ctx.db_access=0;
 
-      /* Don't allow user to connect if he has done too many queries */
-      if ((ur.questions || ur.updates || ur.conn_per_hour || ur.user_conn ||
-	   max_user_connections) &&
-	  get_or_create_user_conn(thd,
+      /* Always get USER_CONN as it stores USER_STATS. */
+      if (get_or_create_user_conn(thd,
             (opt_old_style_user_limits ? thd->main_security_ctx.user :
              thd->main_security_ctx.priv_user),
             (opt_old_style_user_limits ? thd->main_security_ctx.host_or_ip :
@@ -452,6 +450,25 @@ check_user(THD *thd, enum enum_server_command command,
         /* The error is set by get_or_create_user_conn(). */
 	DBUG_RETURN(1);
       }
+
+      if (check_count)
+      {
+        ulong use_max_conns = max_connections -
+            min(max_connections, reserved_super_connections);
+        pthread_mutex_lock(&LOCK_connection_count);
+        bool count_ok= connection_count <= use_max_conns ||
+                       (thd->main_security_ctx.master_access & SUPER_ACL);
+        VOID(pthread_mutex_unlock(&LOCK_connection_count));
+
+        if (!count_ok)
+        {                                         // too many connections
+          my_error(ER_CON_COUNT_ERROR, MYF(0));
+          fix_user_conn(thd, true); // Undo work by get_or_create_user_conn
+          DBUG_RETURN(1);
+        }
+      }
+
+      /* Don't allow user to connect if he has done too many queries */
       if (thd->user_connect &&
 	  (thd->user_connect->user_resources.conn_per_hour ||
 	   thd->user_connect->user_resources.user_conn ||
@@ -459,6 +476,7 @@ check_user(THD *thd, enum enum_server_command command,
 	  check_for_max_user_connections(thd, thd->user_connect))
       {
         /* The error is set in check_for_max_user_connections(). */
+        fix_user_conn(thd, false); // Undo work by get_or_create_user_conn
         DBUG_RETURN(1);
       }
 
@@ -469,12 +487,15 @@ check_user(THD *thd, enum enum_server_command command,
         {
           /* mysql_change_db() has pushed the error message. */
           if (thd->user_connect)
+          {
             decrease_user_connections(thd->user_connect);
+            thd->user_connect->user_stats.access_denied_errors++;
+          }
           DBUG_RETURN(1);
         }
       }
       my_ok(thd);
-      thd->password= test(passwd_len);          // remember for error messages 
+      thd->password= test(passwd_len);          // remember for error messages
       /*
         Allow the network layer to skip big packets. Although a malicious
         authenticated session might use this to trick the server to read
@@ -488,10 +509,15 @@ check_user(THD *thd, enum enum_server_command command,
   }
   else if (res == 2) // client gave short hash, server has long hash
   {
+    // TODO(mcallaghan): count this per user name
+
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     general_log_print(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN(1);
   }
+
+  // TODO(mcallaghan): count this per user name
+
   my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
            thd->main_security_ctx.user,
            thd->main_security_ctx.host_or_ip,
@@ -609,7 +635,7 @@ void thd_init_client_charset(THD *thd, uint cs_number)
   else
   {
     thd->variables.character_set_results=
-      thd->variables.collation_connection= 
+      thd->variables.collation_connection=
       thd->variables.character_set_client;
   }
 }
@@ -712,7 +738,7 @@ static int check_connection(THD *thd)
     bzero((char*) &thd->remote, sizeof(thd->remote));
   }
   vio_keepalive(net->vio, TRUE);
-  
+
   ulong server_capabilites;
   {
     /* buff[] needs to big enough to hold the server_version variable */
@@ -747,7 +773,7 @@ static int check_connection(THD *thd)
       part at the end of packet.
     */
     end= strmake(end, thd->scramble, SCRAMBLE_LENGTH_323) + 1;
-   
+
     int2store(end, server_capabilites);
     /* write server characteristics: up to 16 bytes allowed */
     end[2]=(char) default_charset_info->number;
@@ -755,7 +781,7 @@ static int check_connection(THD *thd)
     bzero(end+5, 13);
     end+= 18;
     /* write scramble tail */
-    end= strmake(end, thd->scramble + SCRAMBLE_LENGTH_323, 
+    end= strmake(end, thd->scramble + SCRAMBLE_LENGTH_323,
                  SCRAMBLE_LENGTH - SCRAMBLE_LENGTH_323) + 1;
 
     /* At this point we write connection message and read reply */
@@ -993,10 +1019,21 @@ static void end_connection(THD *thd)
 {
   NET *net= &thd->net;
   plugin_thdvar_cleanup(thd);
-  if (thd->user_connect)
-    decrease_user_connections(thd->user_connect);
 
-  if (thd->killed || (net->error && net->vio != 0))
+  bool end_on_error= thd->killed || (net->error && net->vio != 0);
+
+  if (thd->user_connect)
+  {
+    DBUG_ASSERT(thd->user_connect->user_stats.magic == USER_STATS_MAGIC);
+
+    if (end_on_error)
+    {
+      thd->user_connect->user_stats.lost_connections++;
+    }
+    decrease_user_connections(thd->user_connect);
+  }
+
+  if (end_on_error)
   {
     statistic_increment(aborted_threads,&LOCK_status);
   }
@@ -1139,7 +1176,7 @@ pthread_handler_t handle_one_connection(void *arg)
 	break;
     }
     end_connection(thd);
-   
+
 end_thread:
     close_connection(thd, 0, 1);
     if (thread_scheduler.end_thread(thd,1))
@@ -1154,4 +1191,152 @@ end_thread:
     thd->thread_stack= (char*) &thd;
   }
 }
+
+/* This is a BSD license and covers the changes to the end of the file */
+/* Copyright (C) 2009 Google, Inc.
+   Copyright (C) 2010 Facebook, Inc.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of Google nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY Google ''AS IS'' AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL Google BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+/** Resets user statistics.
+
+    Returns 0 on success;
+*/
+
+int reset_all_user_stats()
+{
+  DBUG_ENTER("reset_all_user_stats");
+
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+
+  for (uint i = 0; i < hash_user_connections.records; ++i)
+  {
+    USER_CONN *uc = (USER_CONN*)hash_element(&hash_user_connections, i);
+
+    init_user_stats(&(uc->user_stats));
+  }
+
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
+  DBUG_RETURN(0);
+}
+
+void init_user_stats(USER_STATS *user_stats)
+{
+  DBUG_ENTER("init_user_stats");
+
+  user_stats->wall_usecs= 0;
+  user_stats->cpu_usecs= 0;
+  user_stats->bytes_received= 0;
+  user_stats->bytes_sent= 0;
+  user_stats->binlog_bytes_written= 0;
+  user_stats->rows_fetched= 0;
+  user_stats->rows_read= 0;
+  user_stats->rows_inserted= 0;
+  user_stats->rows_updated= 0;
+  user_stats->rows_deleted= 0;
+  user_stats->select_commands= 0;
+  user_stats->other_commands= 0;
+  user_stats->insert_commands= 0;
+  user_stats->update_commands= 0;
+  user_stats->delete_commands= 0;
+  user_stats->commit_trans= 0;
+  user_stats->rollback_trans= 0;
+  user_stats->global_max_denied_connections= 0;
+  user_stats->user_max_denied_connections= 0;
+  user_stats->lost_connections= 0;
+  user_stats->access_denied_errors= 0;
+  user_stats->empty_queries= 0;
+  user_stats->magic = USER_STATS_MAGIC;
+  DBUG_VOID_RETURN;
+}
+
+void copy_user_stats(USER_STATS *to, USER_STATS *from)
+{
+  DBUG_ENTER("add_user_stats");
+
+  DBUG_ASSERT(from->magic == USER_STATS_MAGIC);
+  DBUG_ASSERT(to->magic == USER_STATS_MAGIC);
+
+  my_atomic_add_bigint(&(to->wall_usecs), from->wall_usecs);
+  from->wall_usecs= 0;
+
+  my_atomic_add_bigint(&(to->cpu_usecs), from->cpu_usecs);
+  from->cpu_usecs= 0;
+
+  my_atomic_add_bigint(&(to->bytes_received), from->bytes_received);
+  from->bytes_received= 0;
+
+  my_atomic_add_bigint(&(to->bytes_sent), from->bytes_sent);
+  from->bytes_sent= 0;
+
+  my_atomic_add_bigint(&(to->binlog_bytes_written), from->binlog_bytes_written);
+  from->binlog_bytes_written= 0;
+
+  my_atomic_add_bigint(&(to->rows_fetched), from->rows_fetched);
+  from->rows_fetched= 0;
+
+  my_atomic_add_bigint(&(to->rows_read), from->rows_read);
+  from->rows_read= 0;
+
+  my_atomic_add_bigint(&(to->rows_inserted), from->rows_inserted);
+  from->rows_inserted= 0;
+
+  my_atomic_add_bigint(&(to->rows_updated), from->rows_updated);
+  from->rows_updated= 0;
+
+  my_atomic_add_bigint(&(to->rows_deleted), from->rows_deleted);
+  from->rows_deleted= 0;
+
+  my_atomic_add_bigint(&(to->select_commands), from->select_commands);
+  from->select_commands= 0;
+
+  my_atomic_add_bigint(&(to->other_commands), from->other_commands);
+  from->other_commands= 0;
+
+  my_atomic_add_bigint(&(to->insert_commands), from->insert_commands);
+  from->insert_commands= 0;
+
+  my_atomic_add_bigint(&(to->update_commands), from->update_commands);
+  from->update_commands= 0;
+
+  my_atomic_add_bigint(&(to->delete_commands), from->delete_commands);
+  from->delete_commands= 0;
+
+  my_atomic_add_bigint(&(to->commit_trans), from->commit_trans);
+  from->commit_trans= 0;
+
+  my_atomic_add_bigint(&(to->rollback_trans), from->rollback_trans);
+  from->rollback_trans= 0;
+
+  my_atomic_add_bigint(&(to->access_denied_errors), from->access_denied_errors);
+  from->access_denied_errors= 0;
+
+  my_atomic_add_bigint(&(to->empty_queries), from->empty_queries);
+  from->empty_queries= 0;
+
+  DBUG_VOID_RETURN;
+}
+
 #endif /* EMBEDDED_LIBRARY */
