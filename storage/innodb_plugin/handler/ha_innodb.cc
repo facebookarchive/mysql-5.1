@@ -591,6 +591,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_buffer_pool_flushed_other,  SHOW_LONG},
   {"buffer_pool_flushed_preflush",
   (char*) &export_vars.innodb_buffer_pool_flushed_preflush, SHOW_LONG},
+  {"buffer_pool_flushed_background_checkpoint",
+  (char*) &export_vars.innodb_buffer_pool_flushed_background_checkpoint, SHOW_LONG},
+  {"buffer_pool_flushed_foreground_checkpoint",
+  (char*) &export_vars.innodb_buffer_pool_flushed_foreground_checkpoint, SHOW_LONG},
   {"buffer_pool_neighbors_flushed_from_list",
   (char*) &export_vars.innodb_buffer_pool_neighbors_flushed_list, SHOW_LONG},
   {"buffer_pool_neighbors_flushed_from_lru",
@@ -763,6 +767,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_rwlock_x_spin_waits,        SHOW_LONG},
   {"srv_checkpoint_seconds",
   (char*) &export_vars.innodb_srv_checkpoint_secs,        SHOW_DOUBLE},
+  {"srv_background_checkpoint_seconds",
+  (char*) &export_vars.innodb_srv_background_checkpoint_secs, SHOW_DOUBLE},
+  {"srv_foreground_checkpoint_seconds",
+  (char*) &export_vars.innodb_srv_foreground_checkpoint_secs, SHOW_DOUBLE},
   {"srv_free_margin_seconds",
   (char*) &export_vars.innodb_srv_free_margin_secs,       SHOW_DOUBLE},
   {"srv_ibuf_contract_seconds",
@@ -771,6 +779,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_srv_buf_flush_secs,         SHOW_DOUBLE},
   {"srv_purge_seconds",
   (char*) &export_vars.innodb_srv_purge_secs,             SHOW_DOUBLE},
+  {"srv_main_sleep_seconds",
+  (char*) &export_vars.innodb_srv_main_sleep_secs,        SHOW_DOUBLE},
   {"transaction_commit_all",
   (char*) &export_vars.innodb_trx_n_commit_all,           SHOW_LONG},
   {"transaction_commit_with_undo",
@@ -11259,6 +11269,17 @@ static MYSQL_SYSVAR_BOOL(prepare_commit_mutex, innobase_prepare_commit_mutex,
   "Lock the prepare_commit_mutex before writing to binlog",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(background_checkpoint, srv_background_checkpoint,
+  PLUGIN_VAR_NOCMDARG,
+  "Make the main background thread flush pages to increase the minimum dirty page LSN",
+  NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_LONG(background_thread_interval_usecs, srv_background_thread_interval_usecs,
+  PLUGIN_VAR_RQCMDARG,
+  "The main background thread loop should run once per this number of microseconds. "
+  "When a loop iteration finishes its work faster than this it will sleep. ",
+  NULL, NULL, 1000000, 10000, 100000000, 0);
+
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of a memory pool InnoDB uses to store data dictionary information and other internal data structures.",
@@ -11515,6 +11536,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_lifo),
   MYSQL_SYSVAR(deadlock_detect),
   MYSQL_SYSVAR(flush_neighbors_on_checkpoint),
+  MYSQL_SYSVAR(background_checkpoint),
+  MYSQL_SYSVAR(background_thread_interval_usecs),
   MYSQL_SYSVAR(adaptive_hash_latch_cache),
   MYSQL_SYSVAR(compression_level),
   MYSQL_SYSVAR(prepare_commit_mutex),

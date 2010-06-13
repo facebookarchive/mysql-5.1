@@ -1641,11 +1641,13 @@ log_preflush_pool_modified_pages(
 	ib_uint64_t	new_oldest,	/*!< in: try to advance
 					oldest_modified_lsn at least
 					to this lsn */
-	ibool		sync)		/*!< in: TRUE if synchronous
+	ibool		sync,		/*!< in: TRUE if synchronous
 					operation is desired */
+	ulint		max_ios,	/*!< in: max number of disk ios to do.
+					ULINT_MAX == no limit. */
+	ulint		*n_pages)	/*!< out: number of ios done,
+					must not be NULL */
 {
-	ulint	n_pages;
-
 	if (recv_recovery_on) {
 		/* If the recovery is running, we must first apply all
 		log records to their respective file pages to get the
@@ -1659,18 +1661,18 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	n_pages = buf_flush_batch(BUF_FLUSH_LIST, ULINT_MAX, new_oldest);
+	*n_pages = buf_flush_batch(BUF_FLUSH_LIST, max_ios, new_oldest);
 
 	if (sync) {
 		buf_flush_wait_batch_end(BUF_FLUSH_LIST);
 	}
 
-	if (n_pages == ULINT_UNDEFINED) {
-
+	if (*n_pages == ULINT_UNDEFINED) {
+		*n_pages = 0;
 		return(FALSE);
 	} else {
 
-		srv_n_flushed_preflush += n_pages;
+		srv_n_flushed_preflush += *n_pages;
 		return(TRUE);
 	}
 }
@@ -2078,11 +2080,77 @@ log_make_checkpoint_at(
 					physical write will always be made to
 					log files */
 {
+	ulint np;
+
 	/* Preflush pages synchronously */
 
-	while (!log_preflush_pool_modified_pages(lsn, TRUE));
+	while (!log_preflush_pool_modified_pages(lsn, TRUE, ULINT_MAX, &np))
+		;
 
-	while (!log_checkpoint(TRUE, write_always));
+	while (!log_checkpoint(TRUE, write_always))
+		;
+}
+
+/********************************************************************
+Like log_checkpoint_margin(), but to be run by the main background
+IO thread so this can be more aggressive, but should use async IO. */
+
+ulint
+log_checkpoint_margin_background(
+/*=============================*/
+			/* out: returns number of pages flushed */
+	ulint	max_ios) /* in: max number of IOs to submit */
+{
+	log_t*	log			= log_sys;
+	ulint	age;
+	ib_uint64_t	advance 	= 0;
+	ib_uint64_t	oldest_lsn;
+	my_fast_timer_t	fast_timer;
+
+	my_get_fast_timer(&fast_timer);
+
+	mutex_enter(&(log->mutex));
+
+	oldest_lsn = log_buf_pool_get_oldest_modification();
+
+	age = log->lsn - oldest_lsn;
+
+	if (age > log->max_modified_age_sync) {
+
+		/* A flush is urgent: we have to do a synchronous preflush */
+		advance = 2 * (age - log->max_modified_age_sync);
+
+	} else if (age > log->max_modified_age_async) {
+
+		/* A flush is not urgent: we do an asynchronous preflush */
+		advance = age - log->max_modified_age_async;
+	}
+
+	mutex_exit(&(log->mutex));
+
+	if (advance) {
+		ulint npages;
+		ib_uint64_t	new_oldest = oldest_lsn + advance;
+
+		/* This fails when called concurrently. If it does the main
+		background thread will call this function in 1 second. */
+
+		if (log_preflush_pool_modified_pages(new_oldest, FALSE,
+						max_ios, &npages)) {
+
+			srv_n_flushed_background_checkpoint += npages;
+
+			srv_background_checkpoint_secs +=
+				my_fast_timer_diff_now(&fast_timer, NULL);
+
+			return npages;
+		}
+	}
+
+	srv_background_checkpoint_secs +=
+		my_fast_timer_diff_now(&fast_timer, NULL);
+
+	return 0;
 }
 
 /****************************************************************//**
@@ -2104,6 +2172,7 @@ log_checkpoint_margin(void)
 	ibool		checkpoint_sync;
 	ibool		do_checkpoint;
 	ibool		success;
+	my_fast_timer_t	fast_timer;
 loop:
 	sync = FALSE;
 	checkpoint_sync = FALSE;
@@ -2118,6 +2187,8 @@ loop:
 		return;
 	}
 
+	my_get_fast_timer(&fast_timer);
+
 	oldest_lsn = log_buf_pool_get_oldest_modification();
 
 	age = log->lsn - oldest_lsn;
@@ -2128,9 +2199,13 @@ loop:
 
 		sync = TRUE;
 		advance = 2 * (age - log->max_modified_age_sync);
-	} else if (age > log->max_modified_age_async) {
+	} else if (!srv_background_checkpoint &&
+			age > log->max_modified_age_async) {
 
-		/* A flush is not urgent: we do an asynchronous preflush */
+		/* A flush is not urgent: we do an asynchronous preflush. When
+		srv_background_checkpoint_io is TRUE, this work is done by
+		srv_master_thread. */
+
 		advance = age - log->max_modified_age_async;
 	} else {
 		advance = 0;
@@ -2159,8 +2234,14 @@ loop:
 
 	if (advance) {
 		ib_uint64_t	new_oldest = oldest_lsn + advance;
+		ulint		np;
 
-		success = log_preflush_pool_modified_pages(new_oldest, sync);
+		success = log_preflush_pool_modified_pages(new_oldest, sync,
+								ULINT_MAX, &np);
+
+		if (success) {
+			srv_n_flushed_foreground_checkpoint += np;
+		}
 
 		/* If the flush succeeded, this thread has done its part
 		and can proceed. If it did not succeed, there was another
@@ -2177,6 +2258,9 @@ loop:
 			goto loop;
 		}
 	}
+
+	srv_foreground_checkpoint_secs +=
+		my_fast_timer_diff_now(&fast_timer, NULL);
 
 	if (do_checkpoint) {
 		log_checkpoint(checkpoint_sync, FALSE);
@@ -3410,9 +3494,9 @@ log_print(
 		"Max checkpoint age        %lu\n",
 		log_sys->max_modified_age_sync,
 		log_sys->max_modified_age_async,
-		(age < log_sys->max_modified_age_sync) ? 
+		(age < log_sys->max_modified_age_sync) ?
 		(log_sys->max_modified_age_sync - age) : 0,
-		(age < log_sys->max_modified_age_async) ? 
+		(age < log_sys->max_modified_age_async) ?
 		(log_sys->max_modified_age_async - age) : 0,
 		age,
 		(ulint) (log_sys->lsn - log_sys->last_checkpoint_lsn),

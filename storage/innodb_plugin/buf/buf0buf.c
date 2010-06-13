@@ -2886,7 +2886,7 @@ on the buffer frame. The io-handler must take care that the flag is cleared
 and the lock released later.
 @return	pointer to the block or NULL */
 UNIV_INTERN
-buf_page_t* 
+buf_page_t*
 buf_page_init_for_read(
 /*===================*/
 	ulint*		err,	/*!< out: DB_SUCCESS or DB_TABLESPACE_DELETED */
@@ -4032,7 +4032,7 @@ buf_print_io(
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n"
 		"Total writes: %lu LRU, %lu flush list, %lu single page\n"
 		"Write sources: free margin %lu, bg dirty %lu, preflush %lu, "
-		"adaptive %lu, other %lu\n"
+		"adaptive %lu, other %lu, bg checkpoint %lu, fg checkpoint %lu\n"
 		"Neighbor pages flushed: %lu from list, %lu from LRU\n",
 		(ulong) buf_pool->curr_size,
 		(ulong) UT_LIST_GET_LEN(buf_pool->free),
@@ -4056,6 +4056,8 @@ buf_print_io(
 		(ulong) srv_n_flushed_preflush,
 		(ulong) srv_n_flushed_adaptive,
 		(ulong) srv_n_flushed_other,
+		(ulong) srv_n_flushed_background_checkpoint,
+		(ulong) srv_n_flushed_foreground_checkpoint,
 		(ulong) srv_neighbors_flushed_list,
 		(ulong) srv_neighbors_flushed_lru);
 

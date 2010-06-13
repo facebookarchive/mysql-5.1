@@ -248,7 +248,7 @@ extern ulint	srv_dml_needed_delay;
 /** Pages flushed to maintain non-dirty pages on free list */
 extern ulint	srv_n_flushed_free_margin;
 
-/** Pages flushed for adaptive flushing */ 
+/** Pages flushed for adaptive flushing */
 extern ulint	srv_n_flushed_adaptive;
 
 /** Pages flushed to enforce innodb_max_dirty_pages_pct */
@@ -258,7 +258,13 @@ extern ulint	srv_n_flushed_max_dirty;
 pages in the buffer pool */
 extern ulint	srv_n_flushed_preflush;
 
-/** Pages flushed for other reasons */ 
+/** Pages flushed by background checkpoint */
+extern ulint	srv_n_flushed_background_checkpoint;
+
+/** Pages flushed by foreground checkpoint */
+extern ulint	srv_n_flushed_foreground_checkpoint;
+
+/** Pages flushed for other reasons */
 extern ulint	srv_n_flushed_other;
 
 /** Number of extra writes done in buf_flush_try_neighbors from LRU list */
@@ -268,6 +274,10 @@ extern ulint srv_neighbors_flushed_lru;
 extern ulint srv_neighbors_flushed_list;
 
 extern my_bool	srv_read_ahead_linear;
+
+/** The loop in srv_master_thread should run once per this number of usecs.
+If work finishes faster, it will sleep. */
+extern long	srv_background_thread_interval_usecs;
 
 /** Seconds doing a checkpoint */
 extern double	srv_checkpoint_secs;
@@ -284,11 +294,23 @@ extern double	srv_buf_flush_secs;
 /** Seconds in trx_purge */
 extern double	srv_purge_secs;
 
+/** Seconds in log_checkpoint_margin_background */
+extern double	srv_background_checkpoint_secs;
+
+/** Seconds in log_checkpoint_margin */
+extern double	srv_foreground_checkpoint_secs;
+
+/** Seconds that srv_master_thread sleeps */
+extern double	srv_main_sleep_secs;
+
 /** Number of deadlocks */
 extern ulint	srv_lock_deadlocks;
 
 /** Number of lock wait timeouts */
 extern ulint	srv_lock_wait_timeouts;
+
+/** Main background thread does flushes for fuzzy checkpoint */
+extern my_bool	srv_background_checkpoint;
 
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				query threads, and lock table: we allocate
@@ -716,6 +738,10 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_flushed_max_dirty;/*!< srv_n_flushed_max_dirty */
 	ulint innodb_buffer_pool_flushed_other;/*!< srv_n_flushed_other */
 	ulint innodb_buffer_pool_flushed_preflush;/*!< srv_n_flushed_preflush */
+	ulint innodb_buffer_pool_flushed_background_checkpoint;
+						/*!< srv_n_flushed_background_checkpoint */
+	ulint innodb_buffer_pool_flushed_foreground_checkpoint;
+						/*!< srv_n_flushed_foreground_checkpoint */
         ulint innodb_buffer_pool_neighbors_flushed_list;/*!< srv_neighbors_flushed_list */
         ulint innodb_buffer_pool_neighbors_flushed_lru;/*!< srv_neighbors_flushed_lru */
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
@@ -793,6 +819,11 @@ struct export_var_struct{
 	double innodb_srv_ibuf_contract_secs;	/*!< srv_ibuf_contract_secs */
 	double innodb_srv_buf_flush_secs;	/*!< srv_ibuf_flush_secs */
 	double innodb_srv_purge_secs;		/*!< srv_purge_secs */
+	double innodb_srv_background_checkpoint_secs;
+						/*!< srv_background_checkpoint_secs */
+	double innodb_srv_foreground_checkpoint_secs;
+						/*!< srv_foreground_checkpoint_secs */
+	double innodb_srv_main_sleep_secs;	/*!< srv_main_sleep_secs */
 	ulint innodb_trx_n_commit_all; /*!< srv_n_commit_with_undo */
 	ulint innodb_trx_n_commit_with_undo; /*!< srv_n_commit_with_undo */
 	ulint innodb_trx_n_rollback_partial; /*!< srv_n_rollback_partial */

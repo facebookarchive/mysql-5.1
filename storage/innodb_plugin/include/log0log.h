@@ -253,8 +253,21 @@ log_preflush_pool_modified_pages(
 	ib_uint64_t	new_oldest,	/*!< in: try to advance
 					oldest_modified_lsn at least
 					to this lsn */
-	ibool		sync);		/*!< in: TRUE if synchronous
+	ibool		sync,		/*!< in: TRUE if synchronous
 					operation is desired */
+	ulint		max_ios,	/*!< in: max number of disk ios to do.
+					ULINT_MAX == no limit. */
+	ulint		*n_pages);	/*!< out: number of ios done,
+					must not be null */
+/********************************************************************
+Like log_checkpoint_margin(), but to be run by the main background
+IO thread so this can be more aggressive and should use async IO. */
+
+ulint
+log_checkpoint_margin_background(
+/*=============================*/
+			/* out: returns number of pages flushed */
+	ulint	max_ios); /* in: max number of IOs to submit */
 /******************************************************//**
 Makes a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest

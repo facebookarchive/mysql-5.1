@@ -289,6 +289,10 @@ UNIV_INTERN ulint srv_buf_pool_reads = 0;
 /* structure to pass status variables to MySQL */
 UNIV_INTERN export_struc export_vars;
 
+/** The loop in srv_master_thread should run once per this number of usecs.
+ * If work finishes faster, it will sleep. */
+UNIV_INTERN long	srv_background_thread_interval_usecs;
+
 /** Seconds doing a checkpoint */
 UNIV_INTERN double   srv_checkpoint_secs	= 0;
 
@@ -303,6 +307,15 @@ UNIV_INTERN double   srv_buf_flush_secs		= 0;
 
 /** Seconds in trx_purge */
 UNIV_INTERN double   srv_purge_secs		= 0;
+
+/** Seconds in log_checkpoint_margin_background */
+UNIV_INTERN double	srv_background_checkpoint_secs;
+
+/** Seconds in log_checkpoint_margin */
+UNIV_INTERN double	srv_foreground_checkpoint_secs;
+
+/** Seconds that srv_master_thread sleeps */
+UNIV_INTERN double	srv_main_sleep_secs	= 0;
 
 /** Number of deadlocks */
 UNIV_INTERN ulint	srv_lock_deadlocks	= 0;
@@ -322,6 +335,12 @@ UNIV_INTERN ulint	srv_n_flushed_adaptive		= 0;
 /** Pages flushed at the start of a DML statement to maintain clean
 pages in the buffer pool */
 UNIV_INTERN ulint	srv_n_flushed_preflush		= 0;
+
+/** Pages flushed by background checkpoint */
+UNIV_INTERN ulint	srv_n_flushed_background_checkpoint = 0;
+
+/** Pages flushed by foreground checkpoint */
+UNIV_INTERN ulint	srv_n_flushed_foreground_checkpoint = 0;
 
 /** Pages flushed for other reasons */
 UNIV_INTERN ulint	srv_n_flushed_other		= 0;
@@ -419,6 +438,9 @@ ulong	srv_thread_lifo_scheduled = 0;
 
 /* When != 0, detect deadlocks for row-lock waits */
 my_bool	srv_deadlock_detect = 1;
+
+/** Main background thread does flushes for fuzzy checkpoint */
+my_bool	srv_background_checkpoint = TRUE;
 
 typedef struct srv_conc_slot_struct	srv_conc_slot_t;
 struct srv_conc_slot_struct{
@@ -811,10 +833,15 @@ srv_print_master_thread_info(
 	fprintf(file,
 		"Seconds in background IO: %.2f insert buffer, "
 		"%.2f buffer pool, %.2f purge, %.2f free margin, "
-		"%.2f checkpoint\n",
+		"%.2f checkpoint, %.2f sleep\n",
 		srv_ibuf_contract_secs, srv_buf_flush_secs,
 		srv_purge_secs, srv_free_margin_secs,
-		srv_checkpoint_secs);
+		srv_checkpoint_secs, srv_main_sleep_secs);
+
+	fprintf(file,
+		"Checkpoint IO seconds: %.2f background, %.2f foreground\n",
+		srv_background_checkpoint_secs,
+		srv_foreground_checkpoint_secs);
 
 	fprintf(file, "FIFO threads waited: %lu times, "
 		"LIFO threads scheduled: %lu times\n",
@@ -2146,6 +2173,10 @@ srv_export_innodb_status(void)
         export_vars.innodb_buffer_pool_flushed_max_dirty=
 		srv_n_flushed_max_dirty;
         export_vars.innodb_buffer_pool_flushed_preflush= srv_n_flushed_preflush;
+        export_vars.innodb_buffer_pool_flushed_background_checkpoint=
+		srv_n_flushed_background_checkpoint;
+        export_vars.innodb_buffer_pool_flushed_foreground_checkpoint=
+		srv_n_flushed_foreground_checkpoint;
 
 	export_vars.innodb_buffer_pool_neighbors_flushed_list=
 		srv_neighbors_flushed_list;
@@ -2266,6 +2297,11 @@ srv_export_innodb_status(void)
 	export_vars.innodb_srv_ibuf_contract_secs= srv_ibuf_contract_secs;
 	export_vars.innodb_srv_buf_flush_secs= srv_buf_flush_secs;
 	export_vars.innodb_srv_purge_secs= srv_purge_secs;
+	export_vars.innodb_srv_background_checkpoint_secs=
+		srv_background_checkpoint_secs;
+	export_vars.innodb_srv_foreground_checkpoint_secs=
+		srv_foreground_checkpoint_secs;
+	export_vars.innodb_srv_main_sleep_secs= srv_main_sleep_secs;
 
 	export_vars.innodb_trx_n_commit_all= srv_n_commit_all;
 	export_vars.innodb_trx_n_commit_with_undo= srv_n_commit_with_undo;
@@ -2717,6 +2753,7 @@ srv_master_thread(
 	ulint		n_ios_very_old;
 	ulint		n_pend_ios;
 	ibool		skip_sleep	= FALSE;
+	ulint		skip_sleep_usecs;
 	ulint		i;
 	my_fast_timer_t	fast_timer;
 
@@ -2761,8 +2798,11 @@ loop:
 
 	srv_last_log_flush_time = time(NULL);
 	skip_sleep = FALSE;
+	skip_sleep_usecs = srv_background_thread_interval_usecs;
 
 	for (i = 0; i < 10; i++) {
+		my_fast_timer_t	loop_timer;
+
 		n_ios_old = log_sys->n_log_ios + buf_pool->stat.n_pages_read
 			+ buf_pool->stat.n_pages_written;
 		srv_main_thread_op_info = "sleeping";
@@ -2770,11 +2810,14 @@ loop:
 
 		if (!skip_sleep) {
 
-			os_thread_sleep(1000000);
+			os_thread_sleep(skip_sleep_usecs);
 			srv_main_sleeps++;
+			srv_main_sleep_secs += (skip_sleep_usecs / 1000000.0);
 		}
+		my_get_fast_timer(&loop_timer);
 
 		skip_sleep = FALSE;
+		skip_sleep_usecs = 0;
 
 		/* ALTER TABLE in MySQL requires on Unix that the table handler
 		can drop tables lazily after there no longer are SELECT
@@ -2819,6 +2862,8 @@ loop:
 			srv_sync_log_buffer_in_background();
 		}
 
+		n_pages_flushed = 0;
+
 		if (UNIV_UNLIKELY(buf_get_modified_ratio_pct()
 				  > srv_max_buf_pool_modified_pct)) {
 
@@ -2833,17 +2878,31 @@ loop:
 							  IB_ULONGLONG_MAX);
 			srv_buf_flush_secs +=
 				my_fast_timer_diff_now(&fast_timer, NULL);
+
 			if (n_pages_flushed != ULINT_UNDEFINED) {
 				srv_n_flushed_max_dirty += n_pages_flushed;
+			} else {
+				n_pages_flushed = 0;
 			}
 
-			/* If we had to do the flush, it may have taken
-			even more than 1 second, and also, there may be more
-			to flush. Do not sleep 1 second during the next
-			iteration of this loop. */
+		} else if (srv_background_checkpoint) {
 
-			skip_sleep = TRUE;
-		} else if (srv_adaptive_flushing) {
+			srv_main_thread_op_info =
+				"flushing pages for background checkpoint";
+
+			/* Flush dirty pages with min LSN values that are
+			almost too old. If this is not done, a user thread may
+			have to block doing it. */
+
+			n_pages_flushed = log_checkpoint_margin_background(PCT_IO(100));
+
+		}
+
+		/* This isn't an 'else' branch with the code above because when
+		the srv_background_checkpoint branch does no work, then this
+		block of code should be run. */
+
+		if (!n_pages_flushed && srv_adaptive_flushing) {
 
 			/* Try to keep the rate of flushing of dirty
 			pages such that redo log generation does not
@@ -2862,9 +2921,7 @@ loop:
 						IB_ULONGLONG_MAX);
 				srv_buf_flush_secs +=
 					my_fast_timer_diff_now(&fast_timer, NULL);
-				if (n_flush == PCT_IO(100)) {
-					skip_sleep = TRUE;
-				}
+
 				if (n_pages_flushed != ULINT_UNDEFINED) {
 					srv_n_flushed_adaptive += n_pages_flushed;
 				}
@@ -2878,6 +2935,20 @@ loop:
 
 			goto background_loop;
 		}
+
+		/* This loop is supposed to run once per second. Skip the sleep
+		at loop start when the previous iteration ran for more than
+		srv_background_skip_sleep_usecs. */
+
+		{
+			ulint loop_usecs = my_fast_timer_diff_now(&loop_timer, NULL) * 1000000.0;
+			if (loop_usecs >= srv_background_thread_interval_usecs) {
+				skip_sleep = TRUE;
+			} else {
+				skip_sleep_usecs = srv_background_thread_interval_usecs - loop_usecs;
+			}
+		}
+
 	}
 
 	/* ---- We perform the following code approximately once per
