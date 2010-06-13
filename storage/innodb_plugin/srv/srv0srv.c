@@ -290,19 +290,19 @@ UNIV_INTERN ulint srv_buf_pool_reads = 0;
 UNIV_INTERN export_struc export_vars;
 
 /** Seconds doing a checkpoint */
-UNIV_INTERN double   srv_checkpoint_secs;
+UNIV_INTERN double   srv_checkpoint_secs	= 0;
 
 /** Seconds in buf_flush_free_margin */
-UNIV_INTERN double   srv_free_margin_secs;
+UNIV_INTERN double   srv_free_margin_secs	= 0;
 
 /** Seconds in insert buffer */
-UNIV_INTERN double   srv_ibuf_contract_secs;
+UNIV_INTERN double   srv_ibuf_contract_secs	= 0;
 
 /** Seconds in buf_flush_batch */
-UNIV_INTERN double   srv_buf_flush_secs;
+UNIV_INTERN double   srv_buf_flush_secs		= 0;
 
 /** Seconds in trx_purge */
-UNIV_INTERN double   srv_purge_secs;
+UNIV_INTERN double   srv_purge_secs		= 0;
 
 /** Number of deadlocks */
 UNIV_INTERN ulint	srv_lock_deadlocks	= 0;
