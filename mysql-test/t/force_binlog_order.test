@@ -77,7 +77,7 @@ UPDATE t1 SET a=100 WHERE k=1;
 
 --connection c1
 --echo connection c1
-SHOW BINLOG EVENTS;
+SHOW BINLOG EVENTS LIMIT 2,1;
 
 
 ################################################################################

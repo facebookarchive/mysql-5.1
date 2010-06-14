@@ -34,15 +34,9 @@ SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
 UPDATE t1 SET a=200 WHERE k=2;
 SET DEBUG_SYNC='now SIGNAL c2_committed';
 connection c1
-SHOW BINLOG EVENTS;
+SHOW BINLOG EVENTS LIMIT 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	106	Server ver: 5.1.47_rmcelroy_test-debug-log, Binlog ver: 4
-master-bin.000001	106	Query	1	174	BEGIN
 master-bin.000001	174	Query	1	266	use `test`; UPDATE t1 SET a=100 WHERE k=1
-master-bin.000001	266	Xid	1	293	COMMIT /* xid=36 */
-master-bin.000001	293	Query	1	361	BEGIN
-master-bin.000001	361	Query	1	453	use `test`; UPDATE t1 SET a=200 WHERE k=2
-master-bin.000001	453	Xid	1	480	COMMIT /* xid=38 */
 RESET MASTER;
 SET DEBUG_SYNC= 'RESET';
 SET GLOBAL innodb_prepare_commit_mutex=0;
