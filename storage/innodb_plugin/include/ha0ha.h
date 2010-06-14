@@ -120,7 +120,8 @@ UNIV_INTERN
 void
 ha_clear(
 /*=====*/
-	hash_table_t*	table);	/*!< in, own: hash table */
+	hash_table_t*	table,	/*!< in, own: hash table */
+	ibool		call_mutex_free);/*!< in, call mutex_free when TRUE */
 
 /*************************************************************//**
 Inserts an entry into a hash table. If an entry with the same fold number

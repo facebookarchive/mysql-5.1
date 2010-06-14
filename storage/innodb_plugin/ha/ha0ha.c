@@ -91,7 +91,8 @@ UNIV_INTERN
 void
 ha_clear(
 /*=====*/
-	hash_table_t*	table)	/*!< in, own: hash table */
+	hash_table_t*	table,	/*!< in, own: hash table */
+	ibool		call_mutex_free)/*!< in, call mutex_free when TRUE */
 {
 	ulint	i;
 	ulint	n;
@@ -114,8 +115,13 @@ ha_clear(
 	mem_free(table->heaps);
 	table->heaps = NULL;
 
-	for (i = 0; i < table->n_mutexes; i++) {
-		mutex_free(table->mutexes + i);
+	if (call_mutex_free) {
+		/* When this is called by buf_pool_free it is too late to call
+		mutex_free() */
+
+		for (i = 0; i < table->n_mutexes; i++) {
+			mutex_free(table->mutexes + i);
+		}
 	}
 	mem_free(table->mutexes);
 	table->mutexes = NULL;

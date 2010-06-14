@@ -1068,7 +1068,7 @@ buf_pool_free(void)
 	}
 
 	mem_free(buf_pool->chunks);
-	ha_clear(buf_pool->page_hash);
+	ha_clear(buf_pool->page_hash, FALSE);
 	hash_table_free(buf_pool->page_hash);
 	hash_table_free(buf_pool->zip_hash);
 	mem_free(buf_pool);
@@ -1414,7 +1414,7 @@ buf_pool_page_hash_rebuild(void)
 	hash_mutex_enter_all(buf_pool->page_hash);
 
 	/* Free, create, and populate the hash table. */
-	ha_clear(buf_pool->page_hash);
+	ha_clear(buf_pool->page_hash, TRUE);
 
 	/*FIXME: This is broken. When we free the hash_table we
 	free the mutex array as well. We either have to have a
