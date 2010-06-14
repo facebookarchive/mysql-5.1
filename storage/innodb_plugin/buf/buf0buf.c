@@ -688,6 +688,10 @@ buf_block_init(
 
 	block->frame = frame;
 
+#ifdef UNIV_DEBUG_VALGRIND
+	block->page.pad = 0;
+	block->page.pad2 = 0;
+#endif /* UNIV_DEBUG_VALGRIND */
 	block->page.state = BUF_BLOCK_NOT_USED;
 	block->page.buf_fix_count = 0;
 	block->page.io_fix = BUF_IO_NONE;
