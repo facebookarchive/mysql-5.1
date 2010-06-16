@@ -4031,6 +4031,7 @@ buf_print_io(
 		"Old database pages %lu\n"
 		"Modified db pages  %lu\n"
 		"Read ahead: %lu\n"
+		"Evicted after read ahead without access: %lu\n",
 		"Percent pages dirty: %.2f\n"
 		"Pending reads %lu\n"
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n"
@@ -4044,6 +4045,7 @@ buf_print_io(
 		(ulong) buf_pool->LRU_old_len,
 		(ulong) UT_LIST_GET_LEN(buf_pool->flush_list),
 		(ulong) buf_pool->stat.n_ra_pages_read,
+		(ulong) buf_pool->stat.n_ra_pages_evicted,
 		(((double) UT_LIST_GET_LEN(buf_pool->flush_list)) /
 			(UT_LIST_GET_LEN(buf_pool->LRU) + 1.0)) * 100.0,
 		(ulong) buf_pool->n_pend_reads,
