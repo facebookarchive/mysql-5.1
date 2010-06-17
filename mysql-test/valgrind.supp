@@ -722,3 +722,52 @@
    fun:pthread_create*
 }
 
+#
+# http://lists.mysql.com/commits/108524
+#
+{
+   innodb compression - mask out libz to be portable
+   Memcheck:Cond
+   obj:*
+   obj:*
+   fun:deflate
+   fun:btr_store_big_rec_extern_fields
+   fun:row_ins_index_entry_low
+   fun:row_ins_index_entry
+   fun:row_ins_step
+   fun:row_insert_for_mysql
+}
+
+#
+# I did not find a commit for this, but given the previous suppression
+# I am willing to add this.
+#
+{
+   innodb compression - mask out libz to be portable
+   Memcheck:Cond
+   obj:*
+   obj:*
+   fun:deflate
+   fun:page_zip_compress_deflate
+   fun:page_zip_compress
+   fun:page_cur_insert_rec_zip
+   fun:page_cur_tuple_insert
+   fun:btr_cur_optimistic_insert
+   fun:row_ins_index_entry_low
+   fun:row_ins_index_entry
+   fun:row_ins_step
+   fun:row_insert_for_mysql
+}
+
+#
+# see http://lists.mysql.com/commits/109727
+#
+{
+   mask another bogus innodb warning
+   Memcheck:Addr1
+   fun:mach_read_from_4
+   fun:buf_buddy_relocate
+   fun:buf_buddy_free_low
+   fun:buf_LRU_block_remove_hashed_page
+}
+
