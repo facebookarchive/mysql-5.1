@@ -1029,7 +1029,7 @@ buf_pool_init(void)
 	buf_pool->curr_size = chunk->size;
 	srv_buf_pool_curr_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
 
-	buf_pool->page_hash = ha_create(2 * buf_pool->curr_size,
+	buf_pool->page_hash = ha_create_dynamic(2 * buf_pool->curr_size,
 					256, SYNC_BUF_PAGE_HASH);
 	buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 

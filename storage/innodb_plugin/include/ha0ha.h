@@ -92,8 +92,9 @@ ha_create_func(
 	ulint	mutex_level,	/*!< in: level of the mutexes in the latching
 				order: this is used in the debug version */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint	n_mutexes);	/*!< in: number of mutexes to protect the
+	ulint	n_mutexes,	/*!< in: number of mutexes to protect the
 				hash table: must be a power of 2, or 0 */
+	ibool	dynamic);	/*!< in: use MEM_HEAP_DYNAMIC */
 #ifdef UNIV_SYNC_DEBUG
 /** Creates a hash table.
 @return		own: created table
@@ -102,7 +103,8 @@ chosen to be a slightly bigger prime number.
 @param level	in: level of the mutexes in the latching order
 @param n_m	in: number of mutexes to protect the hash table;
 		must be a power of 2, or 0 */
-# define ha_create(n_c,n_m,level) ha_create_func(n_c,level,n_m)
+# define ha_create(n_c,n_m,level) ha_create_func(n_c,level,n_m,FALSE)
+# define ha_create_dynamic(n_c,n_m,level) ha_create_func(n_c,level,n_m,TRUE)
 #else /* UNIV_SYNC_DEBUG */
 /** Creates a hash table.
 @return		own: created table
@@ -111,7 +113,8 @@ chosen to be a slightly bigger prime number.
 @param level	in: level of the mutexes in the latching order
 @param n_m	in: number of mutexes to protect the hash table;
 		must be a power of 2, or 0 */
-# define ha_create(n_c,n_m,level) ha_create_func(n_c,n_m)
+# define ha_create(n_c,n_m,level) ha_create_func(n_c,n_m,FALSE)
+# define ha_create_dynamic(n_c,n_m,level) ha_create_func(n_c,n_m,TRUE)
 #endif /* UNIV_SYNC_DEBUG */
 
 /*************************************************************//**

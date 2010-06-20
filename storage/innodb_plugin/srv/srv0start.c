@@ -1337,7 +1337,7 @@ innobase_start_or_create_for_mysql(void)
 	}
 #endif /* UNIV_LOG_ARCHIVE */
 
-	if (srv_n_log_files * srv_log_file_size >= 262144) {
+	if (srv_n_log_files * srv_log_file_size >= ((1LL <<32) / UNIV_PAGE_SIZE)) {
 		fprintf(stderr,
 			"InnoDB: Error: combined size of log files"
 			" must be < 4 GB\n");

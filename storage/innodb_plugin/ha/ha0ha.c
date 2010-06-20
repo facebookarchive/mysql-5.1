@@ -49,8 +49,9 @@ ha_create_func(
 	ulint	mutex_level,	/*!< in: level of the mutexes in the latching
 				order: this is used in the debug version */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint	n_mutexes)	/*!< in: number of mutexes to protect the
+	ulint	n_mutexes,	/*!< in: number of mutexes to protect the
 				hash table: must be a power of 2, or 0 */
+	ibool	dynamic)	/*!< in: use MEM_HEAP_DYNAMIC */
 {
 	hash_table_t*	table;
 #ifndef UNIV_HOTBACKUP
@@ -64,8 +65,13 @@ ha_create_func(
 	but in practise it never should in this case, hence the asserts. */
 
 	if (n_mutexes == 0) {
-		table->heap = mem_heap_create_in_btr_search(
-			ut_min(4096, MEM_MAX_ALLOC_IN_BUF));
+		if (dynamic) {
+			table->heap = mem_heap_create(
+				ut_min(4096, MEM_MAX_ALLOC_IN_BUF));
+		} else {
+			table->heap = mem_heap_create_in_btr_search(
+				ut_min(4096, MEM_MAX_ALLOC_IN_BUF));
+		}
 		ut_a(table->heap);
 
 		return(table);
@@ -77,7 +83,11 @@ ha_create_func(
 	table->heaps = mem_alloc(n_mutexes * sizeof(void*));
 
 	for (i = 0; i < n_mutexes; i++) {
-		table->heaps[i] = mem_heap_create_in_btr_search(4096);
+		if (dynamic) {
+			table->heaps[i] = mem_heap_create(4096);
+		} else {
+			table->heaps[i] = mem_heap_create_in_btr_search(4096);
+		}
 		ut_a(table->heaps[i]);
 	}
 #endif /* !UNIV_HOTBACKUP */
