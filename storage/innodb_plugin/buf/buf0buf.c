@@ -4031,7 +4031,7 @@ buf_print_io(
 		"Old database pages %lu\n"
 		"Modified db pages  %lu\n"
 		"Read ahead: %lu\n"
-		"Evicted after read ahead without access: %lu\n",
+		"Evicted after read ahead without access: %lu\n"
 		"Percent pages dirty: %.2f\n"
 		"Pending reads %lu\n"
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n"
