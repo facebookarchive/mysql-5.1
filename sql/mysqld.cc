@@ -63,6 +63,10 @@
 #include "sp_rcontext.h"
 #include "sp_cache.h"
 
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+
 #define mysqld_charset &my_charset_latin1
 
 #ifdef HAVE_purify
@@ -1213,7 +1217,7 @@ static void __cdecl kill_server(int sig_ptr)
 		 GetLastError()));
   }
 #endif
-  
+
   close_connections();
   if (sig != MYSQL_KILL_SIGNAL &&
       sig != 0)
@@ -5255,30 +5259,50 @@ inline void kill_broken_server()
 #ifndef EMBEDDED_LIBRARY
 pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 {
-  my_socket sock,new_sock;
+  my_socket UNINIT_VAR(sock),UNINIT_VAR(new_sock);
   uint error_count=0;
-  uint max_used_connection= (uint) (max(ip_sock,unix_sock)+1);
-  fd_set readFDs,clientFDs;
   THD *thd;
   struct sockaddr_in cAddr;
-  int ip_flags=0,socket_flags=0,flags;
+  int ip_flags=0,socket_flags=0,flags=0,retval;
   st_vio *vio_tmp;
+#ifdef HAVE_POLL
+  int socket_count=0;
+  struct pollfd fds[2]; // for ip_sock and unix_sock
+#else
+  fd_set readFDs,clientFDs;
+  uint max_used_connection= (uint) (max(ip_sock,unix_sock)+1);
+#endif
   DBUG_ENTER("handle_connections_sockets");
 
   LINT_INIT(new_sock);
 
   (void) my_pthread_getprio(pthread_self());		// For debugging
 
+#ifndef HAVE_POLL
   FD_ZERO(&clientFDs);
+#endif
+
   if (ip_sock != INVALID_SOCKET)
   {
+#ifdef HAVE_POLL
+    fds[socket_count].fd= ip_sock;
+    fds[socket_count].events= POLLIN;
+    socket_count++;
+#else
     FD_SET(ip_sock,&clientFDs);
+#endif
 #ifdef HAVE_FCNTL
     ip_flags = fcntl(ip_sock, F_GETFL, 0);
 #endif
   }
 #ifdef HAVE_SYS_UN_H
+#ifdef HAVE_POLL
+  fds[socket_count].fd= unix_sock;
+  fds[socket_count].events= POLLIN;
+  socket_count++;
+#else
   FD_SET(unix_sock,&clientFDs);
+#endif
 #ifdef HAVE_FCNTL
   socket_flags=fcntl(unix_sock, F_GETFL, 0);
 #endif
@@ -5288,12 +5312,15 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
   MAYBE_BROKEN_SYSCALL;
   while (!abort_loop)
   {
-    readFDs=clientFDs;
-#ifdef HPUX10
-    if (select(max_used_connection,(int*) &readFDs,0,0,0) < 0)
-      continue;
+#ifdef HAVE_POLL
+    retval= poll(fds,socket_count,-1);
 #else
-    if (select((int) max_used_connection,&readFDs,0,0,0) < 0)
+    readFDs=clientFDs;
+
+    retval= select((int) max_used_connection,&readFDs,0,0,0);
+#endif //HAVE_POLL
+
+    if (retval < 0)
     {
       if (socket_errno != SOCKET_EINTR)
       {
@@ -5303,7 +5330,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
       MAYBE_BROKEN_SYSCALL
       continue;
     }
-#endif	/* HPUX10 */
+
     if (abort_loop)
     {
       MAYBE_BROKEN_SYSCALL;
@@ -5311,6 +5338,20 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
     }
 
     /* Is this a new connection request ? */
+#ifdef HAVE_POLL
+    for (int i= 0; i < socket_count; ++i) {
+      if (fds[i].revents & POLLIN)
+      {
+        sock= fds[i].fd;
+#ifdef HAVE_FCNTL
+        flags= fcntl(sock, F_GETFL, 0);
+#else
+        flags= 0;
+#endif // HAVE_FCNTL
+        break;
+      }
+    }
+#else  // HAVE_POLL
 #ifdef HAVE_SYS_UN_H
     if (FD_ISSET(unix_sock,&readFDs))
     {
@@ -5318,11 +5359,12 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
       flags= socket_flags;
     }
     else
-#endif
+#endif // HAVE_SYS_UN_H
     {
       sock = ip_sock;
       flags= ip_flags;
     }
+#endif // HAVE_POLL
 
 #if !defined(NO_FCNTL_NONBLOCK)
     if (!(test_flags & TEST_BLOCKING))
