@@ -200,7 +200,7 @@ buf_read_page(
 	}
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin();
+	buf_flush_free_margin(1, TRUE);
 
 	/* Increment number of I/O operations used for LRU policy. */
 	buf_LRU_stat_inc_io();
@@ -481,16 +481,17 @@ buf_read_ahead_linear(
 		}
 	}
 
-	/* TODO(mcallaghan): skip code below when count == 0 */
-
 	/* In simulated aio we wake the aio handler threads only after
 	queuing all aio requests, in native aio the following call does
 	nothing: */
 
 	os_aio_simulated_wake_handler_threads();
 
-	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin();
+	if (count) {
+		/* Flush pages from the end of the LRU list if necessary */
+	
+		buf_flush_free_margin(count, TRUE);
+	}
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints && (count > 0)) {
@@ -575,7 +576,7 @@ tablespace_deleted:
 	os_aio_simulated_wake_handler_threads();
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin();
+	buf_flush_free_margin(n_stored, TRUE);
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
@@ -669,7 +670,7 @@ buf_read_recv_pages(
 	os_aio_simulated_wake_handler_threads();
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin();
+	buf_flush_free_margin(n_stored, TRUE);
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {

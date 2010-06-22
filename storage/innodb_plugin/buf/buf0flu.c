@@ -1395,7 +1395,8 @@ flush_next:
 
 	buf_pool_mutex_exit();
 
-	buf_flush_buffered_writes();
+	if (page_count)
+		buf_flush_buffered_writes();
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints && page_count > 0) {
@@ -1441,12 +1442,21 @@ and in the free list.
 LRU list */
 static
 ulint
-buf_flush_LRU_recommendation(void)
-/*==============================*/
+buf_flush_LRU_recommendation(
+/*=========================*/
+	ulint	n_needed)	/*!< in: number of free pages needed */
 {
 	buf_page_t*	bpage;
 	ulint		n_replaceable;
 	ulint		distance	= 0;
+
+	if (UT_LIST_GET_LEN(buf_pool->free) >= n_needed) {
+
+		/* This does a dirty read of buf_pool->free. That is good
+		enough and reduces mutex contention on buf_pool->mutex. */
+
+		return 0;
+	}
 
 	buf_pool_mutex_enter();
 
@@ -1455,8 +1465,7 @@ buf_flush_LRU_recommendation(void)
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while ((bpage != NULL)
-	       && (n_replaceable < BUF_FLUSH_FREE_BLOCK_MARGIN
-		   + BUF_FLUSH_EXTRA_MARGIN)
+	       && (n_replaceable < n_needed)
 	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
 
 		mutex_t* block_mutex = buf_page_get_mutex(bpage);
@@ -1476,13 +1485,12 @@ buf_flush_LRU_recommendation(void)
 
 	buf_pool_mutex_exit();
 
-	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN) {
+	if (n_replaceable >= n_needed) {
 
 		return(0);
 	}
 
-	return(BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN
-	       - n_replaceable);
+	return(n_needed - n_replaceable);
 }
 
 /*********************************************************************//**
@@ -1493,15 +1501,17 @@ flush only pages such that the s-lock required for flushing can be acquired
 immediately, without waiting. */
 UNIV_INTERN
 void
-buf_flush_free_margin(void)
-/*=======================*/
+buf_flush_free_margin(
+/*===================*/
+	ulint	npages,		/*!< in: number of free pages needed */
+	ibool	foreground)	/*!< in: done from foreground thread */
 {
 	ulint	n_to_flush;
 	ulint	n_flushed;
 	my_fast_timer_t	start_time;
 
 	my_get_fast_timer(&start_time);
-	n_to_flush = buf_flush_LRU_recommendation();
+	n_to_flush = buf_flush_LRU_recommendation(npages);
 
 	if (n_to_flush > 0) {
 		n_flushed = buf_flush_batch(BUF_FLUSH_LRU, n_to_flush, 0);
@@ -1511,10 +1521,19 @@ buf_flush_free_margin(void)
 
 			buf_flush_wait_batch_end(BUF_FLUSH_LRU);
 		} else {
-			srv_n_flushed_free_margin += n_flushed;
+			if (foreground) {
+				srv_n_flushed_free_margin_fg += n_flushed;
+			} else {
+				srv_n_flushed_free_margin_bg += n_flushed;
+			}
 		}
 	}
-	srv_free_margin_secs += my_fast_timer_diff_now(&start_time, NULL);
+
+	if (foreground) {
+		srv_free_margin_fg_secs += my_fast_timer_diff_now(&start_time, NULL);
+	} else {
+		srv_free_margin_bg_secs += my_fast_timer_diff_now(&start_time, NULL);
+	}
 }
 
 /*********************************************************************

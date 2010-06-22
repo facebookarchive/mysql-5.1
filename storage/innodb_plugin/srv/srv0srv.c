@@ -77,6 +77,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
+#include "buf0rea.h"
 #include "btr0sea.h"
 #include "dict0load.h"
 #include "dict0boot.h"
@@ -306,8 +307,11 @@ UNIV_INTERN long	srv_background_thread_interval_usecs;
 /** Seconds doing a checkpoint */
 UNIV_INTERN double   srv_checkpoint_secs	= 0;
 
-/** Seconds in buf_flush_free_margin */
-UNIV_INTERN double   srv_free_margin_secs	= 0;
+/** Seconds in buf_flush_free_margin from a foreground thread */
+UNIV_INTERN double   srv_free_margin_fg_secs	= 0;
+
+/** Seconds in buf_flush_free_margin from a background thread */
+UNIV_INTERN double   srv_free_margin_bg_secs	= 0;
 
 /** Seconds in insert buffer */
 UNIV_INTERN double   srv_ibuf_contract_secs	= 0;
@@ -333,8 +337,11 @@ UNIV_INTERN ulint	srv_lock_deadlocks	= 0;
 /** Number of row lock wait timeouts */
 UNIV_INTERN ulint	srv_lock_wait_timeouts	= 0;
 
-/** Pages flushed to maintain non-dirty pages on free list */
-UNIV_INTERN ulint	srv_n_flushed_free_margin	= 0;
+/** Pages flushed from foreground thread to maintain non-dirty pages on free list */
+UNIV_INTERN ulint	srv_n_flushed_free_margin_fg	= 0;
+
+/** Pages flushed from background thread to maintain non-dirty pages on free list */
+UNIV_INTERN ulint	srv_n_flushed_free_margin_bg	= 0;
 
 /** Pages flushed to enforce innodb_max_dirty_pages_pct */
 UNIV_INTERN ulint	srv_n_flushed_max_dirty		= 0;
@@ -842,10 +849,12 @@ srv_print_master_thread_info(
 
 	fprintf(file,
 		"Seconds in background IO: %.2f insert buffer, "
-		"%.2f buffer pool, %.2f purge, %.2f free margin, "
+		"%.2f buffer pool, %.2f purge, "
+		"%.2f free margin fg, %.2f free margin bg, "
 		"%.2f checkpoint, %.2f sleep\n",
 		srv_ibuf_contract_secs, srv_buf_flush_secs,
-		srv_purge_secs, srv_free_margin_secs,
+		srv_purge_secs,
+		srv_free_margin_fg_secs, srv_free_margin_bg_secs,
 		srv_checkpoint_secs, srv_main_sleep_secs);
 
 	fprintf(file,
@@ -2178,8 +2187,10 @@ srv_export_innodb_status(void)
 		- UT_LIST_GET_LEN(buf_pool->free);
 
         export_vars.innodb_buffer_pool_flushed_adaptive= srv_n_flushed_adaptive;
-        export_vars.innodb_buffer_pool_flushed_free_margin=
-		srv_n_flushed_free_margin;
+        export_vars.innodb_buffer_pool_flushed_free_margin_fg=
+		srv_n_flushed_free_margin_fg;
+        export_vars.innodb_buffer_pool_flushed_free_margin_bg=
+		srv_n_flushed_free_margin_bg;
         export_vars.innodb_buffer_pool_flushed_max_dirty=
 		srv_n_flushed_max_dirty;
         export_vars.innodb_buffer_pool_flushed_preflush= srv_n_flushed_preflush;
@@ -2303,7 +2314,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rwlock_x_spin_waits = rw_x_spin_wait_count;
 
 	export_vars.innodb_srv_checkpoint_secs= srv_checkpoint_secs;
-	export_vars.innodb_srv_free_margin_secs= srv_free_margin_secs;
+	export_vars.innodb_srv_free_margin_fg_secs= srv_free_margin_fg_secs;
+	export_vars.innodb_srv_free_margin_bg_secs= srv_free_margin_bg_secs;
 	export_vars.innodb_srv_ibuf_contract_secs= srv_ibuf_contract_secs;
 	export_vars.innodb_srv_buf_flush_secs= srv_buf_flush_secs;
 	export_vars.innodb_srv_purge_secs= srv_purge_secs;
@@ -2860,6 +2872,9 @@ loop:
 			+ log_sys->n_pending_writes;
 		n_ios = log_sys->n_log_ios + buf_pool->stat.n_pages_read
 			+ buf_pool->stat.n_pages_written;
+
+		/* TODO(mcallaghan): I am uncertain that this is needed.
+ 		buf_flush_free_margin(BUF_FLUSH_FREE_BLOCK_MARGIN, FALSE); */
 
 		if (!ibuf->empty) {
 			ulint ibuf_soft_limit;

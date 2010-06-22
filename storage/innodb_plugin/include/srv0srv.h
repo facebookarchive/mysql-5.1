@@ -249,8 +249,11 @@ extern ulint	srv_activity_count;
 extern ulint	srv_fatal_semaphore_wait_threshold;
 extern ulint	srv_dml_needed_delay;
 
-/** Pages flushed to maintain non-dirty pages on free list */
-extern ulint	srv_n_flushed_free_margin;
+/** Pages flushed from foreground thread to maintain non-dirty pages on free list */
+extern ulint	srv_n_flushed_free_margin_fg;
+
+/** Pages flushed from background thread to maintain non-dirty pages on free list */
+extern ulint	srv_n_flushed_free_margin_bg;
 
 /** Pages flushed for adaptive flushing */
 extern ulint	srv_n_flushed_adaptive;
@@ -286,8 +289,11 @@ extern long	srv_background_thread_interval_usecs;
 /** Seconds doing a checkpoint */
 extern double	srv_checkpoint_secs;
 
-/** Seconds in buf_flush_free_margin */
-extern double	srv_free_margin_secs;
+/** Seconds in buf_flush_free_margin from a foreground thread */
+extern double	srv_free_margin_fg_secs;
+
+/** Seconds in buf_flush_free_margin from a background thread */
+extern double	srv_free_margin_bg_secs;
 
 /** Seconds in insert buffer */
 extern double	srv_ibuf_contract_secs;
@@ -738,7 +744,8 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
 	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
 	ulint innodb_buffer_pool_flushed_adaptive;/*!< srv_n_flushed_adaptive */
-	ulint innodb_buffer_pool_flushed_free_margin;/*!< srv_n_flushed_free_margin */
+	ulint innodb_buffer_pool_flushed_free_margin_fg;/*!< srv_n_flushed_free_margin_fg */
+	ulint innodb_buffer_pool_flushed_free_margin_bg;/*!< srv_n_flushed_free_margin_bg */
 	ulint innodb_buffer_pool_flushed_max_dirty;/*!< srv_n_flushed_max_dirty */
 	ulint innodb_buffer_pool_flushed_other;/*!< srv_n_flushed_other */
 	ulint innodb_buffer_pool_flushed_preflush;/*!< srv_n_flushed_preflush */
@@ -819,7 +826,8 @@ struct export_var_struct{
 	ulint innodb_rwlock_x_spin_rounds;	/*!< rw_x_spin_round_count */
 	ulint innodb_rwlock_x_spin_waits;	/*!< rw_x_spin_wait_count */
 	double innodb_srv_checkpoint_secs;	/*!< srv_checkpoint_secs */
-	double innodb_srv_free_margin_secs;	/*!< srv_free_margin_secs */
+	double innodb_srv_free_margin_fg_secs;	/*!< srv_free_margin_fg_secs */
+	double innodb_srv_free_margin_bg_secs;	/*!< srv_free_margin_bg_secs */
 	double innodb_srv_ibuf_contract_secs;	/*!< srv_ibuf_contract_secs */
 	double innodb_srv_buf_flush_secs;	/*!< srv_ibuf_flush_secs */
 	double innodb_srv_purge_secs;		/*!< srv_purge_secs */

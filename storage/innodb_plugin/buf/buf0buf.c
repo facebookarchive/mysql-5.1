@@ -3245,7 +3245,7 @@ buf_page_create(
 	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin();
+	buf_flush_free_margin(1, TRUE);
 
 	frame = block->frame;
 
@@ -4054,7 +4054,7 @@ buf_print_io(
 		"Pending reads %lu\n"
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n"
 		"Total writes: %lu LRU, %lu flush list, %lu single page\n"
-		"Write sources: free margin %lu, bg dirty %lu, preflush %lu, "
+		"Write sources: fg free margin %lu, bg free margin %lu, bg dirty %lu, preflush %lu, "
 		"adaptive %lu, other %lu, bg checkpoint %lu, fg checkpoint %lu\n"
 		"Neighbor pages flushed: %lu from list, %lu from LRU\n",
 		(ulong) buf_pool->curr_size,
@@ -4075,7 +4075,8 @@ buf_print_io(
 		(ulong) buf_pool->n_flushed[BUF_FLUSH_LRU],
 		(ulong) buf_pool->n_flushed[BUF_FLUSH_LIST],
 		(ulong) buf_pool->n_flushed[BUF_FLUSH_SINGLE_PAGE],
-		(ulong) srv_n_flushed_free_margin,
+		(ulong) srv_n_flushed_free_margin_fg,
+		(ulong) srv_n_flushed_free_margin_bg,
 		(ulong) srv_n_flushed_max_dirty,
 		(ulong) srv_n_flushed_preflush,
 		(ulong) srv_n_flushed_adaptive,

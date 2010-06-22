@@ -61,8 +61,10 @@ Flushes pages from the end of the LRU list if there is too small
 a margin of replaceable pages there. */
 UNIV_INTERN
 void
-buf_flush_free_margin(void);
-/*=======================*/
+buf_flush_free_margin(
+/*==================*/
+	ulint		npages,		/*!< in: number of free pages needed */
+	ibool		foreground);	/*!< in: done from foreground thread */
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Initializes a page for writing to the tablespace. */
