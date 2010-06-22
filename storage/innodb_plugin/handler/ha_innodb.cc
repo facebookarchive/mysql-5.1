@@ -11154,6 +11154,18 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   "Number of IOPs the server can do. Tunes the background IO rate",
   NULL, NULL, 200, 100, ~0L, 0);
 
+static MYSQL_SYSVAR_LONG(ibuf_max_pct_of_io_capacity, srv_ibuf_max_pct_of_io_capacity,
+  PLUGIN_VAR_RQCMDARG,
+  "Maximum percentage of io_capacity that should be used for insert buffer merges "
+  "when the insert buffer size exceeds ibuf_max_pct_of_buffer_pool",
+  NULL, NULL, 5, 1, 99, 0);
+
+static MYSQL_SYSVAR_LONG(ibuf_max_iops_when_below_limit, srv_ibuf_max_iops_when_below_limit,
+  PLUGIN_VAR_RQCMDARG,
+  "Maximum number of disk operations that should be used for insert buffer merges "
+  "when the insert buffer size is less than ibuf_max_pct_of_buffer_pool",
+  NULL, NULL, 10, 1, 10000, 0);
+
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
@@ -11294,6 +11306,13 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
+
+static MYSQL_SYSVAR_LONG(ibuf_max_pct_of_buffer_pool, srv_ibuf_max_pct_of_buffer_pool,
+  PLUGIN_VAR_RQCMDARG,
+  "Maximum percentage of the buffer pool that sould be used for the insert buffer. "
+  "In rare cases this will be exceeded but InnoDB never allows more than 50% to be used for "
+  "the insert buffer.",
+  NULL, NULL, 25, 1, 50, 0);
 
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
@@ -11495,6 +11514,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
+  MYSQL_SYSVAR(ibuf_max_pct_of_buffer_pool),
+  MYSQL_SYSVAR(ibuf_max_pct_of_io_capacity),
+  MYSQL_SYSVAR(ibuf_max_iops_when_below_limit),
   MYSQL_SYSVAR(locks_unsafe_for_binlog),
   MYSQL_SYSVAR(lock_wait_timeout),
 #ifdef UNIV_LOG_ARCHIVE

@@ -233,6 +233,16 @@ UNIV_INTERN ulint	srv_max_n_open_files	  = 300;
 /* Number of IO operations per second the server can do */
 UNIV_INTERN ulong	srv_io_capacity         = 200;
 
+/** Soft limit on the max size of the insert buffer */
+UNIV_INTERN long     srv_ibuf_max_pct_of_buffer_pool;
+
+/** Max percentage of io_capacity used for insert buffer merges */
+UNIV_INTERN long     srv_ibuf_max_pct_of_io_capacity;
+
+/** Max IOPs for insert buffer merges when its size is less than
+srv_ibuf_max_pct_of_buffer_pool */
+UNIV_INTERN long     srv_ibuf_max_iops_when_below_limit;
+
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
 the following number. But it is not guaranteed that the value stays below
@@ -2850,16 +2860,31 @@ loop:
 			+ log_sys->n_pending_writes;
 		n_ios = log_sys->n_log_ios + buf_pool->stat.n_pages_read
 			+ buf_pool->stat.n_pages_written;
-		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
-		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
+
+		if (!ibuf->empty) {
+			ulint ibuf_soft_limit;
+
 			srv_main_thread_op_info = "doing insert buffer merge";
 			my_get_fast_timer(&fast_timer);
-			ibuf_contract_for_n_pages(FALSE, PCT_IO(5));
-			srv_ibuf_contract_secs +=
-				my_fast_timer_diff_now(&fast_timer, NULL);
+
+			ibuf_soft_limit =
+				(buf_pool->curr_size * srv_ibuf_max_pct_of_buffer_pool)
+				/ 100;
+
+			if (ibuf->size >= ibuf_soft_limit) {
+				ibuf_contract_for_n_pages(FALSE,
+					PCT_IO(srv_ibuf_max_pct_of_io_capacity));
+			} else {
+				ibuf_contract_for_n_pages(FALSE,
+					srv_ibuf_max_iops_when_below_limit);
+			}
+
 
 			/* Flush logs if needed */
 			srv_sync_log_buffer_in_background();
+
+			srv_ibuf_contract_secs +=
+				my_fast_timer_diff_now(&fast_timer, NULL);
 		}
 
 		n_pages_flushed = 0;

@@ -157,6 +157,10 @@ capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
 #define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) p / 100.0)))
 
+extern long	srv_ibuf_max_pct_of_buffer_pool;
+extern long	srv_ibuf_max_pct_of_io_capacity;
+extern long	srv_ibuf_max_iops_when_below_limit;
+
 #ifdef UNIV_LOG_ARCHIVE
 extern ibool	srv_log_archive_on;
 extern ibool	srv_archive_recovery;
