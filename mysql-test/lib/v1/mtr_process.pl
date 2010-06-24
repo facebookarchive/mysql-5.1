@@ -150,6 +150,9 @@ sub spawn_impl ($$$$$$$) {
     {
       # Child, redirect output and exec
 
+      # Needed to become detached from terminal session
+      POSIX::setsid();
+
       $SIG{INT}= 'DEFAULT';         # Parent do some stuff, we don't
 
       my $log_file_open_mode = '>';

@@ -738,7 +738,7 @@ uninstall-am: uninstall-pkglibLIBRARIES
 	tags uninstall uninstall-am uninstall-pkglibLIBRARIES
 
 
-all:            user.t user.ps
+all:
 
 user.t:         user.r $(NROFF_INC)
 		-nroff -mm user.r > $@

@@ -35,7 +35,7 @@ noinst_PROGRAMS =       factorial dbug_analyze
 factorial_SOURCES =     my_main.c factorial.c
 dbug_analyze_SOURCES =  dbug_analyze.c
 
-all:            user.t user.ps
+all:
 
 user.t:         user.r $(NROFF_INC)
 		-nroff -mm user.r > $@
