@@ -46,7 +46,7 @@ start(){
 	chmod 0640 "$errlogfile"
 	[ -x /sbin/restorecon ] && /sbin/restorecon "$errlogfile"
 	if [ ! -d "$datadir/mysql" ] ; then
-	    action $"Initializing MySQL database: " /usr/bin/mysql_install_db
+	    action $"Initializing MySQL database: " /usr/bin/mysql_install_db --datadir="$datadir" --user=mysql
 	    ret=$?
 	    chown -R mysql:mysql "$datadir"
 	    if [ $ret -ne 0 ] ; then
@@ -60,15 +60,15 @@ start(){
 	# but we need to be sure.
 	/usr/bin/mysqld_safe   --datadir="$datadir" --socket="$socketfile" \
 		--log-error="$errlogfile" --pid-file="$mypidfile" \
-		>/dev/null 2>&1 &
+		--user=mysql >/dev/null 2>&1 &
 	ret=$?
 	# Spin for a maximum of N seconds waiting for the server to come up.
 	# Rather than assuming we know a valid username, accept an "access
 	# denied" response as meaning the server is functioning.
 	if [ $ret -eq 0 ]; then
-	    STARTTIMEOUT=30
+	    STARTTIMEOUT=60
 	    while [ $STARTTIMEOUT -gt 0 ]; do
-		RESPONSE=`/usr/bin/mysqladmin -uUNKNOWN_MYSQL_USER ping 2>&1` && break
+		RESPONSE=`/usr/bin/mysqladmin --socket="$socketfile" --user=UNKNOWN_MYSQL_USER ping 2>&1` && break
 		echo "$RESPONSE" | grep -q "Access denied for user" && break
 		sleep 1
 		let STARTTIMEOUT=${STARTTIMEOUT}-1
@@ -93,7 +93,7 @@ stop(){
             /bin/kill "$MYSQLPID" >/dev/null 2>&1
             ret=$?
             if [ $ret -eq 0 ]; then
-                STOPTIMEOUT=60
+                STOPTIMEOUT=600
                 while [ $STOPTIMEOUT -gt 0 ]; do
                     /bin/kill -0 "$MYSQLPID" >/dev/null 2>&1 || break
                     sleep 1
