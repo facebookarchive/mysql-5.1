@@ -29,7 +29,7 @@ and you are welcome to modify and redistribute it under the GPL v2 license\n"
  *   Matt Wagner   <matt@mysql.com>
  *   Jeremy Cole   <jcole@mysql.com>
  *   Tonu Samuel   <tonu@mysql.com>
- *   Harrison Fisk <harrison@mysql.com>
+ *   Harrison Fisk <harrison.fisk@facebook.com>
  *
  **/
 
@@ -1166,11 +1166,17 @@ int main(int argc,char *argv[])
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
-  sprintf((char*) glob_buffer.ptr(),
+  
+  /* put_info() verifies and ignores INFO_INFO as well
+     we want to avoid the call to server_version_string here 
+     in order to prevent a round trip to server
+  */
+  if (!status.batch) {
+    sprintf((char*) glob_buffer.ptr(),
 	  "Your MySQL connection id is %lu\nServer version: %s\n",
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
-  put_info((char*) glob_buffer.ptr(),INFO_INFO);
-
+    put_info((char*) glob_buffer.ptr(),INFO_INFO);
+  }
   if (ignore_foreign_keys){
           mysql_query(&mysql, "SET FOREIGN_KEY_CHECKS = 0;");
           put_info("Foreign key checks are disabled! \\g.",
@@ -4098,8 +4104,18 @@ com_use(String *buffer __attribute__((unused)), char *line)
     under our feet, for example if DROP DATABASE or RENAME DATABASE
     (latter one not yet available by the time the comment was written)
   */
-  get_current_db();
 
+  /*
+    The current database is needed for a few reasons:
+    *  one-database option needs to ignore switching to a different one
+    *  the completion hash needs to be rebuilt
+    *
+    *  If one-database isn't enabled, then we don't need to check for it
+    *  If running in batch mode, then the second isn't important either
+    */
+  if (!status.batch || one_database) {
+    get_current_db();
+  }
   if (!current_db || cmp_database(charset_info, current_db,tmp))
   {
     if (one_database)
