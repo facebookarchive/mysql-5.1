@@ -1014,6 +1014,17 @@ buf_pool_init(void)
 		return(NULL);
 	}
 
+	if (ut_2_power_up(chunk->size / 32) < 64) {
+		fprintf(stderr,
+			"InnoDB: buffer pool needs more than %d pages\n",
+			(int) buf_pool->curr_size);
+
+		mem_free(chunk);
+		mem_free(buf_pool);
+		buf_pool = NULL;
+		return(NULL);
+	}
+
 	srv_buf_pool_old_size = srv_buf_pool_size;
 	buf_pool->curr_size = chunk->size;
 	srv_buf_pool_curr_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
@@ -1269,6 +1280,13 @@ shrink_again:
 		/* Cannot shrink if there is only one chunk */
 		goto func_done;
 	}
+
+	/* TODO(mcallaghan): this should assert that buf_pool->curr_size
+	is large enough when the shrink is done. See buf_pool_init for
+	the check. It is not done now. */
+
+	ut_a(0);
+
 
 	/* Search for the largest free chunk
 	not larger than the size difference */

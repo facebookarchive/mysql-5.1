@@ -126,9 +126,10 @@ buf_read_recv_pages(
 					in the array */
 
 /** The size in pages of the area which the read-ahead algorithms read if
-invoked */
-#define	BUF_READ_AHEAD_AREA					\
-	ut_min(64, ut_2_power_up(buf_pool->curr_size / 32))
+invoked. This requires that buf_pool->curr_size is large enough and that
+check is done in buf_pool_init. This is frequently used so a constant
+improves performance. */
+#define	BUF_READ_AHEAD_AREA	64
 
 /** @name Modes used in read-ahead @{ */
 /** read only pages belonging to the insert buffer tree */
