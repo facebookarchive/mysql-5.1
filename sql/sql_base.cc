@@ -390,7 +390,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
   DBUG_RETURN(share);
 
 found:
-  /* 
+  /*
      We found an existing table definition. Return it if we didn't get
      an error when reading the table definition from file.
   */
@@ -462,12 +462,12 @@ static TABLE_SHARE
 
     If share is NULL, and there is no error, we're inside
     pre-locking, which silences 'ER_NO_SUCH_TABLE' errors
-    with the intention to silently drop non-existing tables 
+    with the intention to silently drop non-existing tables
     from the pre-locking list. In this case we still need to try
     auto-discover before returning a NULL share.
 
     If share is NULL and the error is ER_NO_SUCH_TABLE, this is
-    the same as above, only that the error was not silenced by 
+    the same as above, only that the error was not silenced by
     pre-locking. Once again, we need to try to auto-discover
     the share.
 
@@ -530,7 +530,7 @@ static TABLE_SHARE
 }
 
 
-/* 
+/*
    Mark that we are not using table share anymore.
 
    SYNOPSIS
@@ -619,7 +619,7 @@ TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
   table_list.table_name= (char*) table_name;
   key_length= create_table_def_key((THD*) 0, key, &table_list, 0);
   return (TABLE_SHARE*) hash_search(&table_def_cache,(uchar*) key, key_length);
-}  
+}
 
 
 /*
@@ -1070,7 +1070,7 @@ bool close_cached_connection_tables(THD *thd, bool if_wait_for_refresh,
     tmp.table_name= share->table_name.str;
     tmp.next_local= tables;
 
-    tables= (TABLE_LIST *) memdup_root(thd->mem_root, (char*)&tmp, 
+    tables= (TABLE_LIST *) memdup_root(thd->mem_root, (char*)&tmp,
                                        sizeof(TABLE_LIST));
   }
 
@@ -1195,14 +1195,14 @@ static void close_open_tables(THD *thd)
 
   safe_mutex_assert_not_owner(&LOCK_open);
 
-  VOID(pthread_mutex_lock(&LOCK_open));
-
   /*
      Update global table stats before LOCK_open might be locked.
      This is done for performance so it is OK when LOCK_open has been
      locked by the caller.
   */
   update_table_stats(thd, thd->open_tables, true);
+
+  VOID(pthread_mutex_lock(&LOCK_open));
 
   DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
 
@@ -1428,7 +1428,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr, bool update_stats)
 
     /* Free memory and reset for next loop */
     free_field_buffers_larger_than(table,MAX_TDC_BLOB_SIZE);
-    
+
     table->file->ha_reset();
     table->in_use=0;
     if (unused_tables)
@@ -1454,7 +1454,7 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 
 /*
   Close all temporary tables created by 'CREATE TEMPORARY TABLE' for thread
-  creates one DROP TEMPORARY TABLE binlog event for each pseudo-thread 
+  creates one DROP TEMPORARY TABLE binlog event for each pseudo-thread
 */
 
 void close_temporary_tables(THD *thd)
@@ -1468,7 +1468,7 @@ void close_temporary_tables(THD *thd)
   if (!thd->temporary_tables)
     return;
 
-  if (!mysql_bin_log.is_open() || 
+  if (!mysql_bin_log.is_open() ||
       (thd->current_stmt_binlog_row_based && thd->variables.binlog_format == BINLOG_FORMAT_ROW))
   {
     TABLE *tmp_next;
@@ -1548,7 +1548,7 @@ void close_temporary_tables(THD *thd)
       db.append(table->s->db.str);
       /* Loop forward through all tables that belong to a common database
          within the sublist of common pseudo_thread_id to create single
-         DROP query 
+         DROP query
       */
       for (s_query.length(stub_len);
            table && is_user_table(table) &&
@@ -2185,7 +2185,7 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
      wait_for_condition()
      thd	Thread handler
      mutex	mutex that is currently hold that is associated with condition
-	        Will be unlocked on return     
+	        Will be unlocked on return
      cond	Condition to wait for
 */
 
@@ -2212,7 +2212,7 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
     condition variables that are guranteed to not disapper (freed) even if this
     mutex is unlocked
   */
-    
+
   pthread_mutex_unlock(mutex);
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -2813,7 +2813,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       need to back off and re-start opening tables.
       If we do not back off now, we may dead lock in case of lock
       order mismatch with some other thread:
-      c1: name lock t1; -- sort of exclusive lock 
+      c1: name lock t1; -- sort of exclusive lock
       c2: open t2;      -- sort of shared lock
       c1: name lock t2; -- blocks
       c2: open t1; -- blocks
@@ -3934,7 +3934,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
   safe_mutex_assert_owner(&LOCK_open);
 retry:
   if (!(share= get_table_share_with_create(thd, table_list, cache_key,
-                                           cache_key_length, 
+                                           cache_key_length,
                                            OPEN_VIEW |
                                            table_list->i_s_requested_object,
                                            &error)))
@@ -4020,7 +4020,7 @@ retry:
         Here we should wait until all threads has released the table.
         For now we do one retry. This may cause a deadlock if there
         is other threads waiting for other tables used by this thread.
-        
+
         Proper fix would be to if the second retry failed:
         - Mark that table def changed
         - Return from open table
@@ -4086,7 +4086,7 @@ retry:
        thd->clear_error();			// Clear error message
      pthread_mutex_lock(&LOCK_open);
      unlock_table_name(thd, table_list);
- 
+
      if (error)
        goto err;
      break;
@@ -4990,14 +4990,14 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
     lock_flags          Flags passed to mysql_lock_table
 
   NOTE
-    This function doesn't do anything like SP/SF/views/triggers analysis done 
+    This function doesn't do anything like SP/SF/views/triggers analysis done
     in open_table()/lock_tables(). It is intended for opening of only one
     concrete table. And used only in special contexts.
 
   RETURN VALUES
     table		Opened table
     0			Error
-  
+
     If ok, the following are also set:
       table_list->lock_type 	lock_type
       table_list->table		table
@@ -5089,7 +5089,7 @@ int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
   DBUG_ENTER("open_and_lock_tables_derived");
   DBUG_PRINT("enter", ("derived handling: %d", derived));
 
-  for ( ; ; ) 
+  for ( ; ; )
   {
     if (open_tables(thd, &tables, &counter, 0))
       DBUG_RETURN(-1);
@@ -5130,7 +5130,7 @@ int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
     FALSE - ok
     TRUE  - error
 
-  NOTE 
+  NOTE
     This is to be used on prepare stage when you don't read any
     data from the tables.
 */
@@ -5399,14 +5399,14 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
       thd->in_lock_tables=1;
       thd->options|= OPTION_TABLE_LOCK;
       /*
-        A query that modifies autoinc column in sub-statement can make the 
+        A query that modifies autoinc column in sub-statement can make the
         master and slave inconsistent.
-        We can solve these problems in mixed mode by switching to binlogging 
+        We can solve these problems in mixed mode by switching to binlogging
         if at least one updated table is used by sub-statement
       */
-      /* The BINLOG_FORMAT_MIXED judgement is saved for suppressing 
+      /* The BINLOG_FORMAT_MIXED judgement is saved for suppressing
          warnings, but it will be removed by fixing bug#45827 */
-      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED && tables && 
+      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED && tables &&
           has_write_table_with_auto_increment(thd->lex->first_not_own_table()))
       {
         thd->lex->set_stmt_unsafe();
@@ -5631,7 +5631,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   }
 
   tmp_table->reginfo.lock_type= TL_WRITE;	 // Simulate locked
-  share->tmp_table= (tmp_table->file->has_transactions() ? 
+  share->tmp_table= (tmp_table->file->has_transactions() ?
                      TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
 
   if (link_in_list)
@@ -5686,7 +5686,7 @@ bool rm_temporary_table(handlerton *base, char *path)
 
 /* Special Field pointers as return values of find_field_in_XXX functions. */
 Field *not_found_field= (Field*) 0x1;
-Field *view_ref_found= (Field*) 0x2; 
+Field *view_ref_found= (Field*) 0x2;
 
 #define WRONG_GRANT (Field*) -1
 
@@ -5701,7 +5701,7 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
       We always want to register the used keys, as the column bitmap may have
       been set for all fields (for example for view).
     */
-      
+
     table->covering_keys.intersect(field->part_of_key);
     table->merge_keys.merge(field->part_of_key);
 
@@ -5716,7 +5716,7 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
       other_bitmap=   table->read_set;
     }
 
-    /* 
+    /*
        The test-and-set mechanism in the bitmap is not reliable during
        multi-UPDATE statements under MARK_COLUMNS_READ mode
        (thd->mark_used_columns == MARK_COLUMNS_READ), as this bitmap contains
@@ -5779,7 +5779,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
               table_list->alias, name, item_name, (ulong) ref));
   Field_iterator_view field_it;
   field_it.set(table_list);
-  Query_arena *arena= 0, backup;  
+  Query_arena *arena= 0, backup;
   
   DBUG_ASSERT(table_list->schema_table_reformed ||
               (ref != 0 && table_list->view != 0));
@@ -5798,7 +5798,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
       Item *item= field_it.create_item(thd);
       if (arena)
         thd->restore_active_arena(arena, &backup);
-      
+
       if (!item)
         DBUG_RETURN(0);
       /*
@@ -5873,7 +5873,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   LINT_INIT(arena);
   LINT_INIT(found_field);
 
-  for (nj_col= NULL, curr_nj_col= field_it++; curr_nj_col; 
+  for (nj_col= NULL, curr_nj_col= field_it++; curr_nj_col;
        curr_nj_col= field_it++)
   {
     if (!my_strcasecmp(system_charset_info, curr_nj_col->name(), name))
@@ -5957,7 +5957,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   }
 
   *actual_table= nj_col->table_ref;
-  
+
   DBUG_RETURN(found_field);
 }
 
@@ -6508,13 +6508,13 @@ find_field_in_tables(THD *thd, Item_ident *item,
 				return not_found_item, report other errors,
 				return 0
       IGNORE_ERRORS		Do not report errors, return 0 if error
-    resolution                  Set to the resolution type if the item is found 
-                                (it says whether the item is resolved 
+    resolution                  Set to the resolution type if the item is found
+                                (it says whether the item is resolved
                                  against an alias name,
                                  or as a field name without alias,
                                  or as a field hidden by alias,
                                  or ignoring alias)
-                                
+
   RETURN VALUES
     0			Item is not found or item is not unique,
 			error message is reported
@@ -6548,7 +6548,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 
   *resolution= NOT_RESOLVED;
 
-  is_ref_by_name= (find->type() == Item::FIELD_ITEM  || 
+  is_ref_by_name= (find->type() == Item::FIELD_ITEM  ||
                    find->type() == Item::REF_ITEM);
   if (is_ref_by_name)
   {
@@ -6565,10 +6565,10 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 
       /*
 	In case of group_concat() with ORDER BY condition in the QUERY
-	item_field can be field of temporary table without item name 
+	item_field can be field of temporary table without item name
 	(if this field created from expression argument of group_concat()),
 	=> we have to check presence of name before compare
-      */ 
+      */
       if (!item_field->name)
         continue;
 
@@ -6593,7 +6593,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         if (item_field->field_name && item_field->table_name &&
 	    !my_strcasecmp(system_charset_info, item_field->field_name,
                            field_name) &&
-            !my_strcasecmp(table_alias_charset, item_field->table_name, 
+            !my_strcasecmp(table_alias_charset, item_field->table_name,
                            table_name) &&
             (!db_name || (item_field->db_name &&
                           !strcmp(item_field->db_name, db_name))))
@@ -6668,7 +6668,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
       }
     }
     else if (!table_name)
-    { 
+    {
       if (is_ref_by_name && find->name && item->name &&
 	  !my_strcasecmp(system_charset_info,item->name,find->name))
       {
@@ -6689,15 +6689,15 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
              ((Item_ref *)item)->ref_type() == Item_ref::VIEW_REF)
     {
       /*
-        TODO:Here we process prefixed view references only. What we should 
-        really do is process all types of Item_refs. But this will currently 
-        lead to a clash with the way references to outer SELECTs (from the 
+        TODO:Here we process prefixed view references only. What we should
+        really do is process all types of Item_refs. But this will currently
+        lead to a clash with the way references to outer SELECTs (from the
         HAVING clause) are handled in e.g. :
         SELECT 1 FROM t1 AS t1_o GROUP BY a
           HAVING (SELECT t1_o.a FROM t1 AS t1_i GROUP BY t1_i.a LIMIT 1).
         Processing all Item_refs here will cause t1_o.a to resolve to itself.
-        We still need to process the special case of Item_direct_view_ref 
-        because in the context of views they have the same meaning as 
+        We still need to process the special case of Item_direct_view_ref
+        because in the context of views they have the same meaning as
         Item_field for tables.
       */
       Item_ident *item_ref= (Item_ident *) item;
@@ -6705,7 +6705,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
           !my_strcasecmp(system_charset_info, item_ref->name, field_name) &&
           !my_strcasecmp(table_alias_charset, item_ref->table_name,
                          table_name) &&
-          (!db_name || (item_ref->db_name && 
+          (!db_name || (item_ref->db_name &&
                         !strcmp (item_ref->db_name, db_name))))
       {
         found= li.ref();
@@ -6879,10 +6879,10 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     if (!(nj_col_1= it_1.get_or_create_column_ref(thd, leaf_1)))
       goto err;
     field_name_1= nj_col_1->name();
-    is_using_column_1= using_fields && 
+    is_using_column_1= using_fields &&
       test_if_string_in_list(field_name_1, using_fields);
-    DBUG_PRINT ("info", ("field_name_1=%s.%s", 
-                         nj_col_1->table_name() ? nj_col_1->table_name() : "", 
+    DBUG_PRINT ("info", ("field_name_1=%s.%s",
+                         nj_col_1->table_name() ? nj_col_1->table_name() : "",
                          field_name_1));
 
     /*
@@ -6900,9 +6900,9 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       if (!(cur_nj_col_2= it_2.get_or_create_column_ref(thd, leaf_2)))
         goto err;
       cur_field_name_2= cur_nj_col_2->name();
-      DBUG_PRINT ("info", ("cur_field_name_2=%s.%s", 
-                           cur_nj_col_2->table_name() ? 
-                             cur_nj_col_2->table_name() : "", 
+      DBUG_PRINT ("info", ("cur_field_name_2=%s.%s",
+                           cur_nj_col_2->table_name() ?
+                             cur_nj_col_2->table_name() : "",
                            cur_field_name_2));
 
       /*
@@ -6913,7 +6913,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         (then cur_nj_col_2->is_common == TRUE).
         Note that it is too early to check the columns outside of the
         USING list for ambiguity because they are not actually "referenced"
-        here. These columns must be checked only on unqualified reference 
+        here. These columns must be checked only on unqualified reference
         by name (e.g. in SELECT list).
       */
       if (!my_strcasecmp(system_charset_info, field_name_1, cur_field_name_2))
@@ -7001,12 +7001,12 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
                   eq_cond);
 
       nj_col_1->is_common= nj_col_2->is_common= TRUE;
-      DBUG_PRINT ("info", ("%s.%s and %s.%s are common", 
-                           nj_col_1->table_name() ? 
-                             nj_col_1->table_name() : "", 
+      DBUG_PRINT ("info", ("%s.%s and %s.%s are common",
+                           nj_col_1->table_name() ?
+                             nj_col_1->table_name() : "",
                            nj_col_1->name(),
-                           nj_col_2->table_name() ? 
-                             nj_col_2->table_name() : "", 
+                           nj_col_2->table_name() ?
+                             nj_col_2->table_name() : "",
                            nj_col_2->name()));
 
       if (field_1)
@@ -7397,7 +7397,7 @@ static bool setup_natural_join_row_types(THD *thd,
   {
     table_ref= left_neighbor;
     left_neighbor= table_ref_it++;
-    /* 
+    /*
       Do not redo work if already done:
       1) for stored procedures,
       2) for multitable update after lock failure and table reopening.
@@ -7505,10 +7505,10 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     /* make * substituting permanent */
     SELECT_LEX *select_lex= thd->lex->current_select;
     select_lex->with_wild= 0;
-    /*   
+    /*
       The assignment below is translated to memcpy() call (at least on some
       platforms). memcpy() expects that source and destination areas do not
-      overlap. That problem was detected by valgrind. 
+      overlap. That problem was detected by valgrind.
     */
     if (&select_lex->item_list != &fields)
       select_lex->item_list= fields;
@@ -7667,7 +7667,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
   uint tablenr= 0;
   DBUG_ENTER("setup_tables");
 
-  DBUG_ASSERT ((select_insert && !tables->next_name_resolution_table) || !tables || 
+  DBUG_ASSERT ((select_insert && !tables->next_name_resolution_table) || !tables ||
                (context->table_list && context->first_name_resolution_table));
   /*
     this is used for INSERT ... SELECT.
@@ -7755,7 +7755,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     FALSE ok;  In this case *map will include the chosen index
     TRUE  error
 */
-bool setup_tables_and_check_access(THD *thd, 
+bool setup_tables_and_check_access(THD *thd,
                                    Name_resolution_context *context,
                                    List<TABLE_LIST> *from_clause,
                                    TABLE_LIST *tables,
@@ -7776,7 +7776,7 @@ bool setup_tables_and_check_access(THD *thd,
 
   for (; leaves_tmp; leaves_tmp= leaves_tmp->next_leaf)
   {
-    if (leaves_tmp->belong_to_view && 
+    if (leaves_tmp->belong_to_view &&
         check_single_table_access(thd, first_table ? want_access_first :
                                   want_access, leaves_tmp, FALSE))
     {
@@ -7895,7 +7895,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       continue;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    /* 
+    /*
        Ensure that we have access rights to all fields to be inserted. Under
        some circumstances, this check may be skipped.
 
@@ -7913,9 +7913,9 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
          the SELECT privilege has been found fulfilled for it, regardless of
          the TABLE object.
 
-       - If there is no TABLE object, the test is skipped if either 
+       - If there is no TABLE object, the test is skipped if either
          * the TABLE_LIST does not represent a view, or
-         * the SELECT privilege has been found fulfilled.         
+         * the SELECT privilege has been found fulfilled.
 
        A TABLE_LIST that is not a view may be a subquery, an
        information_schema table, or a nested table reference. See the comment
@@ -7982,7 +7982,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         Item_field *fld= (Item_field*) item;
         const char *field_table_name= field_iterator.get_table_name();
 
-        if (!tables->schema_table && 
+        if (!tables->schema_table &&
             !(fld->have_privileges=
               (get_column_grant(thd, field_iterator.grant(),
                                 field_iterator.get_db_name(),
@@ -8453,7 +8453,7 @@ my_bool mysql_rm_tmp_tables(void)
           So we hide error messages which happnes during deleting of these
           files(MYF(0)).
         */
-        VOID(my_delete(filePath, MYF(0))); 
+        VOID(my_delete(filePath, MYF(0)));
       }
     }
     my_dirend(dirp);
@@ -8775,7 +8775,7 @@ open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
     }
     DBUG_RETURN(0);
   }
- 
+
 err:
   bzero(outparam, sizeof(TABLE));	// do not run repair
   DBUG_RETURN(1);
