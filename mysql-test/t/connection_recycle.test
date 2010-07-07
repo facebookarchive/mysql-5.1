@@ -81,7 +81,7 @@ connection con3;
 SELECT 'con3 should still exist';
 
 # Wait 2 seconds
-sleep 2;
+sleep 2.1;
 
 # Connecting again should now succeed
 connect (con5,127.0.0.1,foo,,);
@@ -139,7 +139,7 @@ set @@global.connection_recycle_pct_connections_min=20;
 set @@global.connection_recycle_pct_connections_max=20;
 
 # Wait 1 second
-sleep 1;
+sleep 1.1;
 
 # Connections should now be closed
 connection con5;

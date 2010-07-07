@@ -895,22 +895,33 @@ my_real_read(NET *net, size_t *complen)
 #endif
              )
           {
+#ifdef NO_ALARM
             net->read_total_elapsed_ms += net->read_timeout_ms;
+#else
+            net->read_total_elapsed_ms += net->read_timeout * 1000;
+#endif
 
             /* Check if callback wants us to continue retrying, this provides
                an opportunity to close idle connections early under load */
             if (net->read_total_elapsed_ms < net->read_total_timeout_ms &&
                 net->read_retry_callback(net))
             {
-              /* Subseuqent timeouts are minimum of read_polling_interval_ms
-                 or however much of read_total_timeout_ms remains */
+              /* Subsequent timeouts are minimum of read_polling_interval_ms
+                 and however much of read_total_timeout_ms remains */
               uint next_timeout_ms = min(net->read_polling_interval_ms,
                 net->read_total_timeout_ms - net->read_total_elapsed_ms);
 
               if (next_timeout_ms != net->read_timeout_ms)
                 my_net_set_read_timeout_ms(net, next_timeout_ms);
 
-              continue;
+#ifndef NO_ALARM
+              thr_end_alarm(&alarmed);
+              thr_alarm_init(&alarmed);
+              if (!thr_alarm(&alarmed,net->read_timeout,&alarm_buff)) /* Don't wait too long */
+#endif
+              {
+                continue;
+              }
             }
           }
 #endif
