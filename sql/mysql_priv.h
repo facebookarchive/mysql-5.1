@@ -1636,6 +1636,10 @@ void reset_global_table_stats(void);
 extern ST_FIELD_INFO table_stats_fields_info[];
 int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond);
 
+/* for information_schema.user_statistics */
+extern ST_FIELD_INFO user_stats_fields_info[];
+int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond);
+
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 char *make_default_log_name(char *buff,const char* log_ext);
 

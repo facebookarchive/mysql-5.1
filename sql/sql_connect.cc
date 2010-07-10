@@ -61,9 +61,9 @@ static void fix_user_conn(THD *thd, bool global_max)
   thd->user_connect->connections--;
 
   if (global_max)
-    thd->user_connect->user_stats.global_max_denied_connections++;
+    thd->user_connect->user_stats.connections_denied_max_global++;
   else
-    thd->user_connect->user_stats.user_max_denied_connections++;
+    thd->user_connect->user_stats.connections_denied_max_user++;
 
   thd->user_connect= NULL;
   (void) pthread_mutex_unlock(&LOCK_user_conn);
@@ -489,7 +489,7 @@ check_user(THD *thd, enum enum_server_command command,
           if (thd->user_connect)
           {
             decrease_user_connections(thd->user_connect);
-            thd->user_connect->user_stats.access_denied_errors++;
+            thd->user_connect->user_stats.errors_access_denied++;
           }
           DBUG_RETURN(1);
         }
@@ -1028,7 +1028,7 @@ static void end_connection(THD *thd)
 
     if (end_on_error)
     {
-      thd->user_connect->user_stats.lost_connections++;
+      thd->user_connect->user_stats.connections_lost++;
     }
     decrease_user_connections(thd->user_connect);
   }
@@ -1246,28 +1246,28 @@ void init_user_stats(USER_STATS *user_stats)
 {
   DBUG_ENTER("init_user_stats");
 
-  user_stats->wall_usecs= 0;
-  user_stats->cpu_usecs= 0;
+  user_stats->binlog_bytes_written= 0;
   user_stats->bytes_received= 0;
   user_stats->bytes_sent= 0;
-  user_stats->binlog_bytes_written= 0;
-  user_stats->rows_fetched= 0;
-  user_stats->rows_read= 0;
-  user_stats->rows_inserted= 0;
-  user_stats->rows_updated= 0;
+  user_stats->commands_delete= 0;
+  user_stats->commands_insert= 0;
+  user_stats->commands_other= 0;
+  user_stats->commands_select= 0;
+  user_stats->commands_update= 0;
+  user_stats->connections_denied_max_global= 0;
+  user_stats->connections_denied_max_user= 0;
+  user_stats->connections_lost= 0;
+  user_stats->errors_access_denied= 0;
+  user_stats->microseconds_cpu= 0;
+  user_stats->microseconds_wall= 0;
+  user_stats->queries_empty= 0;
   user_stats->rows_deleted= 0;
-  user_stats->select_commands= 0;
-  user_stats->other_commands= 0;
-  user_stats->insert_commands= 0;
-  user_stats->update_commands= 0;
-  user_stats->delete_commands= 0;
-  user_stats->commit_trans= 0;
-  user_stats->rollback_trans= 0;
-  user_stats->global_max_denied_connections= 0;
-  user_stats->user_max_denied_connections= 0;
-  user_stats->lost_connections= 0;
-  user_stats->access_denied_errors= 0;
-  user_stats->empty_queries= 0;
+  user_stats->rows_fetched= 0;
+  user_stats->rows_inserted= 0;
+  user_stats->rows_read= 0;
+  user_stats->rows_updated= 0;
+  user_stats->transactions_commit= 0;
+  user_stats->transactions_rollback= 0;
   user_stats->magic = USER_STATS_MAGIC;
   DBUG_VOID_RETURN;
 }
@@ -1279,11 +1279,8 @@ void copy_user_stats(USER_STATS *to, USER_STATS *from)
   DBUG_ASSERT(from->magic == USER_STATS_MAGIC);
   DBUG_ASSERT(to->magic == USER_STATS_MAGIC);
 
-  my_atomic_add_bigint(&(to->wall_usecs), from->wall_usecs);
-  from->wall_usecs= 0;
-
-  my_atomic_add_bigint(&(to->cpu_usecs), from->cpu_usecs);
-  from->cpu_usecs= 0;
+  my_atomic_add_bigint(&(to->binlog_bytes_written), from->binlog_bytes_written);
+  from->binlog_bytes_written= 0;
 
   my_atomic_add_bigint(&(to->bytes_received), from->bytes_received);
   from->bytes_received= 0;
@@ -1291,52 +1288,109 @@ void copy_user_stats(USER_STATS *to, USER_STATS *from)
   my_atomic_add_bigint(&(to->bytes_sent), from->bytes_sent);
   from->bytes_sent= 0;
 
-  my_atomic_add_bigint(&(to->binlog_bytes_written), from->binlog_bytes_written);
-  from->binlog_bytes_written= 0;
+  my_atomic_add_bigint(&(to->commands_delete), from->commands_delete);
+  from->commands_delete= 0;
 
-  my_atomic_add_bigint(&(to->rows_fetched), from->rows_fetched);
-  from->rows_fetched= 0;
+  my_atomic_add_bigint(&(to->commands_insert), from->commands_insert);
+  from->commands_insert= 0;
 
-  my_atomic_add_bigint(&(to->rows_read), from->rows_read);
-  from->rows_read= 0;
+  my_atomic_add_bigint(&(to->commands_other), from->commands_other);
+  from->commands_other= 0;
 
-  my_atomic_add_bigint(&(to->rows_inserted), from->rows_inserted);
-  from->rows_inserted= 0;
+  my_atomic_add_bigint(&(to->commands_select), from->commands_select);
+  from->commands_select= 0;
 
-  my_atomic_add_bigint(&(to->rows_updated), from->rows_updated);
-  from->rows_updated= 0;
+  my_atomic_add_bigint(&(to->commands_update), from->commands_update);
+  from->commands_update= 0;
+
+  my_atomic_add_bigint(&(to->errors_access_denied), from->errors_access_denied);
+  from->errors_access_denied= 0;
+
+  my_atomic_add_bigint(&(to->microseconds_cpu), from->microseconds_cpu);
+  from->microseconds_cpu= 0;
+
+  my_atomic_add_bigint(&(to->microseconds_wall), from->microseconds_wall);
+  from->microseconds_wall= 0;
+
+  my_atomic_add_bigint(&(to->queries_empty), from->queries_empty);
+  from->queries_empty= 0;
 
   my_atomic_add_bigint(&(to->rows_deleted), from->rows_deleted);
   from->rows_deleted= 0;
 
-  my_atomic_add_bigint(&(to->select_commands), from->select_commands);
-  from->select_commands= 0;
+  my_atomic_add_bigint(&(to->rows_fetched), from->rows_fetched);
+  from->rows_fetched= 0;
 
-  my_atomic_add_bigint(&(to->other_commands), from->other_commands);
-  from->other_commands= 0;
+  my_atomic_add_bigint(&(to->rows_inserted), from->rows_inserted);
+  from->rows_inserted= 0;
 
-  my_atomic_add_bigint(&(to->insert_commands), from->insert_commands);
-  from->insert_commands= 0;
+  my_atomic_add_bigint(&(to->rows_read), from->rows_read);
+  from->rows_read= 0;
 
-  my_atomic_add_bigint(&(to->update_commands), from->update_commands);
-  from->update_commands= 0;
+  my_atomic_add_bigint(&(to->rows_updated), from->rows_updated);
+  from->rows_updated= 0;
 
-  my_atomic_add_bigint(&(to->delete_commands), from->delete_commands);
-  from->delete_commands= 0;
+  my_atomic_add_bigint(&(to->transactions_commit), from->transactions_commit);
+  from->transactions_commit= 0;
 
-  my_atomic_add_bigint(&(to->commit_trans), from->commit_trans);
-  from->commit_trans= 0;
-
-  my_atomic_add_bigint(&(to->rollback_trans), from->rollback_trans);
-  from->rollback_trans= 0;
-
-  my_atomic_add_bigint(&(to->access_denied_errors), from->access_denied_errors);
-  from->access_denied_errors= 0;
-
-  my_atomic_add_bigint(&(to->empty_queries), from->empty_queries);
-  from->empty_queries= 0;
+  my_atomic_add_bigint(&(to->transactions_rollback), from->transactions_rollback);
+  from->transactions_rollback= 0;
 
   DBUG_VOID_RETURN;
 }
+
+int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  DBUG_ENTER("fill_user_stats");
+  TABLE* table= tables->table;
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+
+  for (uint idx=0;idx < hash_user_connections.records; idx++)
+  {
+    USER_CONN *user_conn= (struct user_conn *) hash_element(&hash_user_connections, idx);
+
+    restore_record(table, s->default_values);
+
+    table->field[0]->store(user_conn->user, strlen(user_conn->user),
+                           system_charset_info);
+
+    table->field[1]->store(user_conn->user_stats.binlog_bytes_written, TRUE);
+    table->field[2]->store(user_conn->user_stats.bytes_received, TRUE);
+    table->field[3]->store(user_conn->user_stats.bytes_sent, TRUE);
+    table->field[4]->store(user_conn->user_stats.commands_delete, TRUE);
+    table->field[5]->store(user_conn->user_stats.commands_insert, TRUE);
+    table->field[6]->store(user_conn->user_stats.commands_other, TRUE);
+    table->field[7]->store(user_conn->user_stats.commands_select, TRUE);
+    table->field[8]->store(user_conn->user_stats.commands_update, TRUE);
+    table->field[9]->store(user_conn->user_stats.connections_denied_max_global, TRUE);
+    table->field[10]->store(user_conn->user_stats.connections_denied_max_user, TRUE);
+    table->field[11]->store(user_conn->user_stats.connections_lost, TRUE);
+    table->field[12]->store(user_conn->user_stats.errors_access_denied, TRUE);
+    table->field[13]->store(user_conn->user_stats.microseconds_cpu, TRUE);
+    table->field[14]->store(user_conn->user_stats.microseconds_wall, TRUE);
+    table->field[15]->store(user_conn->user_stats.queries_empty, TRUE);
+    table->field[16]->store(user_conn->user_stats.rows_deleted, TRUE);
+    table->field[17]->store(user_conn->user_stats.rows_fetched, TRUE);
+    table->field[18]->store(user_conn->user_stats.rows_inserted, TRUE);
+    table->field[19]->store(user_conn->user_stats.rows_read, TRUE);
+    table->field[20]->store(user_conn->user_stats.rows_updated, TRUE);
+    table->field[21]->store(user_conn->user_stats.transactions_commit, TRUE);
+    table->field[22]->store(user_conn->user_stats.transactions_rollback, TRUE);
+
+    if (schema_table_store_record(thd, table))
+    {
+      (void) pthread_mutex_unlock(&LOCK_user_conn);
+      DBUG_RETURN(-1);
+    }
+  }
+
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
+  DBUG_RETURN(0);
+}
+
 
 #endif /* EMBEDDED_LIBRARY */

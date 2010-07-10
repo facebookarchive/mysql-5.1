@@ -211,21 +211,28 @@ typedef struct user_resources {
 */
 
 typedef struct st_user_stats {
-  my_atomic_bigint wall_usecs;
-  my_atomic_bigint cpu_usecs;
   my_atomic_bigint bytes_received;
   my_atomic_bigint bytes_sent;
   my_atomic_bigint binlog_bytes_written;
-  my_atomic_bigint rows_fetched, rows_read;
-  my_atomic_bigint rows_inserted, rows_updated, rows_deleted;
-  my_atomic_bigint select_commands, other_commands;
-  my_atomic_bigint insert_commands, update_commands, delete_commands;
-  my_atomic_bigint commit_trans, rollback_trans;
-  my_atomic_bigint global_max_denied_connections; // global limit exceeded
-  my_atomic_bigint user_max_denied_connections;   // per user limit exceeded
-  my_atomic_bigint lost_connections;              // closed on error
-  my_atomic_bigint access_denied_errors;          // denied access to table or db
-  my_atomic_bigint empty_queries;
+  my_atomic_bigint commands_delete;
+  my_atomic_bigint commands_insert;
+  my_atomic_bigint commands_other;
+  my_atomic_bigint commands_select;
+  my_atomic_bigint commands_update;
+  my_atomic_bigint connections_denied_max_global; // global limit exceeded
+  my_atomic_bigint connections_denied_max_user;   // per user limit exceeded
+  my_atomic_bigint connections_lost;              // closed on error
+  my_atomic_bigint errors_access_denied;          // denied access to table or db
+  my_atomic_bigint microseconds_cpu;
+  my_atomic_bigint microseconds_wall;
+  my_atomic_bigint queries_empty;
+  my_atomic_bigint rows_deleted;
+  my_atomic_bigint rows_fetched;
+  my_atomic_bigint rows_inserted;
+  my_atomic_bigint rows_read;
+  my_atomic_bigint rows_updated;
+  my_atomic_bigint transactions_commit;
+  my_atomic_bigint transactions_rollback;
   uint magic;
 
   /* TODO(mcallaghan) -- failed_queries, disk IO, parse and records_in_range
@@ -236,6 +243,9 @@ typedef struct st_user_stats {
      table for more details. When auth failure occurs mysqld doesn't have
      a referenced to a USER_STATS entry. This probably requires another hash
      table keyed only by the login name.
+     Others:
+       errors_lock_wait_timeout, errors_deadlock
+       queries_slow
   */
 } USER_STATS;
 

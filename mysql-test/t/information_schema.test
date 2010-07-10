@@ -1445,6 +1445,17 @@ DROP USER nonpriv;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
 
+#
+# basic tests for table_statistics
+#
+describe information_schema.table_statistics;
+select * from information_schema.table_statistics where TABLE_NAME = "does not exist";
+
+#
+# basic tests for user_statistics
+#
+describe information_schema.user_statistics;
+select * from information_schema.user_statistics where USER_NAME = "does not exist";
 
 --echo End of 5.1 tests.
 
