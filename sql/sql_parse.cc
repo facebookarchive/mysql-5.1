@@ -7287,7 +7287,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
 
   if (options & REFRESH_STATISTICS)
+  {
     reset_global_table_stats();
+    reset_global_user_stats();
+  }
 
  *write_to_binlog= tmp_write_to_binlog;
  /*

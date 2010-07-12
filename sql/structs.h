@@ -222,6 +222,7 @@ typedef struct st_user_stats {
   my_atomic_bigint connections_denied_max_global; // global limit exceeded
   my_atomic_bigint connections_denied_max_user;   // per user limit exceeded
   my_atomic_bigint connections_lost;              // closed on error
+  my_atomic_bigint connections_total;             // total conns created
   my_atomic_bigint errors_access_denied;          // denied access to table or db
   my_atomic_bigint microseconds_cpu;
   my_atomic_bigint microseconds_wall;

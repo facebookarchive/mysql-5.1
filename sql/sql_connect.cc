@@ -59,6 +59,7 @@ static void fix_user_conn(THD *thd, bool global_max)
 
   (void) pthread_mutex_lock(&LOCK_user_conn);
   thd->user_connect->connections--;
+  thd->user_connect->user_stats.connections_total--;
 
   if (global_max)
     thd->user_connect->user_stats.connections_denied_max_global++;
@@ -114,6 +115,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
   }
   thd->user_connect=uc;
   uc->connections++;
+  uc->user_stats.connections_total++;
 end:
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   return return_val;
@@ -139,16 +141,19 @@ end:
 */
 
 static
-int check_for_max_user_connections(THD *thd, USER_CONN *uc)
+int check_for_max_user_connections(THD *thd, USER_CONN *uc, bool *global_max)
 {
   int error=0;
   DBUG_ENTER("check_for_max_user_connections");
+
+  *global_max= false;
 
   (void) pthread_mutex_lock(&LOCK_user_conn);
   if (max_user_connections && !uc->user_resources.user_conn &&
       max_user_connections < (uint) uc->connections)
   {
     my_error(ER_TOO_MANY_USER_CONNECTIONS, MYF(0), uc->user);
+    *global_max= true;
     error=1;
     goto end;
   }
@@ -405,6 +410,8 @@ check_user(THD *thd, enum enum_server_command command,
     if (!(thd->main_security_ctx.master_access &
           NO_ACCESS)) // authentication is OK
     {
+      bool global_max;
+
       DBUG_PRINT("info",
                  ("Capabilities: %lu  packet_length: %ld  Host: '%s'  "
                   "Login user: '%s' Priv_user: '%s'  Using password: %s "
@@ -473,10 +480,10 @@ check_user(THD *thd, enum enum_server_command command,
 	  (thd->user_connect->user_resources.conn_per_hour ||
 	   thd->user_connect->user_resources.user_conn ||
 	   max_user_connections) &&
-	  check_for_max_user_connections(thd, thd->user_connect))
+	  check_for_max_user_connections(thd, thd->user_connect, &global_max))
       {
         /* The error is set in check_for_max_user_connections(). */
-        fix_user_conn(thd, false); // Undo work by get_or_create_user_conn
+        fix_user_conn(thd, global_max); // Undo work by get_or_create_user_conn
         DBUG_RETURN(1);
       }
 
@@ -1225,10 +1232,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     Returns 0 on success;
 */
 
-int reset_all_user_stats()
+void reset_global_user_stats()
 {
   DBUG_ENTER("reset_all_user_stats");
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   (void) pthread_mutex_lock(&LOCK_user_conn);
 
   for (uint i = 0; i < hash_user_connections.records; ++i)
@@ -1239,7 +1247,8 @@ int reset_all_user_stats()
   }
 
   (void) pthread_mutex_unlock(&LOCK_user_conn);
-  DBUG_RETURN(0);
+#endif
+  DBUG_VOID_RETURN;
 }
 
 void init_user_stats(USER_STATS *user_stats)
@@ -1257,6 +1266,7 @@ void init_user_stats(USER_STATS *user_stats)
   user_stats->connections_denied_max_global= 0;
   user_stats->connections_denied_max_user= 0;
   user_stats->connections_lost= 0;
+  user_stats->connections_total= 0;
   user_stats->errors_access_denied= 0;
   user_stats->microseconds_cpu= 0;
   user_stats->microseconds_wall= 0;
@@ -1302,6 +1312,12 @@ void copy_user_stats(USER_STATS *to, USER_STATS *from)
 
   my_atomic_add_bigint(&(to->commands_update), from->commands_update);
   from->commands_update= 0;
+
+  my_atomic_add_bigint(&(to->connections_lost), from->connections_lost);
+  from->connections_lost= 0;
+
+  my_atomic_add_bigint(&(to->connections_total), from->connections_total);
+  from->connections_total= 0;
 
   my_atomic_add_bigint(&(to->errors_access_denied), from->errors_access_denied);
   from->errors_access_denied= 0;
@@ -1364,20 +1380,23 @@ int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[6]->store(user_conn->user_stats.commands_other, TRUE);
     table->field[7]->store(user_conn->user_stats.commands_select, TRUE);
     table->field[8]->store(user_conn->user_stats.commands_update, TRUE);
-    table->field[9]->store(user_conn->user_stats.connections_denied_max_global, TRUE);
-    table->field[10]->store(user_conn->user_stats.connections_denied_max_user, TRUE);
-    table->field[11]->store(user_conn->user_stats.connections_lost, TRUE);
-    table->field[12]->store(user_conn->user_stats.errors_access_denied, TRUE);
-    table->field[13]->store(user_conn->user_stats.microseconds_cpu, TRUE);
-    table->field[14]->store(user_conn->user_stats.microseconds_wall, TRUE);
-    table->field[15]->store(user_conn->user_stats.queries_empty, TRUE);
-    table->field[16]->store(user_conn->user_stats.rows_deleted, TRUE);
-    table->field[17]->store(user_conn->user_stats.rows_fetched, TRUE);
-    table->field[18]->store(user_conn->user_stats.rows_inserted, TRUE);
-    table->field[19]->store(user_conn->user_stats.rows_read, TRUE);
-    table->field[20]->store(user_conn->user_stats.rows_updated, TRUE);
-    table->field[21]->store(user_conn->user_stats.transactions_commit, TRUE);
-    table->field[22]->store(user_conn->user_stats.transactions_rollback, TRUE);
+    /* concurrent connections for this user */
+    table->field[9]->store(user_conn->connections, TRUE);
+    table->field[10]->store(user_conn->user_stats.connections_denied_max_global, TRUE);
+    table->field[11]->store(user_conn->user_stats.connections_denied_max_user, TRUE);
+    table->field[12]->store(user_conn->user_stats.connections_lost, TRUE);
+    table->field[13]->store(user_conn->user_stats.connections_total, TRUE);
+    table->field[14]->store(user_conn->user_stats.errors_access_denied, TRUE);
+    table->field[15]->store(user_conn->user_stats.microseconds_cpu, TRUE);
+    table->field[16]->store(user_conn->user_stats.microseconds_wall, TRUE);
+    table->field[17]->store(user_conn->user_stats.queries_empty, TRUE);
+    table->field[18]->store(user_conn->user_stats.rows_deleted, TRUE);
+    table->field[19]->store(user_conn->user_stats.rows_fetched, TRUE);
+    table->field[20]->store(user_conn->user_stats.rows_inserted, TRUE);
+    table->field[21]->store(user_conn->user_stats.rows_read, TRUE);
+    table->field[22]->store(user_conn->user_stats.rows_updated, TRUE);
+    table->field[23]->store(user_conn->user_stats.transactions_commit, TRUE);
+    table->field[24]->store(user_conn->user_stats.transactions_rollback, TRUE);
 
     if (schema_table_store_record(thd, table))
     {
