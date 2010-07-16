@@ -4371,8 +4371,8 @@ static void test_lc_time_sz()
  */
 static void init_cachedev(void)
 {
-  struct statfs stfs_data_home_dir;
-  struct statfs stfs;
+  struct stat st_data_home_dir;
+  struct stat st;
   struct mntent *ent;
   pid_t pid = getpid();
   FILE *mounts;
@@ -4388,7 +4388,7 @@ static void init_cachedev(void)
     goto epilogue;
   }
 
-  if (statfs(mysql_data_home, &stfs_data_home_dir) < 0)
+  if (stat(mysql_data_home, &st_data_home_dir) < 0)
   {
     error_message= "statfs failed";
     goto epilogue;
@@ -4403,9 +4403,9 @@ static void init_cachedev(void)
 
   while ((ent = getmntent(mounts)) != NULL)
   {
-    if (statfs(ent->mnt_dir, &stfs) < 0)
+    if (stat(ent->mnt_dir, &st) < 0)
       continue;
-    if (memcmp(&stfs.f_fsid, &stfs_data_home_dir.f_fsid, sizeof(fsid_t)) == 0)
+    if (memcmp(&st.st_dev, &st_data_home_dir.st_dev, sizeof(dev_t)) == 0)
       break;
   }
   endmntent(mounts);
