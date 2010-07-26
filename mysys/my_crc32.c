@@ -91,7 +91,7 @@ void my_fast_crc32_init(my_bool cpuid_has_crc32)
 
 STATIC_INLINE uint32 my_fast_crc32_sse42(const uchar* buf, ulong len)
 {
-  uint64 crc = (uint64)(-1);
+  uint64 crc = (uint32)(-1); // this must only set low 32 bits
 
   while (len && ((uint64)buf & 7))
   {
@@ -141,7 +141,7 @@ STATIC_INLINE uint32 my_fast_crc32_slice8(const uchar* buf, ulong len)
 {
   assert(s_fast_crc_table_initialized);
 
-  uint64 crc = (uint64)(-1);
+  uint64 crc = (uint32)(-1); // this must only set low 32 bits
 
   while (len && ((uint64)buf & 7))
   {
