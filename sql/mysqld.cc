@@ -49,9 +49,11 @@
 #endif
 #endif
 
+#ifdef TARGET_OS_LINUX
 #include <mntent.h>
 #include <sys/statfs.h>
 #include "flashcache_ioctl.h"
+#endif
 
 #ifndef DEFAULT_SKIP_THREAD_PRIORITY
 #define DEFAULT_SKIP_THREAD_PRIORITY 0
@@ -4364,6 +4366,8 @@ static void test_lc_time_sz()
 }
 #endif//DBUG_OFF
 
+#ifdef TARGET_OS_LINUX
+
 /*
  * Auto detect if we support flash cache on the host system.
  * This needs to be called before we setuid away from root
@@ -4453,7 +4457,7 @@ static void cleanup_cachedev(void)
     cachedev_fd = -1;
   }
 }
-
+#endif /* TARGET_OS_LINUX */
 
 #ifdef __WIN__
 int win_main(int argc, char **argv)
@@ -4563,7 +4567,9 @@ int main(int argc, char **argv)
   test_lc_time_sz();
 #endif
 
+#ifdef TARGET_OS_LINUX
   init_cachedev();
+#endif
 
   /*
     We have enough space for fiddling with the argv, continue
@@ -4773,7 +4779,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
+#ifdef TARGET_OS_LINUX
   cleanup_cachedev();
+#endif
 
   exit(0);
   return(0);					/* purecov: deadcode */

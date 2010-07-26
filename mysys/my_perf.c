@@ -102,6 +102,10 @@ void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
 
 void my_init_fast_timer(int seconds)
 {
+  int usec = 0;
+  longlong min_delta = 0;
+
+#ifdef TARGET_OS_LINUX
   /* We need to identify whether the time stamp counters are synchronized
      between the CPUs.  We do this by setting the processor affinity to each HW
      thread in turn, sleeping briefly, and then checking the time delta.  This
@@ -113,8 +117,7 @@ void my_init_fast_timer(int seconds)
      calibration because usleep may sleep longer depending on system load, so
      the smallest non-negative value is most accurate. */
 
-  int usec = 0, ncpu = sysconf(_SC_NPROCESSORS_ONLN);
-  longlong min_delta = 0;
+  int ncpu = sysconf(_SC_NPROCESSORS_ONLN);
 
   if (ncpu > 0)
   {
@@ -155,6 +158,7 @@ void my_init_fast_timer(int seconds)
   }
 
   my_fast_timer_enabled = (min_delta > 0);
+#endif /* TARGET_OS_LINUX */
 
   if (my_fast_timer_enabled)
     my_tsc_scale = usec / (min_delta * 1000000.0);

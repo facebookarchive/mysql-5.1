@@ -37,9 +37,11 @@
 #include <hash.h>
 #include <ft_global.h>
 
+#ifdef TARGET_OS_LINUX
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
 #include "flashcache_ioctl.h"
+#endif
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
@@ -247,11 +249,13 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
+#ifdef TARGET_OS_LINUX
   if (lex->disable_flashcache && cachedev_fd > 0)
   {
     pid = syscall(SYS_gettid);
     ioctl(cachedev_fd, FLASHCACHEADDNCPID, &pid);
   }
+#endif
 
   if (select_lex->master_unit()->is_union() || 
       select_lex->master_unit()->fake_select_lex)
@@ -285,10 +289,13 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   if (unlikely(res))
     result->abort();
 
+#ifdef TARGET_OS_LINUX
   if (lex->disable_flashcache && cachedev_fd > 0)
   {
     ioctl(cachedev_fd, FLASHCACHEDELNCPID, &pid);
   }
+#endif
+
   DBUG_RETURN(res);
 }
 
