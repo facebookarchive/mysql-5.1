@@ -153,6 +153,7 @@ SHOW BINLOG EVENTS LIMIT 2,1;
 DROP TABLE t1;
 SET GLOBAL force_binlog_order=0;
 SET GLOBAL innodb_prepare_commit_mutex=1;
+SET GLOBAL innodb_release_locks_early=0;
 SET DEBUG_SYNC= 'RESET';
 
 # clean exit
