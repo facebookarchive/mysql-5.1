@@ -311,6 +311,43 @@ buf_calc_page_fast_checksum(
 	return(checksum);
 }
 
+#ifdef SUPPORT_BROKEN_CRC32_SLICE8
+
+/********************************************************************//**
+Calculates a page checksum which is stored to the page when it is written
+to a file. Note that we must be careful to calculate the same value on
+32-bit and 64-bit architectures.  This is a version compatible with
+the broken slice8 algorithm included in prior versions.  It will be
+removed in future builds and is only for use in migrations.
+@return	checksum */
+UNIV_INTERN
+ulint
+buf_calc_page_broken_checksum(
+/*=======================*/
+	const byte*	page)	/*!< in: buffer page */
+{
+	ulint checksum;
+
+	/* Since the field FIL_PAGE_FILE_FLUSH_LSN, and in versions <= 4.1.x
+	..._ARCH_LOG_NO, are written outside the buffer pool to the first
+	pages of data files, we have to skip them in the page checksum
+	calculation.
+	We must also skip the field FIL_PAGE_SPACE_OR_CHKSUM where the
+	checksum is stored, and also the last 8 bytes of page because
+	there we store the old formula checksum. */
+
+	checksum = my_fast_crc32_broken_slice8(page + FIL_PAGE_OFFSET,
+			    FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET)
+		+ my_fast_crc32_broken_slice8(page + FIL_PAGE_DATA,
+			   UNIV_PAGE_SIZE - FIL_PAGE_DATA
+			   - FIL_PAGE_END_LSN_OLD_CHKSUM);
+	checksum = checksum & 0xFFFFFFFFUL;
+
+	return(checksum);
+}
+
+#endif // ifdef SUPPORT_BROKEN_CRC32_SLICE8
+
 /********************************************************************//**
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value on
@@ -463,6 +500,23 @@ buf_page_is_corrupted(
 		    && checksum_field
 		    != buf_calc_page_new_checksum(read_buf)) {
 
+#ifdef SUPPORT_BROKEN_CRC32_SLICE8
+			if (checksum_field
+			    == buf_calc_page_broken_checksum(read_buf)) {
+				static ibool broken_warned = FALSE;
+				if (!broken_warned) {
+					fprintf(stderr,
+						"Checksum computed by "
+						"incorrect algorithm found. "
+						"Compatibility will be "
+						"removed in a future build. "
+						"Please dump and reload "
+						"this database.\n");
+					broken_warned = TRUE;
+				}
+				return(FALSE);
+			}
+#endif
 			return(TRUE);
 		}
 	}

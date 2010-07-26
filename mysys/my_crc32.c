@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysys_priv.h"
+#include "my_perf.h"
 
 #ifndef HAVE_COMPRESS
 #undef DYNAMIC_CRC_TABLE
@@ -47,8 +48,10 @@ void my_fast_crc32_init(my_bool cpuid_has_crc32)
 {
   s_fast_crc_sse2_enabled = cpuid_has_crc32;
 
+#ifndef SUPPORT_BROKEN_CRC32_SLICE8
   if (cpuid_has_crc32)
     return;
+#endif
 
   // bit-reversed poly 0x1EDC6F41 (from SSE42 crc32 instruction)
   static const uint32 poly = 0x82f63b78;
@@ -176,3 +179,40 @@ uint32 my_fast_crc32(const uchar* buf, ulong len)
   else
     return my_fast_crc32_slice8(buf, len);
 }
+
+#ifdef SUPPORT_BROKEN_CRC32_SLICE8
+
+uint32 my_fast_crc32_broken_slice8(const uchar* buf, ulong len)
+{
+  assert(s_fast_crc_table_initialized);
+
+  uint64 crc = (uint64)(-1); // this should have been uint32
+
+  while (len && ((uint64)buf & 7))
+  {
+    my_fast_crc32_byte;
+  }
+
+  while (len >= 32)
+  {
+    my_fast_crc32_quadword;
+    my_fast_crc32_quadword;
+    my_fast_crc32_quadword;
+    my_fast_crc32_quadword;
+  }
+
+  while (len >= 8)
+  {
+    my_fast_crc32_quadword;
+  }
+
+  while (len)
+  {
+    my_fast_crc32_byte;
+  }
+
+  return ((~crc) & 0xFFFFFFFF);
+}
+
+#endif // ifdef SUPPORT_BROKEN_CRC32_SLICE8
+

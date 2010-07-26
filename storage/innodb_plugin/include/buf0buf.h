@@ -478,6 +478,20 @@ ulint
 buf_calc_page_fast_checksum(
 /*=======================*/
 	const byte*	page);	/*!< in: buffer page */
+#ifdef SUPPORT_BROKEN_CRC32_SLICE8
+/********************************************************************//**
+Calculates a page checksum which is stored to the page when it is written
+to a file. Note that we must be careful to calculate the same value
+on 32-bit and 64-bit architectures.  This is a version compatible with
+the broken slice8 algorithm included in prior versions.  It will be
+removed in future builds and is only for use in migrations.
+@return	checksum */
+UNIV_INTERN
+ulint
+buf_calc_page_broken_checksum(
+/*=======================*/
+	const byte*	page);	/*!< in: buffer page */
+#endif
 /********************************************************************//**
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value

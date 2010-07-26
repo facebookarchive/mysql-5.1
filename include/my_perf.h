@@ -267,6 +267,14 @@ void my_init_cpu_optimizations();
    SSE4.2 routine uses a different polynomial */
 uint32 my_fast_crc32(const uchar* data, ulong length);
 
+#define SUPPORT_BROKEN_CRC32_SLICE8
+
+#ifdef SUPPORT_BROKEN_CRC32_SLICE8
+/* Implementation of broken crc32 used to support old format files
+   until migration to fixed crc32 is completed. */
+uint32 my_fast_crc32_broken_slice8(const uchar* data, ulong length);
+#endif
+
 C_MODE_END
 
 #endif /* _my_perf_h */
