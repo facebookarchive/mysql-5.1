@@ -391,21 +391,22 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 # Test --stop-never
 # If exit code is good then the exit.code file will be created
---system $MYSQL_BINLOG --raw --read-from-remote-server --stop-never --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQLTEST_VARDIR/tmp/ master-bin.000001 && echo true > $MYSQLTEST_VARDATA/tmp/exit.code &
+--system $MYSQL_BINLOG --raw --read-from-remote-server --stop-never --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQLTEST_VARDIR/tmp/ master-bin.000001 || echo true > $MYSQLTEST_VARDIR/tmp/exit.code &
 --sleep 3
 --diff_files $MYSQLTEST_VARDIR/tmp/master-bin.000001 $MYSQLD_DATADIR/master-bin.000001
 --diff_files $MYSQLTEST_VARDIR/tmp/master-bin.000002 $MYSQLD_DATADIR/master-bin.000002
 
 # Test killing from mysql server
 # let $id=`SELECT id from information_schema.processlist where user like 'root' and state like '%Master has sent%'`;
-let $id= query_get_value(SHOW PROCESSLIST, Id, 1);
+let $id= query_get_value(SHOW PROCESSLIST, Id, 2);
 --disable_query_log
 eval kill connection $id;
+--sleep 1
 --enable_query_log
 
---cat_file $MYSQLTEST_VARDATA/tmp/exit.code
+--cat_file $MYSQLTEST_VARDIR/tmp/exit.code
 
---remove_file $MYSQLTEST_VARDATA/tmp/exit.code
+--remove_file $MYSQLTEST_VARDIR/tmp/exit.code
 --remove_file $MYSQLTEST_VARDIR/tmp/master-bin.000001
 --remove_file $MYSQLTEST_VARDIR/tmp/master-bin.000002
 --remove_file $MYSQLTEST_VARDIR/tmp/master-bin.000003
