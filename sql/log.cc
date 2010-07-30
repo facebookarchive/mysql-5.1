@@ -4160,6 +4160,12 @@ bool MYSQL_BIN_LOG::flush_and_sync(THD *thd)
 
       set_timespec_nsec(cond_wake_time, sync_timeout_usecs * 1000);
       err = pthread_cond_timedwait(&binlog_cond, &LOCK_log, &cond_wake_time);
+      // if we get an error, log it and move on.
+      if (err && err != EINTR && err != ETIMEDOUT)
+      {
+          sql_print_warning("Got error %d from pthread_cond_timedwait\n", err);
+      }
+      err = 0;
 
       // only do a sync if no one else has synced
       if (my_fsync_count == binlog_fsync_count)
