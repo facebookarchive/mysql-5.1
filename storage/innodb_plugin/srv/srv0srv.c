@@ -1900,6 +1900,8 @@ srv_printf_innodb_transaction(
 /*======================*/
 	FILE*	file)		/* in: output stream */
 {
+	int retry;
+
 	mutex_enter(&srv_innodb_monitor_mutex);
 
 	fputs("\n=====================================\n", file);
@@ -1908,8 +1910,17 @@ srv_printf_innodb_transaction(
 		" INNODB TRANSACTION MONITOR OUTPUT\n"
 		"=====================================\n");
 
-	lock_print_info_summary(file, TRUE, TRUE);
-	lock_print_info_all_transactions(file);
+	/* Try three times to grab the lock, sleep 10ms on retries */
+	for (retry = 0; retry < 3; retry++) {
+		if (retry) {
+			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
+		}
+
+		if (lock_print_info_summary(file, TRUE, TRUE)) {
+			lock_print_info_all_transactions(file);
+			break;
+		}
+	}
 
 	fputs("----------------------------\n"
 		       "END OF INNODB TRANSACTION MONITOR OUTPUT\n"
