@@ -4380,7 +4380,7 @@ static void init_cachedev(void)
   struct mntent *ent;
   pid_t pid = getpid();
   FILE *mounts;
-  char *error_message= NULL;
+  const char *error_message= NULL;
 
   // disabled by default
   cachedev_fd = -1;
