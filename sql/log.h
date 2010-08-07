@@ -230,6 +230,11 @@ private:
   time_t last_time;
 };
 
+/* Number of conditional variables used for ticketing system that enforces
+ * binlog ordering without grabbing prepare mutex.
+*/
+#define NUM_BINLOG_COMMIT_COND 1024
+
 class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
 private:
@@ -251,7 +256,7 @@ private:
    */
   my_atomic_bigint current_ticket;
   volatile my_atomic_bigint next_ticket;
-  pthread_cond_t binlog_commit_cond;
+  pthread_cond_t binlog_commit_cond_array[NUM_BINLOG_COMMIT_COND];
   pthread_cond_t binlog_cond;
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   pthread_mutex_t LOCK_index;
@@ -327,7 +332,7 @@ private:
       last_valid_offset - (OUT) the last valid event's offset
       relay_file_size   - (OUT) the relay-log file's size
       errmsg            - (OUT) error message if there are any
-    
+
      Returns: false on error
    */
   bool find_master_pos_inlog(const char *relay_log_name,
@@ -344,13 +349,13 @@ private:
   /*
      Extract master-log's log filename and log position from the specified
      event if the information is guaranteed to be correct.
-    
+
      Input:
       ev              - (IN)  the relay-log event to extract master information
       adjust_pos      - (IN)  the len of the event to adjust from end to begin
       master_log_name - (OUT) the extracted master's log name
       master_log_pos  - (OUT) the extracted master's log position
-    
+
      Return:
       true:  the master-log information is extracted
       false: otherwise
@@ -461,7 +466,7 @@ public:
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
   void rotate_and_purge(uint flags);
   void enqueue_thread(THD* thd);
-  void next_thread_broadcast();
+  void next_thread_broadcast(THD* thd);
   void dequeue_thread_in_order(THD *thd);
   bool flush_and_sync(THD *thd);
   int purge_logs(const char *to_log, bool included,
@@ -503,7 +508,7 @@ public:
   /*
      Update master-log's log filename and log position based on events in
      the last relay-log.
-    
+
      Input:
       thd               - current THD
       relay_log_name    - (IN) replication's last committed relay-log name
@@ -675,13 +680,13 @@ public:
   void deactivate_log_handler(THD* thd, uint log_type);
   bool activate_log_handler(THD* thd, uint log_type);
   MYSQL_QUERY_LOG *get_slow_log_file_handler()
-  { 
+  {
     if (file_log_handler)
       return file_log_handler->get_mysql_slow_log();
     return NULL;
   }
   MYSQL_QUERY_LOG *get_log_file_handler()
-  { 
+  {
     if (file_log_handler)
       return file_log_handler->get_mysql_log();
     return NULL;

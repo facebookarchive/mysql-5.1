@@ -2562,7 +2562,10 @@ void MYSQL_BIN_LOG::cleanup()
     (void) pthread_mutex_destroy(&LOCK_log);
     (void) pthread_mutex_destroy(&LOCK_index);
     (void) pthread_cond_destroy(&update_cond);
-    (void) pthread_cond_destroy(&binlog_commit_cond);
+    for (int i=0; i < NUM_BINLOG_COMMIT_COND; i++)
+    {
+      (void) pthread_cond_destroy(&binlog_commit_cond_array[i]);
+    }
     (void) pthread_cond_destroy(&binlog_cond);
   }
   DBUG_VOID_RETURN;
@@ -2587,7 +2590,10 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   (void) pthread_mutex_init(&LOCK_log, MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
   (void) pthread_cond_init(&update_cond, 0);
-  (void) pthread_cond_init(&binlog_commit_cond, 0);
+  for (int i=0; i < NUM_BINLOG_COMMIT_COND; i++)
+  {
+    (void) pthread_cond_init(&binlog_commit_cond_array[i], 0);
+  }
   (void) pthread_cond_init(&binlog_cond, 0);
 }
 
@@ -4092,10 +4098,12 @@ void MYSQL_BIN_LOG::enqueue_thread(THD *thd) {
  * Increment current ticket and let other waiting threads
  * know that it may be their turn in the queue
  */
-void MYSQL_BIN_LOG::next_thread_broadcast() {
+void MYSQL_BIN_LOG::next_thread_broadcast(THD* thd) {
   safe_mutex_assert_owner(&LOCK_log);
   current_ticket++;
-  pthread_cond_broadcast(&binlog_commit_cond);
+  // wakeup the threads sleeping on the NEXT slot
+  int slot = (1 + (ulonglong) thd->ticket) % NUM_BINLOG_COMMIT_COND;
+  pthread_cond_broadcast(&binlog_commit_cond_array[slot]);
 }
 
 /**
@@ -4123,14 +4131,15 @@ void MYSQL_BIN_LOG::dequeue_thread_in_order(THD *thd)
     //
     // TODO(rmcelroy): make this work when the next_ticket rolls over
     while ((ulonglong) thd->ticket > (ulonglong) current_ticket) {
-      pthread_cond_wait(&binlog_commit_cond, &LOCK_log);
+      int slot = ((ulonglong) thd->ticket) % NUM_BINLOG_COMMIT_COND;
+      pthread_cond_wait(&binlog_commit_cond_array[slot], &LOCK_log);
     }
   }
   // even if we are not enforcing order, we may still have a ticket number,
   // if binlog_force_order had just been turned off, for example
   if (thd->ticket) {
+    next_thread_broadcast(thd);
     thd->ticket = 0;
-    next_thread_broadcast();
   }
 }
 
@@ -4163,7 +4172,7 @@ bool MYSQL_BIN_LOG::flush_and_sync(THD *thd)
       // if we get an error, log it and move on.
       if (err && err != EINTR && err != ETIMEDOUT)
       {
-          sql_print_warning("Got error %d from pthread_cond_timedwait\n", err);
+        sql_print_warning("Got error %d from pthread_cond_timedwait\n", err);
       }
       err = 0;
 
