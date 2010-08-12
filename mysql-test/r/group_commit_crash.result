@@ -1,0 +1,170 @@
+#
+# Testing group commit by crashing a few times.
+#
+# Don't test this under valgrind, memory leaks will occur
+# Binary must be compiled with debug for crash to occur
+connection c1
+call mtr.add_suppression(".*");
+CREATE TABLE t1(a CHAR(255),
+b CHAR(255),
+c CHAR(255),
+d CHAR(255),
+id INT AUTO_INCREMENT,
+PRIMARY KEY(id)) ENGINE=InnoDB;
+create table t2 like t1;
+create procedure setcrash(IN i INT)
+begin
+CASE i
+WHEN 1 THEN SET SESSION debug="d,crash_commit_after_prepare";
+WHEN 2 THEN SET SESSION debug="d,crash_commit_after_log";
+WHEN 3 THEN SET SESSION debug="d,crash_commit_before_unlog";
+WHEN 4 THEN SET SESSION debug="d,crash_commit_after";
+WHEN 5 THEN SET SESSION debug="d,crash_commit_before";
+ELSE BEGIN END;
+END CASE;
+end //
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+RESET MASTER;
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL force_binlog_order=1;
+SET GLOBAL innodb_release_locks_early=1;
+START TRANSACTION;
+insert into t1 select * from t2;
+# Write file to make mysql-test-run.pl expect crash
+call setcrash(5);
+# Run the crashing query
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# Turn on reconnect
+# Call script that will poll the server waiting for
+# it to be back online again
+SELECT * FROM t1;
+a	b	c	d	id
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+RESET MASTER;
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL force_binlog_order=1;
+SET GLOBAL innodb_release_locks_early=1;
+START TRANSACTION;
+insert into t1 select * from t2;
+# Write file to make mysql-test-run.pl expect crash
+call setcrash(4);
+# Run the crashing query
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# Turn on reconnect
+# Call script that will poll the server waiting for
+# it to be back online again
+SELECT * FROM t1;
+a	b	c	d	id
+a	b	c	d	1
+a	b	c	d	2
+a	b	c	d	3
+a	b	c	d	4
+a	b	c	d	5
+a	b	c	d	6
+a	b	c	d	7
+a	b	c	d	8
+a	b	c	d	9
+a	b	c	d	10
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	174	Query	1	268	use `test`; insert into t1 select * from t2
+delete from t1;
+RESET MASTER;
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL force_binlog_order=1;
+SET GLOBAL innodb_release_locks_early=1;
+START TRANSACTION;
+insert into t1 select * from t2;
+# Write file to make mysql-test-run.pl expect crash
+call setcrash(3);
+# Run the crashing query
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# Turn on reconnect
+# Call script that will poll the server waiting for
+# it to be back online again
+SELECT * FROM t1;
+a	b	c	d	id
+a	b	c	d	1
+a	b	c	d	2
+a	b	c	d	3
+a	b	c	d	4
+a	b	c	d	5
+a	b	c	d	6
+a	b	c	d	7
+a	b	c	d	8
+a	b	c	d	9
+a	b	c	d	10
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	174	Query	1	268	use `test`; insert into t1 select * from t2
+delete from t1;
+RESET MASTER;
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL force_binlog_order=1;
+SET GLOBAL innodb_release_locks_early=1;
+START TRANSACTION;
+insert into t1 select * from t2;
+# Write file to make mysql-test-run.pl expect crash
+call setcrash(2);
+# Run the crashing query
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# Turn on reconnect
+# Call script that will poll the server waiting for
+# it to be back online again
+SELECT * FROM t1;
+a	b	c	d	id
+a	b	c	d	1
+a	b	c	d	2
+a	b	c	d	3
+a	b	c	d	4
+a	b	c	d	5
+a	b	c	d	6
+a	b	c	d	7
+a	b	c	d	8
+a	b	c	d	9
+a	b	c	d	10
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	174	Query	1	268	use `test`; insert into t1 select * from t2
+delete from t1;
+RESET MASTER;
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL force_binlog_order=1;
+SET GLOBAL innodb_release_locks_early=1;
+START TRANSACTION;
+insert into t1 select * from t2;
+# Write file to make mysql-test-run.pl expect crash
+call setcrash(1);
+# Run the crashing query
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# Turn on reconnect
+# Call script that will poll the server waiting for
+# it to be back online again
+SELECT * FROM t1;
+a	b	c	d	id
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE setcrash;
+SET GLOBAL innodb_prepare_commit_mutex=1;
+SET GLOBAL force_binlog_order=0;
+SET GLOBAL innodb_release_locks_early=0;
+SET SESSION DEBUG= 'RESET';

@@ -1,0 +1,96 @@
+--echo #
+--echo # Testing group commit by crashing a few times.
+--echo #
+--source include/not_embedded.inc
+--echo # Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+
+--echo # Binary must be compiled with debug for crash to occur
+--source include/have_debug.inc
+--source include/have_innodb.inc
+--source include/have_log_bin.inc
+
+connect(c1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+--connection c1
+--echo connection c1
+
+#since this test generates lot of errors in log, suppress checking errors
+call mtr.add_suppression(".*");
+CREATE TABLE t1(a CHAR(255),
+                b CHAR(255),
+                c CHAR(255),
+                d CHAR(255),
+                id INT AUTO_INCREMENT,
+                PRIMARY KEY(id)) ENGINE=InnoDB;
+create table t2 like t1;
+delimiter //;
+create procedure setcrash(IN i INT)
+begin
+  CASE i
+    WHEN 1 THEN SET SESSION debug="d,crash_commit_after_prepare";
+    WHEN 2 THEN SET SESSION debug="d,crash_commit_after_log";
+    WHEN 3 THEN SET SESSION debug="d,crash_commit_before_unlog";
+    WHEN 4 THEN SET SESSION debug="d,crash_commit_after";
+    WHEN 5 THEN SET SESSION debug="d,crash_commit_before";
+    ELSE BEGIN END;
+  END CASE;
+end //
+delimiter ;//
+
+let $numtests = 5;
+
+let $numinserts = 10;
+while ($numinserts)
+{
+  dec $numinserts;
+  INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+}
+
+while ($numtests)
+{
+
+# nuke binlogs and sync points
+  RESET MASTER;
+  SET GLOBAL innodb_prepare_commit_mutex=0;
+  SET GLOBAL force_binlog_order=1;
+  SET GLOBAL innodb_release_locks_early=1;
+
+  START TRANSACTION;
+  insert into t1 select * from t2;
+--echo # Write file to make mysql-test-run.pl expect crash
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+  eval call setcrash($numtests);
+
+--echo # Run the crashing query
+--error 2013
+  COMMIT;
+
+--echo # Turn on reconnect
+--enable_reconnect
+
+--echo # Call script that will poll the server waiting for
+--echo # it to be back online again
+--source include/wait_until_connected_again.inc
+
+# table and binlog should be in sync
+  SELECT * FROM t1;
+  SHOW BINLOG EVENTS LIMIT 2,1;
+
+  delete from t1;
+
+  dec $numtests;
+
+}
+
+# final cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE setcrash;
+SET GLOBAL innodb_prepare_commit_mutex=1;
+SET GLOBAL force_binlog_order=0;
+SET GLOBAL innodb_release_locks_early=0;
+SET SESSION DEBUG= 'RESET';
+# clean exit
+--exit
