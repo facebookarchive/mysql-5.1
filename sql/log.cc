@@ -4145,13 +4145,16 @@ void MYSQL_BIN_LOG::dequeue_thread_in_order(THD *thd)
 
 bool MYSQL_BIN_LOG::flush_and_sync(THD *thd)
 {
-  int err=0, fd=log_file.file;
+  int err=0;
   my_fast_timer_t fsync_start;
   double fsync_time;
 
   safe_mutex_assert_owner(&LOCK_log);
 
   // If thd has already been dequeued, this is a no-op. Nifty!
+  // Note that this drops and reacquires LOCK_log. In the mean time
+  // things could have changed, such as we may have switched to a
+  // new file.
   dequeue_thread_in_order(thd);
 
   if (flush_io_cache(&log_file))
@@ -4179,6 +4182,7 @@ bool MYSQL_BIN_LOG::flush_and_sync(THD *thd)
       // only do a sync if no one else has synced
       if (my_fsync_count == binlog_fsync_count)
       {
+        int fd = log_file.file;
         sync_binlog_counter= 0;
         my_get_fast_timer(&fsync_start);
         err= my_sync(fd, MYF(MY_WME));
@@ -4195,6 +4199,7 @@ bool MYSQL_BIN_LOG::flush_and_sync(THD *thd)
     }
     else
     {
+      int fd = log_file.file;
       sync_binlog_counter= 0;
       my_get_fast_timer(&fsync_start);
       err= my_sync(fd, MYF(MY_WME));
