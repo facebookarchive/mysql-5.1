@@ -40,6 +40,7 @@
 #endif
 
 #include <mysql/plugin.h>
+#include "mysql_priv.h"
 
 /** The max InnoDB allowed replication binlog filename length: the value should
     be the same as TRX_SYS_MYSQL_RELAY_NAME_LEN. */
@@ -4130,9 +4131,36 @@ void MYSQL_BIN_LOG::dequeue_thread_in_order(THD *thd)
     // transactions in the binlog
     //
     // TODO(rmcelroy): make this work when the next_ticket rolls over
+    int hangseconds = 0; // seconds for which current ticket has not advanced
+    my_atomic_bigint save_ticket = current_ticket;
     while ((ulonglong) thd->ticket > (ulonglong) current_ticket) {
+      timespec cond_wake_time;
+      set_timespec(cond_wake_time, GROUP_COMMIT_HANG_ERROR_SECONDS);
+
       int slot = ((ulonglong) thd->ticket) % NUM_BINLOG_COMMIT_COND;
-      pthread_cond_wait(&binlog_commit_cond_array[slot], &LOCK_log);
+      int err = pthread_cond_timedwait(&binlog_commit_cond_array[slot],
+                                       &LOCK_log, &cond_wake_time);
+
+      if (err == ETIMEDOUT)
+      {
+        if ((ulonglong)current_ticket > (ulonglong)save_ticket)
+        {
+          // current ticket has advanced.
+          hangseconds = 0;
+          save_ticket = current_ticket;
+        }
+        else if (hangseconds > GROUP_COMMIT_HANG_KILL_SECONDS)
+        {
+          // current ticket stuck duration exceeds limit. kill the server.
+          kill_mysql();
+        }
+        else
+        {
+          hangseconds += GROUP_COMMIT_HANG_ERROR_SECONDS;
+          sql_print_error("Group commit: current ticket stuck for %d seconds!",
+                          hangseconds);
+        }
+      }
     }
   }
   // even if we are not enforcing order, we may still have a ticket number,

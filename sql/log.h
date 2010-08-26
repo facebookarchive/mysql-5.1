@@ -230,10 +230,25 @@ private:
   time_t last_time;
 };
 
-/* Number of conditional variables used for ticketing system that enforces
+/**
+ * Number of conditional variables used for ticketing system that enforces
  * binlog ordering without grabbing prepare mutex.
-*/
+ */
 #define NUM_BINLOG_COMMIT_COND 1024
+
+/**
+ * If current ticket does not advance in this many seconds, we print errors
+ * to log as it may indicate a hang.
+ */
+#define GROUP_COMMIT_HANG_ERROR_SECONDS 1
+
+
+/**
+ * If current ticket does not advance in this many seconds, we kill server
+ * assuming that it is a hang.
+ */
+#define GROUP_COMMIT_HANG_KILL_SECONDS 60
+
 
 class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
