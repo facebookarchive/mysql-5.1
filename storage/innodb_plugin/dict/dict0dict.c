@@ -709,7 +709,7 @@ dict_table_get(
 		/* If table->ibd_file_missing == TRUE, this will
 		print an error message and return without doing
 		anything. */
-		dict_update_statistics(table, FALSE, NULL);
+		dict_update_statistics(table, FALSE, TRUE, NULL);
 	}
 
 	return(table);
@@ -4182,6 +4182,18 @@ dict_index_calc_min_rec_len(
 	return(sum);
 }
 
+static
+void
+dict_update_statistics_exit(
+/*========================*/
+	dict_table_t*	table)		/*!< in/out: table */
+{
+	os_fast_mutex_lock(&(table->stats_mutex));
+	ut_a(0 == pthread_cond_signal(&(table->stats_cond)));
+	table->stats_in_progress = FALSE;
+	os_fast_mutex_unlock(&(table->stats_mutex));
+}
+
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
@@ -4195,6 +4207,8 @@ dict_update_statistics_low(
 					dictionary mutex */
 	ibool		force,		/*!< in: TRUE if stats are collected
 					when the already exist */
+	ibool		wait,		/*!< in: TRUE to wait for completion when
+					collection is in progress */
 	trx_t*		trx)
 {
 	dict_index_t*	index;
@@ -4204,12 +4218,23 @@ dict_update_statistics_low(
 	/* See Bug#38996. Prevent current calls to
 	dict_update_statistics for one table. */
 
-	mutex_enter(&(table->stats_mutex));
+	os_fast_mutex_lock(&(table->stats_mutex));
 
-	if (table->stat_initialized && !force) {
-		mutex_exit(&(table->stats_mutex));
+	if ((!force && table->stat_initialized) || (!wait && table->stats_in_progress)) {
+
+		/* Avoid repeating work during "opening tables" dogpile or waiting
+		when requested. */
+
+		os_fast_mutex_unlock(&(table->stats_mutex));
 		return;
 	}
+
+	while (table->stats_in_progress) {
+		pthread_cond_wait(&(table->stats_cond), &(table->stats_mutex));
+	}
+
+	table->stats_in_progress = TRUE;
+	os_fast_mutex_unlock(&(table->stats_mutex));
 
 	if (table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
@@ -4220,7 +4245,7 @@ dict_update_statistics_low(
 			"InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 			table->name);
 
-		mutex_exit(&(table->stats_mutex));
+		dict_update_statistics_exit(table);
 		return;
 	}
 
@@ -4229,7 +4254,7 @@ dict_update_statistics_low(
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
-		mutex_exit(&(table->stats_mutex));
+		dict_update_statistics_exit(table);
 		return;
 	}
 
@@ -4241,7 +4266,7 @@ dict_update_statistics_low(
 	if (index == NULL) {
 		/* Table definition is corrupt */
 
-		mutex_exit(&(table->stats_mutex));
+		dict_update_statistics_exit(table);
 		return;
 	}
 
@@ -4286,7 +4311,7 @@ dict_update_statistics_low(
 
 	table->stat_modified_counter = 0;
 
-	mutex_exit(&(table->stats_mutex));
+	dict_update_statistics_exit(table);
 }
 
 /*********************************************************************//**
@@ -4299,9 +4324,11 @@ dict_update_statistics(
 	dict_table_t*	table,	/*!< in/out: table */
 	ibool		force,	/*!< in: whether to force collection
 				when stats exist */
+	ibool		wait,	/*!< in: TRUE to wait for completion when
+				collection is in progress */
 	trx_t*		trx)
 {
-	dict_update_statistics_low(table, FALSE, force, trx);
+	dict_update_statistics_low(table, FALSE, force, wait, trx);
 }
 
 /**********************************************************************//**
@@ -4381,7 +4408,7 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_update_statistics_low(table, TRUE, TRUE, NULL);
+	dict_update_statistics_low(table, TRUE, TRUE, TRUE, NULL);
 
 	fprintf(stderr,
 		"--------------------------------------\n"

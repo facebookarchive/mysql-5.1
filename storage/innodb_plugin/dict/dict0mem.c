@@ -88,7 +88,8 @@ dict_mem_table_create(
 	table->n_waiting_or_granted_auto_inc_locks = 0;
 #endif /* !UNIV_HOTBACKUP */
 
-	mutex_create(&table->stats_mutex, SYNC_DICT_STATS);
+	os_fast_mutex_init(&table->stats_mutex);
+	ut_a(0 == pthread_cond_init(&(table->stats_cond), NULL));
 
 	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
 	return(table);
@@ -106,7 +107,8 @@ dict_mem_table_free(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_d(table->cached = FALSE);
 
-	mutex_free(&(table->stats_mutex));
+	os_fast_mutex_free(&(table->stats_mutex));
+	ut_a(0 == pthread_cond_destroy(&(table->stats_cond)));
 
 #ifndef UNIV_HOTBACKUP
 	mutex_free(&(table->autoinc_mutex));

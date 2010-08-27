@@ -4061,7 +4061,7 @@ ha_innobase::open_deferred(THD *thd)
 		init_trx_table_stats(trx, FALSE);
 	}
 
-	dict_update_statistics(prebuilt->table, FALSE, trx);
+	dict_update_statistics(prebuilt->table, FALSE, TRUE, trx);
 
 	sample_table_stats();
 
@@ -8045,7 +8045,7 @@ ha_innobase::info(
 
 			prebuilt->trx->op_info = "updating table statistics";
 
-			dict_update_statistics(ib_table, TRUE, prebuilt->trx);
+			dict_update_statistics(ib_table, TRUE, TRUE, prebuilt->trx);
 
 			prebuilt->trx->op_info = "returning various info to MySQL";
 		}
@@ -11634,7 +11634,7 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   "Buffer changes to reduce random access: "
   "OFF, ON, none, inserts.",
   innodb_change_buffering_validate,
-  innodb_change_buffering_update, "inserts"); 
+  innodb_change_buffering_update, "inserts");
 
 static MYSQL_SYSVAR_BOOL(retry_io_on_error, srv_retry_io_on_error,
   PLUGIN_VAR_NOCMDARG,

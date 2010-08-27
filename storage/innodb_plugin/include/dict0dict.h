@@ -1046,6 +1046,8 @@ dict_update_statistics_low(
 					dictionary mutex */
 	ibool		force,		/*!< in: TRUE if stats are collected
 					when they already exist */
+	ibool		wait,		/*!< in: wait for collection in progress
+					to finish */
 	trx_t*		trx);
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics
@@ -1058,6 +1060,8 @@ dict_update_statistics(
 	ibool		force_update,
 				/*!< in: whether to collect stats when
 				they already exist */
+	ibool		wait,	/*!< in: wait for collection in progress
+				to finish */
 	trx_t*		trx);
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */

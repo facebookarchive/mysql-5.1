@@ -474,9 +474,13 @@ struct dict_table_struct{
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
-	mutex_t		stats_mutex;
+	unsigned	stats_in_progress:1;/*!< TRUE when stats
+				collection is in progres */
+	os_fast_mutex_t		stats_mutex;
 				/*!< mutex used in dict_update_statistics_low
 				to prevent concurrent collection for a table */
+	pthread_cond_t	stats_cond;
+				/*!< condvar used to coordinate waits for stats */
 	ib_int64_t	stat_n_rows;
 				/*!< approximate number of rows in the table;
 				we periodically calculate new estimates */

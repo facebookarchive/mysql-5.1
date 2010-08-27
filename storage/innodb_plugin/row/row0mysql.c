@@ -866,7 +866,7 @@ row_update_statistics_if_needed(
 	if (counter > 2000000000
 	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
 
-		dict_update_statistics(table, TRUE, trx);
+		dict_update_statistics(table, TRUE, FALSE, trx);
 	}
 }
 
@@ -1424,7 +1424,13 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
-	row_update_statistics_if_needed(prebuilt->table, trx);
+	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+
+		/* Increment row change counter and possibly update statistics when
+		this is a DELETE or an indexed column has changed. */
+
+		row_update_statistics_if_needed(prebuilt->table, trx);
+	}
 
 	trx->op_info = "";
 
@@ -2936,7 +2942,7 @@ next_rec:
 	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
-	dict_update_statistics(table, TRUE, trx);
+	dict_update_statistics(table, TRUE, TRUE, trx);
 
 	trx_commit_for_mysql(trx);
 

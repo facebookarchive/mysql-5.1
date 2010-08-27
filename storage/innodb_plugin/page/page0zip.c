@@ -1466,7 +1466,8 @@ page_zip_fields_free(
 		dict_table_t*	table = index->table;
 		mem_heap_free(index->heap);
 		mutex_free(&(table->autoinc_mutex));
-		mutex_free(&(table->stats_mutex));
+		os_fast_mutex_free(&(table->stats_mutex));
+		ut_a(0 == pthread_cond_destroy(&(table->stats_cond)));
 		ut_free(table->name);
 		mem_heap_free(table->heap);
 	}
