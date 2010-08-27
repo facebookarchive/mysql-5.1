@@ -2948,6 +2948,14 @@ innobase_rollback(
 
 	row_unlock_table_autoinc_for_mysql(trx);
 
+	// if transaction has already released locks, it is too late to rollback
+	if (innobase_release_locks_early && trx->conc_state == TRX_PREPARED
+	    && UT_LIST_GET_LEN(trx->trx_locks) == 0) {
+		char *s = "Rollback after releasing locks! errno=%d, dberr=%d";
+		sql_print_error(s, errno, trx->error_state);
+		ut_error;
+	}
+
 	if (all
 		|| !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 

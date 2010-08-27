@@ -10,6 +10,10 @@
 connect(c1,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect(c2,127.0.0.1,root,,test,$MASTER_MYPORT,);
 
+--disable_query_log
+call mtr.add_suppression("Group commit: current ticket stuck for [0-9]* seconds!");
+--enable_query_log
+
 --connection c1
 --echo connection c1
 
