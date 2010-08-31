@@ -1516,8 +1516,20 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       general_log_print(thd, command, "Log: '%s'  Pos: %ld", packet+10,
                       (long) pos);
+
+      VOID(pthread_mutex_lock(&LOCK_thread_count));
+      thread_running--;
+      thread_binlog_client++;
+      VOID(pthread_mutex_unlock(&LOCK_thread_count));
+
       mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, flags);
       unregister_slave(thd,1,1);
+
+      VOID(pthread_mutex_lock(&LOCK_thread_count));
+      thread_running++;
+      thread_binlog_client--;
+      VOID(pthread_mutex_unlock(&LOCK_thread_count));
+
       /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
       error = TRUE;
       break;

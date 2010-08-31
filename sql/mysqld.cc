@@ -573,7 +573,7 @@ uint mysqld_port_timeout;
 uint delay_key_write_options, protocol_version;
 uint lower_case_table_names;
 uint tc_heuristic_recover= 0;
-uint volatile thread_count, thread_running;
+uint volatile thread_count, thread_running, thread_binlog_client;
 ulonglong thd_startup_options;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
@@ -8196,6 +8196,7 @@ SHOW_VAR status_vars[]= {
   {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG},
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
 #endif
+  {"Threads_binlog_client",    (char*) &thread_binlog_client,   SHOW_INT},
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_NOFLUSH},
   {"Threads_connected",        (char*) &thread_count,           SHOW_INT},
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_NOFLUSH},
