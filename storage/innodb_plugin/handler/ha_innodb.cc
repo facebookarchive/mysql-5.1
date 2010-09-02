@@ -11683,6 +11683,12 @@ static MYSQL_SYSVAR_BOOL(release_locks_early, innobase_release_locks_early,
   "Release row locks in the prepare stage instead of in the commit stage",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(expand_import, srv_expand_import,
+  PLUGIN_VAR_NOCMDARG,
+  "Enable/Disable converting automatically *.ibd files when import tablespace.",
+  NULL, NULL, FALSE);
+
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -11755,6 +11761,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(prepare_commit_mutex),
   MYSQL_SYSVAR(aio_old_usecs),
   MYSQL_SYSVAR(release_locks_early),
+  MYSQL_SYSVAR(expand_import),
   NULL
 };
 

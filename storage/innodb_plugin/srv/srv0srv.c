@@ -577,6 +577,8 @@ UNIV_INTERN my_bool	innobase_prepare_commit_mutex	= TRUE;
 /** Release locks in prepare step */
 UNIV_INTERN my_bool	innobase_release_locks_early	= FALSE;
 
+UNIV_INTERN my_bool     srv_expand_import = FALSE;
+
 /* The following count work done by srv_master_thread. */
 
 /* Iterations by the 'once per second' loop. */

@@ -40,6 +40,12 @@ Created 10/25/1995 Heikki Tuuri
 #include "dict0dict.h"
 #include "page0page.h"
 #include "page0zip.h"
+#include "trx0trx.h"
+#include "trx0sys.h"
+#include "pars0pars.h"
+#include "row0mysql.h"
+#include "row0row.h"
+#include "que0que.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
 # include "ibuf0ibuf.h"
@@ -2778,6 +2784,410 @@ func_exit:
 	return(success);
 }
 
+
+/********************************************************************//**
+Code taken from bzr branch lp:percona-server patch innodb_expand_import.patch
+and adapted by adding error handling and also splitting into smaller functions.
+Reads index metadata from .exp file
+@return	TRUE if success */
+static
+ibool
+fil_expand_import_expfile(
+			  os_file_t	info_file,/*!< in: expfile descriptor */
+			  dict_table_t*	table,    /*!< in: table dictionary */
+			  byte*		page,     /*!< in: header page */
+			  dulint*	old_id,	  /*!< out: old index ids */
+			  dulint*	new_id,	  /*!< out: new index ids */
+			  ulint*	root_page)/*!< out: root page ids */
+{
+	dict_index_t*	index;
+	ulint		n_index_from_dict;
+	ulint		i;
+
+	ulint		n_index;
+
+
+	n_index = mach_read_from_4(page + 8);
+	n_index_from_dict = UT_LIST_GET_LEN(table->indexes);
+
+	if (n_index != n_index_from_dict) {
+		fprintf(stderr, "InnoDB: Index count mismatch in exp file and dict: %lu,%lu\n",
+			(ulong)n_index, (ulong)n_index_from_dict);
+		return FALSE;
+	}
+
+	index = dict_table_get_first_index(table);
+	if (index == NULL) {
+		fprintf(stderr, "InnoDB: Could not locate cluster index for table %s\n", table->name);
+		return FALSE;
+	}
+
+	if (index->page != 3) {
+		fprintf(stderr, "InnoDB: Bad clustered index root page %lu for table %s in exp file\n",
+			(ulong)index->page, table->name);
+		return FALSE;
+	}
+
+	/* read metadata from .exp file */
+	memset(old_id, 0, sizeof(old_id));
+	memset(new_id, 0, sizeof(new_id));
+	memset(root_page, 0, sizeof(root_page));
+
+	fprintf(stderr, "InnoDB: import: %lu indexes are detected.\n", (ulong)n_index);
+	for (i = 0; i < n_index; i++) {
+		const char* index_name = (char*)(page + (i + 1) * 512 + 12);
+
+		if (strnlen(index_name, 1+MAX_TABLE_NAME_LEN) > MAX_TABLE_NAME_LEN) {
+			/* Most likley it is garbage index name and so it is not being printed */
+			fprintf(stderr, "InnoDB: Index name for table %s longer than max allowed in exp file\n",
+				table->name);
+			return FALSE;
+		}
+
+		index = dict_table_get_index_on_name(table, index_name);
+
+		if (index == NULL) {
+			fprintf(stderr, "InnoDB: Index %s on table %s not found\n", index_name, table->name);
+			return FALSE;
+		}
+
+		new_id[i] = index->id;
+		old_id[i] = mach_read_from_8(page + (i + 1) * 512);
+		root_page[i] = mach_read_from_4(page + (i + 1) * 512 + 8);
+	}
+
+	return TRUE;
+}
+
+
+/********************************************************************//**
+Code taken from bzr branch lp:percona-server patch innodb_expand_import.patch
+and adapted by adding error handling and also splitting into smaller functions.
+Updates sysindexes given new root pageids, mapping between old and new indexids
+@return	TRUE if success */
+static
+ibool
+fil_expand_import_update_sysindexes(
+				    dict_table_t*	table,    /*!< in: table dictionary */
+				    ulint		n_index,  /*!< in: number of indexes */
+				    dulint*		old_id,	  /*!< in: old index ids */
+				    dulint*		new_id,	  /*!< in: new index ids */
+				    ulint*		root_page)/*!< in: root page ids */
+{
+	dict_index_t*	index;
+	ulint		i;
+
+	/* update SYS_INDEXES set root page */
+	index = dict_table_get_first_index(table);
+	while (index) {
+		for (i = 0; i < n_index; i++) {
+			if (ut_dulint_cmp(new_id[i], index->id) == 0) {
+				break;
+			}
+		}
+
+		if (i == n_index) {
+			fprintf(stderr, "InnoDB: Could not locate index %s on table %s\n",
+				index->name, table->name);
+			return FALSE;
+		}
+
+		if (root_page[i] != index->page) {
+			/* must update */
+			ulint	error;
+			trx_t*	trx;
+			pars_info_t*	info = NULL;
+			char*	errorfunc = NULL;
+
+			trx = trx_allocate_for_mysql();
+			trx->op_info = "extended import";
+
+			info = pars_info_create();
+
+			pars_info_add_dulint_literal(info, "indexid", new_id[i]);
+			pars_info_add_int4_literal(info, "new_page", (lint) root_page[i]);
+
+			error = que_eval_sql(info,
+					     "PROCEDURE UPDATE_INDEX_PAGE () IS\n"
+					     "BEGIN\n"
+					     "UPDATE SYS_INDEXES"
+					     " SET PAGE_NO = :new_page"
+					     " WHERE ID = :indexid;\n"
+					     "COMMIT WORK;\n"
+					     "END;\n",
+					     FALSE, trx);
+			errorfunc = "que_eval_sql";
+			if (error == DB_SUCCESS) {
+				error = trx_commit_for_mysql(trx);
+				errorfunc = "trx_commit_for_mysql";
+			}
+
+			if (error != DB_SUCCESS) {
+				fprintf(stderr, "InnoDB: Error %lu in function %s in "
+					"SYS_INDEXES update of index %s on table %s\n",
+					error, errorfunc, index->name, table->name);
+				error = trx_rollback_for_mysql(trx);
+				if (error != DB_SUCCESS) {
+					fprintf(stderr, "InnoDB: Error %lu in rolling back SYS_INDEXES update\n");
+				}
+				trx_free_for_mysql(trx);
+				return FALSE;
+			}
+
+			trx_free_for_mysql(trx);
+
+			index->page = root_page[i];
+		}
+
+		index = dict_table_get_next_index(index);
+	}
+
+	return TRUE;
+
+}
+
+
+/********************************************************************//**
+Code taken from bzr branch lp:percona-server patch innodb_expand_import.patch
+and adapted by adding error handling and also splitting into smaller functions.
+Updates fsp header with current LSN if needed, passed in ID and flags
+@return	TRUE if success */
+static
+ibool
+fil_expand_import_update_header(
+				os_file_t	file,       /*!< in: file descriptor */
+				char*		filepath,   /*!< in: file path */
+				byte*		page,       /*!< in: header page */
+				ulint		id,         /*!< in: tablespace id */
+				ulint		flags,      /*!< in: tablespace flags */
+				ib_uint64_t	current_lsn)/*!< in: current lsn */
+{
+
+	/* overwrite fsp header */
+	fsp_header_init_fields(page, id, flags);
+	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
+	if (mach_read_ull(page + FIL_PAGE_FILE_FLUSH_LSN) > current_lsn)
+		mach_write_ull(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
+
+	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
+			srv_use_checksums
+			? buf_calc_page_new_checksum(page)
+			: BUF_NO_CHECKSUM_MAGIC);
+	mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
+			srv_use_checksums
+			? buf_calc_page_old_checksum(page)
+			: BUF_NO_CHECKSUM_MAGIC);
+
+	if (!os_file_write(filepath, file, page, 0, 0, UNIV_PAGE_SIZE)) {
+		fprintf(stderr, "Write to tablespace file failed: %s\n", filepath);
+		return FALSE;
+	}
+
+	return TRUE;
+
+}
+
+/********************************************************************//**
+Code taken from bzr branch lp:percona-server patch innodb_expand_import.patch
+and adapted by adding error handling and also splitting into smaller functions.
+Updates each page in filespace with new tablespaceid and other info.
+@return	TRUE if success */
+static
+ibool
+fil_expand_import_update_pages(
+			       char*		filepath,   /*!< in: file path */
+			       os_file_t	file,       /*!< in: file descriptor */
+			       ib_int64_t	size_bytes, /*!< in: filesize in bytes */
+			       dict_table_t*	table,      /*!< in: table dictionary */
+			       ulint		n_index,    /*!< in: number of indexes */
+			       byte*		page,       /*!< in: memory for reading pages */
+			       dulint*		old_id,     /*!< in: old indexids */
+			       dulint*		new_id,     /*!< in: new indexids */
+			       ulint*		root_page,  /*!< in: root page ids */
+			       ulint		id,	    /*!< in: new tablespace id */
+			       ib_uint64_t	current_lsn)/*!< in: current lsn */
+
+{
+	mem_heap_t*	heap = NULL;
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets = offsets_;
+	ib_int64_t	offset;
+	ulint		i;
+	dict_index_t* 	index;
+	ibool		retval = TRUE;
+
+	index = dict_table_get_first_index(table);
+
+	/* over write space id of all pages */
+	rec_offs_init(offsets_);
+
+	fprintf(stderr, "InnoDB: Progress in %%:");
+
+	for (offset = 0; offset < size_bytes; offset += UNIV_PAGE_SIZE) {
+		ulint		checksum_field;
+		ulint		old_checksum_field;
+		int		skip_reason = 0;
+
+		if (!os_file_read(file, page,
+				  (ulint)(offset & 0xFFFFFFFFUL),
+				  (ulint)(offset >> 32), UNIV_PAGE_SIZE)) {
+			fprintf(stderr, "InnoDB : Read from tablespace file %s failed\n",
+				filepath);
+			retval = FALSE;
+			goto func_exit;
+		}
+
+		/* skip inconsistent pages, it may be free page. */
+		if (memcmp(page + FIL_PAGE_LSN + 4,
+			   page + UNIV_PAGE_SIZE
+			   - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
+			skip_reason = 1;
+			goto skip_write;
+		}
+
+		checksum_field = mach_read_from_4(page + FIL_PAGE_SPACE_OR_CHKSUM);
+
+		old_checksum_field = mach_read_from_4(page + UNIV_PAGE_SIZE
+						      - FIL_PAGE_END_LSN_OLD_CHKSUM);
+
+		if (old_checksum_field != mach_read_from_4(page
+							   + FIL_PAGE_LSN)
+		    && old_checksum_field != BUF_NO_CHECKSUM_MAGIC
+		    && old_checksum_field
+		    != buf_calc_page_old_checksum(page)) {
+			skip_reason = 2;
+			goto skip_write;
+		}
+
+		if (checksum_field != 0
+		    && checksum_field != BUF_NO_CHECKSUM_MAGIC
+		    && checksum_field
+		    != buf_calc_page_fast_checksum(page)
+		    && checksum_field
+		    != buf_calc_page_new_checksum(page)) {
+			skip_reason = 3;
+			goto skip_write;
+		}
+
+		if (mach_read_from_4(page + FIL_PAGE_OFFSET) || !offset) {
+			mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
+
+			for (i = 0; i < n_index; i++) {
+				if (offset / UNIV_PAGE_SIZE == root_page[i]) {
+					/* this is index root page */
+					mach_write_to_4(page + FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
+							+ FSEG_HDR_SPACE, id);
+					mach_write_to_4(page + FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
+							+ FSEG_HDR_SPACE, id);
+					break;
+				}
+			}
+
+			if (fil_page_get_type(page) == FIL_PAGE_INDEX) {
+				dulint tmp = mach_read_from_8(page + (PAGE_HEADER + PAGE_INDEX_ID));
+
+				if (mach_read_from_2(page + PAGE_HEADER + PAGE_LEVEL) == 0
+				    && ut_dulint_cmp(old_id[0], tmp) == 0) {
+					/* leaf page of cluster index, reset trx_id of records */
+					rec_t*	rec;
+					rec_t*	supremum;
+					ulint	n_recs;
+
+					supremum = page_get_supremum_rec(page);
+					rec = page_rec_get_next(page_get_infimum_rec(page));
+					n_recs = page_get_n_recs(page);
+
+					while (rec && rec != supremum && n_recs > 0) {
+						ulint	n_fields;
+						ulint	i;
+						ulint	offset = index->trx_id_offset;
+						offsets = rec_get_offsets(rec, index, offsets,
+									  ULINT_UNDEFINED, &heap);
+						n_fields = rec_offs_n_fields(offsets);
+						if (!offset) {
+							offset = row_get_trx_id_offset(rec, index, offsets);
+						}
+						trx_write_trx_id(rec + offset, ut_dulint_create(0, 1));
+
+						for (i = 0; i < n_fields; i++) {
+							if (rec_offs_nth_extern(offsets, i)) {
+								ulint	local_len;
+								byte*	data;
+
+								data = rec_get_nth_field(rec, offsets, i, &local_len);
+
+								local_len -= BTR_EXTERN_FIELD_REF_SIZE;
+
+								mach_write_to_4(data + local_len + BTR_EXTERN_SPACE_ID, id);
+							}
+						}
+
+						rec = page_rec_get_next(rec);
+						n_recs--;
+					}
+				}
+
+				for (i = 0; i < n_index; i++) {
+					if (ut_dulint_cmp(old_id[i], tmp) == 0) {
+						mach_write_to_8(page + (PAGE_HEADER + PAGE_INDEX_ID), new_id[i]);
+						break;
+					}
+				}
+			}
+
+			if (mach_read_ull(page + FIL_PAGE_LSN) > current_lsn) {
+				mach_write_ull(page + FIL_PAGE_LSN, current_lsn);
+				mach_write_ull(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
+					       current_lsn);
+			}
+
+			ulint checksum;
+			if (!srv_use_checksums)
+				checksum = BUF_NO_CHECKSUM_MAGIC;
+			else if (srv_use_fast_checksums)
+				checksum = buf_calc_page_fast_checksum(page);
+			else
+				checksum = buf_calc_page_new_checksum(page);
+
+			mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
+			mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
+					srv_use_checksums
+					? buf_calc_page_old_checksum(page)
+					: BUF_NO_CHECKSUM_MAGIC);
+
+			if (!os_file_write(filepath, file, page,
+					   (ulint)(offset & 0xFFFFFFFFUL),
+					   (ulint)(offset >> 32), UNIV_PAGE_SIZE)) {
+				fprintf(stderr, "InnoDB : Write to tablespace file %s failed\n",
+					filepath);
+				retval = FALSE;
+				goto func_exit;
+			}
+		}
+
+	skip_write:
+		if (skip_reason) {
+			char* s = "Tablespace import for %s skipped page %lu due to reason=%d\n";
+			fprintf(stderr, s, filepath, offset/UNIV_PAGE_SIZE, skip_reason);
+		}
+
+		if (size_bytes
+		    && ((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / size_bytes)
+		    != ((offset * 100) / size_bytes)) {
+			fprintf(stderr, " %lu",
+				(ulong)((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / size_bytes));
+		}
+	}
+
+	fprintf(stderr, " done.\n");
+func_exit:
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
+	}
+
+	return retval;
+}
+
 /********************************************************************//**
 Tries to open a single-table tablespace and optionally checks the space id is
 right in it. If does not succeed, prints an error message to the .err log. This
@@ -2804,13 +3214,17 @@ fil_open_single_table_tablespace(
 	const char*	name)		/*!< in: table name in the
 					databasename/tablename format */
 {
-	os_file_t	file;
-	char*		filepath;
+	os_file_t	file = -1;
+	char*		filepath = NULL;
 	ibool		success;
-	byte*		buf2;
+	byte*		buf2 = NULL;
 	byte*		page;
 	ulint		space_id;
 	ulint		space_flags;
+	ulint		size = 0;
+
+	os_file_t	info_file = -1;
+	char*		info_file_path = NULL;
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
@@ -2824,7 +3238,7 @@ fil_open_single_table_tablespace(
 	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
 	file = os_file_create_simple_no_error_handling(
-		filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+		filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -2871,8 +3285,123 @@ fil_open_single_table_tablespace(
 	space_id = fsp_header_get_space_id(page);
 	space_flags = fsp_header_get_flags(page);
 
-	ut_free(buf2);
+	if (srv_expand_import) {
+		dulint		old_id[31];
+		dulint		new_id[31];
+		ulint		root_page[31];
+		ulint		size_low, size_high;
+		ulint		n_index;
+		dict_table_t*	table;
+		ib_int64_t	size_bytes;
+		int		len;
+		ib_uint64_t	current_lsn;
 
+		fprintf(stderr, "InnoDB: import: extended import of %s is started. Id=%lu, space_id=%lu\n",
+			name, id, space_id);
+
+		/* get cluster index information */
+		table = dict_table_get_low(name);
+		if (table == NULL) {
+			fprintf(stderr, "InnoDB: Could not locate table %s\n", name);
+			success = FALSE;
+			goto func_exit;
+		}
+
+		if (flags & DICT_TF_ZSSIZE_MASK) {
+			/* zip page? */
+			fprintf(stderr, "InnoDB: Fallback to regular import for %s due to format\n", filepath);
+			goto regular_import;
+		}
+
+		info_file_path = fil_make_ibd_name(name, FALSE);
+		len = strlen(info_file_path);
+		info_file_path[len - 3] = 'e';
+		info_file_path[len - 2] = 'x';
+		info_file_path[len - 1] = 'p';
+
+		info_file = os_file_create_simple_no_error_handling(
+				info_file_path, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+
+		/* if file does not exist, switch to regular import. */
+		if (!success) {
+			fprintf(stderr, "InnoDB: Fallback to regular import for %s as no exp file\n", filepath);
+			goto regular_import;
+		}
+
+		current_lsn = log_get_lsn();
+
+		/* update fsp header */
+		space_id = id;
+		space_flags = flags;
+		if (!fil_expand_import_update_header(file, filepath, page, id, flags, current_lsn)) {
+			success = FALSE;
+			goto func_exit;
+		}
+
+		/* if expfile exists but is not readable/valid, return error. */
+		success = os_file_read(info_file, page, 0, 0, UNIV_PAGE_SIZE);
+		if (!success) {
+			fprintf(stderr, "InnoDB: cannot read %s\n", info_file_path);
+			success = FALSE;
+			goto func_exit;
+		}
+		if (mach_read_from_4(page) != 0x78706f72UL
+		    || mach_read_from_4(page + 4) != 0x74696e66UL) {
+			fprintf(stderr, "InnoDB: %s seems not to be a correct .exp file\n", info_file_path);
+			success = FALSE;
+			goto func_exit;
+		}
+
+		/* this count is checked with the index count in dictionary in the following function */
+		n_index = mach_read_from_4(page + 8);
+
+		if (!fil_expand_import_expfile(info_file, table, page, old_id, new_id, root_page)) {
+			success = FALSE;
+			goto func_exit;
+		}
+
+		/* get file size */
+		if (!os_file_get_size(file, &size_low, &size_high)) {
+			fprintf(stderr, "InnoDB: Getting file size failed: %s\n", filepath);
+			success = FALSE;
+			goto func_exit;
+		}
+
+		size_bytes = (((ib_int64_t)size_high) << 32)
+			+ (ib_int64_t)size_low;
+
+		/*
+		  if (size_bytes >= 1024 * 1024) {
+		  size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
+		  }
+		*/
+
+		if (!fil_expand_import_update_pages(filepath, file, size_bytes, table, n_index, page,
+						    old_id, new_id, root_page, id, current_lsn)) {
+			success = FALSE;
+			goto func_exit;
+		}
+
+		size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
+
+		if (!fil_expand_import_update_sysindexes(table, n_index, old_id, new_id, root_page)) {
+			success = FALSE;
+			goto func_exit;
+		}
+
+                if (info_file != -1) {
+			os_file_close(info_file);
+			info_file = -1;
+		}
+
+		/* .exp file should be removed */
+		success = os_file_delete(info_file_path);
+		if (!success) {
+			success = os_file_delete_if_exists(info_file_path);
+		}
+	}
+
+regular_import:
 	if (UNIV_UNLIKELY(space_id != id
 			  || space_flags != (flags & ~(~0 << DICT_TF_BITS)))) {
 		ut_print_timestamp(stderr);
@@ -2905,12 +3434,24 @@ skip_check:
 	}
 
 	/* We do not measure the size of the file, that is why we pass the 0
-	below */
+	below except for expand_import case where size is computed above. */
 
-	fil_node_create(filepath, 0, space_id, FALSE);
+	fil_node_create(filepath, size, space_id, FALSE);
 func_exit:
-	os_file_close(file);
-	mem_free(filepath);
+	if (info_file != -1)
+		os_file_close(info_file);
+
+	if (info_file_path != NULL)
+		mem_free(info_file_path);
+
+	if (buf2 != NULL)
+		ut_free(buf2);
+
+	if (file != -1)
+		os_file_close(file);
+
+	if (filepath != NULL)
+		mem_free(filepath);
 
 	return(success);
 }
