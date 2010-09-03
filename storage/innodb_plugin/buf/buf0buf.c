@@ -3026,9 +3026,9 @@ buf_page_init_for_read(
 
 	mutex_enter(hash_mutex);
 	if (buf_page_hash_get_low(space, offset, fold)) {
-		mutex_exit(hash_mutex);
 		/* The page is already in the buffer pool. */
 err_exit:
+		mutex_exit(hash_mutex);
 		if (block) {
 			mutex_enter(&block->mutex);
 			buf_LRU_block_free_non_file_page(block);
