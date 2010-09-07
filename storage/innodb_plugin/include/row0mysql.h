@@ -441,7 +441,8 @@ row_drop_table_for_mysql(
 /*=====================*/
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx,	/*!< in: transaction handle */
-	ibool		drop_db);/*!< in: TRUE=dropping whole database */
+	ibool		drop_db,/*!< in: TRUE=dropping whole database */
+	ibool		delayed_drop);/*!< in: TRUE= use background drop queue */
 /*********************************************************************//**
 Drop all temporary tables during crash recovery. */
 UNIV_INTERN

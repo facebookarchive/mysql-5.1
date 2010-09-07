@@ -115,12 +115,12 @@ handlerton *ha_default_handlerton(THD *thd)
 
 /** @brief
   Return the storage engine handlerton for the supplied name
-  
+
   SYNOPSIS
     ha_resolve_by_name(thd, name)
     thd         current thread
     name        name of storage engine
-  
+
   RETURN
     pointer to storage engine plugin handle
 */
@@ -141,7 +141,7 @@ redo:
     handlerton *hton= plugin_data(plugin, handlerton *);
     if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
       return plugin;
-      
+
     /*
       unlocking plugin immediately after locking is relatively low cost.
     */
@@ -171,7 +171,7 @@ plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
   if (hton)
   {
     st_plugin_int **plugin= hton2plugin + hton->slot;
-    
+
 #ifdef DBUG_OFF
     return my_plugin_lock(thd, plugin);
 #else
@@ -443,7 +443,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   {
     sql_print_error("Plugin '%s' init function returned error.",
                     plugin->name.str);
-    goto err;  
+    goto err;
   }
 
   /*
@@ -515,10 +515,10 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     hton->state= SHOW_OPTION_DISABLED;
     break;
   }
-  
-  /* 
-    This is entirely for legacy. We will create a new "disk based" hton and a 
-    "memory" hton which will be configurable longterm. We should be able to 
+
+  /*
+    This is entirely for legacy. We will create a new "disk based" hton and a
+    "memory" hton which will be configurable longterm. We should be able to
     remove partition and myisammrg.
   */
   switch (hton->db_type) {
@@ -538,13 +538,13 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   DBUG_RETURN(0);
 
 err_deinit:
-  /* 
-    Let plugin do its inner deinitialization as plugin->init() 
+  /*
+    Let plugin do its inner deinitialization as plugin->init()
     was successfully called before.
   */
   if (plugin->plugin->deinit)
     (void) plugin->plugin->deinit(NULL);
-          
+
 err:
   my_free((uchar*) hton, MYF(0));
   plugin->data= NULL;
@@ -573,7 +573,7 @@ int ha_end()
   DBUG_ENTER("ha_end");
 
 
-  /* 
+  /*
     This should be eventualy based  on the graceful shutdown flag.
     So if flag is equal to HA_PANIC_CLOSE, the deallocate
     the errors.
@@ -1010,7 +1010,7 @@ int ha_prepare(THD *thd)
   A helper function to evaluate if two-phase commit is mandatory.
   As a side effect, propagates the read-only/read-write flags
   of the statement transaction to its enclosing normal transaction.
-  
+
   If we have at least two engines with read-write changes we must
   run a two-phase commit. Otherwise we can run several independent
   commits as the only transactional engine has read-write changes
@@ -1374,7 +1374,7 @@ int ha_autocommit_or_rollback(THD *thd, int error)
       if (ha_commit_trans(thd, 0))
 	error=1;
     }
-    else 
+    else
     {
       (void) ha_rollback_trans(thd, 0);
       if (thd->transaction_rollback_request && !thd->in_sub_stmt)
@@ -1600,7 +1600,7 @@ int ha_recover(HASH *commit_list)
   info.dry_run=FALSE;
 #endif
 
-  for (info.len= MAX_XID_LIST_SIZE ; 
+  for (info.len= MAX_XID_LIST_SIZE ;
        info.list==0 && info.len > MIN_XID_LIST_SIZE; info.len/=2)
   {
     info.list=(XID *)my_malloc(info.len*sizeof(XID), MYF(0));
@@ -1611,12 +1611,12 @@ int ha_recover(HASH *commit_list)
     DBUG_RETURN(1);
   }
 
-  plugin_foreach(NULL, xarecover_handlerton, 
+  plugin_foreach(NULL, xarecover_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &info);
 
   my_free((uchar*)info.list, MYF(0));
   if (info.found_foreign_xids)
-    sql_print_warning("Found %d prepared XA transactions", 
+    sql_print_warning("Found %d prepared XA transactions",
                       info.found_foreign_xids);
   if (info.dry_run && info.found_my_xids)
   {
@@ -1894,7 +1894,7 @@ static my_bool flush_handlerton(THD *thd, plugin_ref plugin,
                                 void *arg)
 {
   handlerton *hton= plugin_data(plugin, handlerton *);
-  if (hton->state == SHOW_OPTION_YES && hton->flush_logs && 
+  if (hton->state == SHOW_OPTION_YES && hton->flush_logs &&
       hton->flush_logs(hton))
     return TRUE;
   return FALSE;
@@ -2000,9 +2000,12 @@ handle_error(uint sql_errno,
 /** @brief
   This should return ENOENT if the file doesn't exists.
   The .frm file will be deleted only if we return 0 or ENOENT
+  When filep != null this can return the handler in filep, then the
+  caller must call handler::delayed_drop_table and delete the handler.
 */
 int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
-                    const char *db, const char *alias, bool generate_warning)
+                    const char *db, const char *alias, bool generate_warning,
+                    handler **filep)
 {
   handler *file;
   char tmp_path[FN_REFLEN];
@@ -2010,6 +2013,9 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   TABLE dummy_table;
   TABLE_SHARE dummy_share;
   DBUG_ENTER("ha_delete_table");
+
+  if (filep)
+    *filep= NULL;
 
   bzero((char*) &dummy_table, sizeof(dummy_table));
   bzero((char*) &dummy_share, sizeof(dummy_share));
@@ -2021,7 +2027,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     DBUG_RETURN(ENOENT);
 
   path= get_canonical_filename(file, path, tmp_path);
-  if ((error= file->ha_delete_table(path)) && generate_warning)
+  if ((error= file->ha_delete_table(path, filep != NULL)) && generate_warning)
   {
     /*
       Because file->print_error() use my_error() to generate the error message
@@ -2054,7 +2060,12 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error,
                 ha_delete_table_error_handler.buff);
   }
-  delete file;
+
+  if (filep)
+    *filep = file;
+  else
+    delete file;
+
   DBUG_RETURN(error);
 }
 
@@ -2066,7 +2077,7 @@ handler *handler::clone(MEM_ROOT *mem_root)
   handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
   /*
     Allocate handler->ref here because otherwise ha_open will allocate it
-    on this->table->mem_root and we will not be able to reclaim that memory 
+    on this->table->mem_root and we will not be able to reclaim that memory
     when the clone handler object is destroyed.
   */
   if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
@@ -2153,7 +2164,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
 
     /* ref is already allocated for us if we're called from handler::clone() */
-    if (!ref && !(ref= (uchar*) alloc_root(&table->mem_root, 
+    if (!ref && !(ref= (uchar*) alloc_root(&table->mem_root,
                                           ALIGN_SIZE(ref_length)*2)))
     {
       close();
@@ -2563,7 +2574,7 @@ void handler::column_bitmaps_signal()
 
   SYNOPSIS
     get_auto_increment()
-    offset              
+    offset
     increment
     nb_desired_values   how many values we want
     first_value         (OUT) the first value reserved by the handler
@@ -2891,7 +2902,7 @@ bool handler::get_error_message(int error, String* buf)
 
 /**
   Check for incompatible collation changes.
-   
+
   @retval
     HA_ADMIN_NEEDS_UPGRADE   Table may have data requiring upgrade.
   @retval
@@ -2929,9 +2940,9 @@ int handler::check_collation_compatibility()
              (cs_number == 33 || /* utf8_general_ci - bug #27877 */
               cs_number == 35))) /* ucs2_general_ci - bug #27877 */
           return HA_ADMIN_NEEDS_UPGRADE;
-      }  
-    }  
-  }  
+      }
+    }
+  }
   return 0;
 }
 
@@ -2970,7 +2981,7 @@ int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
 
   if ((error= check_collation_compatibility()))
     return error;
-    
+
   return check_for_upgrade(check_opt);
 }
 
@@ -3073,7 +3084,7 @@ uint handler::get_dup_key(int error)
   @retval
     !0  Error
 */
-int handler::delete_table(const char *name)
+int handler::delete_table(const char *name, my_bool delayed_drop)
 {
   int saved_error= 0;
   int error= 0;
@@ -3131,7 +3142,7 @@ int handler::rename_table(const char * from, const char * to)
 void handler::drop_table(const char *name)
 {
   close();
-  delete_table(name);
+  delete_table(name, FALSE);
 }
 
 
@@ -3427,11 +3438,11 @@ handler::ha_rename_table(const char *from, const char *to)
 */
 
 int
-handler::ha_delete_table(const char *name)
+handler::ha_delete_table(const char *name, my_bool delayed_drop)
 {
   mark_trx_read_write();
 
-  return delete_table(name);
+  return delete_table(name, delayed_drop);
 }
 
 
@@ -3656,7 +3667,7 @@ int ha_create_table(THD *thd, const char *path,
   const char *name;
   TABLE_SHARE share;
   DBUG_ENTER("ha_create_table");
-  
+
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
   if (open_table_def(thd, &share, 0) ||
       open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
@@ -3859,7 +3870,7 @@ struct st_discover_args
 {
   const char *db;
   const char *name;
-  uchar **frmblob; 
+  uchar **frmblob;
   size_t *frmlen;
 };
 
@@ -3869,8 +3880,8 @@ static my_bool discover_handlerton(THD *thd, plugin_ref plugin,
   st_discover_args *vargs= (st_discover_args *)arg;
   handlerton *hton= plugin_data(plugin, handlerton *);
   if (hton->state == SHOW_OPTION_YES && hton->discover &&
-      (!(hton->discover(hton, thd, vargs->db, vargs->name, 
-                        vargs->frmblob, 
+      (!(hton->discover(hton, thd, vargs->db, vargs->name,
+                        vargs->frmblob,
                         vargs->frmlen))))
     return TRUE;
 
@@ -3920,7 +3931,7 @@ static my_bool find_files_handlerton(THD *thd, plugin_ref plugin,
 
 
   if (hton->state == SHOW_OPTION_YES && hton->find_files)
-      if (hton->find_files(hton, thd, vargs->db, vargs->path, vargs->wild, 
+      if (hton->find_files(hton, thd, vargs->db, vargs->path, vargs->wild,
                           vargs->dir, vargs->files))
         return TRUE;
 
@@ -3933,7 +3944,7 @@ ha_find_files(THD *thd,const char *db,const char *path,
 {
   int error= 0;
   DBUG_ENTER("ha_find_files");
-  DBUG_PRINT("enter", ("db: '%s'  path: '%s'  wild: '%s'  dir: %d", 
+  DBUG_PRINT("enter", ("db: '%s'  path: '%s'  wild: '%s'  dir: %d",
 		       db, path, wild ? wild : "NULL", dir));
   st_find_files_args args= {db, path, wild, dir, files};
 
@@ -4315,7 +4326,7 @@ int handler::read_range_first(const key_range *start_key,
                            start_key->keypart_map,
                            start_key->flag);
   if (result)
-    DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND) 
+    DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND)
 		? HA_ERR_END_OF_FILE
 		: result);
 
@@ -4652,7 +4663,7 @@ static int write_locked_table_maps(THD *thd)
         continue;
 
       TABLE **const end_ptr= lock->table + lock->table_count;
-      for (TABLE **table_ptr= lock->table ; 
+      for (TABLE **table_ptr= lock->table ;
            table_ptr != end_ptr ;
            ++table_ptr)
       {

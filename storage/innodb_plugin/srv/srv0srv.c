@@ -126,6 +126,9 @@ dictionary tables are in the system tablespace 0 */
 UNIV_INTERN my_bool	srv_file_per_table;
 /** The file format to use on new *.ibd files. */
 UNIV_INTERN ulint	srv_file_format = 0;
+/** Do DROP TABLE processing in the background to reduce time for
+which LOCK_open is locked */
+UNIV_INTERN my_bool  srv_background_drop_table = FALSE;
 /** Whether to check file format during startup.  A value of
 DICT_TF_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
 set it to the highest format we support. */
@@ -2116,6 +2119,12 @@ void
 srv_export_innodb_status(void)
 /*==========================*/
 {
+	ulint queue_len;
+
+	mutex_enter(kernel_mutex);
+	queue_len= row_get_background_drop_list_len_low();
+	mutex_exit(kernel_mutex);
+
 	mutex_enter(&srv_innodb_monitor_mutex);
 
 	export_vars.innodb_data_pending_reads
@@ -2342,6 +2351,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_trx_n_commit_with_undo= srv_n_commit_with_undo;
 	export_vars.innodb_trx_n_rollback_partial= srv_n_rollback_partial;
 	export_vars.innodb_trx_n_rollback_total= srv_n_rollback_total;
+
+	export_vars.background_drop_table_queue= queue_len;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }

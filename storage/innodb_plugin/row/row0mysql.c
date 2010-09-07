@@ -1873,7 +1873,7 @@ err_exit:
 
 		if (dict_table_get_low(table->name)) {
 
-			row_drop_table_for_mysql(table->name, trx, FALSE);
+			row_drop_table_for_mysql(table->name, trx, FALSE, FALSE);
 			trx_commit_for_mysql(trx);
 		}
 		break;
@@ -2005,7 +2005,7 @@ error_handling:
 
 		trx_general_rollback_for_mysql(trx, NULL);
 
-		row_drop_table_for_mysql(table_name, trx, FALSE);
+		row_drop_table_for_mysql(table_name, trx, FALSE, FALSE);
 
 		trx_commit_for_mysql(trx);
 
@@ -2074,7 +2074,7 @@ row_table_add_foreign_constraints(
 
 		trx_general_rollback_for_mysql(trx, NULL);
 
-		row_drop_table_for_mysql(name, trx, FALSE);
+		row_drop_table_for_mysql(name, trx, FALSE, FALSE);
 
 		trx_commit_for_mysql(trx);
 
@@ -2115,7 +2115,7 @@ row_drop_table_for_mysql_in_background(
 
 	/* Try to drop the table in InnoDB */
 
-	error = row_drop_table_for_mysql(name, trx, FALSE);
+	error = row_drop_table_for_mysql(name, trx, FALSE, FALSE);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -2154,6 +2154,10 @@ loop:
 	}
 
 	drop = UT_LIST_GET_FIRST(row_mysql_drop_list);
+	if (drop) {
+		/* This might be called concurrently */
+		UT_LIST_REMOVE(row_mysql_drop_list, row_mysql_drop_list, drop);
+	}
 
 	n_tables = UT_LIST_GET_LEN(row_mysql_drop_list);
 
@@ -2181,6 +2185,10 @@ loop:
 		/* If the DROP fails for some table, we return, and let the
 		main thread retry later */
 
+		mutex_enter(&kernel_mutex);
+		UT_LIST_ADD_FIRST(row_mysql_drop_list, row_mysql_drop_list, drop);
+		mutex_exit(&kernel_mutex);
+
 		return(n_tables + n_tables_dropped);
 	}
 
@@ -2188,8 +2196,6 @@ loop:
 
 already_dropped:
 	mutex_enter(&kernel_mutex);
-
-	UT_LIST_REMOVE(row_mysql_drop_list, row_mysql_drop_list, drop);
 
 	ut_print_timestamp(stderr);
 	fputs("  InnoDB: Dropped table ", stderr);
@@ -2971,7 +2977,8 @@ row_drop_table_for_mysql(
 /*=====================*/
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx,	/*!< in: transaction handle */
-	ibool		drop_db)/*!< in: TRUE=dropping whole database */
+	ibool		drop_db,/*!< in: TRUE=dropping whole database */
+	ibool		delayed_drop)/*!< in: TRUE=use background drop queue */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	table;
@@ -3110,21 +3117,33 @@ check_next_foreign:
 		goto check_next_foreign;
 	}
 
-	if (table->n_mysql_handles_opened > 0) {
+	/* Don't force background drop for tables that use foreign keys. One problem
+	this could cause would be "DROP TABLE foo, bar" when foo references bar then
+	it is not OK to delay the drop of foo. */
+
+	if (table->n_mysql_handles_opened > 0 ||
+		(!UT_LIST_GET_LEN(table->referenced_list) &&
+		!UT_LIST_GET_LEN(table->foreign_list) &&
+		delayed_drop &&
+		srv_background_drop_table)) {
+
 		ibool	added;
 
 		added = row_add_table_to_background_drop_list(table->name);
 
 		if (added) {
 			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Warning: MySQL is"
+			fputs("  InnoDB: MySQL is"
 			      " trying to drop table ", stderr);
 			ut_print_name(stderr, trx, TRUE, table->name);
-			fputs("\n"
-			      "InnoDB: though there are still"
-			      " open handles to it.\n"
-			      "InnoDB: Adding the table to the"
-			      " background drop queue.\n",
+			if (table->n_mysql_handles_opened > 0) {
+				fputs(" though there are still open handles to it.",
+				      stderr);
+			} else {
+				fputs( " and innodb_background_drop_table=TRUE.",
+				      stderr);
+			}
+			fputs( " Adding the table to the background drop queue.\n",
 			      stderr);
 
 			/* We return DB_SUCCESS to MySQL though the drop will
@@ -3434,7 +3453,7 @@ row_mysql_drop_temp_tables(void)
 		table = dict_load_table(table_name);
 
 		if (table) {
-			row_drop_table_for_mysql(table_name, trx, FALSE);
+			row_drop_table_for_mysql(table_name, trx, FALSE, FALSE);
 			trx_commit_for_mysql(trx);
 		}
 
@@ -3565,7 +3584,7 @@ loop:
 			goto loop;
 		}
 
-		err = row_drop_table_for_mysql(table_name, trx, TRUE);
+		err = row_drop_table_for_mysql(table_name, trx, TRUE, FALSE);
 		trx_commit_for_mysql(trx);
 
 		if (err != DB_SUCCESS) {

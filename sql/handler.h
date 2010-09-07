@@ -97,8 +97,8 @@
   Without primary key, we can't call position().
   If not set, the position is returned as the current rows position
   regardless of what argument is given.
-*/ 
-#define HA_PRIMARY_KEY_REQUIRED_FOR_POSITION (1 << 16) 
+*/
+#define HA_PRIMARY_KEY_REQUIRED_FOR_POSITION (1 << 16)
 #define HA_CAN_RTREEKEYS       (1 << 17)
 #define HA_NOT_DELETE_WITH_CACHE (1 << 18)
 /*
@@ -199,7 +199,7 @@
   Index scan will not return records in rowid order. Not guaranteed to be
   set for unordered (e.g. HASH) indexes.
 */
-#define HA_KEY_SCAN_NOT_ROR     128 
+#define HA_KEY_SCAN_NOT_ROR     128
 
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
@@ -371,7 +371,7 @@ struct xid_t {
   long bqual_length;
   char data[XIDDATASIZE];  // not \0-terminated !
 
-  xid_t() {}                                /* Remove gcc warning */  
+  xid_t() {}                                /* Remove gcc warning */
   bool eq(struct xid_t *xid)
   { return eq(xid->gtrid_length, xid->bqual_length, xid->data); }
   bool eq(long g, long b, const char *d)
@@ -695,7 +695,7 @@ struct handlerton
       init.
    */
    int (*binlog_func)(handlerton *hton, THD *thd, enum_binlog_func fn, void *arg);
-   void (*binlog_log_query)(handlerton *hton, THD *thd, 
+   void (*binlog_log_query)(handlerton *hton, THD *thd,
                             enum_binlog_command binlog_command,
                             const char *query, uint query_length,
                             const char *db, const char *table_name);
@@ -717,9 +717,9 @@ struct handlerton
    enum handler_create_iterator_result
      (*create_iterator)(handlerton *hton, enum handler_iterator_type type,
                         struct handler_iterator *fill_this_in);
-   int (*discover)(handlerton *hton, THD* thd, const char *db, 
+   int (*discover)(handlerton *hton, THD* thd, const char *db,
                    const char *name,
-                   uchar **frmblob, 
+                   uchar **frmblob,
                    size_t *frmlen);
    int (*find_files)(handlerton *hton, THD *thd,
                      const char *db,
@@ -752,7 +752,7 @@ struct THD_TRANS
   bool        no_2pc;
   /* storage engines that registered in this transaction */
   Ha_trx_info *ha_list;
-  /* 
+  /*
     The purpose of this flag is to keep track of non-transactional
     tables that were modified in scope of:
     - transaction, when the variable is a member of
@@ -766,16 +766,16 @@ struct THD_TRANS
     it is reset to FALSE.  If such functions
     as mysql_insert, mysql_update, mysql_delete etc modify a
     non-transactional table, they set this flag to TRUE.  At the
-    end of the statement, the value of stmt.modified_non_trans_table 
+    end of the statement, the value of stmt.modified_non_trans_table
     is merged with all.modified_non_trans_table and gets reset.
     * all.modified_non_trans_table is reset at the end of transaction
-    
+
     * Since we do not have a dedicated context for execution of a
     sub-statement, to keep track of non-transactional changes in a
-    sub-statement, we re-use stmt.modified_non_trans_table. 
+    sub-statement, we re-use stmt.modified_non_trans_table.
     At entrance into a sub-statement, a copy of the value of
     stmt.modified_non_trans_table (containing the changes of the
-    outer statement) is saved on stack. Then 
+    outer statement) is saved on stack. Then
     stmt.modified_non_trans_table is reset to FALSE and the
     substatement is executed. Then the new value is merged with the
     saved value.
@@ -1055,7 +1055,7 @@ public:
   ulonglong delete_length;		/* Free bytes */
   ulonglong auto_increment_value;
   /*
-    The number of records in the table. 
+    The number of records in the table.
       0    - means the table has exactly 0 rows
     other  - if (table_flags() & HA_STATS_RECORDS_IS_EXACT)
                the value is the exact number of records in the table
@@ -1296,7 +1296,7 @@ public:
   int ha_discard_or_import_tablespace(my_bool discard);
   void ha_prepare_for_alter();
   int ha_rename_table(const char *from, const char *to);
-  int ha_delete_table(const char *name);
+  int ha_delete_table(const char *name, my_bool delayed_drop);
   void ha_drop_table(const char *name);
 
   int ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info);
@@ -1716,7 +1716,7 @@ public:
       anything
 
     This method offers the storage engine, the possibility to store a reference
-    to a table name which is going to be used with query cache. 
+    to a table name which is going to be used with query cache.
     The method is called each time a statement is written to the cache and can
     be used to verify if a specific statement is cachable. It also offers
     the possibility to register a generic (but static) call back function which
@@ -1774,14 +1774,14 @@ public:
    @note
    The pushed conditions form a stack (from which one can remove the
    last pushed condition using cond_pop).
-   The table handler filters out rows using (pushed_cond1 AND pushed_cond2 
+   The table handler filters out rows using (pushed_cond1 AND pushed_cond2
    AND ... AND pushed_condN)
    or less restrictive condition, depending on handler's capabilities.
 
    handler->ha_reset() call empties the condition stack.
    Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the
    condition stack.
- */ 
+ */
  virtual const COND *cond_push(const COND *cond) { return cond; };
  /**
    Pop the top condition from the condition stack of the handler instance.
@@ -1811,12 +1811,19 @@ public:
   */
   void update_global_table_stats(THD *thd);
 
+  /* The LOCK_open fan club */
+
   /**
     This does work deferred from the ::open_fast call to do work that was
     too slow to be done when LOCK_open was locked.
     @return 0 on success
   */
   virtual int open_deferred(THD *thd) { return 0; }
+
+  /**
+    Does operations that are too slow to be done when LOCK_open is held.
+  */
+  virtual int delayed_drop_table() { return 0; }
 
 protected:
   /* Service methods for use by storage engines. */
@@ -1834,9 +1841,12 @@ protected:
   virtual int rename_table(const char *from, const char *to);
   /**
     Delete a table in the engine. Called for base as well as temporary
-    tables.
+    tables. When delayed_drop=TRUE then the caller must call
+    handler::delayed_drop_table after this returns and hopefully after
+    LOCK_open has been unlocked.
   */
-  virtual int delete_table(const char *name);
+  virtual int delete_table(const char *name, my_bool delayed_drop);
+
 private:
   /* Private helpers */
   inline void mark_trx_read_write();
@@ -2074,7 +2084,8 @@ int ha_create_table(THD *thd, const char *path,
                     HA_CREATE_INFO *create_info,
 		    bool update_create_info);
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
-                    const char *db, const char *alias, bool generate_warning);
+                    const char *db, const char *alias, bool generate_warning,
+                    handler **filep);
 
 /* statistics and info */
 bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);

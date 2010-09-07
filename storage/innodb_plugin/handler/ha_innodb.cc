@@ -543,6 +543,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_hash_rows_removed,          SHOW_LONG},
   {"adaptive_hash_rows_updated",
   (char*) &export_vars.innodb_hash_rows_updated,          SHOW_LONG},
+  {"background_drop_table_queue",
+  (char*) &export_vars.background_drop_table_queue,       SHOW_LONG},
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
   {"buffer_pool_pages_dirty",
@@ -7397,7 +7399,8 @@ UNIV_INTERN
 int
 ha_innobase::delete_table(
 /*======================*/
-	const char*	name)	/*!< in: table name */
+	const char*	name,	/*!< in: table name */
+	my_bool		delayed_drop)	/*!< in: use background drop queue */
 {
 	ulint	name_len;
 	int	error;
@@ -7448,7 +7451,8 @@ ha_innobase::delete_table(
 
 	error = row_drop_table_for_mysql(norm_name, trx,
 					 thd_sql_command(thd)
-					 == SQLCOM_DROP_DB);
+					 == SQLCOM_DROP_DB,
+					delayed_drop);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -7468,6 +7472,19 @@ ha_innobase::delete_table(
 	error = convert_error_code_to_mysql(error, 0, NULL);
 
 	DBUG_RETURN(error);
+}
+
+/*****************************************************************//**
+Does drop table processing that is too slow to be done when LOCK_open is
+locked.
+@return	0 */
+UNIV_INTERN
+int
+ha_innobase::delayed_drop_table()
+/*=============================*/
+{
+	(void) row_drop_tables_for_mysql_in_background();
+	return 0;
 }
 
 /*****************************************************************//**
@@ -11380,6 +11397,12 @@ static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
   "Stores each InnoDB table to an .ibd file in the database dir.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(background_drop_table, srv_background_drop_table,
+  PLUGIN_VAR_NOCMDARG,
+  "Force InnoDB drop table processing to be done in the background "
+  "to minimize time when LOCK_open is locked. ",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_STR(file_format, innobase_file_format_name,
   PLUGIN_VAR_RQCMDARG,
   "File format to use for new tables in .ibd files.",
@@ -11712,6 +11735,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(read_io_threads),
   MYSQL_SYSVAR(write_io_threads),
   MYSQL_SYSVAR(file_per_table),
+  MYSQL_SYSVAR(background_drop_table),
   MYSQL_SYSVAR(file_format),
   MYSQL_SYSVAR(file_format_check),
   MYSQL_SYSVAR(flush_log_at_trx_commit),

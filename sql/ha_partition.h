@@ -18,7 +18,7 @@
 #endif
 
 enum partition_keywords
-{ 
+{
   PKW_HASH= 0, PKW_RANGE, PKW_LIST, PKW_KEY, PKW_MAXVALUE, PKW_LINEAR
 };
 
@@ -164,7 +164,7 @@ private:
   PARTITION_SHARE *share;               /* Shared lock info */
 #endif
 
-  /* 
+  /*
     TRUE <=> this object was created with ha_partition::clone and doesn't
     "own" the m_part_info structure.
   */
@@ -225,7 +225,7 @@ public:
     object needed in opening the object in openfrm
     -------------------------------------------------------------------------
   */
-  virtual int delete_table(const char *from);
+  virtual int delete_table(const char *from, my_bool delayed_drop);
   virtual int rename_table(const char *from, const char *to);
   virtual int create(const char *name, TABLE *form,
 		     HA_CREATE_INFO *create_info);
@@ -472,7 +472,7 @@ public:
     read_first_row is virtual method but is only implemented by
     handler.cc, no storage engine has implemented it so neither
     will the partition handler.
-    
+
     virtual int read_first_row(uchar *buf, uint primary_key);
   */
 
@@ -872,7 +872,7 @@ public:
 
     The maximum supported values is the minimum of all handlers in the table
   */
-  uint min_of_the_max_uint(uint (handler::*operator_func)(void) const) const; 
+  uint min_of_the_max_uint(uint (handler::*operator_func)(void) const) const;
   virtual uint max_supported_record_length() const;
   virtual uint max_supported_keys() const;
   virtual uint max_supported_key_parts() const;

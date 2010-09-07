@@ -5712,7 +5712,7 @@ bool rm_temporary_table(handlerton *base, char *path)
     error=1; /* purecov: inspected */
   *ext= 0;				// remove extension
   file= get_new_handler((TABLE_SHARE*) 0, current_thd->mem_root, base);
-  if (file && file->ha_delete_table(path))
+  if (file && file->ha_delete_table(path, FALSE))
   {
     error=1;
     sql_print_warning("Could not remove temporary table: '%s', error: %d",
@@ -5822,7 +5822,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
   Field_iterator_view field_it;
   field_it.set(table_list);
   Query_arena *arena= 0, backup;
-  
+
   DBUG_ASSERT(table_list->schema_table_reformed ||
               (ref != 0 && table_list->view != 0));
   for (; !field_it.end_of_fields(); field_it.next())
@@ -8485,7 +8485,7 @@ my_bool mysql_rm_tmp_tables(void)
               ((handler_file= get_new_handler(&share, thd->mem_root,
                                               share.db_type()))))
           {
-            handler_file->ha_delete_table(filePathCopy);
+            handler_file->ha_delete_table(filePathCopy, FALSE);
             delete handler_file;
           }
           free_table_share(&share);

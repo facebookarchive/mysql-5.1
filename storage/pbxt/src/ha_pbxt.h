@@ -53,7 +53,7 @@ class ha_pbxt;
 
 #ifdef DRIZZLED
 
-class PBXTStorageEngine : public drizzled::plugin::StorageEngine 
+class PBXTStorageEngine : public drizzled::plugin::StorageEngine
 {
 
 	int delete_system_table(const char *table_path);
@@ -73,7 +73,7 @@ public:
 	/* override */ void drop_database(char *);
 	/* override */ bool show_status(Session *, stat_print_fn *, enum ha_stat_type);
         /* override */ const char **bas_ext() const;
-	/* override */ int doCreateTable(Session *session, const char *table_name, 
+	/* override */ int doCreateTable(Session *session, const char *table_name,
 				Table &table_arg, HA_CREATE_INFO
                                 &create_info, drizzled::message::Table &proto);
 	/* override */ int doRenameTable(Session *, const char *from, const char *to);
@@ -176,10 +176,10 @@ class ha_pbxt: public handler
 	/*
 	 * unireg.cc will call the following to make sure that the storage engine can
 	 * handle the data it is about to send.
-	 * 
+	 *
 	 * Return *real* limits of your storage engine here. MySQL will do
 	 * min(your_limits, MySQL_limits) automatically
-	 * 
+	 *
 	 * Theoretically PBXT supports any number of key parts, etc.
 	 * Practically this is not true of course.
 	 */
@@ -258,7 +258,7 @@ class ha_pbxt: public handler
 	ha_rows	records_in_range(uint inx, key_range *min_key, key_range *max_key);
 #ifndef DRIZZLED
 	int		delete_system_table(const char *table_path);
-	int		delete_table(const char *from);
+	int		delete_table(const char *from, my_bool delayed_drop);
 	int		rename_system_table(const char * from, const char * to);
 	int		rename_table(const char * from, const char * to);
 	int		create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);				//required

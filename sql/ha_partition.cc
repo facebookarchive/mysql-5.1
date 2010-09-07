@@ -106,7 +106,7 @@ static int partition_initialize(void *p)
     New partition object
 */
 
-static handler *partition_create_handler(handlerton *hton, 
+static handler *partition_create_handler(handlerton *hton,
                                          TABLE_SHARE *share,
                                          MEM_ROOT *mem_root)
 {
@@ -259,9 +259,9 @@ void ha_partition::init_handler_variables()
 
 
 const char *ha_partition::table_type() const
-{ 
+{
   // we can do this since we only support a single engine type
-  return m_file[0]->table_type(); 
+  return m_file[0]->table_type();
 }
 
 
@@ -426,7 +426,7 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
     the storage engine.
 */
 
-int ha_partition::delete_table(const char *name)
+int ha_partition::delete_table(const char *name, my_bool delayed_drop)
 {
   DBUG_ENTER("ha_partition::delete_table");
 
@@ -557,7 +557,7 @@ int ha_partition::create(const char *name, TABLE *table_arg,
   DBUG_ASSERT(*fn_rext((char*)name) == '\0');
   if (del_ren_cre_table(t_name, NULL, table_arg, create_info))
   {
-    handler::delete_table(t_name);
+    handler::delete_table(t_name, FALSE);
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -621,7 +621,7 @@ int ha_partition::drop_partitions(const char *path)
                                    sub_elem->partition_name, name_variant);
           file= m_file[part];
           DBUG_PRINT("info", ("Drop subpartition %s", part_name_buff));
-          if ((ret_error= file->ha_delete_table(part_name_buff)))
+          if ((ret_error= file->ha_delete_table(part_name_buff, FALSE)))
             error= ret_error;
           if (deactivate_ddl_log_entry(sub_elem->log_entry->entry_pos))
             error= 1;
@@ -634,7 +634,7 @@ int ha_partition::drop_partitions(const char *path)
                               TRUE);
         file= m_file[i];
         DBUG_PRINT("info", ("Drop partition %s", part_name_buff));
-        if ((ret_error= file->ha_delete_table(part_name_buff)))
+        if ((ret_error= file->ha_delete_table(part_name_buff, FALSE)))
           error= ret_error;
         if (deactivate_ddl_log_entry(part_elem->log_entry->entry_pos))
           error= 1;
@@ -721,7 +721,7 @@ int ha_partition::rename_partitions(const char *path)
                                    sub_elem->partition_name,
                                    NORMAL_PART_NAME);
           DBUG_PRINT("info", ("Delete subpartition %s", norm_name_buff));
-          if ((ret_error= file->ha_delete_table(norm_name_buff)))
+          if ((ret_error= file->ha_delete_table(norm_name_buff, FALSE)))
             error= ret_error;
           else if (deactivate_ddl_log_entry(sub_elem->log_entry->entry_pos))
             error= 1;
@@ -736,7 +736,7 @@ int ha_partition::rename_partitions(const char *path)
                               part_elem->partition_name, NORMAL_PART_NAME,
                               TRUE);
         DBUG_PRINT("info", ("Delete partition %s", norm_name_buff));
-        if ((ret_error= file->ha_delete_table(norm_name_buff)))
+        if ((ret_error= file->ha_delete_table(norm_name_buff, FALSE)))
           error= ret_error;
         else if (deactivate_ddl_log_entry(part_elem->log_entry->entry_pos))
           error= 1;
@@ -753,7 +753,7 @@ int ha_partition::rename_partitions(const char *path)
        When state is PART_IS_CHANGED it means that we have created a new
        TEMP partition that is to be renamed to normal partition name and
        we are to delete the old partition with currently the normal name.
-       
+
        We perform this operation by
        1) Delete old partition with normal partition name
        2) Signal this in table log entry
@@ -792,7 +792,7 @@ int ha_partition::rename_partitions(const char *path)
           {
             file= m_reorged_file[part_count++];
             DBUG_PRINT("info", ("Delete subpartition %s", norm_name_buff));
-            if ((ret_error= file->ha_delete_table(norm_name_buff)))
+            if ((ret_error= file->ha_delete_table(norm_name_buff, FALSE)))
               error= ret_error;
             else if (deactivate_ddl_log_entry(sub_elem->log_entry->entry_pos))
               error= 1;
@@ -823,7 +823,7 @@ int ha_partition::rename_partitions(const char *path)
         {
           file= m_reorged_file[part_count++];
           DBUG_PRINT("info", ("Delete partition %s", norm_name_buff));
-          if ((ret_error= file->ha_delete_table(norm_name_buff)))
+          if ((ret_error= file->ha_delete_table(norm_name_buff, FALSE)))
             error= ret_error;
           else if (deactivate_ddl_log_entry(part_elem->log_entry->entry_pos))
             error= 1;
@@ -984,7 +984,7 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
 
 
 /*
-   print a message row formatted for ANALYZE/CHECK/OPTIMIZE/REPAIR TABLE 
+   print a message row formatted for ANALYZE/CHECK/OPTIMIZE/REPAIR TABLE
    (modelled after mi_check_print_msg)
    TODO: move this into the handler, or rewrite mysql_admin_table.
 */
@@ -1085,7 +1085,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
 #ifdef NOT_USED
           if (print_admin_msg(thd, "note", table_share->db.str, table->alias,
                           opt_op_name[flag],
-                          "Start to operate on subpartition %s", 
+                          "Start to operate on subpartition %s",
                           sub_elem->partition_name))
             DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
 #endif
@@ -1098,7 +1098,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
             {
               print_admin_msg(thd, "error", table_share->db.str, table->alias,
                               opt_op_name[flag],
-                              "Subpartition %s returned error", 
+                              "Subpartition %s returned error",
                               sub_elem->partition_name);
             }
             DBUG_RETURN(error);
@@ -1112,7 +1112,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
 #ifdef NOT_USED
         if (print_admin_msg(thd, "note", table_share->db.str, table->alias,
                         opt_op_name[flag],
-                        "Start to operate on partition %s", 
+                        "Start to operate on partition %s",
                         part_elem->partition_name))
           DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
 #endif
@@ -1124,7 +1124,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
               error != HA_ADMIN_TRY_ALTER)
           {
             print_admin_msg(thd, "error", table_share->db.str, table->alias,
-                            opt_op_name[flag], "Partition %s returned error", 
+                            opt_op_name[flag], "Partition %s returned error",
                             part_elem->partition_name);
           }
           DBUG_RETURN(error);
@@ -1157,7 +1157,7 @@ bool ha_partition::check_and_repair(THD *thd)
   } while (*(++file));
   DBUG_RETURN(FALSE);
 }
- 
+
 
 /**
   @breif Check if the table can be automatically repaired
@@ -1197,7 +1197,7 @@ bool ha_partition::is_crashed() const
   } while (*(++file));
   DBUG_RETURN(FALSE);
 }
- 
+
 
 /*
   Prepare by creating a new partition
@@ -1256,7 +1256,7 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
 error_external_lock:
   VOID(file->close());
 error_open:
-  VOID(file->ha_delete_table(part_name));
+  VOID(file->ha_delete_table(part_name, FALSE));
 error_create:
   DBUG_RETURN(error);
 }
@@ -1787,7 +1787,7 @@ void ha_partition::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
     comment                       Original comment
 
   RETURN VALUE
-    new comment 
+    new comment
 
   DESCRIPTION
     No comment changes so far
@@ -1858,7 +1858,7 @@ uint ha_partition::del_ren_cre_table(const char *from,
       Delete table, start by delete the .par file. If error, break, otherwise
       delete as much as possible.
     */
-    if ((error= handler::delete_table(from)))
+    if ((error= handler::delete_table(from, FALSE)))
       DBUG_RETURN(error);
   }
   /*
@@ -1886,7 +1886,7 @@ uint ha_partition::del_ren_cre_table(const char *from,
         goto rename_error;
     }
     else if (table_arg == NULL)			// delete branch
-      error= (*file)->ha_delete_table(from_buff);
+      error= (*file)->ha_delete_table(from_buff, FALSE);
     else
     {
       if ((error= set_up_table_before_create(table_arg, from_buff,
@@ -1915,7 +1915,7 @@ create_error:
   {
     create_partition_name(from_buff, from_path, name_buffer_ptr, NORMAL_PART_NAME,
                           FALSE);
-    (void) (*file)->ha_delete_table((const char*) from_buff);
+    (void) (*file)->ha_delete_table((const char*) from_buff, FALSE);
     name_buffer_ptr= strend(name_buffer_ptr) + 1;
   }
   DBUG_RETURN(error);
@@ -2000,7 +2000,7 @@ partition_element *ha_partition::find_partition_element(uint part_id)
 */
 
 int ha_partition::set_up_table_before_create(TABLE *tbl,
-                    const char *partition_name_with_path, 
+                    const char *partition_name_with_path,
                     HA_CREATE_INFO *info,
                     uint part_id,
                     partition_element *part_elem)
@@ -2217,7 +2217,7 @@ bool ha_partition::create_handler_file(const char *name)
   SYNOPSIS
     clear_handler_file()
 
-  RETURN VALUE 
+  RETURN VALUE
     NONE
 */
 
@@ -2414,7 +2414,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   VOID(my_close(file, MYF(0)));
   m_file_buffer= file_buffer;          // Will be freed in clear_handler_file()
   m_name_buffer_ptr= name_buffer_ptr;
-  
+
   if (!(m_engine_array= (plugin_ref*)
                 my_malloc(m_tot_parts * sizeof(plugin_ref), MYF(MY_WME))))
     goto err3;
@@ -2423,7 +2423,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
     m_engine_array[i]= ha_lock_engine(NULL, engine_array[i]);
 
   my_afree((gptr) engine_array);
-    
+
   if (!m_file && create_handlers(mem_root))
   {
     clear_handler_file();
@@ -2967,7 +2967,7 @@ void ha_partition::try_semi_consistent_read(bool yes)
 {
   handler **file;
   DBUG_ENTER("ha_partition::try_semi_consistent_read");
-  
+
   for (file= m_file; *file; file++)
   {
     if (bitmap_is_set(&(m_part_info->used_partitions), (file - m_file)))
@@ -3359,9 +3359,9 @@ void ha_partition::start_part_bulk_insert(THD *thd, uint part_id)
   DESCRIPTION
     If the estimated number of rows to insert is less than 10 (but not 0)
     the new buffer size is same as original buffer size.
-    In case of first partition of when partition function is monotonic 
+    In case of first partition of when partition function is monotonic
     new buffer size is same as the original buffer size.
-    For rest of the partition total buffer of 10*original_size is divided 
+    For rest of the partition total buffer of 10*original_size is divided
     equally if number of partition is more than 10 other wise each partition
     will be allowed to use original buffer size.
 */
@@ -3399,7 +3399,7 @@ long ha_partition::estimate_read_buffer_size(long original_size)
   If monotonic partitioning function was used
     guess that 50 % of the inserts goes to the first partition
   For all other cases, guess on equal distribution between the partitions
-*/ 
+*/
 ha_rows ha_partition::guess_bulk_insert_rows()
 {
   DBUG_ENTER("guess_bulk_insert_rows");
@@ -3408,7 +3408,7 @@ ha_rows ha_partition::guess_bulk_insert_rows()
     DBUG_RETURN(estimation_rows_to_insert);
 
   /* If first insert/partition and monotonic partition function, guess 50%.  */
-  if (!m_bulk_inserted_rows && 
+  if (!m_bulk_inserted_rows &&
       m_part_func_monotonicity_info != NON_MONOTONIC &&
       m_tot_parts > 1)
     DBUG_RETURN(estimation_rows_to_insert / 2);
@@ -3473,7 +3473,7 @@ int ha_partition::end_bulk_insert()
     >0          Error code
     0           Success
 
-  DESCRIPTION 
+  DESCRIPTION
     rnd_init() is called when the server wants the storage engine to do a
     table scan or when the server wants to access data through rnd_pos.
 
@@ -3655,10 +3655,10 @@ int ha_partition::rnd_next(uchar *buf)
     */
     goto end;
   }
-  
+
   DBUG_ASSERT(m_scan_value == 1);
   file= m_file[part_id];
-  
+
   while (TRUE)
   {
     result= file->rnd_next(buf);
@@ -3684,7 +3684,7 @@ int ha_partition::rnd_next(uchar *buf)
     DBUG_PRINT("info", ("rnd_end on partition %d", part_id));
     if ((result= file->ha_rnd_end()))
       break;
-    
+
     /* Shift to next partition */
     while (++part_id < m_tot_parts &&
            !bitmap_is_set(&(m_part_info->used_partitions), part_id))
@@ -3761,7 +3761,7 @@ void ha_partition::column_bitmaps_signal()
     handler::column_bitmaps_signal();
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
 }
- 
+
 
 /*
   Read row using position
@@ -3900,7 +3900,7 @@ int ha_partition::index_init(uint inx, bool sorted)
   if (sorted)
   {
     /*
-      An ordered scan is requested. We must make sure all fields of the 
+      An ordered scan is requested. We must make sure all fields of the
       used index are in the read set, as partitioning requires them for
       sorting (see ha_partition::handle_ordered_index_scan).
 
@@ -4016,27 +4016,27 @@ int ha_partition::index_read_map(uchar *buf, const uchar *key,
   SYNOPSIS
     ha_partition::common_index_read()
       buf             Buffer where the record should be returned
-      have_start_key  TRUE <=> the left endpoint is available, i.e. 
+      have_start_key  TRUE <=> the left endpoint is available, i.e.
                       we're in index_read call or in read_range_first
                       call and the range has left endpoint
 
                       FALSE <=> there is no left endpoint (we're in
                       read_range_first() call and the range has no left
                       endpoint)
- 
+
   DESCRIPTION
-    Start scanning the range (when invoked from read_range_first()) or doing 
+    Start scanning the range (when invoked from read_range_first()) or doing
     an index lookup (when invoked from index_read_XXX):
      - If possible, perform partition selection
      - Find the set of partitions we're going to use
      - Depending on whether we need ordering:
-        NO:  Get the first record from first used partition (see 
+        NO:  Get the first record from first used partition (see
              handle_unordered_scan_next_partition)
         YES: Fill the priority queue and get the record that is the first in
              the ordering
 
   RETURN
-    0      OK 
+    0      OK
     other  HA_ERR_END_OF_FILE or other error code.
 */
 
@@ -4053,7 +4053,7 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
 
   if (have_start_key)
   {
-    m_start_key.length= key_len= calculate_key_len(table, active_index, 
+    m_start_key.length= key_len= calculate_key_len(table, active_index,
                                                    m_start_key.key,
                                                    m_start_key.keypart_map);
     DBUG_ASSERT(key_len);
@@ -4063,7 +4063,7 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
     DBUG_RETURN(error);
   }
 
-  if (have_start_key && 
+  if (have_start_key &&
       (m_start_key.flag == HA_READ_PREFIX_LAST ||
        m_start_key.flag == HA_READ_PREFIX_LAST_OR_PREV ||
        m_start_key.flag == HA_READ_BEFORE_KEY))
@@ -4138,7 +4138,7 @@ int ha_partition::index_first(uchar * buf)
 
 /*
   Start an index scan from rightmost record and return first record
-  
+
   SYNOPSIS
     index_last()
     buf                 Read row in MySQL Row Format
@@ -4170,7 +4170,7 @@ int ha_partition::index_last(uchar * buf)
 
   SYNOPSIS
     ha_partition::common_first_last()
-  
+
   see index_first for rest
 */
 
@@ -4444,7 +4444,7 @@ int ha_partition::read_range_next()
                      needs it to calculcate partitioning function
                      values)
 
-      idx_read_flag  TRUE <=> m_start_key has range start endpoint which 
+      idx_read_flag  TRUE <=> m_start_key has range start endpoint which
                      probably can be used to determine the set of partitions
                      to scan.
                      FALSE <=> there is no start endpoint.
@@ -4570,7 +4570,7 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
       DBUG_RETURN(0);
     }
   }
-  else 
+  else
   {
     if (!(error= file->index_next(buf)))
     {
@@ -4735,7 +4735,7 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
       break;
     case partition_read_range:
     {
-      /* 
+      /*
         This can only read record to table->record[0], as it was set when
         the table was being opened. We have to memcpy data ourselves.
       */
@@ -4825,7 +4825,7 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
   uint part_id= m_top_entry;
   handler *file= m_file[part_id];
   DBUG_ENTER("ha_partition::handle_ordered_next");
-  
+
   if (m_index_scan_type == partition_read_range)
   {
     error= file->read_range_next();
@@ -5519,7 +5519,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_INFO *stat_info,
   HA_EXTRA_DELETE_CANNOT_BATCH:
   HA_EXTRA_UPDATE_CANNOT_BATCH:
     Inform handler that delete_row()/update_row() cannot batch deletes/updates
-    and should perform them immediately. This may be needed when table has 
+    and should perform them immediately. This may be needed when table has
     AFTER DELETE/UPDATE triggers which access to subject table.
     These flags are reset by the handler::extra(HA_EXTRA_RESET) call.
 */
@@ -5733,18 +5733,18 @@ int ha_partition::prepare_for_rename()
   int result= 0, tmp;
   handler **file;
   DBUG_ENTER("ha_partition::prepare_for_rename()");
-  
+
   if (m_new_file != NULL)
   {
     for (file= m_new_file; *file; file++)
       if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_RENAME)))
-        result= tmp;      
+        result= tmp;
     for (file= m_reorged_file; *file; file++)
       if ((tmp= (*file)->extra(HA_EXTRA_PREPARE_FOR_RENAME)))
-        result= tmp;   
-    DBUG_RETURN(result);   
+        result= tmp;
+    DBUG_RETURN(result);
   }
-  
+
   DBUG_RETURN(loop_extra(HA_EXTRA_PREPARE_FOR_RENAME));
 }
 
@@ -5765,8 +5765,8 @@ int ha_partition::loop_extra(enum ha_extra_function operation)
   int result= 0, tmp;
   handler **file;
   DBUG_ENTER("ha_partition::loop_extra()");
-  
-  /* 
+
+  /*
     TODO, 5.2: this is where you could possibly add optimisations to add the bitmap
     _if_ a SELECT.
   */
@@ -6067,7 +6067,7 @@ bool ha_partition::can_switch_engines()
 {
   handler **file;
   DBUG_ENTER("ha_partition::can_switch_engines");
- 
+
   file= m_file;
   do
   {
@@ -6168,7 +6168,7 @@ uint ha_partition::alter_table_flags(uint flags)
 {
   DBUG_ENTER("ha_partition::alter_table_flags");
   DBUG_RETURN(ht->alter_table_flags(flags) |
-              m_file[0]->alter_table_flags(flags)); 
+              m_file[0]->alter_table_flags(flags));
 }
 
 
@@ -6471,7 +6471,7 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
     /*
       Get a lock for handling the auto_increment in table_share->ha_data
       for avoiding two concurrent statements getting the same number.
-    */ 
+    */
 
     lock_auto_increment();
 

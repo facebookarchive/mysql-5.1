@@ -96,6 +96,11 @@ extern my_bool	srv_file_per_table;
 #else
 extern ibool	srv_file_per_table;
 #endif /* UNIV_HOTBACKUP */
+
+/** Do DROP TABLE processing in the background to reduce time for
+which LOCK_open is locked */
+extern my_bool	srv_background_drop_table;
+
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
 /** Whether to check file format during startup.  A value of
@@ -726,6 +731,7 @@ struct export_var_struct{
 	ulint innodb_data_sync_write_bytes;	/*!< #bytes for sync writes */
 	ulint innodb_data_sync_write_requests;	/*!< #requests for sync writes */
 	double innodb_data_sync_write_svc_secs;	/*!< service time for sync writes */
+	ulint background_drop_table_queue;	/*!< #tables in background drop queue */
 	ulint innodb_buffer_pool_flushed_lru;	/*!< #pages flushed from LRU */
 	ulint innodb_buffer_pool_flushed_list;	/*!< #pages flushed from flush list */
 	ulint innodb_buffer_pool_flushed_page;	/*!< #pages flushed from other */

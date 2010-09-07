@@ -1,0 +1,52 @@
+# confirm that DROP TABLE works with innodb_background_drop_table
+
+-- source include/have_innodb_plugin.inc
+
+--disable_warnings
+drop table if exists t;
+drop table if exists s;
+--enable_warnings
+
+show global variables like "innodb_background_drop_table";
+set global innodb_background_drop_table=OFF;
+show global variables like "innodb_background_drop_table";
+set global innodb_background_drop_table=ON;
+show global variables like "innodb_background_drop_table";
+
+create table t(i int primary key auto_increment) engine=innodb;
+insert into t values (null), (null), (null), (null);
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+
+create table s engine=innodb as select * from t;
+
+truncate table s;
+drop table t;
+show table status like "t";
+drop table s;
+show global status like "innodb_background_drop_table_queue";
+show table status like "s";
+
+create table s (i int primary key) engine=innodb;
+drop table s;
+create table s (i int primary key) engine=innodb;
+drop table s;
+create table s (i int primary key) engine=innodb;
+drop table s;
+
+create table s1 (i int primary key) engine=innodb;
+create table s2 (i int primary key) engine=innodb;
+drop table s1, s2;
+create table s1 (i int primary key) engine=innodb;
+create table s2 (i int primary key) engine=innodb;
+drop table s1, s2;

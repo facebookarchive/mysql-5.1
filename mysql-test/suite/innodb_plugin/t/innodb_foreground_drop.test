@@ -1,0 +1,36 @@
+# confirm that DROP TABLE works with innodb_background_drop_table OFF and
+# concurrent selects to still force use of background drop queue
+
+-- source include/have_innodb_plugin.inc
+
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+
+create table t(i int primary key auto_increment) engine=innodb;
+insert into t values (null), (null), (null), (null);
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+
+connect (con1,localhost,root,,);
+send select sum(t1.i + t2.i) from t as t1, t as t2;
+
+# DROP table will block on the query
+connection default;
+sleep 0.2;
+select INFO from information_schema.processlist where INFO like "%sum%" and INFO not like "%INFO%";
+drop table t;
+select INFO from information_schema.processlist where INFO like "%sum%" and INFO not like "%INFO%";
+
+connection con1;
+reap;
+
+connection default;
+disconnect con1;

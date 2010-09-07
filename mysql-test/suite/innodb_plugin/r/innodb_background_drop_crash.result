@@ -1,0 +1,19 @@
+#
+# Testing crash during a background drop
+#
+# Don't test this under valgrind, memory leaks will occur
+# Binary must be compiled with debug for crash to occur
+drop table if exists t1;
+call mtr.add_suppression(".*");
+create table t1(i int primary key) engine=innodb;
+insert into t1 values (1), (2), (3), (4);
+set session debug="d,crash_during_background_drop_table";
+# Write file to make mysql-test-run.pl expect crash
+drop table t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Turn on reconnect
+# poll the server waiting for it to be back online
+# confirm table is gone
+show table status like "t1";
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+set session debug = 'RESET';

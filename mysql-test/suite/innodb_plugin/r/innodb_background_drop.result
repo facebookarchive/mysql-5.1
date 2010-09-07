@@ -1,0 +1,50 @@
+drop table if exists t;
+drop table if exists s;
+show global variables like "innodb_background_drop_table";
+Variable_name	Value
+innodb_background_drop_table	ON
+set global innodb_background_drop_table=OFF;
+show global variables like "innodb_background_drop_table";
+Variable_name	Value
+innodb_background_drop_table	OFF
+set global innodb_background_drop_table=ON;
+show global variables like "innodb_background_drop_table";
+Variable_name	Value
+innodb_background_drop_table	ON
+create table t(i int primary key auto_increment) engine=innodb;
+insert into t values (null), (null), (null), (null);
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+create table s engine=innodb as select * from t;
+truncate table s;
+drop table t;
+show table status like "t";
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+drop table s;
+show global status like "innodb_background_drop_table_queue";
+Variable_name	Value
+Innodb_background_drop_table_queue	0
+show table status like "s";
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+create table s (i int primary key) engine=innodb;
+drop table s;
+create table s (i int primary key) engine=innodb;
+drop table s;
+create table s (i int primary key) engine=innodb;
+drop table s;
+create table s1 (i int primary key) engine=innodb;
+create table s2 (i int primary key) engine=innodb;
+drop table s1, s2;
+create table s1 (i int primary key) engine=innodb;
+create table s2 (i int primary key) engine=innodb;
+drop table s1, s2;
