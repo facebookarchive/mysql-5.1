@@ -7333,6 +7333,13 @@ ha_innobase::discard_or_import_tablespace(
 		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
 	} else {
 		err = row_import_tablespace_for_mysql(dict_table->name, trx);
+
+		/* in expanded import mode re-initialize auto_increment again */
+		if ((err == DB_SUCCESS) && srv_expand_import) {
+			dict_table_autoinc_lock(dict_table);
+			innobase_initialize_autoinc();
+			dict_table_autoinc_unlock(dict_table);
+		}
 	}
 
 	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
