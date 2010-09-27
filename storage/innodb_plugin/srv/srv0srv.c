@@ -1833,11 +1833,6 @@ srv_suspend_mysql_thread(
 	else if (trx_is_interrupted(trx)) {
 		trx->error_state = DB_INTERRUPTED;
 	}
-
-	if (trx_is_interrupted(trx)) {
-
-		trx->error_state = DB_INTERRUPTED;
-	}
 }
 
 /********************************************************************//**
