@@ -1516,7 +1516,7 @@ buf_flush_LRU_recommendation(
 		return(0);
 	}
 
-	return(n_needed - n_replaceable);
+	return(n_needed + BUF_FLUSH_EXTRA_MARGIN - n_replaceable);
 }
 
 /*********************************************************************//**

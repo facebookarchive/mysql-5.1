@@ -2877,17 +2877,7 @@ loop:
 		log_free_check();
 		srv_checkpoint_secs += my_fast_timer_diff_now(&fast_timer, NULL);
 
-		/* If i/os during one second sleep were less than 5% of
-                capacity, we assume that there is free disk i/o capacity
-                available, and it makes sense to do an insert buffer merge. */
-
-		n_pend_ios = buf_get_n_pending_ios()
-			+ log_sys->n_pending_writes;
-		n_ios = log_sys->n_log_ios + buf_pool->stat.n_pages_read
-			+ buf_pool->stat.n_pages_written;
-
-		/* TODO(mcallaghan): I am uncertain that this is needed.
- 		buf_flush_free_margin(BUF_FLUSH_FREE_BLOCK_MARGIN, FALSE); */
+ 		buf_flush_free_margin(BUF_FLUSH_FREE_BLOCK_MARGIN, FALSE);
 
 		if (!ibuf->empty) {
 			ulint ibuf_soft_limit;
