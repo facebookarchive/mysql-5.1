@@ -11689,6 +11689,14 @@ static MYSQL_SYSVAR_BOOL(flush_neighbors_on_checkpoint,
   " is to be written during checkpoint. This is enabled by default.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(flush_neighbors_for_lru,
+  srv_flush_neighbors_for_LRU,
+  PLUGIN_VAR_NOCMDARG,
+  "Flush (write) dirty neighbor pages within an extent when a dirty page "
+  " is to be written during LRU list flushes done to move pages to the free list. "
+  "Setting this to off might reduce buffer pool mutex contention.",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_BOOL(adaptive_hash_latch_cache,
   srv_adaptive_hash_latch_cache,
   PLUGIN_VAR_NOCMDARG,
@@ -11785,6 +11793,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_lifo),
   MYSQL_SYSVAR(deadlock_detect),
   MYSQL_SYSVAR(flush_neighbors_on_checkpoint),
+  MYSQL_SYSVAR(flush_neighbors_for_lru),
   MYSQL_SYSVAR(background_checkpoint),
   MYSQL_SYSVAR(background_thread_interval_usecs),
   MYSQL_SYSVAR(adaptive_hash_latch_cache),

@@ -1311,6 +1311,14 @@ buf_flush_batch(
                 matches the call from log_preflush_pool_modified_pages(). */
 
 		flush_neighbors = FALSE;
+
+	} else if (flush_type == BUF_FLUSH_LRU && !srv_flush_neighbors_for_LRU) {
+
+		/* Only buf_flush_free_margin calls this for BUF_FLUSH_LRU. This is
+		a huge source of mutex contention on the buffer pool mutex and is likely
+		made worse by the extra cost from checking neighbors. */
+
+		flush_neighbors = FALSE;
 	}
 
 	ut_ad((flush_type == BUF_FLUSH_LRU)

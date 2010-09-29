@@ -389,6 +389,9 @@ extern ulint srv_buf_pool_reads;
 /* When TRUE, flush dirty neighbor pages on checkpoint. */
 extern my_bool srv_flush_neighbors_on_checkpoint;
 
+/* When TRUE, flush dirty neighbor pages on LRU list flush (BUF_FLUSH_LRU). */
+extern my_bool srv_flush_neighbors_for_LRU;
+
 /* Option to retry reads and writes one time when they fail with EIO */
 extern my_bool srv_retry_io_on_error;
 
