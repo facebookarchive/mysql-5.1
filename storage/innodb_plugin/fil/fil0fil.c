@@ -2928,7 +2928,9 @@ fil_expand_import_update_sysindexes(
 					error, errorfunc, index->name, table->name);
 				error = trx_rollback_for_mysql(trx);
 				if (error != DB_SUCCESS) {
-					fprintf(stderr, "InnoDB: Error %lu in rolling back SYS_INDEXES update\n");
+					fprintf(stderr,
+						"InnoDB: Error %lu in rolling back SYS_INDEXES update\n",
+						error);
 				}
 				trx_free_for_mysql(trx);
 				return FALSE;
