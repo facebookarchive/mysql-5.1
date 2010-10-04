@@ -116,6 +116,7 @@ static bool set_option_bit(THD *thd, set_var *var);
 static bool set_option_log_bin_bit(THD *thd, set_var *var);
 static bool set_option_autocommit(THD *thd, set_var *var);
 static int  check_log_update(THD *thd, set_var *var);
+static int  check_sql_log_bin(THD *thd, set_var *var);
 static bool set_log_update(THD *thd, set_var *var);
 static int  check_pseudo_thread_id(THD *thd, set_var *var);
 void fix_binlog_format_after_update(THD *thd, enum_var_type type);
@@ -782,7 +783,7 @@ static sys_var_thd_bit	sys_log_update(&vars, "sql_log_update",
 				       set_log_update,
 				       OPTION_BIN_LOG);
 static sys_var_thd_bit	sys_log_binlog(&vars, "sql_log_bin",
-                                       check_log_update,
+                                       check_sql_log_bin,
                                        set_option_log_bin_bit,
 				       OPTION_BIN_LOG);
 static sys_var_thd_bit	sys_sql_warnings(&vars, "sql_warnings", 0,
@@ -981,6 +982,10 @@ static sys_var_readonly         sys_myisam_mmap_size(&vars, "myisam_mmap_size",
                                                      SHOW_LONGLONG,
                                                      get_myisam_mmap_size);
 
+
+static sys_var_bool_ptr	sys_process_can_disable_bin_log(&vars,
+                                                        "process_can_disable_bin_log",
+                                                        &process_can_disable_bin_log);
 
 bool sys_var::check(THD *thd, set_var *var)
 {
@@ -3274,6 +3279,23 @@ static int check_log_update(THD *thd, set_var *var)
 #endif
   return 0;
 }
+
+static int check_sql_log_bin(THD *thd, set_var *var)
+{
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (process_can_disable_bin_log &&
+      (thd->security_ctx->master_access & PROCESS_ACL))
+  {
+    return 0;
+  }
+  else
+  {
+    return check_log_update(thd, var);
+  }
+#endif
+  return 0;
+}
+
 
 static bool set_log_update(THD *thd, set_var *var)
 {

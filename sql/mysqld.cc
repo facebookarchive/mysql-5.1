@@ -557,6 +557,7 @@ my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 volatile bool mqh_used = 0;
 my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
+my_bool process_can_disable_bin_log= TRUE;
 
 ulong opt_binlog_rows_event_max_size;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
@@ -6103,6 +6104,7 @@ enum options_mysqld
   OPT_CONNECTION_RECYCLE_PCT_CONNECTIONS_MAX,
   OPT_CONNECTION_RECYCLE_MIN_TIMEOUT_MS,
   OPT_CONNECTION_RECYCLE_POLL_MS,
+  OPT_PROCESS_CAN_DISABLE_BIN_LOG,
 };
 
 
@@ -7671,6 +7673,10 @@ thread is in the relay logs.",
    &rpl_transaction_enabled, &rpl_transaction_enabled,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
 #endif /* HAVE_INNODB_BINLOG */
+  {"process_can_disable_bin_log", OPT_PROCESS_CAN_DISABLE_BIN_LOG,
+   "The PROCESS privilege is sufficient to set sql_log_bin=0",
+   &process_can_disable_bin_log, &process_can_disable_bin_log,
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 

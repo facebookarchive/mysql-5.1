@@ -2055,6 +2055,7 @@ extern uint opt_large_page_size;
 #ifdef MYSQL_SERVER
 extern char *opt_logname, *opt_slow_logname;
 extern const char *log_output_str;
+extern my_bool process_can_disable_bin_log;
 
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 extern LOGGER logger;
