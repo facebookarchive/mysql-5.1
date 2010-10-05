@@ -7337,7 +7337,8 @@ ha_innobase::discard_or_import_tablespace(
 		err = row_import_tablespace_for_mysql(dict_table->name, trx);
 
 		/* in expanded import mode re-initialize auto_increment again */
-		if ((err == DB_SUCCESS) && srv_expand_import) {
+		if ((err == DB_SUCCESS) && srv_expand_import &&
+		    (table->found_next_number_field != NULL)) {
 			dict_table_autoinc_lock(dict_table);
 			innobase_initialize_autoinc();
 			dict_table_autoinc_unlock(dict_table);
