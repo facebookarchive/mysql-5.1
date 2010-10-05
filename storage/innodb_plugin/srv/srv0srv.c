@@ -2121,9 +2121,9 @@ srv_export_innodb_status(void)
 {
 	ulint queue_len;
 
-	mutex_enter(kernel_mutex);
+	mutex_enter(&kernel_mutex);
 	queue_len= row_get_background_drop_list_len_low();
-	mutex_exit(kernel_mutex);
+	mutex_exit(&kernel_mutex);
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
