@@ -3256,7 +3256,9 @@ recv_recovery_from_checkpoint_finish(void)
 #endif /* UNIV_DEBUG */
 
         if (rpl_transaction_enabled || recv_needed_recovery) {
+		mutex_enter(&kernel_mutex);
 		trx_sys_read_slave_state(TRUE);
+		mutex_exit(&kernel_mutex);
 	}
 
         if (recv_needed_recovery) {
