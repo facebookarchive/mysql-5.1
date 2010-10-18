@@ -1263,7 +1263,7 @@ buf_flush_try_neighbors(
 
 	if (count > 1) {
 		/* This function should do 1 or more writes. If there are more,
-		count the extra writes by type. */	
+		count the extra writes by type. */
 		if (flush_type == BUF_FLUSH_LRU) {
 			srv_neighbors_flushed_lru += count - 1;
 		} else if (flush_type == BUF_FLUSH_LIST); {
@@ -1467,6 +1467,177 @@ buf_flush_wait_batch_end(
 }
 
 /******************************************************************//**
+Finds dirty pages at end of LRU to flush so they can be reused. See
+buf_flush_free_margin_fast.
+@return -1 when flushing is in progress and number of pages to flush
+(>= 0) otherwise. Uses in/out parms for the space and page ID values. */
+static
+ulint
+buf_flush_LRU_get_pages(
+/*====================*/
+	ulint	n_needed,	/*!< in: number of free pages needed */
+	ulint	*spaces,	/*!< out: space ID values for pages to flush */
+	ulint	*offsets)	/*!< out: page ID values for pages to flush */
+{
+	buf_page_t*	bpage;
+	ulint		n_replaceable;
+	ulint		n_flushable	= 0;
+	ulint		distance	= 0;
+
+	if (UT_LIST_GET_LEN(buf_pool->free) >= n_needed) {
+
+		/* This does a dirty read of buf_pool->free. That is good
+		enough and reduces mutex contention on buf_pool->mutex. */
+
+		return 0;
+	}
+
+	buf_pool_mutex_enter();
+
+	if ((buf_pool->n_flush[BUF_FLUSH_LRU] > 0)
+	    || (buf_pool->init_flush[BUF_FLUSH_LRU] == TRUE)) {
+
+		/* There is already a flush batch of the same type running */
+		buf_pool_mutex_exit();
+		return -1;
+	}
+
+	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
+
+	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+
+	while ((bpage != NULL)
+	       && (distance < (BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN))) {
+
+		mutex_t* block_mutex = buf_page_get_mutex(bpage);
+
+		mutex_enter(block_mutex);
+
+		if (buf_flush_ready_for_replace(bpage)) {
+			n_replaceable++;
+
+		} else if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_LRU)) {
+			spaces[n_flushable] = buf_page_get_space(bpage);
+			offsets[n_flushable] = buf_page_get_page_no(bpage);
+			n_flushable++;
+		}
+
+		mutex_exit(block_mutex);
+
+		distance++;
+
+		bpage = UT_LIST_GET_PREV(LRU, bpage);
+	}
+
+	if (n_flushable) {
+		buf_pool->init_flush[BUF_FLUSH_LRU] = TRUE;
+		ut_ad(n_flushable <= (BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN));
+	}
+
+	buf_pool_mutex_exit();
+
+	return n_flushable;
+}
+
+/*********************************************************************//**
+Updates time in buf_flush_free_margin_fast and buf_flush_free_margin */
+static
+void
+buf_flush_update_time(
+/*==================*/
+	my_fast_timer_t	*start_time,	/*!< in: start timer */
+	ibool		foreground)	/*!< in: called from user session */
+{
+	if (foreground) {
+		srv_free_margin_fg_secs += my_fast_timer_diff_now(start_time, NULL);
+	} else {
+		srv_free_margin_bg_secs += my_fast_timer_diff_now(start_time, NULL);
+	}
+}
+
+/*********************************************************************//**
+Flushes pages from the end of the LRU list if there is too small a margin
+of replaceable pages there or in the free list. VERY IMPORTANT: this function
+is called also by threads which have locks on pages. To avoid deadlocks, we
+flush only pages such that the s-lock required for flushing can be acquired
+immediately, without waiting. This is an alternative to buf_flush_free_margin.
+It makes one pass of the tail of the LRU. buf_flush_free_margin makes one
+pass to count pages that can be flushed and then one pass for each page
+flushed. In both cases multiple pages might be flushed for each call to
+buf_flush_batch or buf_flush_try_neighbors so the analysis above describes
+the worst-case or the case when innodb_flush_neighbors_for_lru is ON. */
+static
+void
+buf_flush_free_margin_fast(
+/*=======================*/
+	ulint	npages,		/*!< in: number of free pages needed */
+	ibool	foreground)	/*!< in: done from foreground thread */
+{
+	ulint	n_flushable;
+	ulint	n_flushed;
+	ulint	x;
+
+	my_fast_timer_t	start_time;
+
+	/* Array of space and page IDs for pages to flush */
+	ulint spaces[BUF_FLUSH_FREE_BLOCK_MARGIN+BUF_FLUSH_EXTRA_MARGIN];
+	ulint pages[BUF_FLUSH_FREE_BLOCK_MARGIN+BUF_FLUSH_EXTRA_MARGIN];
+
+	/* Limit this to avoid overflowing pages and spaces arrays */
+	npages = min(npages, BUF_FLUSH_FREE_BLOCK_MARGIN+BUF_FLUSH_EXTRA_MARGIN);
+
+	my_get_fast_timer(&start_time);
+	n_flushable = buf_flush_LRU_get_pages(npages, spaces, pages);
+
+	if (n_flushable == -1) {
+
+		/* Wait for flush in progress to end */
+		buf_flush_wait_batch_end(BUF_FLUSH_LRU);
+		buf_flush_update_time(&start_time, foreground);
+		return;
+
+	} else if (!n_flushable) {
+		buf_flush_update_time(&start_time, foreground);
+		return;
+	}
+
+	n_flushed = 0;
+	for (x = 0; (x < n_flushable) && (n_flushed < n_flushable); x++) {
+		/* When srv_flush_neighbors_for_lru is TRUE, then each call might flush
+		more than 1 page and this loop can be stopped before the end of the array
+		is reached. */
+		n_flushed += buf_flush_try_neighbors(spaces[x], pages[x], BUF_FLUSH_LRU,
+					srv_flush_neighbors_for_LRU);
+	}
+
+	buf_pool_mutex_enter();
+
+	ut_a(buf_pool->init_flush[BUF_FLUSH_LRU] == TRUE);
+	buf_pool->init_flush[BUF_FLUSH_LRU] = FALSE;
+
+	if (buf_pool->n_flush[BUF_FLUSH_LRU] == 0) {
+                /* The running flush batch has ended */
+		os_event_set(buf_pool->no_flush[BUF_FLUSH_LRU]);
+	}
+
+	buf_pool_mutex_exit();
+
+	if (n_flushed) {
+		buf_flush_buffered_writes();
+		srv_buf_pool_flushed += n_flushed;
+		buf_lru_flush_page_count += n_flushed;
+
+		if (foreground) {
+			srv_n_flushed_free_margin_fg += n_flushed;
+		} else {
+			srv_n_flushed_free_margin_bg += n_flushed;
+		}
+	}
+
+	buf_flush_update_time(&start_time, foreground);
+}
+
+/******************************************************************//**
 Gives a recommendation of how many blocks should be flushed to establish
 a big enough margin of replaceable blocks near the end of the LRU list
 and in the free list.
@@ -1544,6 +1715,11 @@ buf_flush_free_margin(
 	ulint	n_flushed;
 	my_fast_timer_t	start_time;
 
+	if (srv_fast_free_list) {
+		buf_flush_free_margin_fast(npages, foreground);
+		return;
+	}
+
 	my_get_fast_timer(&start_time);
 	n_to_flush = buf_flush_LRU_recommendation(npages);
 
@@ -1563,11 +1739,7 @@ buf_flush_free_margin(
 		}
 	}
 
-	if (foreground) {
-		srv_free_margin_fg_secs += my_fast_timer_diff_now(&start_time, NULL);
-	} else {
-		srv_free_margin_bg_secs += my_fast_timer_diff_now(&start_time, NULL);
-	}
+	buf_flush_update_time(&start_time, foreground);
 }
 
 /*********************************************************************

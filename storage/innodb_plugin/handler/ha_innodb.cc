@@ -2442,7 +2442,7 @@ mem_free_and_error:
 	innobase_file_format_name is used in the MySQL set variable
 	interface and so can't be const. */
 
-	innobase_file_format_name = 
+	innobase_file_format_name =
 		(char*) trx_sys_file_format_id_to_name(format_id);
 
 	/* Process innobase_file_format_check variable */
@@ -2724,7 +2724,7 @@ static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
+        handlerton *hton, /*!< in: Innodb handlerton */
 	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 	char*	binlog_file,/* out: binlog file for last commit */
@@ -2796,7 +2796,7 @@ static
 int
 innobase_commit(
 /*============*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
+        handlerton *hton, /*!< in: Innodb handlerton */
 	THD* 	thd,	/*!< in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 	bool	all)	/*!< in:	TRUE - commit transaction
@@ -2941,7 +2941,7 @@ static
 int
 innobase_rollback(
 /*==============*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
+        handlerton *hton, /*!< in: Innodb handlerton */
 	THD*	thd,	/*!< in: handle to the MySQL thread of the user
 			whose transaction should be rolled back */
 	bool	all)	/*!< in:	TRUE - commit transaction
@@ -3029,7 +3029,7 @@ static
 int
 innobase_rollback_to_savepoint(
 /*===========================*/
-        handlerton *hton,       /*!< in: Innodb handlerton */ 
+        handlerton *hton,       /*!< in: Innodb handlerton */
 	THD*	thd,		/*!< in: handle to the MySQL thread of the user
 				whose transaction should be rolled back */
 	void*	savepoint)	/*!< in: savepoint data */
@@ -5729,7 +5729,7 @@ convert_search_mode_to_innobase(
 		return(PAGE_CUR_GE);
 	case HA_READ_KEY_OR_PREV:
 		return(PAGE_CUR_LE);
-	case HA_READ_AFTER_KEY:	
+	case HA_READ_AFTER_KEY:
 		return(PAGE_CUR_G);
 	case HA_READ_BEFORE_KEY:
 		return(PAGE_CUR_L);
@@ -6807,7 +6807,7 @@ create_options_are_valid(
 			ret = FALSE;
 		}
 	}
-	
+
 	/* If KEY_BLOCK_SIZE was specified, check for its
 	dependencies. */
 	if (kbs_specified && !srv_file_per_table) {
@@ -9567,7 +9567,7 @@ innodb_mutex_show_status(
 }
 
 static
-bool innobase_show_status(handlerton *hton, THD* thd, 
+bool innobase_show_status(handlerton *hton, THD* thd,
                           stat_print_fn* stat_print,
                           enum ha_stat_type stat_type)
 {
@@ -9729,7 +9729,7 @@ ha_innobase::store_lock(
 
 		/* MySQL calls this function in DROP TABLE though this table
 		handle may belong to another thd that is running a query. Let
-		us in that case skip any changes to the prebuilt struct. */ 
+		us in that case skip any changes to the prebuilt struct. */
 
 	} else if ((lock_type == TL_READ && in_lock_tables)
 		   || (lock_type == TL_READ_HIGH_PRIORITY && in_lock_tables)
@@ -9892,7 +9892,7 @@ ha_innobase::innobase_get_autoinc(
 	ulonglong*	value)		/*!< out: autoinc value */
 {
  	*value = 0;
- 
+
 	prebuilt->autoinc_error = innobase_lock_autoinc();
 
 	if (prebuilt->autoinc_error == DB_SUCCESS) {
@@ -9911,7 +9911,7 @@ ha_innobase::innobase_get_autoinc(
 }
 
 /*******************************************************************//**
-This function reads the global auto-inc counter. It doesn't use the 
+This function reads the global auto-inc counter. It doesn't use the
 AUTOINC lock even if the lock mode is set to TRADITIONAL.
 @return	the autoinc value */
 UNIV_INTERN
@@ -11695,7 +11695,7 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   "Buffer changes to reduce random access: "
   "OFF, ON, none, inserts.",
   innodb_change_buffering_validate,
-  innodb_change_buffering_update, "inserts"); 
+  innodb_change_buffering_update, "inserts");
 
 static MYSQL_SYSVAR_BOOL(retry_io_on_error, srv_retry_io_on_error,
   PLUGIN_VAR_NOCMDARG,
@@ -11727,6 +11727,13 @@ static MYSQL_SYSVAR_BOOL(flush_neighbors_for_lru,
   " is to be written during LRU list flushes done to move pages to the free list. "
   "Setting this to off might reduce buffer pool mutex contention.",
   NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_BOOL(fast_free_list,
+  srv_fast_free_list,
+  PLUGIN_VAR_NOCMDARG,
+  "Use (hopefully) faster code to move pages from the end of the LRU to the "
+  "free list. This replaces buf_flush_free_margin. ",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(adaptive_hash_latch_cache,
   srv_adaptive_hash_latch_cache,
@@ -11848,6 +11855,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(deadlock_detect),
   MYSQL_SYSVAR(flush_neighbors_on_checkpoint),
   MYSQL_SYSVAR(flush_neighbors_for_lru),
+  MYSQL_SYSVAR(fast_free_list),
   MYSQL_SYSVAR(background_checkpoint),
   MYSQL_SYSVAR(background_thread_interval_usecs),
   MYSQL_SYSVAR(adaptive_hash_latch_cache),
