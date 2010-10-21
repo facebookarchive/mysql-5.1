@@ -189,6 +189,11 @@ static sys_var_const            sys_back_log(&vars, "back_log",
                                              OPT_GLOBAL, SHOW_LONG,
                                              (uchar*) &back_log);
 static sys_var_const_os_str       sys_basedir(&vars, "basedir", mysql_home);
+static sys_var_const_os_str       sys_binlog_file_basedir(&vars, "binlog_file_basedir",
+                                                          binlog_file_basedir);
+static sys_var_const_os_str       sys_binlog_index_basedir(&vars, "binlog_index_basedir",
+                                                           binlog_index_basedir);
+
 static sys_var_long_ptr	sys_binlog_cache_size(&vars, "binlog_cache_size",
 					      &binlog_cache_size);
 static sys_var_thd_binlog_format sys_binlog_format(&vars, "binlog_format",

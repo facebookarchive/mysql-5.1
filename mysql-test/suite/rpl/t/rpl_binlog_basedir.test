@@ -1,0 +1,3 @@
+-- source include/master-slave.inc
+
+show global variables like "binlog%basedir";

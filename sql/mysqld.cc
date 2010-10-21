@@ -654,6 +654,8 @@ const char *log_output_str= "FILE";
 
 time_t server_start_time, flush_status_time;
 
+char binlog_file_basedir[FN_REFLEN];
+char binlog_index_basedir[FN_REFLEN];
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char *default_tz_name;
 char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
@@ -4238,6 +4240,32 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (opt_bin_log && mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
                                         WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
     unireg_abort(1);
+
+  if (opt_bin_log)
+  {
+    size_t ilen, llen;
+    const char* log_name = mysql_bin_log.get_log_fname();
+    const char* index_name = mysql_bin_log.get_index_fname();
+
+    if (!log_name || !dirname_part(binlog_file_basedir, log_name, &llen))
+    {
+      sql_print_error("Cannot get basedir for binlogs from (%s)\n",
+                      log_name ? log_name : "NULL");
+      unireg_abort(1);
+    }
+    if (!index_name || !dirname_part(binlog_index_basedir, index_name, &ilen))
+    {
+      sql_print_error("Cannot get basedir for binlog-index from (%s)\n",
+                      index_name ? index_name : "NULL");
+      unireg_abort(1);
+    }
+  }
+  else
+  {
+    binlog_file_basedir[0] = '\0';
+    binlog_index_basedir[0] = '\0';
+  }
+
 
 #ifdef HAVE_REPLICATION
   if (opt_bin_log && expire_logs_days)
