@@ -2301,6 +2301,11 @@ mysql_execute_command(THD *thd, my_fast_timer_t *last_timer)
 #ifdef HAVE_REPLICATION
   if (unlikely(thd->slave_thread))
   {
+    if (opt_respect_no_slave_exec && lex->no_slave_exec) {
+      slave_stmts_not_executed++;
+      DBUG_RETURN(0);
+    }
+
     if (lex->sql_command == SQLCOM_DROP_TRIGGER)
     {
       /*

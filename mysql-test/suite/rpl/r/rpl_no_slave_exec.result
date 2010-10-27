@@ -1,0 +1,75 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (
+a int unsigned primary key,
+b int unsigned
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 0);
+INSERT INTO t1 VALUES (2, 0);
+INSERT INTO t1 VALUES (3, 0);
+INSERT INTO t1 VALUES (4, 0);
+INSERT NO_SLAVE_EXEC INTO t1 VALUES (5, 0);
+REPLACE NO_SLAVE_EXEC INTO t1 VALUES (5, 1);
+UPDATE NO_SLAVE_EXEC t1 SET b = 1 WHERE a = 2;
+DELETE NO_SLAVE_EXEC FROM t1 WHERE a = 3;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	0
+2	1
+4	0
+5	1
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	0
+2	1
+4	0
+5	1
+SHOW STATUS LIKE 'Slave_stmts_not_executed';
+Variable_name	Value
+Slave_stmts_not_executed	0
+SET GLOBAL respect_no_slave_exec = 1;
+INSERT NO_SLAVE_EXEC INTO t1 VALUES (6, 0);
+REPLACE NO_SLAVE_EXEC INTO t1 VALUES (6, 1);
+UPDATE NO_SLAVE_EXEC t1 SET b = 2 WHERE a = 2;
+DELETE NO_SLAVE_EXEC FROM t1 WHERE a = 4;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	0
+2	2
+5	1
+6	1
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	0
+2	1
+4	0
+5	1
+SHOW STATUS LIKE 'Slave_stmts_not_executed';
+Variable_name	Value
+Slave_stmts_not_executed	4
+CREATE TABLE t2 (
+a int unsigned auto_increment primary key,
+b int unsigned
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (NULL, 0);
+INSERT NO_SLAVE_EXEC INTO t2 VALUES (2, 0);
+ERROR 42000: Incorrect usage/placement of 'NO_SLAVE_EXEC cannot be used when inserting into tables with auto-increment columns'
+REPLACE NO_SLAVE_EXEC INTO t2 VALUES (3, 0);
+ERROR 42000: Incorrect usage/placement of 'NO_SLAVE_EXEC cannot be used when inserting into tables with auto-increment columns'
+UPDATE NO_SLAVE_EXEC t2 SET b = 2;
+DELETE NO_SLAVE_EXEC FROM t2;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	0
+2	1
+4	0
+5	1
+SHOW STATUS LIKE 'Slave_stmts_not_executed';
+Variable_name	Value
+Slave_stmts_not_executed	6
+SET GLOBAL respect_no_slave_exec = 0;
+drop table t1, t2;

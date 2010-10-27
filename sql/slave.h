@@ -105,7 +105,9 @@ extern char *master_info_file, *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern my_bool opt_skip_slave_start, opt_reckless_slave;
 extern my_bool opt_log_slave_updates;
+extern ulong slave_stmts_not_executed;
 extern ulonglong relay_log_space_limit;
+extern my_bool opt_respect_no_slave_exec;
 
 /*
   3 possible values for Master_info::slave_running and

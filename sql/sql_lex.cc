@@ -308,6 +308,7 @@ void lex_start(THD *thd)
   lex->subqueries= FALSE;
   lex->view_prepare_mode= FALSE;
   lex->disable_flashcache= FALSE;
+  lex->no_slave_exec= FALSE;
   lex->derived_tables= 0;
   lex->lock_option= TL_READ;
   lex->safe_to_cache_query= 1;

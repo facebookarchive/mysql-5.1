@@ -506,6 +506,8 @@ my_bool opt_local_infile, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
+my_bool opt_respect_no_slave_exec= 0;
+ulong slave_stmts_not_executed = 0;
 bool slave_warning_issued = false; 
 
 /*
@@ -6133,6 +6135,7 @@ enum options_mysqld
   OPT_CONNECTION_RECYCLE_MIN_TIMEOUT_MS,
   OPT_CONNECTION_RECYCLE_POLL_MS,
   OPT_PROCESS_CAN_DISABLE_BIN_LOG,
+  OPT_ENABLE_NO_SLAVE_EXEC
 };
 
 
@@ -6476,6 +6479,11 @@ each time the SQL thread starts.",
    "Tells the slave to log the updates from the slave thread to the binary log. "
    "You will need to turn it on if you plan to daisy-chain the slaves.",
    &opt_log_slave_updates, &opt_log_slave_updates, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"respect-no-slave-exec", OPT_ENABLE_NO_SLAVE_EXEC,
+   "If enabled, queries with the SQL_NO_SLAVE_EXEC flag will not be executed "
+   "on the slave and will not be logged if log-slave-updates is enabled.",
+   &opt_respect_no_slave_exec, &opt_respect_no_slave_exec, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-slow-admin-statements", OPT_LOG_SLOW_ADMIN_STATEMENTS,
    "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements "
@@ -8192,6 +8200,7 @@ SHOW_VAR status_vars[]= {
   {"Slave_retried_transactions",(char*) &show_slave_retried_trans, SHOW_FUNC},
   {"Slave_running",            (char*) &show_slave_running,     SHOW_FUNC},
 #endif
+  {"Slave_stmts_not_executed", (char*) &slave_stmts_not_executed, SHOW_LONG},
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
   {"Slow_queries",             (char*) offsetof(STATUS_VAR, long_query_count), SHOW_LONG_STATUS},
   {"Sort_merge_passes",	       (char*) offsetof(STATUS_VAR, filesort_merge_passes), SHOW_LONG_STATUS},
@@ -8587,6 +8596,8 @@ static int mysql_init_variables(void)
   opt_fb_libmcc_verbose = FALSE;
   opt_fb_libmcc_server_retry_tmo_ms = MCC_SERVER_RETRY_TMO_MS_DEFAULT; /* 60s */
 #endif
+
+  opt_respect_no_slave_exec = FALSE;
 
   return 0;
 }

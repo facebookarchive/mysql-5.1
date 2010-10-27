@@ -647,6 +647,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /* mysql_prepare_insert set table_list->table if it was not set */
   table= table_list->table;
 
+  if (thd->lex->no_slave_exec && table->found_next_number_field) {
+    my_error(ER_CANT_USE_OPTION_HERE, MYF(0),
+             "NO_SLAVE_EXEC cannot be used when inserting into tables "
+             "with auto-increment columns");
+    goto abort;
+  }
+
   context= &thd->lex->select_lex.context;
   /*
     These three asserts test the hypothesis that the resetting of the name

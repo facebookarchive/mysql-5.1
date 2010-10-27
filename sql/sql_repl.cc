@@ -1929,6 +1929,8 @@ static sys_var_chain vars = { NULL, NULL };
 static sys_var_const    sys_log_slave_updates(&vars, "log_slave_updates",
                                               OPT_GLOBAL, SHOW_MY_BOOL,
                                               (uchar*) &opt_log_slave_updates);
+static sys_var_bool_ptr	sys_respect_no_slave_exec(&vars, "respect_no_slave_exec",
+					         &opt_respect_no_slave_exec);
 static sys_var_const    sys_relay_log(&vars, "relay_log",
                                       OPT_GLOBAL, SHOW_CHAR_PTR,
                                       (uchar*) &opt_relay_logname);

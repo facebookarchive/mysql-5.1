@@ -1,0 +1,100 @@
+# Test new NO_SLAVE_EXEC option on INSERT/UPDATE/DELETE.
+
+source include/have_innodb_plugin.inc;
+source include/have_binlog_format_statement.inc;
+source include/master-slave.inc;
+
+
+
+# Setup
+
+eval CREATE TABLE t1 (
+ a int unsigned primary key,
+ b int unsigned
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1, 0);
+INSERT INTO t1 VALUES (2, 0);
+INSERT INTO t1 VALUES (3, 0);
+INSERT INTO t1 VALUES (4, 0);
+
+
+
+# Test no-exec behavior with option disabled
+
+connection master;
+
+INSERT NO_SLAVE_EXEC INTO t1 VALUES (5, 0);
+REPLACE NO_SLAVE_EXEC INTO t1 VALUES (5, 1);
+UPDATE NO_SLAVE_EXEC t1 SET b = 1 WHERE a = 2;
+DELETE NO_SLAVE_EXEC FROM t1 WHERE a = 3;
+
+SELECT * FROM t1 ORDER BY a;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+
+SELECT * FROM t1 ORDER BY a;
+SHOW STATUS LIKE 'Slave_stmts_not_executed';
+
+
+
+# Test no-exec behavior with option enabled
+
+connection slave;
+SET GLOBAL respect_no_slave_exec = 1;
+
+connection master;
+
+INSERT NO_SLAVE_EXEC INTO t1 VALUES (6, 0);
+REPLACE NO_SLAVE_EXEC INTO t1 VALUES (6, 1);
+UPDATE NO_SLAVE_EXEC t1 SET b = 2 WHERE a = 2;
+DELETE NO_SLAVE_EXEC FROM t1 WHERE a = 4;
+
+SELECT * FROM t1 ORDER BY a;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+
+SELECT * FROM t1 ORDER BY a;
+SHOW STATUS LIKE 'Slave_stmts_not_executed';
+
+
+
+# Make sure INSERT/REPLACE fails when used with an auto-inc table
+
+connection master;
+
+eval CREATE TABLE t2 (
+ a int unsigned auto_increment primary key,
+ b int unsigned
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (NULL, 0);
+
+--error ER_CANT_USE_OPTION_HERE
+INSERT NO_SLAVE_EXEC INTO t2 VALUES (2, 0);
+--error ER_CANT_USE_OPTION_HERE
+REPLACE NO_SLAVE_EXEC INTO t2 VALUES (3, 0);
+UPDATE NO_SLAVE_EXEC t2 SET b = 2;
+DELETE NO_SLAVE_EXEC FROM t2;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+
+SELECT * FROM t1 ORDER BY a;
+SHOW STATUS LIKE 'Slave_stmts_not_executed';
+
+
+
+# Cleanup
+
+connection slave;
+SET GLOBAL respect_no_slave_exec = 0;
+
+connection master;
+drop table t1, t2;
+sync_slave_with_master;
