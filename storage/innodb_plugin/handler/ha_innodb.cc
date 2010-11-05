@@ -709,6 +709,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_log_sync_flush_dirty,       SHOW_LONG},
   {"log_sync_other",
   (char*) &export_vars.innodb_log_sync_other,             SHOW_LONG},
+  {"lru_restore_loaded_pages",
+  (char*) &export_vars.innodb_lru_restore_loaded_pages,   SHOW_LONG},
+  {"lru_restore_total_pages",
+  (char*) &export_vars.innodb_lru_restore_total_pages,    SHOW_LONG},
   {"mutex_os_waits",
   (char*) &export_vars.innodb_mutex_os_waits,             SHOW_LONG},
   {"mutex_spin_rounds",
@@ -11742,6 +11746,26 @@ static MYSQL_SYSVAR_BOOL(expand_import, srv_expand_import,
   "Enable/Disable converting automatically *.ibd files when import tablespace.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_UINT(auto_lru_dump, srv_auto_lru_dump,
+  PLUGIN_VAR_RQCMDARG,
+  "Time in seconds between automatic buffer pool dumps. "
+  "0 (the default) disables automatic dumps.  A non-zero value "
+  "also enables restoring the LRU automatically on startup.",
+  NULL, NULL, 0, 0, UINT_MAX32, 0);
+
+static MYSQL_SYSVAR_ULONG(lru_load_max_entries, srv_lru_load_max_entries,
+  PLUGIN_VAR_RQCMDARG,
+  "Maximum number of LRU entries to restore.  The default is 512k entries. "
+  "Consecutive pages are merged and only count as one, so you will probably "
+  "load more pages than this number of LRU entries.",
+  NULL, NULL, 512*1024UL, 1UL, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_BOOL(lru_dump_old_pages, srv_lru_dump_old_pages,
+  PLUGIN_VAR_NOCMDARG,
+  "If enabled, will also dump old pages from the LRU. "
+  "The default is to only dump young pages.",
+  NULL, NULL, FALSE);
+
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
@@ -11804,6 +11828,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(auto_lru_dump),
+  MYSQL_SYSVAR(lru_load_max_entries),
+  MYSQL_SYSVAR(lru_dump_old_pages),
   MYSQL_SYSVAR(retry_io_on_error),
   MYSQL_SYSVAR(read_ahead_linear),
   MYSQL_SYSVAR(thread_lifo),
@@ -11843,7 +11870,8 @@ i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
-i_s_innodb_file_status
+i_s_innodb_file_status,
+i_s_innodb_admin_command
 mysql_declare_plugin_end;
 
 /** @brief Initialize the default value of innodb_commit_concurrency.

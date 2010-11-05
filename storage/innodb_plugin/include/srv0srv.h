@@ -386,6 +386,23 @@ extern ulint srv_buf_pool_flushed;
 reading of a disk page */
 extern ulint srv_buf_pool_reads;
 
+/** Time in seconds between automatic buffer pool dumps */
+extern uint srv_auto_lru_dump;
+
+/** Maximum number of LRU entries to restore
+ * Consecutive pages are merged and only count as one, so you will probably
+ * load more pages than this number of LRU entries. */
+extern ulint srv_lru_load_max_entries;
+
+/** If enabled, will also dump old pages from the LRU */
+extern my_bool srv_lru_dump_old_pages;
+
+/** Number of buffer pool pages already restored */
+extern ulint srv_lru_restore_loaded_pages;
+
+/** Number of buffer pool pages in restore list */
+extern ulint srv_lru_restore_total_pages;
+
 /* When TRUE, flush dirty neighbor pages on checkpoint. */
 extern my_bool srv_flush_neighbors_on_checkpoint;
 
@@ -676,6 +693,16 @@ srv_error_monitor_thread(
 /*=====================*/
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
+/*********************************************************************//**
+A thread which restores the buffer pool from a dump file on startup and does
+periodic buffer pool dumps.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_LRU_dump_restore_thread(
+/*====================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
 /******************************************************************//**
 Outputs to a file the output of the InnoDB Monitor.
 @return FALSE if not all information printed
@@ -852,6 +879,9 @@ struct export_var_struct{
 	ulint innodb_trx_n_commit_with_undo; /*!< srv_n_commit_with_undo */
 	ulint innodb_trx_n_rollback_partial; /*!< srv_n_rollback_partial */
 	ulint innodb_trx_n_rollback_total; /*!< srv_n_rollback_total */
+
+	ulint innodb_lru_restore_loaded_pages;	/*!< srv_lru_restore_loaded_pages */
+	ulint innodb_lru_restore_total_pages;	/*!< srv_lru_restore_total_pages */
 };
 
 /** The server system struct */

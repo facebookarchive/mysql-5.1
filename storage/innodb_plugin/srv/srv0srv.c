@@ -300,6 +300,23 @@ UNIV_INTERN ulint srv_buf_pool_flushed = 0;
 reading of a disk page */
 UNIV_INTERN ulint srv_buf_pool_reads = 0;
 
+/** Time in seconds between automatic buffer pool dumps */
+UNIV_INTERN uint srv_auto_lru_dump = 0;
+
+/** Maximum number of LRU entries to restore
+ * Consecutive pages are merged and only count as one, so you will probably
+ * load more pages than this number of LRU entries. */
+UNIV_INTERN ulint srv_lru_load_max_entries = 512*1024;
+
+/** If enabled, will also dump old pages from the LRU */
+UNIV_INTERN my_bool srv_lru_dump_old_pages = FALSE;
+
+/** Number of buffer pool pages already restored */
+UNIV_INTERN ulint srv_lru_restore_loaded_pages = 0;
+
+/** Number of buffer pool pages in restore list */
+UNIV_INTERN ulint srv_lru_restore_total_pages = 0;
+
 /* structure to pass status variables to MySQL */
 UNIV_INTERN export_struc export_vars;
 
@@ -2357,6 +2374,9 @@ srv_export_innodb_status(void)
 
 	export_vars.background_drop_table_queue= queue_len;
 
+	export_vars.innodb_lru_restore_loaded_pages = srv_lru_restore_loaded_pages;
+	export_vars.innodb_lru_restore_total_pages = srv_lru_restore_total_pages;
+
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 
@@ -2712,6 +2732,60 @@ loop:
 
 	srv_error_monitor_active = FALSE;
 
+	/* We count the number of threads in os_thread_exit(). A created
+	thread should always use that to exit and not use return() to exit. */
+
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
+
+/*********************************************************************//**
+A thread which restores the buffer pool from a dump file on startup and does
+periodic buffer pool dumps.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_LRU_dump_restore_thread(
+/*====================*/
+	void*	arg __attribute__((unused)))
+			/*!< in: a dummy parameter required by
+			os_thread_create */
+{
+	uint	auto_lru_dump;
+	time_t	last_dump_time;
+	time_t	time_elapsed;
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "LRU dump/restore thread starts, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif
+
+	if (srv_auto_lru_dump)
+		buf_LRU_file_restore();
+
+	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
+		goto exit_func;
+	}
+
+	last_dump_time = time(NULL);
+
+loop:
+	os_thread_sleep(1000000);
+
+	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
+		goto exit_func;
+	}
+
+	time_elapsed = time(NULL) - last_dump_time;
+	auto_lru_dump = srv_auto_lru_dump;
+	if (auto_lru_dump > 0 && (time_t) auto_lru_dump < time_elapsed) {
+		last_dump_time = time(NULL);
+		buf_LRU_file_dump();
+	}
+
+	goto loop;
+exit_func:
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
 

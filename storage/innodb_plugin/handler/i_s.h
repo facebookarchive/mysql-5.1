@@ -34,5 +34,6 @@ extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;
 extern struct st_mysql_plugin	i_s_innodb_file_status;
+extern struct st_mysql_plugin	i_s_innodb_admin_command;
 
 #endif /* i_s_h */

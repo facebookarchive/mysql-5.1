@@ -126,9 +126,9 @@ static mutex_t		ios_mutex;
 static ulint		ios;
 
 /** io_handler_thread parameters for thread identification */
-static ulint		n[SRV_MAX_N_IO_THREADS + 6];
+static ulint		n[SRV_MAX_N_IO_THREADS + 7];
 /** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 7];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -1661,6 +1661,10 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the thread which prints InnoDB monitor info */
 	os_thread_create(&srv_monitor_thread, NULL,
 			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+
+	/* Create the thread which automaticaly dumps/restore buffer pool */
+	os_thread_create(&srv_LRU_dump_restore_thread, NULL,
+			 thread_ids + 5 + SRV_MAX_N_IO_THREADS);
 
 	srv_is_being_started = FALSE;
 

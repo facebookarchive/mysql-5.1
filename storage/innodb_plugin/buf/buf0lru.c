@@ -48,6 +48,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "log0recv.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 
 /** The number of blocks from the LRU_old pointer onward, including
 the block pointed to, must be buf_LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
@@ -2099,6 +2100,427 @@ buf_LRU_stat_update(void)
 func_exit:
 	/* Clear the current entry. */
 	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
+}
+
+/********************************************************************//**
+Dump the LRU page list to the specific file.
+
+The format of the file is a list of (space id, page id) pairs, written in
+big-endian format, followed by the pair (0xFFFFFFFF, 0xFFFFFFFF).  The order of
+the pages is the order in which they appear in the LRU, from most recent access
+to oldest access.  */
+#define LRU_DUMP_FILE "ib_lru_dump"
+#define LRU_DUMP_TEMP_FILE "ib_lru_dump.tmp"
+
+UNIV_INTERN
+ibool
+buf_LRU_file_dump(void)
+/*===================*/
+{
+	os_file_t	dump_file = -1;
+	ibool		success;
+	byte*		buffer_base = NULL;
+	byte*		buffer = NULL;
+	buf_page_t*	bpage;
+	buf_page_t*	first_bpage;
+	ulint		buffers;
+	ulint		offset;
+	ulint		pages_written;
+	ulint		i;
+	ulint		total_pages;
+
+	for (i = 0; i < srv_n_data_files; i++) {
+		if (strstr(srv_data_file_names[i], LRU_DUMP_FILE) != NULL) {
+			fprintf(stderr,
+				" InnoDB: The name '%s' seems to be used for"
+				" innodb_data_file_path. Dumping LRU list is not"
+				" done for safeness.\n", LRU_DUMP_FILE);
+			goto end;
+		}
+	}
+
+	buffer_base = ut_malloc(2 * UNIV_PAGE_SIZE);
+	buffer = ut_align(buffer_base, UNIV_PAGE_SIZE);
+	if (!buffer) {
+		fprintf(stderr,
+			" InnoDB: cannot allocate buffer.\n");
+		goto end;
+	}
+
+	dump_file = os_file_create(LRU_DUMP_TEMP_FILE, OS_FILE_OVERWRITE,
+				OS_FILE_NORMAL, OS_DATA_FILE, &success);
+	if (!success) {
+		os_file_get_last_error(TRUE);
+		fprintf(stderr,
+			" InnoDB: cannot open %s\n", LRU_DUMP_FILE);
+		goto end;
+	}
+
+	memset(buffer, 0, UNIV_PAGE_SIZE);
+
+	/* walk the buffer pool from most recent to oldest */
+	buf_pool_mutex_enter();
+	bpage = first_bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
+	total_pages = UT_LIST_GET_LEN(buf_pool->LRU);
+
+	buffers = offset = pages_written = 0;
+	while (bpage != NULL &&
+		(srv_lru_dump_old_pages || !buf_page_is_old(bpage)) &&
+		(pages_written++ < total_pages)) {
+
+		buf_page_t*	next_bpage = UT_LIST_GET_NEXT(LRU, bpage);
+
+		if (next_bpage == first_bpage) {
+			buf_pool_mutex_exit();
+			fprintf(stderr,
+				" InnoDB: detected cycle in LRU, skipping dump\n");
+			success = FALSE;
+			goto end;
+		}
+
+		mach_write_to_4(buffer + offset * 4, bpage->space);
+		offset++;
+		mach_write_to_4(buffer + offset * 4, bpage->offset);
+		offset++;
+
+		/* write out one page of data at a time */
+		if (offset == UNIV_PAGE_SIZE/4) {
+			mutex_t* next_block_mutex = NULL;
+
+			/* while writing file, release buffer pool mutex but
+			 * keep the next page fixed so we don't worry about
+			 * our list iterator becoming invalid */
+			if (next_bpage) {
+				next_block_mutex = buf_page_get_mutex(next_bpage);
+
+				mutex_enter(next_block_mutex);
+				next_bpage->buf_fix_count++;
+				mutex_exit(next_block_mutex);
+			}
+			buf_pool_mutex_exit();
+
+			success = os_file_write(LRU_DUMP_TEMP_FILE, dump_file, buffer,
+					(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
+					(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
+					UNIV_PAGE_SIZE);
+			buffers++;
+			offset = 0;
+			memset(buffer, 0, UNIV_PAGE_SIZE);
+
+			buf_pool_mutex_enter();
+			if (next_bpage) {
+				mutex_enter(next_block_mutex);
+				next_bpage->buf_fix_count--;
+				mutex_exit(next_block_mutex);
+			}
+			if (!success) {
+				buf_pool_mutex_exit();
+				fprintf(stderr,
+					" InnoDB: cannot write page %lu of %s\n",
+					buffers, LRU_DUMP_FILE);
+				goto end;
+			}
+		}
+
+		bpage = next_bpage;
+	}
+	buf_pool_mutex_exit();
+
+	/* mark end of file with 0xFFFFFFFF */
+	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
+	offset++;
+	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
+	offset++;
+
+	success = os_file_write(LRU_DUMP_TEMP_FILE, dump_file, buffer,
+			(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
+			(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
+			UNIV_PAGE_SIZE);
+	if (!success) {
+		goto end;
+	}
+
+end:
+	if (dump_file != -1) {
+		if (success) {
+			success = os_file_flush(dump_file);
+		}
+		os_file_close(dump_file);
+	}
+	if (success) {
+		success = os_file_rename(LRU_DUMP_TEMP_FILE,
+					LRU_DUMP_FILE);
+	}
+	if (buffer_base) {
+		ut_free(buffer_base);
+	}
+
+	return(success);
+}
+
+typedef struct {
+	ib_uint32_t space_id;
+	ib_uint32_t page_no;
+} dump_record_t;
+
+static int dump_record_cmp(const void *a, const void *b)
+{
+	const dump_record_t *rec1 = (dump_record_t *) a;
+	const dump_record_t *rec2 = (dump_record_t *) b;
+
+	if (rec1->space_id < rec2->space_id)
+		return -1;
+	if (rec1->space_id > rec2->space_id)
+		return 1;
+	if (rec1->page_no < rec2->page_no)
+		return -1;
+	return rec1->page_no > rec2->page_no;
+}
+
+/********************************************************************//**
+Read the pages based on the specific file.
+
+Pre-warms the buffer pool by loading the buffer pool pages recorded in
+LRU_DUMP_FILE by automatic or manual invocation of buf_LRU_file_dump.
+
+The pages are loaded in LRU priority order to ensure the most frequently
+accessed pages are loaded first.  While loading in LRU priority order, any
+lower priority pages that are logically adjacent to higher priority pages are
+loaded along with the higher priority page.  The goal is to maximize the size
+of the data reads without introducing many additional seeks.
+*/
+UNIV_INTERN
+ibool
+buf_LRU_file_restore(void)
+/*======================*/
+{
+	os_file_t	dump_file = -1;
+	ibool		success;
+	byte*		buffer_base = NULL;
+	byte*		buffer = NULL;
+	ulint		buffers;
+	ulint		offset;
+	ulint		reads = 0;
+	ulint		req = 0;
+	ibool		terminated = FALSE;
+	ibool		ret = FALSE;
+	dump_record_t*	records = NULL;
+	dump_record_t*	sorted_records = NULL;
+	dump_record_t*	current_record;
+	dump_record_t*	prev_record;
+	dump_record_t*	next_record;
+	unsigned char*	records_loaded = NULL;
+	ulint		size;
+	ulint		size_high;
+	ulint		length;
+	my_fast_timer_t	loop_timer;
+
+	dump_file = os_file_create_simple_no_error_handling(
+		LRU_DUMP_FILE, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+	if (!success || !os_file_get_size(dump_file, &size, &size_high)) {
+		os_file_get_last_error(TRUE);
+		fprintf(stderr,
+			" InnoDB: cannot open %s\n", LRU_DUMP_FILE);
+		goto end;
+	}
+	if (size == 0 || size_high > 0 || size % 8) {
+		fprintf(stderr, " InnoDB: broken LRU dump file\n");
+		goto end;
+	}
+	buffer_base = ut_malloc(2 * UNIV_PAGE_SIZE);
+	buffer = ut_align(buffer_base, UNIV_PAGE_SIZE);
+	records = (dump_record_t*) ut_malloc((size/8) * sizeof(dump_record_t));
+	sorted_records = (dump_record_t*) ut_malloc((size/8) * sizeof(dump_record_t));
+	records_loaded = (unsigned char*) ut_malloc((size/8) * sizeof(unsigned char));
+	if (!buffer || !records || !sorted_records || !records_loaded) {
+		fprintf(stderr,
+			" InnoDB: cannot allocate buffer.\n");
+		goto end;
+	}
+
+	buffers = 0;
+	length = 0;
+	while (!terminated) {
+		success = os_file_read(dump_file, buffer,
+				(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
+				(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
+				UNIV_PAGE_SIZE);
+		if (!success) {
+			fprintf(stderr,
+				" InnoDB: cannot read page %lu of %s,"
+				" or meet unexpected terminal.\n",
+				buffers, LRU_DUMP_FILE);
+			goto end;
+		}
+
+		for (offset = 0; offset < UNIV_PAGE_SIZE/4; offset += 2) {
+			ulint	space_id;
+			ulint	page_no;
+
+			space_id = mach_read_from_4(buffer + offset * 4);
+			page_no = mach_read_from_4(buffer + (offset + 1) * 4);
+			/* found list terminator value 0xFFFFFFFF */
+			if (space_id == 0xFFFFFFFFUL
+			    || page_no == 0xFFFFFFFFUL) {
+				terminated = TRUE;
+				break;
+			}
+
+			records[length].space_id = space_id;
+			records[length].page_no = page_no;
+			length++;
+			if (length * 8 >= size) {
+				fprintf(stderr,
+					" InnoDB: could not find the "
+					"end-of-file marker after reading "
+					"the expected %lu bytes from the "
+					"LRU dump file.\n"
+					" InnoDB: this could be caused by a "
+					"broken or incomplete file.\n"
+					" InnoDB: trying to process what has "
+					"been read so far.\n",
+					size);
+				terminated= TRUE;
+				break;
+			}
+		}
+
+		buffers++;
+	}
+
+	srv_lru_restore_total_pages = length;
+	srv_lru_restore_loaded_pages = 0;
+
+	/* Copy the records into a second array and sort them, this will
+	 * allow us to identify sequential records so we can load contiguous
+	 * data while still prioritizing based on LRU order in the original */
+	memcpy(sorted_records, records, length * sizeof(dump_record_t));
+	qsort(sorted_records, length, sizeof(dump_record_t), dump_record_cmp);
+
+	/* As we will be loading data in a new order, we use this array to
+	 * track which records have already been loaded */
+	memset(records_loaded, 0, length * sizeof(char));
+
+	/* start time */
+	my_get_fast_timer(&loop_timer);
+
+	/* iterate over the LRU in priority order */
+	for (offset = 0;
+	     offset < ut_min(length, srv_lru_load_max_entries);
+	     offset++) {
+		ulint		space_id;
+		ulint		page_no;
+		ulint		zip_size;
+		ulint		err;
+		ib_int64_t	tablespace_version;
+
+		space_id = records[offset].space_id;
+		zip_size = fil_space_get_zip_size(space_id);
+		if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+			continue;
+		}
+
+		/* we iterate over the LRU in priority order, but want to find
+		 * the record's position in the sorted array so we can look for
+		 * consecutive runs */
+		current_record = bsearch(records + offset, sorted_records, length,
+					sizeof(dump_record_t), dump_record_cmp);
+		ut_ad(current_record);
+
+		/* check if we already loaded this record as part of another
+		 * consecutive run */
+		if (records_loaded[current_record - sorted_records]) {
+			continue;
+		}
+
+		/* step backwards in the sorted array until we find the start
+		 * of this run of consecutive pages */
+		while (current_record > sorted_records) {
+			prev_record = current_record - 1;
+
+			if (prev_record->space_id != current_record->space_id ||
+				prev_record->page_no + 1 != current_record->page_no) {
+				break;
+			}
+
+			current_record = prev_record;
+		}
+
+		/* now step forwards requesting consecutive pages */
+		while (current_record < sorted_records + length) {
+			if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
+				os_aio_simulated_wake_handler_threads();
+				goto end;
+			}
+
+			records_loaded[current_record - sorted_records] = TRUE;
+
+			page_no = current_record->page_no;
+
+			if (!fil_area_is_exist(space_id, zip_size, page_no, 0,
+					      zip_size ? zip_size : UNIV_PAGE_SIZE)) {
+				break;
+			}
+
+			tablespace_version = fil_space_get_version(space_id);
+
+			req++;
+
+			/* do not issue more than srv_io_capacity requests per second */
+			if (req % srv_io_capacity == 0) {
+				os_aio_simulated_wake_handler_threads();
+				buf_flush_free_margin(srv_io_capacity, FALSE);
+
+				ulint loop_usecs = my_fast_timer_diff_now(&loop_timer, NULL) * 1000000.0;
+
+				if (loop_usecs < 1000000) {
+					os_thread_sleep(1000000 - loop_usecs);
+				}
+
+				my_get_fast_timer(&loop_timer);
+			}
+
+			reads += buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
+						   | OS_AIO_SIMULATED_WAKE_LATER,
+						   space_id, zip_size, TRUE,
+						   tablespace_version, page_no, NULL);
+			buf_LRU_stat_inc_io();
+
+			srv_lru_restore_loaded_pages++;
+
+			next_record = current_record + 1;
+
+			if (next_record >= sorted_records + length ||
+				current_record->space_id != next_record->space_id ||
+				current_record->page_no + 1 != next_record->page_no) {
+				break;
+			}
+
+			current_record = next_record;
+		}
+	}
+
+	os_aio_simulated_wake_handler_threads();
+	buf_flush_free_margin(srv_io_capacity, FALSE);
+
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		" InnoDB: reading pages based on the dumped LRU list was done."
+		" (requested: %lu, read: %lu)\n", req, reads);
+	ret = TRUE;
+end:
+	if (dump_file != -1)
+		os_file_close(dump_file);
+	if (buffer_base)
+		ut_free(buffer_base);
+	if (records)
+		ut_free(records);
+	if (sorted_records)
+		ut_free(sorted_records);
+	if (records_loaded)
+		ut_free(records_loaded);
+
+	return(ret);
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
