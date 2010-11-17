@@ -1188,7 +1188,7 @@ next_rec:
 
 	block->is_hashed = FALSE;
 	block->index = NULL;
-	
+
 cleanup:
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (UNIV_UNLIKELY(block->n_pointers)) {
@@ -1544,7 +1544,6 @@ btr_search_update_hash_on_delete(
 	rec_t*		rec;
 	ulint		fold;
 	dulint		index_id;
-	ibool		found;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	mem_heap_t*	heap		= NULL;
 	rec_offs_init(offsets_);
@@ -1577,9 +1576,7 @@ btr_search_update_hash_on_delete(
 	}
 	rw_lock_x_lock(&btr_search_latch);
 
-	found = ha_search_and_delete_if_found(table, fold, rec);
-
-	if (found) {
+	if (ha_search_and_delete_if_found(table, fold, rec)) {
 		btr_search_n_rows_removed++;
 	}
 
