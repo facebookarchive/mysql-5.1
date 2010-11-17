@@ -2399,6 +2399,8 @@ ENGINE=InnoDB
 PACK_KEYS=0;
 CREATE INDEX a ON t1 (a);
 CREATE INDEX c on t1 (c);
+DROP TABLE t1;
+#
 # Bug #53830: !table || (!table->read_set || bitmap_is_set(table->read_set, field_index))
 #
 CREATE TABLE t1 (a INT, b INT, c INT, d INT,

@@ -17,6 +17,10 @@
 # This test case needs InnoDB.
 -- source include/have_innodb_plugin.inc
 
+--disable_query_log
+let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+--enable_query_log
+
 #
 # Precautionary clean up.
 #
@@ -180,5 +184,6 @@ DROP TABLE bug_53756;
 --disable_query_log
 eval SET GLOBAL tx_isolation= '$global_isolation';
 eval SET SESSION tx_isolation= '$session_isolation';
+eval set global innodb_file_format_check=$innodb_file_format_check_orig;
 --enable_query_log
 
