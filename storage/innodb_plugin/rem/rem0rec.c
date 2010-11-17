@@ -1226,15 +1226,6 @@ rec_convert_dtuple_to_rec_new(
 		dtuple->fields, dtuple->n_fields);
 
 	/* Set the info bits of the record */
-
-#ifdef UNIV_DEBUG_VALGRIND
-        /* See http://bugs.mysql.com/bug.php?id=54474 */
-        *(((byte*)rec) - REC_NEW_STATUS)	= 0;
-        *(((byte*)rec) - REC_NEW_INFO_BITS)	= 0;
-        *(((byte*)rec) - REC_NEW_HEAP_NO)	= 0;
-        *(((byte*)rec) - REC_NEW_HEAP_NO + 1)	= 0;
-#endif
-
 	rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));
 
 	return(rec);

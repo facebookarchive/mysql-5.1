@@ -1119,10 +1119,6 @@ struct buf_page_struct{
 					is currently bufferfixed */
 	/* @} */
 #endif /* !UNIV_HOTBACKUP */
-#ifdef UNIV_DEBUG_VALGRIND
-	unsigned	pad;		/*!< Avoid padding for 64-bit as that
-					may valgrind warnings (bug 53307)  */
-#endif /* UNIV_DEBUG_VALGRIND */
 	page_zip_des_t	zip;		/*!< compressed page; zip.data
 					(but not the data it points to) is
 					also protected by buf_pool_mutex */
@@ -1196,9 +1192,6 @@ struct buf_page_struct{
 					the LRU list; used in
 					debugging */
 #endif /* UNIV_DEBUG */
-#ifdef UNIV_DEBUG_VALGRIND
-	unsigned	pad2;		/*!< See pad above */
-#endif /* UNIV_DEBUG_VALGRIND */
 	unsigned	old:1;		/*!< TRUE if the block is in the old
 					blocks in buf_pool->LRU_old */
 	unsigned	freed_page_clock:31;/*!< the value of
