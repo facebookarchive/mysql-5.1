@@ -1048,7 +1048,7 @@ convert_error_code_to_mysql(
 
 	case DB_INTERRUPTED:
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
-		return(HA_ERR_GENERIC);
+		/* fall through */
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
 		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
