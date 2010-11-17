@@ -125,7 +125,7 @@ end:
 
 /*
   check if user has already too many connections
-
+  
   SYNOPSIS
   check_for_max_user_connections()
   thd			Thread handle
@@ -348,9 +348,9 @@ check_user(THD *thd, enum enum_server_command command,
   pthread_mutex_lock(&LOCK_global_system_variables);
   opt_secure_auth_local= opt_secure_auth;
   pthread_mutex_unlock(&LOCK_global_system_variables);
-
+  
   /*
-    If the server is running in secure auth mode, short scrambles are
+    If the server is running in secure auth mode, short scrambles are 
     forbidden.
   */
   if (opt_secure_auth_local && passwd_len == SCRAMBLE_LENGTH_323)
@@ -644,7 +644,7 @@ void thd_init_client_charset(THD *thd, uint cs_number)
   else
   {
     thd->variables.character_set_results=
-      thd->variables.collation_connection=
+      thd->variables.collation_connection= 
       thd->variables.character_set_client;
   }
 }
@@ -747,7 +747,7 @@ static int check_connection(THD *thd)
     bzero((char*) &thd->remote, sizeof(thd->remote));
   }
   vio_keepalive(net->vio, TRUE);
-
+  
   ulong server_capabilites;
   {
     /* buff[] needs to big enough to hold the server_version variable */
@@ -782,7 +782,7 @@ static int check_connection(THD *thd)
       part at the end of packet.
     */
     end= strmake(end, thd->scramble, SCRAMBLE_LENGTH_323) + 1;
-
+   
     int2store(end, server_capabilites);
     /* write server characteristics: up to 16 bytes allowed */
     end[2]=(char) default_charset_info->number;
@@ -790,7 +790,7 @@ static int check_connection(THD *thd)
     bzero(end+5, 13);
     end+= 18;
     /* write scramble tail */
-    end= strmake(end, thd->scramble + SCRAMBLE_LENGTH_323,
+    end= strmake(end, thd->scramble + SCRAMBLE_LENGTH_323, 
                  SCRAMBLE_LENGTH - SCRAMBLE_LENGTH_323) + 1;
 
     /* At this point we write connection message and read reply */
@@ -1185,7 +1185,7 @@ pthread_handler_t handle_one_connection(void *arg)
 	break;
     }
     end_connection(thd);
-
+   
 end_thread:
     close_connection(thd, 0, 1);
     if (thread_scheduler.end_thread(thd,1))

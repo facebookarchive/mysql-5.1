@@ -166,7 +166,6 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables,
   tables->table= NULL;
 }
 
-
 /*
   Open a HANDLER table without putting it into the table hash.
 

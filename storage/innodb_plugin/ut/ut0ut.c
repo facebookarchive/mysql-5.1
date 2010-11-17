@@ -210,7 +210,7 @@ ulint
 ut_time_ms(void)
 /*============*/
 {
-	struct timeval  tv;
+	struct timeval	tv;
 
 	ut_gettimeofday(&tv, NULL);
 

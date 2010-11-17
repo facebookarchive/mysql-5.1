@@ -18,7 +18,7 @@
 #endif
 
 enum partition_keywords
-{
+{ 
   PKW_HASH= 0, PKW_RANGE, PKW_LIST, PKW_KEY, PKW_MAXVALUE, PKW_LINEAR
 };
 
@@ -169,7 +169,7 @@ private:
   PARTITION_SHARE *share;               /* Shared lock info */
 #endif
 
-  /*
+  /* 
     TRUE <=> this object was created with ha_partition::clone and doesn't
     "own" the m_part_info structure.
   */
@@ -477,7 +477,7 @@ public:
     read_first_row is virtual method but is only implemented by
     handler.cc, no storage engine has implemented it so neither
     will the partition handler.
-
+    
     virtual int read_first_row(uchar *buf, uint primary_key);
   */
 
@@ -877,7 +877,7 @@ public:
 
     The maximum supported values is the minimum of all handlers in the table
   */
-  uint min_of_the_max_uint(uint (handler::*operator_func)(void) const) const;
+  uint min_of_the_max_uint(uint (handler::*operator_func)(void) const) const; 
   virtual uint max_supported_record_length() const;
   virtual uint max_supported_keys() const;
   virtual uint max_supported_key_parts() const;

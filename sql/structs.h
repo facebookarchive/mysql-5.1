@@ -54,7 +54,7 @@ typedef struct st_key_part_info {	/* Info about a key part */
   uint	offset;				/* offset in record (from 0) */
   uint	null_offset;			/* Offset to null_bit in record */
   uint16 length;                        /* Length of keypart value in bytes */
-  /*
+  /* 
     Number of bytes required to store the keypart value. This may be
     different from the "length" field as it also counts
      - possible NULL-flag byte (see HA_KEY_NULL_LENGTH)
@@ -412,7 +412,7 @@ private:
   uint                  elements; // number of elements
   void set_members(Discrete_interval *h, Discrete_interval *t,
                    Discrete_interval *c, uint el)
-  {
+  {  
     head= h;
     tail= t;
     current= c;

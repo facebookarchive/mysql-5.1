@@ -691,13 +691,13 @@ public:
   void deactivate_log_handler(THD* thd, uint log_type);
   bool activate_log_handler(THD* thd, uint log_type);
   MYSQL_QUERY_LOG *get_slow_log_file_handler()
-  {
+  { 
     if (file_log_handler)
       return file_log_handler->get_mysql_slow_log();
     return NULL;
   }
   MYSQL_QUERY_LOG *get_log_file_handler()
-  {
+  { 
     if (file_log_handler)
       return file_log_handler->get_mysql_log();
     return NULL;
