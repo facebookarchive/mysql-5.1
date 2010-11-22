@@ -1260,10 +1260,13 @@ void init_user_stats(USER_STATS *user_stats)
   user_stats->binlog_bytes_written= 0;
   user_stats->bytes_received= 0;
   user_stats->bytes_sent= 0;
+  user_stats->commands_ddl= 0;
   user_stats->commands_delete= 0;
+  user_stats->commands_handler= 0;
   user_stats->commands_insert= 0;
   user_stats->commands_other= 0;
   user_stats->commands_select= 0;
+  user_stats->commands_transaction= 0;
   user_stats->commands_update= 0;
   user_stats->connections_denied_max_global= 0;
   user_stats->connections_denied_max_user= 0;
@@ -1377,28 +1380,31 @@ int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[1]->store(user_conn->user_stats.binlog_bytes_written, TRUE);
     table->field[2]->store(user_conn->user_stats.bytes_received, TRUE);
     table->field[3]->store(user_conn->user_stats.bytes_sent, TRUE);
-    table->field[4]->store(user_conn->user_stats.commands_delete, TRUE);
-    table->field[5]->store(user_conn->user_stats.commands_insert, TRUE);
-    table->field[6]->store(user_conn->user_stats.commands_other, TRUE);
-    table->field[7]->store(user_conn->user_stats.commands_select, TRUE);
-    table->field[8]->store(user_conn->user_stats.commands_update, TRUE);
+    table->field[4]->store(user_conn->user_stats.commands_ddl, TRUE);
+    table->field[5]->store(user_conn->user_stats.commands_delete, TRUE);
+    table->field[6]->store(user_conn->user_stats.commands_handler, TRUE);
+    table->field[7]->store(user_conn->user_stats.commands_insert, TRUE);
+    table->field[8]->store(user_conn->user_stats.commands_other, TRUE);
+    table->field[9]->store(user_conn->user_stats.commands_select, TRUE);
+    table->field[10]->store(user_conn->user_stats.commands_transaction, TRUE);
+    table->field[11]->store(user_conn->user_stats.commands_update, TRUE);
     /* concurrent connections for this user */
-    table->field[9]->store(user_conn->connections, TRUE);
-    table->field[10]->store(user_conn->user_stats.connections_denied_max_global, TRUE);
-    table->field[11]->store(user_conn->user_stats.connections_denied_max_user, TRUE);
-    table->field[12]->store(user_conn->user_stats.connections_lost, TRUE);
-    table->field[13]->store(user_conn->user_stats.connections_total, TRUE);
-    table->field[14]->store(user_conn->user_stats.errors_access_denied, TRUE);
-    table->field[15]->store(user_conn->user_stats.microseconds_cpu, TRUE);
-    table->field[16]->store(user_conn->user_stats.microseconds_wall, TRUE);
-    table->field[17]->store(user_conn->user_stats.queries_empty, TRUE);
-    table->field[18]->store(user_conn->user_stats.rows_deleted, TRUE);
-    table->field[19]->store(user_conn->user_stats.rows_fetched, TRUE);
-    table->field[20]->store(user_conn->user_stats.rows_inserted, TRUE);
-    table->field[21]->store(user_conn->user_stats.rows_read, TRUE);
-    table->field[22]->store(user_conn->user_stats.rows_updated, TRUE);
-    table->field[23]->store(user_conn->user_stats.transactions_commit, TRUE);
-    table->field[24]->store(user_conn->user_stats.transactions_rollback, TRUE);
+    table->field[12]->store(user_conn->connections, TRUE);
+    table->field[13]->store(user_conn->user_stats.connections_denied_max_global, TRUE);
+    table->field[14]->store(user_conn->user_stats.connections_denied_max_user, TRUE);
+    table->field[15]->store(user_conn->user_stats.connections_lost, TRUE);
+    table->field[16]->store(user_conn->user_stats.connections_total, TRUE);
+    table->field[17]->store(user_conn->user_stats.errors_access_denied, TRUE);
+    table->field[18]->store(user_conn->user_stats.microseconds_cpu, TRUE);
+    table->field[19]->store(user_conn->user_stats.microseconds_wall, TRUE);
+    table->field[20]->store(user_conn->user_stats.queries_empty, TRUE);
+    table->field[21]->store(user_conn->user_stats.rows_deleted, TRUE);
+    table->field[22]->store(user_conn->user_stats.rows_fetched, TRUE);
+    table->field[23]->store(user_conn->user_stats.rows_inserted, TRUE);
+    table->field[24]->store(user_conn->user_stats.rows_read, TRUE);
+    table->field[25]->store(user_conn->user_stats.rows_updated, TRUE);
+    table->field[26]->store(user_conn->user_stats.transactions_commit, TRUE);
+    table->field[27]->store(user_conn->user_stats.transactions_rollback, TRUE);
 
     if (schema_table_store_record(thd, table))
     {

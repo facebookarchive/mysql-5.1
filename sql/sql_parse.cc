@@ -36,6 +36,7 @@ double fb_libmcc_usecs = 0;
 #include "sp_cache.h"
 #include "events.h"
 #include "sql_trigger.h"
+#include "my_atomic.h"
 
 /**
   @defgroup Runtime_Environment Runtime Environment
@@ -1755,7 +1756,19 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
      slave as that runs a long time. */
   if (command != COM_BINLOG_DUMP)
   {
-    thd->status_var.command_seconds += my_fast_timer_diff_now(&init_timer, &last_timer);
+    double wall_seconds = my_fast_timer_diff_now(&init_timer, &last_timer);
+    thd->status_var.command_seconds += wall_seconds;
+
+    if (thd->user_connect)
+    {
+      USER_STATS *us= &(thd->user_connect->user_stats);
+      my_atomic_add_bigint(&(us->microseconds_wall),
+                           (my_atomic_bigint) (wall_seconds * 1000000));
+
+      /* COM_QUERY is counted in mysql_execute_command */
+      if (command != COM_QUERY)
+        my_atomic_add_bigint(&(us->commands_other), 1);
+    }
   }
   DBUG_RETURN(error);
 }
@@ -2431,6 +2444,61 @@ mysql_execute_command(THD *thd, my_fast_timer_t *last_timer)
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
 
   DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
+
+  /* Count commands by type. Uses a separate switch statement as I don't want to
+     repeat the increment of commands_other in so many cases.
+  */
+ 
+  if (thd->user_connect)
+  {
+    USER_STATS *us= &(thd->user_connect->user_stats);
+
+    switch (lex->sql_command) {
+    case SQLCOM_UPDATE:
+    case SQLCOM_UPDATE_MULTI:
+      my_atomic_add_bigint(&(us->commands_update), 1);
+      break;
+    case SQLCOM_DELETE:
+    case SQLCOM_DELETE_MULTI:
+    case SQLCOM_TRUNCATE:
+      my_atomic_add_bigint(&(us->commands_delete), 1);
+      break;
+    case SQLCOM_INSERT:
+    case SQLCOM_INSERT_SELECT:
+    case SQLCOM_REPLACE:
+    case SQLCOM_REPLACE_SELECT:
+    case SQLCOM_LOAD:
+      my_atomic_add_bigint(&(us->commands_insert), 1);
+      break;
+    case SQLCOM_SELECT:
+      my_atomic_add_bigint(&(us->commands_select), 1);
+      break;
+    case SQLCOM_CREATE_TABLE:
+    case SQLCOM_ALTER_TABLE:
+    case SQLCOM_DROP_TABLE:
+    case SQLCOM_CREATE_INDEX:
+    case SQLCOM_DROP_INDEX:
+    case SQLCOM_CREATE_DB:
+    case SQLCOM_DROP_DB:
+    case SQLCOM_ALTER_DB:
+      my_atomic_add_bigint(&(us->commands_ddl), 1);
+      break;
+    case SQLCOM_BEGIN:
+    case SQLCOM_COMMIT:
+    case SQLCOM_ROLLBACK:
+      my_atomic_add_bigint(&(us->commands_transaction), 1);
+      break;
+    case SQLCOM_HA_CLOSE:
+    case SQLCOM_HA_OPEN:
+    case SQLCOM_HA_READ:
+    case SQLCOM_HA_OPEN_READ_CLOSE:
+      my_atomic_add_bigint(&(us->commands_handler), 1);
+      break;
+    default:
+      my_atomic_add_bigint(&(us->commands_other), 1);
+      break;
+    }
+  }
   
   switch (lex->sql_command) {
 

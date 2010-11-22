@@ -214,10 +214,13 @@ typedef struct st_user_stats {
   my_atomic_bigint bytes_received;
   my_atomic_bigint bytes_sent;
   my_atomic_bigint binlog_bytes_written;
+  my_atomic_bigint commands_ddl;
   my_atomic_bigint commands_delete;
+  my_atomic_bigint commands_handler;
   my_atomic_bigint commands_insert;
   my_atomic_bigint commands_other;
   my_atomic_bigint commands_select;
+  my_atomic_bigint commands_transaction;
   my_atomic_bigint commands_update;
   my_atomic_bigint connections_denied_max_global; // global limit exceeded
   my_atomic_bigint connections_denied_max_user;   // per user limit exceeded
