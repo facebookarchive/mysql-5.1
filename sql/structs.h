@@ -236,6 +236,11 @@ typedef struct st_user_stats {
   my_atomic_bigint rows_inserted;
   my_atomic_bigint rows_read;
   my_atomic_bigint rows_updated;
+
+  /* see variables of same name in ha_statistics */
+  my_atomic_bigint volatile rows_index_first;
+  my_atomic_bigint volatile rows_index_next;
+
   my_atomic_bigint transactions_commit;
   my_atomic_bigint transactions_rollback;
   uint magic;
@@ -301,6 +306,7 @@ typedef struct st_table_stats {
   char hash_key[NAME_LEN * 2 + 2];
   int hash_key_len;          /* table->s->key_length for the table */
 
+  /* TODO(mcallaghan): why are these volatile? */
   volatile my_atomic_bigint rows_inserted;   /* Number of rows inserted */
   volatile my_atomic_bigint rows_updated;    /* Number of rows updated */
   volatile my_atomic_bigint rows_deleted;    /* Number of rows deleted */
@@ -308,6 +314,11 @@ typedef struct st_table_stats {
   volatile my_atomic_bigint rows_requested;  /* Number of row read attempts for
                                         this table.  This counts requests
                                          that do not return a row. */
+
+  /* See variables of same name in ha_statistics */
+  my_atomic_bigint volatile rows_index_first;
+  my_atomic_bigint volatile rows_index_next;
+
   my_io_perf_t io_perf_read;         /* Read IO performance counters */
   my_io_perf_t io_perf_write;        /* Write IO performance counters */
   volatile my_atomic_bigint index_inserts;  /* Number of secondary index inserts. */
@@ -321,11 +332,6 @@ reset_all_user_stats();
 /* Intialize an instance of USER_STATS */
 extern void
 init_user_stats(USER_STATS *user_stats);
-
-/* Increment values of an instance of 'to' from the values in 'from' and clear 'from' */
-extern void
-copy_user_stats(USER_STATS *to, USER_STATS *from);
-
 
 	/* Bits in form->update */
 #define REG_MAKE_DUPP		1	/* Make a copy of record when read */

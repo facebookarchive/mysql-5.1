@@ -85,6 +85,8 @@ get_table_stats(TABLE *table, handlerton *engine_type)
     table_stats->rows_deleted= 0;
     table_stats->rows_read= 0;
     table_stats->rows_requested= 0;
+    table_stats->rows_index_first= 0;
+    table_stats->rows_index_next= 0;
     table_stats->engine_type= engine_type;
     my_io_perf_init(&table_stats->io_perf_read);
     my_io_perf_init(&table_stats->io_perf_write);
@@ -145,6 +147,8 @@ void reset_global_table_stats()
     table_stats->rows_deleted= 0;
     table_stats->rows_read= 0;
     table_stats->rows_requested= 0;
+    table_stats->rows_index_first= 0;
+    table_stats->rows_index_next= 0;
     my_io_perf_init(&table_stats->io_perf_read);
     my_io_perf_init(&table_stats->io_perf_write);
     table_stats->index_inserts = 0;
@@ -163,6 +167,9 @@ ST_FIELD_INFO table_stats_fields_info[]=
   {"ROWS_DELETED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
   {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
   {"ROWS_REQUESTED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+
+  {"ROWS_INDEX_FIRST", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"ROWS_INDEX_NEXT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
 
   {"IO_READ_BYTES", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
   {"IO_READ_REQUESTS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
@@ -193,6 +200,8 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
   pthread_mutex_lock(&LOCK_global_table_stats);
 
   for (unsigned i = 0; i < global_table_stats.records; ++i) {
+    int f= 0;
+
     TABLE_STATS *table_stats =
       (TABLE_STATS*)hash_element(&global_table_stats, i);
 
@@ -206,38 +215,41 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     }
 
     restore_record(table, s->default_values);
-    table->field[0]->store(table_stats->db, strlen(table_stats->db),
+    table->field[f++]->store(table_stats->db, strlen(table_stats->db),
                            system_charset_info);
-    table->field[1]->store(table_stats->table, strlen(table_stats->table),
-                           system_charset_info);
+    table->field[f++]->store(table_stats->table, strlen(table_stats->table),
+                             system_charset_info);
 
     // TODO -- this can be optimized in the future
     const char* engine= ha_resolve_storage_engine_name(table_stats->engine_type);
-    table->field[2]->store(engine, strlen(engine), system_charset_info);
+    table->field[f++]->store(engine, strlen(engine), system_charset_info);
 
-    table->field[3]->store(table_stats->rows_inserted, TRUE);
-    table->field[4]->store(table_stats->rows_updated, TRUE);
-    table->field[5]->store(table_stats->rows_deleted, TRUE);
-    table->field[6]->store(table_stats->rows_read, TRUE);
-    table->field[7]->store(table_stats->rows_requested, TRUE);
+    table->field[f++]->store(table_stats->rows_inserted, TRUE);
+    table->field[f++]->store(table_stats->rows_updated, TRUE);
+    table->field[f++]->store(table_stats->rows_deleted, TRUE);
+    table->field[f++]->store(table_stats->rows_read, TRUE);
+    table->field[f++]->store(table_stats->rows_requested, TRUE);
 
-    table->field[8]->store(table_stats->io_perf_read.bytes, TRUE);
-    table->field[9]->store(table_stats->io_perf_read.requests, TRUE);
-    table->field[10]->store(table_stats->io_perf_read.svc_usecs, TRUE);
-    table->field[11]->store(table_stats->io_perf_read.svc_usecs_max, TRUE);
-    table->field[12]->store(table_stats->io_perf_read.wait_usecs, TRUE);
-    table->field[13]->store(table_stats->io_perf_read.wait_usecs_max, TRUE);
-    table->field[14]->store(table_stats->io_perf_read.old_ios, TRUE);
+    table->field[f++]->store(table_stats->rows_index_first, TRUE);
+    table->field[f++]->store(table_stats->rows_index_next, TRUE);
 
-    table->field[15]->store(table_stats->io_perf_write.bytes, TRUE);
-    table->field[16]->store(table_stats->io_perf_write.requests, TRUE);
-    table->field[17]->store(table_stats->io_perf_write.svc_usecs, TRUE);
-    table->field[18]->store(table_stats->io_perf_write.svc_usecs_max, TRUE);
-    table->field[19]->store(table_stats->io_perf_write.wait_usecs, TRUE);
-    table->field[20]->store(table_stats->io_perf_write.wait_usecs_max, TRUE);
-    table->field[21]->store(table_stats->io_perf_write.old_ios, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read.bytes, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read.requests, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read.svc_usecs, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read.svc_usecs_max, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read.wait_usecs, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read.wait_usecs_max, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read.old_ios, TRUE);
 
-    table->field[22]->store(table_stats->index_inserts, TRUE);
+    table->field[f++]->store(table_stats->io_perf_write.bytes, TRUE);
+    table->field[f++]->store(table_stats->io_perf_write.requests, TRUE);
+    table->field[f++]->store(table_stats->io_perf_write.svc_usecs, TRUE);
+    table->field[f++]->store(table_stats->io_perf_write.svc_usecs_max, TRUE);
+    table->field[f++]->store(table_stats->io_perf_write.wait_usecs, TRUE);
+    table->field[f++]->store(table_stats->io_perf_write.wait_usecs_max, TRUE);
+    table->field[f++]->store(table_stats->io_perf_write.old_ios, TRUE);
+
+    table->field[f++]->store(table_stats->index_inserts, TRUE);
 
     if (schema_table_store_record(thd, table))
     {
@@ -306,6 +318,8 @@ ST_FIELD_INFO user_stats_fields_info[]=
   {"ROWS_INSERTED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
   {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
   {"ROWS_UPDATED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"ROWS_INDEX_FIRST", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"ROWS_INDEX_NEXT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
   {"TRANSACTIONS_COMMIT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
   {"TRANSACTIONS_ROLLBACK", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}

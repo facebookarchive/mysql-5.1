@@ -5918,6 +5918,7 @@ ha_innobase::index_read(
 		error = 0;
 		table->status = 0;
 		stats.rows_read++;
+		stats.rows_index_first++;
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
@@ -6129,6 +6130,7 @@ ha_innobase::general_fetch(
 		error = 0;
 		table->status = 0;
 		stats.rows_read++;
+		stats.rows_index_next++;
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
@@ -6316,6 +6318,11 @@ ha_innobase::rnd_next(
 		start_of_scan = 0;
 	} else {
 		error = general_fetch(buf, ROW_SEL_NEXT, 0);
+		if (!error) {
+			/* rows_index_next only counts index scans and this
+			is a table scan. undo the increment. */
+			stats.rows_index_next--;
+		}
 	}
 
 	DBUG_RETURN(error);

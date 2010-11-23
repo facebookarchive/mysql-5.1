@@ -2183,6 +2183,7 @@ void ha_statistics::reset_table_stats()
 {
   rows_inserted = rows_updated = rows_deleted = 0;
   rows_read = rows_requested = index_inserts = 0;
+  rows_index_first = rows_index_next = 0;
   my_io_perf_init(&table_io_perf_read);
   my_io_perf_init(&table_io_perf_write);
 }
@@ -4506,6 +4507,8 @@ void handler::update_global_table_stats(THD *thd)
     my_io_perf_sum_atomic_helper(&table_stats->io_perf_write,
                                  &stats.table_io_perf_write);
     my_atomic_add_bigint(&table_stats->index_inserts, stats.index_inserts);
+    my_atomic_add_bigint(&table_stats->rows_index_first, stats.rows_index_first);
+    my_atomic_add_bigint(&table_stats->rows_index_next, stats.rows_index_next);
   }
 
   if (thd)
@@ -4521,6 +4524,8 @@ void handler::update_global_table_stats(THD *thd)
     thd->rows_updated += stats.rows_updated;
     thd->rows_inserted += stats.rows_inserted;
     thd->rows_read += stats.rows_read;
+    thd->rows_index_first += stats.rows_index_first;
+    thd->rows_index_next += stats.rows_index_next;
   }
 
   stats.reset_table_stats();

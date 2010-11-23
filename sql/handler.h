@@ -1083,6 +1083,10 @@ public:
   my_io_perf_t table_io_perf_write;/* per table IO perf counters */
   my_atomic_bigint index_inserts;   /* per table secondary index inserts */
 
+  /* Count row reads by access type */
+  my_atomic_bigint volatile rows_index_first; /* first read of a row on an index scan */
+  my_atomic_bigint volatile rows_index_next;  /* reads after first on an index scan */
+
   ha_statistics():
     data_file_length(0), max_data_file_length(0),
     index_file_length(0), delete_length(0), auto_increment_value(0),

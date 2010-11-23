@@ -1283,82 +1283,11 @@ void init_user_stats(USER_STATS *user_stats)
   user_stats->rows_inserted= 0;
   user_stats->rows_read= 0;
   user_stats->rows_updated= 0;
+  user_stats->rows_index_first= 0;
+  user_stats->rows_index_next= 0;
   user_stats->transactions_commit= 0;
   user_stats->transactions_rollback= 0;
   user_stats->magic = USER_STATS_MAGIC;
-  DBUG_VOID_RETURN;
-}
-
-void copy_user_stats(USER_STATS *to, USER_STATS *from)
-{
-  DBUG_ENTER("add_user_stats");
-
-  DBUG_ASSERT(from->magic == USER_STATS_MAGIC);
-  DBUG_ASSERT(to->magic == USER_STATS_MAGIC);
-
-  my_atomic_add_bigint(&(to->binlog_bytes_written), from->binlog_bytes_written);
-  from->binlog_bytes_written= 0;
-
-  my_atomic_add_bigint(&(to->bytes_received), from->bytes_received);
-  from->bytes_received= 0;
-
-  my_atomic_add_bigint(&(to->bytes_sent), from->bytes_sent);
-  from->bytes_sent= 0;
-
-  my_atomic_add_bigint(&(to->commands_delete), from->commands_delete);
-  from->commands_delete= 0;
-
-  my_atomic_add_bigint(&(to->commands_insert), from->commands_insert);
-  from->commands_insert= 0;
-
-  my_atomic_add_bigint(&(to->commands_other), from->commands_other);
-  from->commands_other= 0;
-
-  my_atomic_add_bigint(&(to->commands_select), from->commands_select);
-  from->commands_select= 0;
-
-  my_atomic_add_bigint(&(to->commands_update), from->commands_update);
-  from->commands_update= 0;
-
-  my_atomic_add_bigint(&(to->connections_lost), from->connections_lost);
-  from->connections_lost= 0;
-
-  my_atomic_add_bigint(&(to->connections_total), from->connections_total);
-  from->connections_total= 0;
-
-  my_atomic_add_bigint(&(to->errors_access_denied), from->errors_access_denied);
-  from->errors_access_denied= 0;
-
-  my_atomic_add_bigint(&(to->microseconds_cpu), from->microseconds_cpu);
-  from->microseconds_cpu= 0;
-
-  my_atomic_add_bigint(&(to->microseconds_wall), from->microseconds_wall);
-  from->microseconds_wall= 0;
-
-  my_atomic_add_bigint(&(to->queries_empty), from->queries_empty);
-  from->queries_empty= 0;
-
-  my_atomic_add_bigint(&(to->rows_deleted), from->rows_deleted);
-  from->rows_deleted= 0;
-
-  my_atomic_add_bigint(&(to->rows_fetched), from->rows_fetched);
-  from->rows_fetched= 0;
-
-  my_atomic_add_bigint(&(to->rows_inserted), from->rows_inserted);
-  from->rows_inserted= 0;
-
-  my_atomic_add_bigint(&(to->rows_read), from->rows_read);
-  from->rows_read= 0;
-
-  my_atomic_add_bigint(&(to->rows_updated), from->rows_updated);
-  from->rows_updated= 0;
-
-  my_atomic_add_bigint(&(to->transactions_commit), from->transactions_commit);
-  from->transactions_commit= 0;
-
-  my_atomic_add_bigint(&(to->transactions_rollback), from->transactions_rollback);
-  from->transactions_rollback= 0;
-
   DBUG_VOID_RETURN;
 }
 
@@ -1412,6 +1341,8 @@ int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[f++]->store(us->rows_inserted, TRUE);
     table->field[f++]->store(us->rows_read, TRUE);
     table->field[f++]->store(us->rows_updated, TRUE);
+    table->field[f++]->store(us->rows_index_first, TRUE);
+    table->field[f++]->store(us->rows_index_next, TRUE);
     table->field[f++]->store(us->transactions_commit, TRUE);
     table->field[f++]->store(us->transactions_rollback, TRUE);
 

@@ -1674,6 +1674,7 @@ int ha_myisam::index_read_map(uchar *buf, const uchar *key,
   {
     table->status= 0;
     stats.rows_read++;
+    stats.rows_index_first++;
   }
   stats.rows_requested++;
   return error;
@@ -1693,6 +1694,7 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
   {
     table->status= 0;
     stats.rows_read++;
+    stats.rows_index_first++;
   }
   stats.rows_requested++;
   return error;
@@ -1714,6 +1716,7 @@ int ha_myisam::index_read_last_map(uchar *buf, const uchar *key,
   {
     table->status= 0;
     stats.rows_read++;
+    stats.rows_index_first++;
   }
   stats.rows_requested++;
   DBUG_RETURN(error);
@@ -1732,6 +1735,7 @@ int ha_myisam::index_next(uchar *buf)
   {
     table->status= 0;
     stats.rows_read++;
+    stats.rows_index_next++;
   }
   stats.rows_requested++;
   return error;
@@ -1750,6 +1754,7 @@ int ha_myisam::index_prev(uchar *buf)
   {
     table->status= 0;
     stats.rows_read++;
+    stats.rows_index_next++;
   }
   stats.rows_requested++;
   return error;
@@ -1768,6 +1773,7 @@ int ha_myisam::index_first(uchar *buf)
   {
     table->status= 0;
     stats.rows_read++;
+    stats.rows_index_first++;
   }
   stats.rows_requested++;
   return error;
@@ -1786,6 +1792,7 @@ int ha_myisam::index_last(uchar *buf)
   {
     table->status= 0;
     stats.rows_read++;
+    stats.rows_index_first++;
   }
   stats.rows_requested++;
   return error;
@@ -1810,6 +1817,7 @@ int ha_myisam::index_next_same(uchar *buf,
   {
     table->status= 0;
     stats.rows_read++;
+    stats.rows_index_next++;
   }
   stats.rows_requested++;
   return error;

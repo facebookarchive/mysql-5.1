@@ -1460,8 +1460,12 @@ public:
   my_atomic_bigint rows_read;
   /* my_atomic_bigint rows_fetched; TODO(mcallaghan) */
 
+  my_atomic_bigint rows_index_first;
+  my_atomic_bigint rows_index_next;
+
   inline void reset_user_stats_counters() {
     rows_deleted = rows_updated = rows_inserted = rows_read = 0;
+    rows_index_first = rows_index_next = 0;
   }
   
   thr_lock_type update_lock_default;

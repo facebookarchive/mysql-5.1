@@ -1785,6 +1785,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_atomic_add_bigint(&(us->rows_inserted), thd->rows_inserted);
       my_atomic_add_bigint(&(us->rows_read), thd->rows_read);
 
+      my_atomic_add_bigint(&(us->rows_index_first), thd->rows_index_first);
+      my_atomic_add_bigint(&(us->rows_index_next), thd->rows_index_next);
+
       end_perf_read = thd->io_perf_read;
       
       my_io_perf_diff(&diff_io_perf, &end_perf_read, &start_perf_read);
