@@ -71,6 +71,40 @@ void my_io_perf_sum(my_io_perf_t* sum, const my_io_perf_t* perf)
 }
 
 /**********************************************************************
+Return a - b in diff */
+void my_io_perf_diff(my_io_perf_t* diff,
+                    const my_io_perf_t* a, const my_io_perf_t* b)
+{
+  if (a->bytes > b->bytes)
+    diff->bytes = a->bytes - b->bytes;
+  else
+    diff->bytes = 0;
+
+  if (a->requests > b->requests)
+    diff->requests = a->requests - b->requests;
+  else
+    diff->requests = 0;
+
+  if (a->svc_usecs > b->svc_usecs)
+    diff->svc_usecs = a->svc_usecs - b->svc_usecs;
+  else
+    diff->svc_usecs = 0;
+
+  if (a->wait_usecs > b->wait_usecs)
+    diff->wait_usecs = a->wait_usecs - b->wait_usecs;
+  else
+    diff->wait_usecs = 0;
+
+  if (a->old_ios > b->old_ios)
+    diff->old_ios = a->old_ios - b->old_ios;
+  else
+    diff->old_ios = 0;
+
+  diff->svc_usecs_max = max(a->svc_usecs_max, b->svc_usecs_max);
+  diff->wait_usecs_max = max(a->wait_usecs_max, b->wait_usecs_max);
+}
+
+/**********************************************************************
 Accumulate per-table IO stats helper function using atomic ops */
 void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
     longlong requests, longlong svc_usecs, longlong wait_usecs,

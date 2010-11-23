@@ -4516,6 +4516,11 @@ void handler::update_global_table_stats(THD *thd)
     thd->status_var.read_requests = thd->io_perf_read.requests;
     thd->status_var.read_seconds =
       ulonglong2double(thd->io_perf_read.svc_usecs)/1000000.0;
+
+    thd->rows_deleted += stats.rows_deleted;
+    thd->rows_updated += stats.rows_updated;
+    thd->rows_inserted += stats.rows_inserted;
+    thd->rows_read += stats.rows_read;
   }
 
   stats.reset_table_stats();

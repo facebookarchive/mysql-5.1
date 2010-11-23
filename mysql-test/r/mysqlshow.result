@@ -109,14 +109,15 @@ Database: information_schema
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
 | VIEWS                                 |
-| INNODB_CMP_RESET                      |
+| INNODB_FILE_STATUS                    |
 | INNODB_TRX                            |
 | INNODB_CMPMEM_RESET                   |
 | INNODB_LOCK_WAITS                     |
 | INNODB_CMPMEM                         |
 | INNODB_CMP                            |
-| INNODB_FILE_STATUS                    |
+| XTRADB_ADMIN_COMMAND                  |
 | INNODB_LOCKS                          |
+| INNODB_CMP_RESET                      |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -152,14 +153,15 @@ Database: INFORMATION_SCHEMA
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
 | VIEWS                                 |
-| INNODB_CMP_RESET                      |
+| INNODB_FILE_STATUS                    |
 | INNODB_TRX                            |
 | INNODB_CMPMEM_RESET                   |
 | INNODB_LOCK_WAITS                     |
 | INNODB_CMPMEM                         |
 | INNODB_CMP                            |
-| INNODB_FILE_STATUS                    |
+| XTRADB_ADMIN_COMMAND                  |
 | INNODB_LOCKS                          |
+| INNODB_CMP_RESET                      |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

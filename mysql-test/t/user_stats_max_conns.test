@@ -37,12 +37,15 @@ connect (muc4, localhost, mysqltest_1,,);
 --error ER_USER_LIMIT_REACHED
 connect (muc5, localhost, mysqltest_1,,);
 
+connection default;
+let $count_sessions= 5;
+--source include/wait_until_count_sessions.inc
+
 select connections_denied_max_global, connections_denied_max_user
 from information_schema.user_statistics
 where user_name = 'mysqltest_1';
 
 # Clean up
-connection default;
 disconnect muc1;
 disconnect muc2;
 disconnect muc3;
@@ -72,8 +75,9 @@ order by user_name;
 --error ER_TOO_MANY_USER_CONNECTIONS
 connect (muca3, localhost, mysqltest_2,,);
 
-# Cleanup
 connection default;
+let $count_sessions= 3;
+--source include/wait_until_count_sessions.inc
 
 select connections_denied_max_global, connections_denied_max_user
 from information_schema.user_statistics

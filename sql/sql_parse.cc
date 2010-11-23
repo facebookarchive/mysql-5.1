@@ -1037,6 +1037,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   NET *net= &thd->net;
   bool error= 0;
   my_fast_timer_t init_timer, last_timer;
+  my_io_perf_t start_perf_read;   /* for USER_STATISTICS */
+
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
@@ -1087,6 +1089,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thread_running++;
   /* TODO: set thd->lex->sql_command to SQLCOM_END here */
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
+
+  thd->reset_user_stats_counters();
+
+  /* The vars in THD are per-session. We need per-statement values.
+     The per-session var is read now and diffed later.
+  */
+  start_perf_read = thd->io_perf_read;
 
   /**
     Clear the set of flags that are expected to be cleared at the
@@ -1762,12 +1771,24 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (thd->user_connect)
     {
       USER_STATS *us= &(thd->user_connect->user_stats);
+      my_io_perf_t end_perf_read, diff_io_perf;
+
       my_atomic_add_bigint(&(us->microseconds_wall),
                            (my_atomic_bigint) (wall_seconds * 1000000));
 
       /* COM_QUERY is counted in mysql_execute_command */
       if (command != COM_QUERY)
         my_atomic_add_bigint(&(us->commands_other), 1);
+
+      my_atomic_add_bigint(&(us->rows_updated), thd->rows_updated);
+      my_atomic_add_bigint(&(us->rows_deleted), thd->rows_deleted);
+      my_atomic_add_bigint(&(us->rows_inserted), thd->rows_inserted);
+      my_atomic_add_bigint(&(us->rows_read), thd->rows_read);
+
+      end_perf_read = thd->io_perf_read;
+      
+      my_io_perf_diff(&diff_io_perf, &end_perf_read, &start_perf_read);
+      my_io_perf_sum_atomic_helper(&(us->io_perf_read), &diff_io_perf);
     }
   }
   DBUG_RETURN(error);

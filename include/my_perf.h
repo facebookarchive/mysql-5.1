@@ -114,6 +114,10 @@ void my_io_perf_init(my_io_perf_t* perf);
 /* Accumulates io perf values */
 void my_io_perf_sum(my_io_perf_t* sum, const my_io_perf_t* perf);
 
+/* Returns a - b in diff */
+void my_io_perf_diff(my_io_perf_t* diff,
+                     const my_io_perf_t* a, const my_io_perf_t* b);
+
 /* Accumulates io perf values using atomic operations */
 void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
     longlong requests, longlong svc_usecs, longlong wait_usecs,

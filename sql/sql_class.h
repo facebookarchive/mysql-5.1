@@ -1450,6 +1450,19 @@ public:
 
   my_io_perf_t io_perf_read;/* IO perf counters for slow query log */
   my_io_perf_t io_perf_write;/* IO perf counters for slow query log */
+
+  /* Counters for information_schema.USER_STATISTICS.
+     Set to 0 at statement start
+  */
+  my_atomic_bigint rows_deleted;
+  my_atomic_bigint rows_updated;
+  my_atomic_bigint rows_inserted;
+  my_atomic_bigint rows_read;
+  /* my_atomic_bigint rows_fetched; TODO(mcallaghan) */
+
+  inline void reset_user_stats_counters() {
+    rows_deleted = rows_updated = rows_inserted = rows_read = 0;
+  }
   
   thr_lock_type update_lock_default;
   Delayed_insert *di;

@@ -211,6 +211,7 @@ typedef struct user_resources {
 */
 
 typedef struct st_user_stats {
+  my_io_perf_t     io_perf_read;
   my_atomic_bigint bytes_received;
   my_atomic_bigint bytes_sent;
   my_atomic_bigint binlog_bytes_written;
