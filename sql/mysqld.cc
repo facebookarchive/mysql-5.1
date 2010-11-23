@@ -69,6 +69,8 @@
 #include <poll.h>
 #endif
 
+#include "my_atomic.h"
+
 #define mysqld_charset &my_charset_latin1
 
 #ifdef HAVE_purify
@@ -3010,6 +3012,9 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
     if (thd->handle_error(error, str,
                           MYSQL_ERROR::WARN_LEVEL_ERROR))
       DBUG_RETURN(0);
+
+    if (thd->user_connect) 
+      my_atomic_add_bigint(&(thd->user_connect->user_stats.errors_total), 1);
 
     thd->is_slave_error=  1; // needed to catch query errors during replication
 

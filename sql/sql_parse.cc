@@ -6496,6 +6496,13 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     *found_semicolon= NULL;
   }
 
+  if (thd->user_connect)
+  {
+    USER_STATS *us= &(thd->user_connect->user_stats);
+    my_atomic_add_bigint(&(us->rows_fetched),
+                         (my_atomic_bigint) thd->sent_row_count);
+  }
+
   DBUG_VOID_RETURN;
 }
 

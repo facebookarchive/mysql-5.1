@@ -1275,6 +1275,7 @@ void init_user_stats(USER_STATS *user_stats)
   user_stats->connections_lost= 0;
   user_stats->connections_total= 0;
   user_stats->errors_access_denied= 0;
+  user_stats->errors_total= 0;
   user_stats->microseconds_cpu= 0;
   user_stats->microseconds_wall= 0;
   user_stats->queries_empty= 0;
@@ -1333,6 +1334,7 @@ int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[f++]->store(us->io_perf_read.wait_usecs, TRUE);
 
     table->field[f++]->store(us->errors_access_denied, TRUE);
+    table->field[f++]->store(us->errors_total, TRUE);
     table->field[f++]->store(us->microseconds_cpu, TRUE);
     table->field[f++]->store(us->microseconds_wall, TRUE);
     table->field[f++]->store(us->queries_empty, TRUE);
