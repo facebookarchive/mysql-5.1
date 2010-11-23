@@ -434,6 +434,12 @@ extern ulint srv_n_rollback_total;
 /** Number of partial rollbacks */
 extern ulint srv_n_rollback_partial;
 
+/** Number of times secondary index block visibility check returned TRUE */
+extern ulint srv_sec_rec_read_sees;
+
+/** Number of times secondary index block visibility check was done */
+extern ulint srv_sec_rec_read_check;
+
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
 
@@ -882,6 +888,9 @@ struct export_var_struct{
 
 	ulint innodb_lru_restore_loaded_pages;	/*!< srv_lru_restore_loaded_pages */
 	ulint innodb_lru_restore_total_pages;	/*!< srv_lru_restore_total_pages */
+
+	ulint innodb_sec_rec_read_sees;		/*!< srv_sec_rec_read_sees */
+	ulint innodb_sec_rec_read_check;	/*!< srv_sec_rec_read_check */
 };
 
 /** The server system struct */

@@ -543,6 +543,7 @@ lock_sec_rec_cons_read_sees(
 	const read_view_t*	view)	/*!< in: consistent read view */
 {
 	trx_id_t	max_trx_id;
+	ulint		result;
 
 	ut_ad(page_rec_is_user_rec(rec));
 
@@ -558,7 +559,13 @@ lock_sec_rec_cons_read_sees(
 	max_trx_id = page_get_max_trx_id(page_align(rec));
 	ut_ad(!ut_dulint_is_zero(max_trx_id));
 
-	return(ut_dulint_cmp(max_trx_id, view->up_limit_id) < 0);
+	result = (ut_dulint_cmp(max_trx_id, view->up_limit_id) < 0);
+	ut_ad(result == 1 || result == 0);
+
+	srv_sec_rec_read_check++;
+	srv_sec_rec_read_sees += result;
+
+	return result;
 }
 
 /*********************************************************************//**

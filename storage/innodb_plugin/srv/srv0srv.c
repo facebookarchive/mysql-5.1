@@ -622,6 +622,12 @@ ulint	srv_n_commit_with_undo	= 0;
 ulint	srv_n_rollback_total	= 0;
 ulint	srv_n_rollback_partial	= 0;
 
+/** Number of times secondary index block visibility check returned TRUE */
+ulint	srv_sec_rec_read_sees	= 0;
+
+/** Number of times secondary index block visibility check was done */
+ulint	srv_sec_rec_read_check	= 0;
+
 /* This is only ever touched by the master thread. It records the
 time when the last flush of log file has happened. The master
 thread ensures that we flush the log files at least once per
@@ -2376,6 +2382,9 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_lru_restore_loaded_pages = srv_lru_restore_loaded_pages;
 	export_vars.innodb_lru_restore_total_pages = srv_lru_restore_total_pages;
+
+	export_vars.innodb_sec_rec_read_sees = srv_sec_rec_read_sees;
+	export_vars.innodb_sec_rec_read_check = srv_sec_rec_read_check;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
