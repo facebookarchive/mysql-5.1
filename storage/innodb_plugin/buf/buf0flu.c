@@ -1497,7 +1497,8 @@ buf_flush_LRU_recommendation(
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while ((bpage != NULL)
-	       && (n_replaceable < n_needed)
+	       && (n_replaceable < BUF_FLUSH_FREE_BLOCK_MARGIN
+		   + BUF_FLUSH_EXTRA_MARGIN)
 	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
 
 		mutex_t* block_mutex = buf_page_get_mutex(bpage);
@@ -1517,12 +1518,13 @@ buf_flush_LRU_recommendation(
 
 	buf_pool_mutex_exit();
 
-	if (n_replaceable >= n_needed) {
+	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN) {
 
 		return(0);
 	}
 
-	return(n_needed + BUF_FLUSH_EXTRA_MARGIN - n_replaceable);
+	return(BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN
+	       - n_replaceable);
 }
 
 /*********************************************************************//**
