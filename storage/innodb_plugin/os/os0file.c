@@ -238,6 +238,21 @@ UNIV_INTERN ulint	os_n_pending_writes = 0;
 /** Number of pending read operations */
 UNIV_INTERN ulint	os_n_pending_reads = 0;
 
+UNIV_INLINE
+void
+check_symlink(
+/*==========*/
+	const char** name,
+	char* real_path,
+	size_t real_path_size)
+{
+	int ret = readlink(*name, real_path, real_path_size - 1);
+	if (ret != -1) {
+		*(real_path + ret) = '\0';
+		*name = real_path;
+	}
+}
+
 /***********************************************************************//**
 Update wait stats for my_io_perf_t for all blocks after the first block in
 a merged request. */
@@ -1223,6 +1238,8 @@ os_file_create_simple_no_error_handling(
 	int		create_flag;
 
 	ut_a(name);
+	char real_path[PATH_MAX];
+	check_symlink(&name, real_path, PATH_MAX);
 
 	if (create_mode == OS_FILE_OPEN) {
 		if (access_type == OS_FILE_READ_ONLY) {
@@ -1455,6 +1472,8 @@ try_again:
 
 try_again:
 	ut_a(name);
+	char real_path[PATH_MAX];
+	check_symlink(&name, real_path, PATH_MAX);
 
 	if (create_mode == OS_FILE_OPEN || create_mode == OS_FILE_OPEN_RAW
 	    || create_mode == OS_FILE_OPEN_RETRY) {
@@ -1670,11 +1689,7 @@ loop:
 
 	goto loop;
 #else
-	int	ret;
-
-	ret = unlink(name);
-
-	if (ret != 0) {
+	if (my_delete_with_symlink(name, 0)) {
 		os_file_handle_error_no_exit(name, "delete");
 
 		return(FALSE);
@@ -1709,11 +1724,7 @@ os_file_rename(
 
 	return(FALSE);
 #else
-	int	ret;
-
-	ret = rename(oldpath, newpath);
-
-	if (ret != 0) {
+	if(my_rename_with_symlink(oldpath, newpath, 0)) {
 		os_file_handle_error_no_exit(oldpath, "rename");
 
 		return(FALSE);

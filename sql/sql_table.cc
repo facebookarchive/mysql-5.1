@@ -7235,6 +7235,34 @@ view_err:
   else
     create_info->data_file_name=create_info->index_file_name=0;
 
+  /*
+    If the actual table file is a symlink and the engine is InnoDb, then create
+    a symlink for the temporary table.
+  */
+  char tmp_path[PATH_MAX];
+  char tmp_real_path[PATH_MAX];
+  if (need_copy_table != ALTER_TABLE_METADATA_ONLY &&
+      ha_legacy_type(table->s->db_type()) == DB_TYPE_INNODB) {
+    char table_path[PATH_MAX], table_real_path[PATH_MAX];
+    my_snprintf(table_path, sizeof(table_path), "%s.ibd", path);
+    int ret = readlink(table_path, table_real_path, PATH_MAX);
+    if (ret != -1) {
+      *(table_real_path + ret) = '\0';
+      char real_dir[PATH_MAX], symlink_dir[PATH_MAX];
+      size_t len;
+      dirname_part(real_dir, table_real_path, &len);
+      dirname_part(symlink_dir, table_path, &len);
+      my_snprintf(tmp_real_path, sizeof(tmp_real_path),
+                  "%s%s.ibd", real_dir, tmp_name);
+      my_snprintf(tmp_path, sizeof(tmp_path), "%s%s.ibd", symlink_dir, tmp_name);
+      if (symlink(tmp_real_path, tmp_path)) {
+        fprintf(stderr, "can not create the symlink %s to %s\n", tmp_path,
+                tmp_real_path);
+        goto err;
+      }
+    }
+  }
+
   DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
   /*
     Create a table with a temporary name.
