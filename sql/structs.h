@@ -297,6 +297,28 @@ typedef struct  user_conn {
 
 } USER_CONN;
 
+typedef struct st_index_stats {
+  char name [NAME_LEN + 1];  /* [name] + '\0' */
+
+  /* See variable comments from st_table_stats */
+  my_atomic_bigint volatile rows_inserted;
+  my_atomic_bigint volatile rows_updated;
+  my_atomic_bigint volatile rows_deleted;
+  my_atomic_bigint volatile rows_read;
+  my_atomic_bigint volatile rows_requested;
+
+  my_atomic_bigint volatile rows_index_first;
+  my_atomic_bigint volatile rows_index_next;
+
+  my_io_perf_t io_perf_read;         /* Read IO performance counters */
+} INDEX_STATS;
+
+/* 
+  Maximum number of indexes for which stats are collected. Tables that have
+  more use st_table_stats::indexes[MAX_INDEX_STATS-1] for the extra indexes.
+*/
+#define MAX_INDEX_STATS 10
+
 typedef struct st_table_stats {
   char db[NAME_LEN + 1];     /* [db] + '\0' */
   char table[NAME_LEN + 1];  /* [table] + '\0' */
@@ -306,6 +328,9 @@ typedef struct st_table_stats {
   /* Hash table key, table->s->table_cache_key for the table */
   char hash_key[NAME_LEN * 2 + 2];
   int hash_key_len;          /* table->s->key_length for the table */
+
+  INDEX_STATS indexes[MAX_INDEX_STATS];
+  uint num_indexes;           /* min(#indexes on table, MAX_INDEX_STATS) */
 
   /* TODO(mcallaghan): why are these volatile? */
   volatile my_atomic_bigint rows_inserted;   /* Number of rows inserted */

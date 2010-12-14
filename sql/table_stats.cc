@@ -27,6 +27,74 @@ void update_table_stats(THD *thd, TABLE *tablep, bool follow_next)
   }
 }
 
+static void
+clear_table_stats_counters(TABLE_STATS* table_stats)
+{
+  int x;
+
+  for (x=0; x < MAX_INDEX_STATS; ++x)
+  {
+    table_stats->indexes[x].rows_inserted= 0;
+    table_stats->indexes[x].rows_updated= 0;
+    table_stats->indexes[x].rows_deleted= 0;
+    table_stats->indexes[x].rows_read= 0;
+    table_stats->indexes[x].rows_requested= 0;
+    table_stats->indexes[x].rows_index_first= 0;
+    table_stats->indexes[x].rows_index_next= 0;
+    my_io_perf_init(&(table_stats->indexes[x].io_perf_read));
+  }
+
+  table_stats->rows_inserted= 0;
+  table_stats->rows_updated= 0;
+  table_stats->rows_deleted= 0;
+  table_stats->rows_read= 0;
+  table_stats->rows_requested= 0;
+  table_stats->rows_index_first= 0;
+  table_stats->rows_index_next= 0;
+
+  my_io_perf_init(&table_stats->io_perf_read);
+  my_io_perf_init(&table_stats->io_perf_write);
+  table_stats->index_inserts = 0;
+}
+
+/*
+  Initialize the index names in table_stats->indexes
+
+  SYNOPSIS
+    set_index_stats_names
+    table_stats - object to initialize
+
+  RETURN VALUE
+    0 on success, !0 on failure
+
+  Stats are stored for at most MAX_INDEX_KEYS and when there are more than
+  (MAX_INDEX_KEYS-1) indexes then use the last entry for the extra indexes
+  which gets the name "STATS_OVERFLOW".
+*/
+static int
+set_index_stats_names(TABLE_STATS *table_stats, TABLE *table)
+{
+  uint x;
+
+  table_stats->num_indexes= min(table->s->keys, MAX_INDEX_STATS);
+
+  for (x=0; x < table_stats->num_indexes; ++x)
+  {
+    char const *index_name = table->s->key_info[x].name;
+
+    if (x == (MAX_INDEX_STATS - 1) && table->s->keys > MAX_INDEX_STATS)
+      index_name = "STATS_OVERFLOW";
+ 
+    if (snprintf(table_stats->indexes[x].name, NAME_LEN+1, "%s",
+                 index_name) < 0)
+    {
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
 /*
   Return the global TABLE_STATS object for a table.
 
@@ -62,6 +130,7 @@ get_table_stats(TABLE *table, handlerton *engine_type)
                                                 MYF(MY_WME)))))
     {
       sql_print_error("Cannot allocate memory for TABLE_STATS.");
+      pthread_mutex_unlock(&LOCK_global_table_stats);
       return NULL;
     }
 
@@ -77,27 +146,45 @@ get_table_stats(TABLE *table, handlerton *engine_type)
     {
       sql_print_error("Cannot generate name for table stats.");
       my_free((char*)table_stats, 0);
+      pthread_mutex_unlock(&LOCK_global_table_stats);
       return NULL;
     }
     table_stats->db_table_len= strlen(table_stats->db_table);
-    table_stats->rows_inserted= 0;
-    table_stats->rows_updated= 0;
-    table_stats->rows_deleted= 0;
-    table_stats->rows_read= 0;
-    table_stats->rows_requested= 0;
-    table_stats->rows_index_first= 0;
-    table_stats->rows_index_next= 0;
+
+    if (set_index_stats_names(table_stats, table))
+    {
+      sql_print_error("Cannot generate name for index stats.");
+      my_free((char*)table_stats, 0);
+      pthread_mutex_unlock(&LOCK_global_table_stats);
+      return NULL;
+    }
+
+    clear_table_stats_counters(table_stats);
     table_stats->engine_type= engine_type;
-    my_io_perf_init(&table_stats->io_perf_read);
-    my_io_perf_init(&table_stats->io_perf_write);
-    table_stats->index_inserts = 0;
 
     if (my_hash_insert(&global_table_stats, (uchar*)table_stats))
     {
       // Out of memory.
       sql_print_error("Inserting table stats failed.");
       my_free((char*)table_stats, 0);
+      pthread_mutex_unlock(&LOCK_global_table_stats);
       return NULL;
+    }
+  }
+  else
+  {
+    /*
+      Keep things in sync after create or drop index. This doesn't notice create
+      followed by drop. "reset statistics" will fix that.
+    */
+    if (table_stats->num_indexes != min(table->s->keys, MAX_INDEX_STATS))
+    {
+      if (set_index_stats_names(table_stats, table))
+      {
+        sql_print_error("Cannot generate name for index stats.");
+        pthread_mutex_unlock(&LOCK_global_table_stats);
+        return NULL;
+      }
     }
   }
 
@@ -142,16 +229,17 @@ void reset_global_table_stats()
   for (unsigned i = 0; i < global_table_stats.records; ++i) {
     TABLE_STATS *table_stats =
       (TABLE_STATS*)hash_element(&global_table_stats, i);
-    table_stats->rows_inserted= 0;
-    table_stats->rows_updated= 0;
-    table_stats->rows_deleted= 0;
-    table_stats->rows_read= 0;
-    table_stats->rows_requested= 0;
-    table_stats->rows_index_first= 0;
-    table_stats->rows_index_next= 0;
-    my_io_perf_init(&table_stats->io_perf_read);
-    my_io_perf_init(&table_stats->io_perf_write);
-    table_stats->index_inserts = 0;
+
+    clear_table_stats_counters(table_stats);
+
+    /*
+      The next caller to get_table_stats will reset this. It isn't
+      done here because the TABLE object is required to determine
+      the index names. This can be called after drop/add index is
+      done where the table has the same number of indexes but
+      different index names after the DDL.
+    */
+    table_stats->num_indexes= 0;
   }
 
   pthread_mutex_unlock(&LOCK_global_table_stats);
@@ -191,7 +279,6 @@ ST_FIELD_INFO table_stats_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
-// fill_query_profile_statistics_info
 int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   DBUG_ENTER("fill_table_stats");
@@ -257,6 +344,103 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
       DBUG_RETURN(-1);
     }
   }
+  pthread_mutex_unlock(&LOCK_global_table_stats);
+
+  DBUG_RETURN(0);
+}
+
+ST_FIELD_INFO index_stats_fields_info[]=
+{
+  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"INDEX_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_ENGINE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"ROWS_INSERTED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"ROWS_UPDATED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"ROWS_DELETED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"ROWS_REQUESTED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+
+  {"ROWS_INDEX_FIRST", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"ROWS_INDEX_NEXT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+
+  {"IO_READ_BYTES", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"IO_READ_REQUESTS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"IO_READ_SVC_USECS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"IO_READ_SVC_USECS_MAX", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"IO_READ_WAIT_USECS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"IO_READ_WAIT_USECS_MAX", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"IO_READ_OLD_IOS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
+};
+
+
+int fill_index_stats(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  DBUG_ENTER("fill_index_stats");
+  TABLE* table= tables->table;
+
+  pthread_mutex_lock(&LOCK_global_table_stats);
+
+  for (unsigned i = 0; i < global_table_stats.records; ++i) {
+    uint ix;
+
+    TABLE_STATS *table_stats =
+      (TABLE_STATS*)hash_element(&global_table_stats, i);
+
+    for (ix=0; ix < table_stats->num_indexes; ++ix)
+    {
+      INDEX_STATS *index_stats= &(table_stats->indexes[ix]); 
+      int f= 0;
+
+      if (index_stats->rows_inserted == 0 &&
+          index_stats->rows_updated == 0 &&
+          index_stats->rows_deleted == 0 &&
+          index_stats->rows_read == 0 &&
+          index_stats->rows_requested == 0)
+      {
+        continue;
+      }
+
+      restore_record(table, s->default_values);
+
+      table->field[f++]->store(table_stats->db, strlen(table_stats->db),
+                               system_charset_info);
+      table->field[f++]->store(table_stats->table, strlen(table_stats->table),
+                               system_charset_info);
+      table->field[f++]->store(index_stats->name, strlen(index_stats->name),
+                               system_charset_info);
+
+      // TODO -- this can be optimized in the future
+      const char* engine= ha_resolve_storage_engine_name(table_stats->engine_type);
+      table->field[f++]->store(engine, strlen(engine), system_charset_info);
+
+      table->field[f++]->store(index_stats->rows_inserted, TRUE);
+      table->field[f++]->store(index_stats->rows_updated, TRUE);
+      table->field[f++]->store(index_stats->rows_deleted, TRUE);
+      table->field[f++]->store(index_stats->rows_read, TRUE);
+      table->field[f++]->store(index_stats->rows_requested, TRUE);
+
+      table->field[f++]->store(index_stats->rows_index_first, TRUE);
+      table->field[f++]->store(index_stats->rows_index_next, TRUE);
+
+      table->field[f++]->store(index_stats->io_perf_read.bytes, TRUE);
+      table->field[f++]->store(index_stats->io_perf_read.requests, TRUE);
+      table->field[f++]->store(index_stats->io_perf_read.svc_usecs, TRUE);
+      table->field[f++]->store(index_stats->io_perf_read.svc_usecs_max, TRUE);
+      table->field[f++]->store(index_stats->io_perf_read.wait_usecs, TRUE);
+      table->field[f++]->store(index_stats->io_perf_read.wait_usecs_max, TRUE);
+      table->field[f++]->store(index_stats->io_perf_read.old_ios, TRUE);
+
+      if (schema_table_store_record(thd, table))
+      {
+        pthread_mutex_unlock(&LOCK_global_table_stats);
+        DBUG_RETURN(-1);
+      }
+    }
+  }
+
   pthread_mutex_unlock(&LOCK_global_table_stats);
 
   DBUG_RETURN(0);

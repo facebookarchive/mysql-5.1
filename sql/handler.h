@@ -1149,6 +1149,8 @@ public:
   uint errkey;				/* Last dup key */
   uint key_used_on_scan;
   uint active_index;
+  /** Last value for active_index. Not set to MAX_KEY by index_end() */
+  uint last_active_index;
   /** Length of ref (1-8 or the clustered key length) */
   uint ref_length;
   FT_INFO *ft_handler;
@@ -1190,7 +1192,8 @@ public:
     :table_share(share_arg), table(0),
     table_stats(NULL),
     estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
+    ref(0), key_used_on_scan(MAX_KEY),
+    active_index(MAX_KEY), last_active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
     locked(FALSE), implicit_emptied(0),
@@ -1870,7 +1873,7 @@ private:
   { return open(name, mode, test_if_locked); }
 
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
-  virtual int index_init(uint idx, bool sorted) { active_index= idx; return 0; }
+  virtual int index_init(uint idx, bool sorted) { last_active_index= active_index= idx; return 0; }
   virtual int index_end() { active_index= MAX_KEY; return 0; }
   /**
     rnd_init() can be called two times without rnd_end() in between

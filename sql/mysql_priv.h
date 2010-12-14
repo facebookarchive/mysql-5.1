@@ -1592,7 +1592,9 @@ void init_global_table_stats(void);
 void free_global_table_stats(void);
 void reset_global_table_stats(void);
 extern ST_FIELD_INFO table_stats_fields_info[];
+extern ST_FIELD_INFO index_stats_fields_info[];
 int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond);
+int fill_index_stats(THD *thd, TABLE_LIST *tables, COND *cond);
 
 /* for information_schema.user_statistics */
 extern ST_FIELD_INFO user_stats_fields_info[];
