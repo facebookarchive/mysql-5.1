@@ -89,6 +89,7 @@ Database: information_schema
 | FILES                                 |
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
+| INDEX_STATISTICS                      |
 | KEY_COLUMN_USAGE                      |
 | PARTITIONS                            |
 | PLUGINS                               |
@@ -133,6 +134,7 @@ Database: INFORMATION_SCHEMA
 | FILES                                 |
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
+| INDEX_STATISTICS                      |
 | KEY_COLUMN_USAGE                      |
 | PARTITIONS                            |
 | PLUGINS                               |
