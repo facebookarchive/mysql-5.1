@@ -661,7 +661,9 @@ page_zip_malloc(
 	uInt	items,	/*!< in: number of items to allocate */
 	uInt	size)	/*!< in: size of an item in bytes */
 {
-	return(mem_heap_alloc(opaque, items * size));
+	void* m = mem_heap_alloc(opaque, items * size);
+	UNIV_MEM_VALID(m, items * size);
+	return(m);
 }
 
 /**********************************************************************//**
