@@ -268,4 +268,15 @@ thd_lock_wait_timeout(
 	void*	thd);	/*!< in: thread handle (THD*), or NULL to query
 			the global innodb_lock_wait_timeout */
 
+/********************************************************************//**
+Returns the merge-sort block size used for the secondary index creation
+for the current connection.
+@return the merge-sort block size, in bytes */
+
+ulong
+thd_merge_sort_block_size(
+/*======================*/
+	void* thd); /*!< in: thread handle (THD*), or NULL to query
+			the global merge_sort_block_size */
+
 #endif

@@ -365,6 +365,9 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
   NULL, NULL, 50, 0, 1024 * 1024 * 1024, 0);
 
+static MYSQL_THDVAR_ULONG(merge_sort_block_size, PLUGIN_VAR_OPCMDARG,
+  "The block size used doing external merge-sort for secondary index creation",
+	NULL, NULL, 1UL << 20, 1UL << 20, 1UL << 30, 0);
 
 static handler *innobase_create_handler(handlerton *hton,
                                         TABLE_SHARE *table,
@@ -977,6 +980,20 @@ thd_lock_wait_timeout(
 	/* According to <mysql/plugin.h>, passing thd == NULL
 	returns the global value of the session variable. */
 	return(THDVAR((THD*) thd, lock_wait_timeout));
+}
+
+/********************************************************************//**
+Returns the merge-sort block size used for the secondary index creation
+for the current connection.
+@return the merge-sort block size, in bytes */
+extern "C" UNIV_INTERN
+ulong
+thd_merge_sort_block_size(
+/*======================*/
+	void* thd) /*!< in: thread handle (THD*), or NULL to query
+			the global merge_sort_block_size */
+{
+  return(THDVAR((THD*) thd, merge_sort_block_size));
 }
 
 /********************************************************************//**
@@ -11864,6 +11881,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(aio_old_usecs),
   MYSQL_SYSVAR(release_locks_early),
   MYSQL_SYSVAR(expand_import),
+  MYSQL_SYSVAR(merge_sort_block_size),
   NULL
 };
 
