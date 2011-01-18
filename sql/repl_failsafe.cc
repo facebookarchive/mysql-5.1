@@ -244,7 +244,7 @@ static int find_target_pos(LEX_MASTER_INFO *mi, IO_CACHE *log, char *errmsg)
   for (;;)
   {
     Log_event* ev;
-    if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*) 0, 0)))
+    if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*) 0, 0, NULL)))
     {
       if (log->error > 0)
 	strmov(errmsg, "Binary log truncated in the middle of event");
@@ -267,17 +267,17 @@ static int find_target_pos(LEX_MASTER_INFO *mi, IO_CACHE *log, char *errmsg)
 }
 
 /**
-  @details 
+  @details
   Before 4.0.15 we had a member of THD called log_pos, it was meant for
   failsafe replication code in repl_failsafe.cc which is disabled until
-  it is reworked. Event's log_pos used to be preserved through 
-  log-slave-updates to make code in repl_failsafe.cc work (this 
+  it is reworked. Event's log_pos used to be preserved through
+  log-slave-updates to make code in repl_failsafe.cc work (this
   function, SHOW NEW MASTER); but on the other side it caused unexpected
-  values in Exec_Master_Log_Pos in A->B->C replication setup, 
-  synchronization problems in master_pos_wait(), ... So we 
+  values in Exec_Master_Log_Pos in A->B->C replication setup,
+  synchronization problems in master_pos_wait(), ... So we
   (Dmitri & Guilhem) removed it.
-  
-  So for now this function is broken. 
+
+  So for now this function is broken.
 */
 
 int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
@@ -418,7 +418,7 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
 
   for (i = 0; i < 2; i++)
   {
-    if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*)0, 0)))
+    if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*)0, 0, NULL)))
     {
       my_snprintf(errmsg, SLAVE_ERRMSG_SIZE,
 		  "Error reading event in log '%s'",
@@ -444,7 +444,7 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
 }
 
 /**
-  This function is broken now. 
+  This function is broken now.
 
   @seealso translate_master()
 */
@@ -584,7 +584,7 @@ err:
   if (error)
   {
     sql_print_error("While trying to obtain the list of slaves from the master "
-                    "'%s:%d', user '%s' got the following error: '%s'", 
+                    "'%s:%d', user '%s' got the following error: '%s'",
                     mi->host, mi->port, mi->user, error);
     DBUG_RETURN(1);
   }
@@ -728,17 +728,17 @@ int connect_to_master(THD *thd, MYSQL* mysql, Master_info* mi)
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
   {
-    mysql_ssl_set(mysql, 
+    mysql_ssl_set(mysql,
         mi->ssl_key[0]?mi->ssl_key:0,
         mi->ssl_cert[0]?mi->ssl_cert:0,
-        mi->ssl_ca[0]?mi->ssl_ca:0, 
+        mi->ssl_ca[0]?mi->ssl_ca:0,
         mi->ssl_capath[0]?mi->ssl_capath:0,
         mi->ssl_cipher[0]?mi->ssl_cipher:0);
     mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &mi->ssl_verify_server_cert);
   }
 #endif
-    
+
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
   if (!mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
@@ -827,7 +827,7 @@ bool load_master_data(THD* thd)
     pthread_mutex_unlock(&LOCK_active_mi);
     return TRUE;
   }
-  
+
   if (connect_to_master(thd, &mysql, active_mi))
   {
     my_error(error= ER_CONNECT_TO_MASTER, MYF(0), mysql_error(&mysql));
@@ -902,8 +902,8 @@ bool load_master_data(THD* thd)
 	data from master
       */
 
-      if (!rpl_filter->db_ok(db) || 
-	  !rpl_filter->db_ok_with_wild_table(db) || 
+      if (!rpl_filter->db_ok(db) ||
+	  !rpl_filter->db_ok_with_wild_table(db) ||
 	  !strcmp(db,"mysql") ||
           is_schema_db(db))
       {
@@ -962,7 +962,7 @@ bool load_master_data(THD* thd)
         */
         int error_2;
 
-        if (init_master_info(active_mi, master_info_file, relay_log_info_file, 
+        if (init_master_info(active_mi, master_info_file, relay_log_info_file,
 			     0, (SLAVE_IO | SLAVE_SQL)))
           my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
 	strmake(active_mi->master_log_name, row[0],

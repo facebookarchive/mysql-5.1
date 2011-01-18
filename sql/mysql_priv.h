@@ -181,12 +181,12 @@ typedef struct my_locale_st
   TYPELIB *ab_day_names;
   uint max_month_name_length;
   uint max_day_name_length;
-#ifdef __cplusplus 
+#ifdef __cplusplus
   my_locale_st(uint number_par,
                const char *name_par, const char *descr_par, bool is_ascii_par,
                TYPELIB *month_names_par, TYPELIB *ab_month_names_par,
                TYPELIB *day_names_par, TYPELIB *ab_day_names_par,
-               uint max_month_name_length_par, uint max_day_name_length_par) : 
+               uint max_month_name_length_par, uint max_day_name_length_par) :
     number(number_par),
     name(name_par), description(descr_par), is_ascii(is_ascii_par),
     month_names(month_names_par), ab_month_names(ab_month_names_par),
@@ -357,16 +357,16 @@ protected:
 #define TIME_FOR_COMPARE   5	// 5 compares == one read
 
 /**
-  Number of comparisons of table rowids equivalent to reading one row from a 
+  Number of comparisons of table rowids equivalent to reading one row from a
   table.
 */
 #define TIME_FOR_COMPARE_ROWID  (TIME_FOR_COMPARE*2)
 
 /*
   For sequential disk seeks the cost formula is:
-    DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST * #blocks_to_skip  
-  
-  The cost of average seek 
+    DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST * #blocks_to_skip
+
+  The cost of average seek
     DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*BLOCKS_IN_AVG_SEEK =1.0.
 */
 #define DISK_SEEK_BASE_COST ((double)0.5)
@@ -677,14 +677,14 @@ inline THD *_current_thd(void)
 #define current_thd _current_thd()
 
 
-/** 
+/**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
-  three calling-info parameters. 
+  three calling-info parameters.
 */
 extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info, 
-                              const char *calling_func, 
-                              const char *calling_file, 
+const char *set_thd_proc_info(THD *thd, const char *info,
+                              const char *calling_func,
+                              const char *calling_file,
                               const unsigned int calling_line);
 
 /**
@@ -1012,7 +1012,7 @@ int write_bin_log(THD *thd, bool clear_error,
                   char const *query, ulong query_length);
 
 /* sql_connect.cc */
-int check_user(THD *thd, enum enum_server_command command, 
+int check_user(THD *thd, enum enum_server_command command,
 	       const char *passwd, uint passwd_len, const char *db,
 	       bool check_count);
 pthread_handler_t handle_one_connection(void *arg);
@@ -1078,7 +1078,7 @@ bool write_log_to_socket(int sockfd, THD *thd, ulonglong end_utime_of_query);
 void setup_datagram_socket(THD *thd, enum_var_type type);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 bool compare_record(TABLE *table);
-bool append_file_to_dir(THD *thd, const char **filename_ptr, 
+bool append_file_to_dir(THD *thd, const char **filename_ptr,
                         const char *table_name);
 void wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function);
@@ -1091,7 +1091,7 @@ uint cached_open_tables(void);
 uint cached_table_definitions(void);
 void kill_mysql(void);
 void close_connection(THD *thd, uint errcode, bool lock);
-bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
+bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
                           bool *write_to_binlog);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
@@ -1174,8 +1174,8 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 bool mysql_select(THD *thd, Item ***rref_pointer_array,
                   TABLE_LIST *tables, uint wild_num,  List<Item> &list,
                   COND *conds, uint og_num, ORDER *order, ORDER *group,
-                  Item *having, ORDER *proc_param, ulonglong select_type, 
-                  select_result *result, SELECT_LEX_UNIT *unit, 
+                  Item *having, ORDER *proc_param, ulonglong select_type,
+                  select_result *result, SELECT_LEX_UNIT *unit,
                   SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
@@ -1197,8 +1197,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         bool make_copy_field,
                         uint convert_blob_length);
 void sp_prepare_create_field(THD *thd, Create_field *sql_field);
-int prepare_create_field(Create_field *sql_field, 
-			 uint *blob_columns, 
+int prepare_create_field(Create_field *sql_field,
+			 uint *blob_columns,
 			 int *timestamps, int *timestamps_with_niladic,
 			 longlong table_flags);
 bool mysql_create_table(THD *thd,const char *db, const char *table_name,
@@ -1399,7 +1399,7 @@ inline bool is_schema_db(const char *name, size_t len)
 {
   return (INFORMATION_SCHEMA_NAME.length == len &&
           !my_strcasecmp(system_charset_info,
-                         INFORMATION_SCHEMA_NAME.str, name));  
+                         INFORMATION_SCHEMA_NAME.str, name));
 }
 
 inline bool is_schema_db(const char *name)
@@ -1446,9 +1446,9 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types t
 		       uint uint_geom_type);
 Create_field * new_create_field(THD *thd, char *field_name, enum_field_types type,
 				char *length, char *decimals,
-				uint type_modifier, 
+				uint type_modifier,
 				Item *default_value, Item *on_update_value,
-				LEX_STRING *comment, char *change, 
+				LEX_STRING *comment, char *change,
 				List<String> *interval_list, CHARSET_INFO *cs,
 				uint uint_geom_type);
 void store_position_for_column(const char *name);
@@ -1483,13 +1483,13 @@ extern Item **not_found_item;
   This enumeration type is used only by the function find_item_in_list
   to return the info on how an item has been resolved against a list
   of possibly aliased items.
-  The item can be resolved: 
+  The item can be resolved:
    - against an alias name of the list's element (RESOLVED_AGAINST_ALIAS)
    - against non-aliased field name of the list  (RESOLVED_WITH_NO_ALIAS)
    - against an aliased field name of the list   (RESOLVED_BEHIND_ALIAS)
    - ignoring the alias name in cases when SQL requires to ignore aliases
      (e.g. when the resolved field reference contains a table name or
-     when the resolved item is an expression)   (RESOLVED_IGNORING_ALIAS)    
+     when the resolved item is an expression)   (RESOLVED_IGNORING_ALIAS)
 */
 enum enum_resolution_type {
   NOT_RESOLVED=0,
@@ -1509,11 +1509,11 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
 bool setup_tables(THD *thd, Name_resolution_context *context,
                   List<TABLE_LIST> *from_clause, TABLE_LIST *tables,
                   TABLE_LIST **leaves, bool select_insert);
-bool setup_tables_and_check_access(THD *thd, 
+bool setup_tables_and_check_access(THD *thd,
                                    Name_resolution_context *context,
-                                   List<TABLE_LIST> *from_clause, 
-                                   TABLE_LIST *tables, 
-                                   TABLE_LIST **leaves, 
+                                   List<TABLE_LIST> *from_clause,
+                                   TABLE_LIST *tables,
+                                   TABLE_LIST **leaves,
                                    bool select_insert,
                                    ulong want_access_first,
                                    ulong want_access);
@@ -2150,6 +2150,10 @@ extern my_bool rpl_transaction_enabled;
 
 extern ulonglong opened_fast, opened_not_fast;
 
+extern ulong relay_io_events, relay_sql_events;
+extern ulonglong relay_io_bytes, relay_sql_bytes;
+extern double relay_sql_wait_secs;
+
 #ifdef HAVE_INNODB_BINLOG
 /*
   Added for rpl_transaction_enabled patch. Alas, this exports a few
@@ -2224,7 +2228,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list);
 void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 			TABLE_LIST *last_table);
 bool lock_table_names_exclusively(THD *thd, TABLE_LIST *table_list);
-bool is_table_name_exclusively_locked_by_this_thread(THD *thd, 
+bool is_table_name_exclusively_locked_by_this_thread(THD *thd,
                                                      TABLE_LIST *table_list);
 bool is_table_name_exclusively_locked_by_this_thread(THD *thd, uchar *key,
                                                      int key_length);
@@ -2312,9 +2316,9 @@ longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
-		      SQL_SELECT *select, int use_record_cache, 
+		      SQL_SELECT *select, int use_record_cache,
                       bool print_errors, bool disable_rr_cache);
-void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, 
+void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
                           bool print_error, uint idx);
 void end_read_record(READ_RECORD *info);
 ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
@@ -2379,7 +2383,7 @@ const char *get_canonical_filename(handler *file, const char *path,
 #define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
 #define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
 
-uint build_table_shadow_filename(char *buff, size_t bufflen, 
+uint build_table_shadow_filename(char *buff, size_t bufflen,
                                  ALTER_PARTITION_PARAM_TYPE *lpt);
 /* Flags for conversion functions. */
 #define FN_FROM_IS_TMP  (1 << 0)

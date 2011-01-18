@@ -234,9 +234,9 @@ int init_relay_log_info(Relay_log_info* rli,
     rli->relay_log.max_size (and mysql_bin_log.max_size).
   */
   {
-    /* Reports an error and returns, if the --relay-log's path 
+    /* Reports an error and returns, if the --relay-log's path
        is a directory.*/
-    if (opt_relay_logname && 
+    if (opt_relay_logname &&
         opt_relay_logname[strlen(opt_relay_logname) - 1] == FN_LIBCHAR)
     {
       pthread_mutex_unlock(&rli->data_lock);
@@ -245,10 +245,10 @@ a file name for --relay-log option", opt_relay_logname);
       DBUG_RETURN(1);
     }
 
-    /* Reports an error and returns, if the --relay-log-index's path 
+    /* Reports an error and returns, if the --relay-log-index's path
        is a directory.*/
-    if (opt_relaylog_index_name && 
-        opt_relaylog_index_name[strlen(opt_relaylog_index_name) - 1] 
+    if (opt_relaylog_index_name &&
+        opt_relaylog_index_name[strlen(opt_relaylog_index_name) - 1]
         == FN_LIBCHAR)
     {
       pthread_mutex_unlock(&rli->data_lock);
@@ -417,7 +417,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
                             file_relay_log_name, file_relay_log_pos,
                             file_master_log_name, file_master_log_pos);
 #ifdef HAVE_INNODB_BINLOG
-      if (rpl_transaction_enabled && 
+      if (rpl_transaction_enabled &&
           (strlen(group_relay_log_name) > 0 &&
            group_relay_log_pos != RPL_BAD_POS) &&
           (strcmp(file_master_log_name, group_master_log_name) != 0 ||
@@ -747,7 +747,7 @@ int init_relay_log_pos(Relay_log_info* rli,const char* log,
         event
       */
       if (!(ev=Log_event::read_log_event(rli->cur_log,0,
-                                         rli->relay_log.description_event_for_exec)))
+                                         rli->relay_log.description_event_for_exec, NULL)))
       {
         DBUG_PRINT("info",("could not read event, rli->cur_log->error=%d",
                            rli->cur_log->error));

@@ -44,10 +44,10 @@ static const char* map_log_read_error(int log_read_error)
 
 /*
    Trace the detailed error message during binlog file switch.
-   
+
    Input:
     binlog        - (IN) MySQL binlog manager
-    old_offset    - (IN) the old offset 
+    old_offset    - (IN) the old offset
     log_file_name - (IN) the new log filename to switch to
     linfo         - (IN) index file iteration information
  */
@@ -518,7 +518,7 @@ impossible position";
   packet->set("\0", 1, &my_charset_bin);
   /*
     Adding MAX_LOG_EVENT_HEADER_LEN, since a binlog event can become
-    this larger than the corresponding packet (query) sent 
+    this larger than the corresponding packet (query) sent
     from client to master.
   */
   thd->variables.max_allowed_packet+= MAX_LOG_EVENT_HEADER;
@@ -813,7 +813,7 @@ impossible position";
       end_io_cache(&log);
       (void) my_close(file, MYF(MY_WME));
 
-      /* 
+      /*
          Confirm the same binlog is not served twice because filenames are stored in
          a .index file.
        */
@@ -1045,7 +1045,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 int stop_slave(THD* thd, Master_info* mi, bool net_report )
 {
   DBUG_ENTER("stop_slave");
-  
+
   int slave_errno;
   if (!thd)
     thd = current_thd;
@@ -1619,7 +1619,7 @@ bool mysql_show_binlog_events(THD* thd)
       This code will fail on a mixed relay log (one which has Format_desc then
       Rotate then Format_desc).
     */
-    ev = Log_event::read_log_event(&log,(pthread_mutex_t*)0,description_event);
+    ev = Log_event::read_log_event(&log,(pthread_mutex_t*)0,description_event,NULL);
     if (ev)
     {
       if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
@@ -1641,7 +1641,7 @@ bool mysql_show_binlog_events(THD* thd)
 
     for (event_count = 0;
 	 (ev = Log_event::read_log_event(&log,(pthread_mutex_t*) 0,
-                                         description_event)); )
+                                         description_event, NULL)); )
     {
       if (event_count >= limit_start &&
 	  ev->net_send(protocol, linfo.log_file_name, pos))
@@ -1795,14 +1795,14 @@ bool show_binlogs(THD* thd)
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
-  
+
   pthread_mutex_lock(mysql_bin_log.get_log_lock());
   mysql_bin_log.lock_index();
   index_file=mysql_bin_log.get_index_file();
-  
+
   mysql_bin_log.raw_get_current_log(&cur); // dont take mutex
   pthread_mutex_unlock(mysql_bin_log.get_log_lock()); // lockdep, OK
-  
+
   cur_dir_len= dirname_length(cur.log_file_name);
 
   reinit_io_cache(index_file, READ_CACHE, (my_off_t) 0, 0, 0);
@@ -1849,7 +1849,7 @@ err:
    before a chunk of data is being read into the cache's buffer
    The fuction instantianates and writes into the binlog
    replication events along LOAD DATA processing.
-   
+
    @param file  pointer to io-cache
    @retval 0 success
    @retval 1 failure
@@ -1868,7 +1868,7 @@ int log_loaded_block(IO_CACHE* file)
   if (lf_info->last_pos_in_file != HA_POS_ERROR &&
       lf_info->last_pos_in_file >= my_b_get_pos_in_file(file))
     DBUG_RETURN(0);
-  
+
   for (block_len= (uint) (my_b_get_bytes_in_buffer(file)); block_len > 0;
        buffer += min(block_len, max_event_size),
        block_len -= min(block_len, max_event_size))
@@ -1918,7 +1918,7 @@ public:
 class sys_var_sync_binlog_period :public sys_var_long_ptr
 {
 public:
-  sys_var_sync_binlog_period(sys_var_chain *chain, const char *name_arg, 
+  sys_var_sync_binlog_period(sys_var_chain *chain, const char *name_arg,
                              ulong *value_ptr)
     :sys_var_long_ptr(chain, name_arg,value_ptr) {}
   bool update(THD *thd, set_var *var);
