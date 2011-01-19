@@ -1086,6 +1086,7 @@ trx_purge(void)
 	que_thr_t*	thr;
 	/*	que_thr_t*	thr2; */
 	ulint		old_pages_handled;
+	ulint		purged;
 
 	mutex_enter(&(purge_sys->mutex));
 
@@ -1179,7 +1180,9 @@ trx_purge(void)
 			(ulong) purge_sys->n_pages_handled);
 	}
 
-	return(purge_sys->n_pages_handled - old_pages_handled);
+	purged = purge_sys->n_pages_handled - old_pages_handled;
+	srv_purged_pages += purged;
+	return(purged);
 }
 
 /******************************************************************//**

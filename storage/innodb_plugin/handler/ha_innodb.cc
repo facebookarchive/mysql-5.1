@@ -606,6 +606,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_buffer_pool_neighbors_flushed_list, SHOW_LONG},
   {"buffer_pool_neighbors_flushed_from_lru",
   (char*) &export_vars.innodb_buffer_pool_neighbors_flushed_lru, SHOW_LONG},
+  {"checkpoint_lsn",
+  (char*) &export_vars.innodb_checkpoint_lsn,             SHOW_LONGLONG},
   {"data_fsyncs",
   (char*) &export_vars.innodb_data_fsyncs,		  SHOW_LONG},
   {"data_fsync_seconds",
@@ -716,6 +718,14 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_lru_restore_loaded_pages,   SHOW_LONG},
   {"lru_restore_total_pages",
   (char*) &export_vars.innodb_lru_restore_total_pages,    SHOW_LONG},
+  {"lsn_current",
+  (char*) &export_vars.innodb_lsn_current,                SHOW_LONGLONG},
+  {"lsn_current_minus_oldest",
+  (char*) &export_vars.innodb_lsn_diff,                   SHOW_LONGLONG},
+  {"lsn_current_minus_last_checkpoint",
+  (char*) &export_vars.innodb_checkpoint_diff,            SHOW_LONGLONG},
+  {"lsn_oldest",
+  (char*) &export_vars.innodb_lsn_oldest,                 SHOW_LONGLONG},
   {"mutex_os_waits",
   (char*) &export_vars.innodb_mutex_os_waits,             SHOW_LONG},
   {"mutex_spin_rounds",
@@ -738,8 +748,18 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_pages_read,		  SHOW_LONG},
   {"pages_written",
   (char*) &export_vars.innodb_pages_written,		  SHOW_LONG},
+  {"preflush_async_limit",
+  (char*) &export_vars.innodb_preflush_async_limit,       SHOW_LONG},
+  {"preflush_sync_limit",
+  (char*) &export_vars.innodb_preflush_sync_limit,        SHOW_LONG},
+  {"preflush_async_margin",
+  (char*) &export_vars.innodb_preflush_async_margin,      SHOW_LONG},
+  {"preflush_sync_margin",
+  (char*) &export_vars.innodb_preflush_sync_margin,       SHOW_LONG},
   {"purge_pending",
   (char*) &export_vars.innodb_purge_pending,              SHOW_LONG},
+  {"purged_pages",
+  (char*) &export_vars.innodb_purged_pages,               SHOW_LONG},
   {"records_in_range_seconds",
   (char*) &innodb_records_in_range_secs,		  SHOW_DOUBLE},
   {"row_lock_current_waits",
@@ -11795,6 +11815,22 @@ static MYSQL_SYSVAR_ULONG(lru_load_max_entries, srv_lru_load_max_entries,
   "load more pages than this number of LRU entries.",
   NULL, NULL, 512*1024UL, 1UL, ULONG_MAX, 0);
 
+static MYSQL_SYSVAR_ULONG(sync_checkpoint_limit, srv_sync_checkpoint_limit,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "This is a percentage and is used to override the sync and async checkpoint "
+  "limits. This is ignored when set to 0. Those limits determine when dirty "
+  "pages are flushed to enforce fuzzy checkpoint constraints. Making this "
+  "greater than 80 might reduce the dirty page flush rate. Assume that max_size "
+  "is the sum of the transaction log file sizes, then the current code sets the "
+  "sync checkpoint limit to 0.9 * 0.9 * (15/16) of max_size (about 75% of it) "
+  "and the async limit to 0.9 * 0.9 * (7/8) of max size (about 70% of it). "
+  "When this is set to a non-zero value, then the sync limit is set to "
+  "(sync_checkpoint_limit/100) * 0.95 of max_size and the async limit is set to "
+  "(sync_checkpoint_limit/100) * 0.90 of max_size. The impact of this is that "
+  "you get the performance benefits of a larger transaction log file without "
+  "making it larger. ",
+  NULL, NULL, 0, 0, 97, 0);
+
 static MYSQL_SYSVAR_BOOL(lru_dump_old_pages, srv_lru_dump_old_pages,
   PLUGIN_VAR_NOCMDARG,
   "If enabled, will also dump old pages from the LRU. "
@@ -11882,6 +11918,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(release_locks_early),
   MYSQL_SYSVAR(expand_import),
   MYSQL_SYSVAR(merge_sort_block_size),
+  MYSQL_SYSVAR(sync_checkpoint_limit),
   NULL
 };
 

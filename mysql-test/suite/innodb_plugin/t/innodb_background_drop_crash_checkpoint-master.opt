@@ -1,0 +1,1 @@
+--skip-core-file --innodb_background_drop_table --innodb_sync_checkpoint_limit=95

@@ -462,6 +462,12 @@ extern my_bool innobase_prepare_commit_mutex;
 /** Release locks in prepare step */
 extern my_bool innobase_release_locks_early;
 
+/** See the sync_checkpoint_limit user variable declaration in ha_innodb.cc */
+extern ulong srv_sync_checkpoint_limit;
+
+/** Number of pages processed by trx_purge */
+extern ulint srv_purged_pages;
+
 extern my_bool srv_expand_import;
 
 
@@ -747,6 +753,8 @@ typedef srv_slot_t	srv_table_t;
 
 /** Status variables to be passed to MySQL */
 struct export_var_struct{
+	ib_int64_t innodb_checkpoint_lsn;	/*!< last_checkpoint_lsn */
+	ib_int64_t innodb_checkpoint_diff;	/*!< lsn - last_checkpoint_lsn */
 	ulint innodb_data_pending_reads;	/*!< Pending reads */
 	ulint innodb_data_pending_writes;	/*!< Pending writes */
 	ulint innodb_data_pending_fsyncs;	/*!< Pending fsyncs */
@@ -842,6 +850,9 @@ struct export_var_struct{
 	ulint  innodb_log_sync_commit_sync;
 	ulint  innodb_log_sync_flush_dirty;
 	ulint  innodb_log_sync_other;
+	ib_int64_t innodb_lsn_current;		/*!< log_sys->lsn */
+	ib_int64_t innodb_lsn_diff;		/*!< lsn_current - lsn_oldest */
+	ib_int64_t innodb_lsn_oldest;		/*!< log_buf_pool_get_oldest_modification */
 	ulint innodb_mutex_os_waits;		/*!< mutex_os_wait_count */
 	ulint innodb_mutex_spin_rounds;		/*!< mutex_spin_round_count */
 	ulint innodb_mutex_spin_waits;		/*!< mutex_spin_wait_count */
@@ -853,7 +864,12 @@ struct export_var_struct{
 	ulint innodb_pages_created;		/*!< buf_pool->stat.n_pages_created */
 	ulint innodb_pages_read;		/*!< buf_pool->stat.n_pages_read */
 	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
+	ulint innodb_preflush_async_limit;	/*!< max_modified_age_async */
+	ulint innodb_preflush_sync_limit;	/*!< max_modified_age_sync */
+	ulint innodb_preflush_async_margin;	/*!< age - max_modified_age_async */
+	ulint innodb_preflush_sync_margin;	/*!< age - max_modified_age_sync */
 	ulint innodb_purge_pending;		/*!< trx_sys->rseg_history_len */
+	ulint innodb_purged_pages;		/*!< srv_purged_pages */
 	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
 	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
 	ib_int64_t innodb_row_lock_time;	/*!< srv_n_lock_wait_time

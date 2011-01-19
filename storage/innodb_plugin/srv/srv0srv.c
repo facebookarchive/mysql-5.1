@@ -603,6 +603,12 @@ UNIV_INTERN my_bool	innobase_prepare_commit_mutex	= TRUE;
 /** Release locks in prepare step */
 UNIV_INTERN my_bool	innobase_release_locks_early	= FALSE;
 
+/** See the sync_checkpoint_limit user variable declaration in ha_innodb.cc */
+UNIV_INTERN ulint	srv_sync_checkpoint_limit	= 0;
+
+/** Number of pages processed by trx_purge */
+UNIV_INTERN ulint	srv_purged_pages	= 0;
+
 UNIV_INTERN my_bool     srv_expand_import = FALSE;
 
 /* The following count work done by srv_master_thread. */
@@ -2149,6 +2155,10 @@ srv_export_innodb_status(void)
 /*==========================*/
 {
 	ulint queue_len;
+	ib_uint64_t lsn_oldest = buf_pool_get_oldest_modification();
+	ib_uint64_t lsn_current = log_sys->lsn;
+	ib_uint64_t lsn_gap = lsn_current - lsn_oldest;
+        ib_uint64_t lsn_checkpoint = log_sys->last_checkpoint_lsn;
 
 	mutex_enter(&kernel_mutex);
 	queue_len= row_get_background_drop_list_len_low();
@@ -2334,6 +2344,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_pages_written = buf_pool->stat.n_pages_written;
 
 	export_vars.innodb_purge_pending= trx_sys->rseg_history_len;
+	export_vars.innodb_purged_pages= srv_purged_pages;
 
 	export_vars.innodb_row_lock_waits = srv_n_lock_wait_count;
 	export_vars.innodb_row_lock_current_waits
@@ -2388,6 +2399,23 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_sec_rec_read_sees = srv_sec_rec_read_sees;
 	export_vars.innodb_sec_rec_read_check = srv_sec_rec_read_check;
+
+	export_vars.innodb_preflush_async_limit = log_sys->max_modified_age_async;
+	export_vars.innodb_preflush_sync_limit = log_sys->max_modified_age_sync;
+
+	export_vars.innodb_preflush_async_margin =
+		(log_sys->max_modified_age_async >= lsn_gap) ?
+		(log_sys->max_modified_age_async - lsn_gap) : 0;
+	export_vars.innodb_preflush_sync_margin =
+		(log_sys->max_modified_age_sync >= lsn_gap) ?
+		(log_sys->max_modified_age_sync - lsn_gap) : 0;
+
+	export_vars.innodb_checkpoint_lsn = lsn_checkpoint;
+	export_vars.innodb_checkpoint_diff = lsn_current - lsn_checkpoint;
+
+	export_vars.innodb_lsn_current = lsn_current;
+	export_vars.innodb_lsn_oldest = lsn_oldest;
+	export_vars.innodb_lsn_diff = lsn_gap;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
