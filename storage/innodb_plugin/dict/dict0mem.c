@@ -79,6 +79,8 @@ dict_mem_table_create(
 #ifndef UNIV_HOTBACKUP
 	table->autoinc_lock = mem_heap_alloc(heap, lock_get_size());
 
+	table->fk_max_recusive_level = 0;
+
 	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 
 	table->autoinc = 0;
