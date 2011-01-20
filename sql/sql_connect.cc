@@ -1279,6 +1279,7 @@ void init_user_stats(USER_STATS *user_stats)
   user_stats->microseconds_cpu= 0;
   user_stats->microseconds_wall= 0;
   user_stats->queries_empty= 0;
+  user_stats->records_in_range_calls= 0;
   user_stats->rows_deleted= 0;
   user_stats->rows_fetched= 0;
   user_stats->rows_inserted= 0;
@@ -1338,6 +1339,7 @@ int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[f++]->store(us->microseconds_cpu, TRUE);
     table->field[f++]->store(us->microseconds_wall, TRUE);
     table->field[f++]->store(us->queries_empty, TRUE);
+    table->field[f++]->store(us->records_in_range_calls, TRUE);
     table->field[f++]->store(us->rows_deleted, TRUE);
     table->field[f++]->store(us->rows_fetched, TRUE);
     table->field[f++]->store(us->rows_inserted, TRUE);

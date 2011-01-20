@@ -68,6 +68,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include "sql_select.h"
+#include "my_atomic.h"
 
 #ifndef EXTRA_DEBUG
 #define test_rb_tree(A,B) {}
@@ -4286,6 +4287,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   for (sel_arg= scan->sel_arg; sel_arg;
        sel_arg= sel_arg->next_key_part)
   {
+    THD* thd= current_thd;
+
     DBUG_PRINT("info",("sel_arg step"));
     cur_covered= test(bitmap_is_set(&info->covered_fields,
                                     key_part[sel_arg->part].fieldnr-1));
@@ -4311,6 +4314,13 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
       min_range.keypart_map= max_range.keypart_map= keypart_map;
       records= (info->param->table->file->
                 records_in_range(scan->keynr, &min_range, &max_range));
+
+      if (thd && thd->user_connect)
+      {
+        USER_STATS *us= &(thd->user_connect->user_stats);
+        my_atomic_add_bigint(&(us->records_in_range_calls), 1);
+      }
+
       if (cur_covered)
       {
         /* uncovered -> covered */
@@ -7689,6 +7699,13 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
                                                (max_key_length ? &max_range :
                                                 (key_range*) 0));
     }
+
+    if (param->thd && param->thd->user_connect)
+    {
+      USER_STATS *us= &(param->thd->user_connect->user_stats);
+      my_atomic_add_bigint(&(us->records_in_range_calls), 1);
+    }
+
   }
  end:
   if (tmp == HA_POS_ERROR)			// Impossible range

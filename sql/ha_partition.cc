@@ -60,6 +60,8 @@
 
 #include "debug_sync.h"
 
+#include "my_atomic.h"
+
 static const char *ha_par_ext= ".par";
 #ifdef NOT_USED
 static int free_share(PARTITION_SHARE * share);
@@ -5981,6 +5983,8 @@ ha_rows ha_partition::estimate_rows(bool is_records_in_range, uint inx,
 {
   ha_rows rows, estimated_rows= 0;
   uint first, part_id, num_used_parts, check_min_num, partitions_called= 0;
+  THD* thd= current_thd;
+
   DBUG_ENTER("ha_partition::records_in_range");
 
   partitions_optimizer_call_preparations(&first, &num_used_parts, &check_min_num);
@@ -5989,7 +5993,14 @@ ha_rows ha_partition::estimate_rows(bool is_records_in_range, uint inx,
     if (!bitmap_is_set(&(m_part_info->used_partitions), part_id))
       continue;
     if (is_records_in_range)
+    {
       rows= m_file[part_id]->records_in_range(inx, min_key, max_key);
+      if (thd && thd->user_connect)
+      {
+        USER_STATS *us= &(thd->user_connect->user_stats);
+        my_atomic_add_bigint(&(us->records_in_range_calls), 1);
+      }
+    }
     else
       rows= m_file[part_id]->estimate_rows_upper_bound();
     if (rows == HA_POS_ERROR)

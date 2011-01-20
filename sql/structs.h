@@ -232,6 +232,7 @@ typedef struct st_user_stats {
   my_atomic_bigint microseconds_cpu;
   my_atomic_bigint microseconds_wall;
   my_atomic_bigint queries_empty;
+  my_atomic_bigint records_in_range_calls;
   my_atomic_bigint rows_deleted;
   my_atomic_bigint rows_fetched;
   my_atomic_bigint rows_inserted;
