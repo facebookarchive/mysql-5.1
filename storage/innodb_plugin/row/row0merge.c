@@ -56,6 +56,7 @@ Completed by Sunny Bains and Marko Makela
 #include "log0log.h"
 #include "ut0sort.h"
 #include "handler0alter.h"
+#include "ha_prototypes.h"
 
 #ifdef UNIV_DEBUG
 /** Set these in order ot enable debug printout. */
