@@ -2,3 +2,15 @@ set timestamp=10;
 select unix_timestamp(), sleep(2);
 unix_timestamp()	sleep(2)
 10	0
+set global long_query_time=0;
+select * from foobar;
+ERROR 42S02: Table 'test.foobar' doesn't exist
+set global long_query_time=1;
+set global log_error_sample_rate=1;
+select * from foobar;
+ERROR 42S02: Table 'test.foobar' doesn't exist
+select * from foobar;
+ERROR 42S02: Table 'test.foobar' doesn't exist
+set global log_error_sample_rate=0;
+select * from foobar;
+ERROR 42S02: Table 'test.foobar' doesn't exist

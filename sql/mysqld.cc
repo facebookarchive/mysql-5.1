@@ -468,6 +468,8 @@ my_bool opt_fb_libmcc_verbose;
 
 bool opt_update_log, opt_bin_log, opt_ignore_builtin_innodb= 0;
 my_bool opt_log, opt_slow_log;
+ulong opt_log_query_sample_rate;
+ulong opt_log_error_sample_rate;
 ulong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 bool opt_error_log= IF_WIN(1,0);
@@ -6145,6 +6147,8 @@ enum options_mysqld
   OPT_CONNECTION_RECYCLE_MIN_TIMEOUT_MS,
   OPT_CONNECTION_RECYCLE_POLL_MS,
   OPT_PROCESS_CAN_DISABLE_BIN_LOG,
+  OPT_LOG_QUERY_SAMPLE_RATE,
+  OPT_LOG_ERROR_SAMPLE_RATE,
   OPT_ENABLE_NO_SLAVE_EXEC
 };
 
@@ -6516,6 +6520,18 @@ each time the SQL thread starts.",
     "Must be enabled to activate other slow log options.",
    &opt_slow_logname, &opt_slow_logname, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"log_query_sample_rate", OPT_LOG_QUERY_SAMPLE_RATE,
+   "Log 1/N queries in the slow query log where N is this value. "
+   "When 0 do not use sampling. When sampling is enabled the other rules "
+   "continue to determine when a statement is logged. ",
+   &opt_log_query_sample_rate, &opt_log_query_sample_rate, 0, GET_ULONG,
+   REQUIRED_ARG, 0, 0, 1000000, 0, 0, 0},
+  {"log_error_sample_rate", OPT_LOG_ERROR_SAMPLE_RATE,
+   "Log 1/N errors in the slow query log where N is this value. "
+   "When 0 do not use sampling. When sampling is enabled the other rules "
+   "continue to determine when a statement is logged. ",
+   &opt_log_error_sample_rate, &opt_log_error_sample_rate, 0, GET_ULONG,
+   REQUIRED_ARG, 0, 0, 1000000, 0, 0, 0},
   {"log-datagram", OPT_LOG_DATAGRAM,
    "Enable logging queries to a unix local datagram socket",
    &log_datagram,

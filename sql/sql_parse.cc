@@ -31,6 +31,9 @@ ulong fb_libmcc_reqs = 0;
 double fb_libmcc_usecs = 0;
 #endif
 
+int32 log_query_sample_counter= 0;
+int32 log_error_sample_counter= 0;
+
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
@@ -1820,10 +1823,24 @@ void log_slow_statement(THD *thd)
   */
   if (thd->enable_slow_log)
   {
+    int32 query_sample_counter= my_atomic_add32(&log_query_sample_counter, 1);
+    ulong query_sample_rate = opt_log_query_sample_rate;
+    // error_sample_* are only set when there was an error
+    int32 error_sample_counter= 0;
+    ulong error_sample_rate= 0;
+
     thd_proc_info(thd, "logging slow query");
+
+    if (thd->is_error())
+    {
+      error_sample_counter= my_atomic_add32(&log_error_sample_counter, 1);
+      error_sample_rate = opt_log_error_sample_rate;
+    }
 
     if (((end_utime_of_query - thd->utime_after_lock) >
          thd->variables.long_query_time ||
+         (query_sample_rate && ((query_sample_counter % query_sample_rate) == 0)) ||
+         (error_sample_rate && ((error_sample_counter % error_sample_rate) == 0)) ||
          ((thd->server_status &
            (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
           opt_log_queries_not_using_indexes &&

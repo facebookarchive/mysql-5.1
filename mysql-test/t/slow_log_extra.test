@@ -4,4 +4,42 @@ select unix_timestamp(), sleep(2);
 let $MYSQLD_DATADIR= `select @@datadir`;
 --exec [ "1" -eq `grep "SET timestamp=10;" $MYSQLD_DATADIR/../mysqld-slow.log | wc -l` ]
 
+# Confirm that errno 1146 is logged
+set global long_query_time=0;
+connect (con,localhost,root,,);
+
+--error ER_NO_SUCH_TABLE
+select * from foobar;
+
+--exec [ "1" -eq `grep "Errno: 1146" $MYSQLD_DATADIR/../mysqld-slow.log | wc -l` ]
+
+set global long_query_time=1;
+connection default;
+
+# Confirm that all errors are logged
+set global log_error_sample_rate=1;
+connect (con2,localhost,root,,);
+
+--error ER_NO_SUCH_TABLE
+select * from foobar;
+
+--error ER_NO_SUCH_TABLE
+select * from foobar;
+
+--exec [ "3" -eq `grep "Errno: 1146" $MYSQLD_DATADIR/../mysqld-slow.log | wc -l` ]
+
+# Confirm that no errors are logged
+set global log_error_sample_rate=0;
+connect (con3,localhost,root,,);
+
+--error ER_NO_SUCH_TABLE
+select * from foobar;
+
+--exec [ "3" -eq `grep "Errno: 1146" $MYSQLD_DATADIR/../mysqld-slow.log | wc -l` ]
+
+connection default;
+disconnect con;
+disconnect con2;
+disconnect con3;
+
 --exit
