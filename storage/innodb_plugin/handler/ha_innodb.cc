@@ -11600,7 +11600,7 @@ static MYSQL_SYSVAR_LONG(ibuf_max_pct_of_buffer_pool, srv_ibuf_max_pct_of_buffer
   "Maximum percentage of the buffer pool that sould be used for the insert buffer. "
   "In rare cases this will be exceeded but InnoDB never allows more than 50% to be used for "
   "the insert buffer.",
-  NULL, NULL, 25, 1, 50, 0);
+  NULL, NULL, 50, 1, 50, 0);
 
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
