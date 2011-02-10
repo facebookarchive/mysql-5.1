@@ -2950,7 +2950,7 @@ sp_instr_stmt::print(String *str)
 int
 sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 {
-  int res= mysql_execute_command(thd, NULL);
+  int res= mysql_execute_command(thd, NULL, FALSE);
   *nextp= m_ip+1;
   return res;
 }

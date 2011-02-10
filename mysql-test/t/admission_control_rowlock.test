@@ -1,0 +1,73 @@
+# test admission_control
+
+--source include/have_innodb_plugin.inc
+
+--disable_warnings
+drop table if exists ti;
+--enable_warnings
+
+show global variables like "admission_control";
+
+create table ti(i int primary key) engine=innodb;
+insert into ti values (1), (2), (3), (4);
+
+grant all on *.* to 'adminc'@'%' with max_concurrent_queries 2 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+
+connect (ac1, localhost, adminc,,);
+show grants;
+
+connect (ac2, localhost, adminc,,);
+
+# this one gets a lock on i=1 in t1 and then sleeps
+connect (ac3, localhost, adminc,,);
+begin;
+select * from ti where i=1 for update;
+send select sleep(2);
+
+# this one sleeps while trying to lock i=1 in t1
+connection ac2;
+begin;
+send select * from ti where i=1 for update;
+
+echo "This should not wait";
+connection ac1;
+send select 1;
+
+connection default;
+
+# confirm the query above does not block.
+sleep 0.1;
+echo "Display no queries blocked on max concurrent queries";
+select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
+
+echo "Display one statement blocked on FOR UPDATE but not the 'select 1' query";
+select User, State, Info from information_schema.processlist where Info like 'select%' and User='adminc' order by Info;
+
+select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
+
+connection ac1;
+reap;
+
+connection ac3;
+reap;
+rollback;
+
+connection ac2;
+reap;
+rollback;
+
+echo "Display NULL queries";
+connection default;
+sleep 0.5;
+select User, State, Info from information_schema.processlist where User = 'adminc';
+select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
+
+connection default;
+disconnect ac1;
+disconnect ac2;
+disconnect ac3;
+drop table ti;
+drop user 'adminc'@'%';
+
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';

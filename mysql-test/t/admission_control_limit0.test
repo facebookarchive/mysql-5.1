@@ -1,0 +1,41 @@
+#
+# test admission_control for max_concurrent_queries = 0
+#
+#
+show global variables like "admission_control";
+
+grant all on *.* to 'adminc'@'%' with max_concurrent_queries 0 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+
+#
+# test with 2 concurrent queries
+#
+
+connect (ac1, localhost, adminc,,);
+
+# This blocks for two seconds without giving up admission_control entry
+connect (ac2, localhost, adminc,,);
+show grants;
+send select sleep(2);
+
+sleep 0.5;
+
+# This should not block
+connection ac1;
+select 1;
+
+echo "Should find select sleep";
+connection default;
+select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
+select User, State, Info from information_schema.processlist where Info like 'select sleep%';
+select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
+
+connection ac2;
+reap;
+
+connection default;
+disconnect ac1;
+disconnect ac2;
+drop user 'adminc'@'%';
+
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';

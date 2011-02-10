@@ -1,0 +1,49 @@
+show global variables like "admission_control";
+Variable_name	Value
+admission_control	ON
+grant all on *.* to 'adminc'@'%' with max_concurrent_queries 1 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_queries
+adminc	%	100	1
+show grants;
+Grants for adminc@%
+GRANT ALL PRIVILEGES ON *.* TO 'adminc'@'%' WITH MAX_USER_CONNECTIONS 100 MAX_CONCURRENT_QUERIES 1
+select sleep(2);
+select 1;
+"Should find one blocked statement"
+select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
+User	State	Info
+adminc	wait for max concurrent queries	select 1
+select User, State, Info from information_schema.processlist where Info like 'select sleep%';
+User	State	Info
+adminc	User sleep	select sleep(2)
+select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
+queries_running	queries_waiting
+1	1
+sleep(2)
+0
+1
+1
+select sleep(2);
+select 1;
+select 1;
+"Should find two blocked statements"
+select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
+User	State	Info
+adminc	wait for max concurrent queries	select 1
+adminc	wait for max concurrent queries	select 1
+select User, State, Info from information_schema.processlist where Info like 'select sleep%';
+User	State	Info
+adminc	User sleep	select sleep(2)
+select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
+queries_running	queries_waiting
+1	2
+sleep(2)
+0
+1
+1
+1
+1
+drop user 'adminc'@'%';
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_queries

@@ -1,0 +1,92 @@
+#
+# test admission_control for max_concurrent_queries = 2
+#
+#
+show global variables like "admission_control";
+
+grant all on *.* to 'adminc'@'%' with max_concurrent_queries 2 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+
+#
+# First test with 3 concurrent queries
+#
+
+connect (ac1, localhost, adminc,,);
+show grants;
+
+connect (ac2, localhost, adminc,,);
+
+# This blocks for two seconds without giving up admission_control entry
+connect (ac3, localhost, adminc,,);
+send select sleep(2);
+
+# This blocks for two seconds without giving up admission_control entry
+connection ac2;
+send select sleep(2);
+sleep 0.5;
+
+# This blocks until one of the previous statements finish
+connection ac1;
+send select 1;
+
+echo "Should find one blocked statement";
+connection default;
+select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
+select User, State, Info from information_schema.processlist where Info like 'select sleep%';
+select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
+
+connection ac3;
+reap;
+connection ac2;
+reap;
+connection ac1;
+reap;
+
+#
+# Next test with 4 concurrent queries
+#
+
+connect (ac4, localhost, adminc,,);
+
+# This blocks for two seconds without giving up admission_control entry
+connection ac3;
+send select sleep(2);
+
+# This blocks for two seconds without giving up admission_control entry
+connection ac2;
+send select sleep(2);
+sleep 0.5;
+
+# This blocks until one of the previous statements finish
+connection ac4;
+send select 1;
+
+# This blocks until one of the previous statements finish
+connection ac1;
+send select 1;
+
+sleep 0.5;
+
+echo "Should find two blocked statements";
+connection default;
+select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
+select User, State, Info from information_schema.processlist where Info like 'select sleep%';
+select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
+
+connection ac3;
+reap;
+connection ac2;
+reap;
+connection ac1;
+reap;
+connection ac4;
+reap;
+
+connection default;
+disconnect ac1;
+disconnect ac2;
+disconnect ac3;
+disconnect ac4;
+drop user 'adminc'@'%';
+
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';

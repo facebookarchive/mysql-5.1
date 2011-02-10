@@ -1,0 +1,72 @@
+#
+# test admission_control for many concurrent queries
+#
+#
+show global variables like "admission_control";
+
+grant all on *.* to 'adminc'@'%' with max_concurrent_queries 3 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+flush privileges;
+
+connect (ac1, localhost, adminc,,);
+connect (ac2, localhost, adminc,,);
+connect (ac3, localhost, adminc,,);
+connect (ac4, localhost, adminc,,);
+connect (ac5, localhost, adminc,,);
+
+let $x=100;
+while ($x)
+{
+  echo Run for loop $x;
+
+  disable_query_log;
+  disable_result_log;
+
+  connection ac1;
+  send select sleep(0.01);
+
+  connection ac2;
+  send select sleep(0.01);
+
+  connection ac3;
+  send select sleep(0.01);
+
+  connection ac4;
+  send select sleep(0.01);
+
+  connection ac5;
+  send select sleep(0.01);
+
+  connection ac1;
+  reap;
+
+  connection ac2;
+  reap;
+
+  connection ac3;
+  reap;
+
+  connection ac4;
+  reap;
+
+  connection ac5;
+  reap;
+
+  enable_query_log;
+  enable_result_log;
+  dec $x;
+}
+
+connection default;
+
+echo Should be empty;
+select User, State, Info from information_schema.processlist where Info like 'select sleep%';
+select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
+
+disconnect ac1;
+disconnect ac2;
+disconnect ac3;
+disconnect ac4;
+disconnect ac5;
+drop user 'adminc'@'%';
+

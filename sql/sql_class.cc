@@ -607,6 +607,7 @@ THD::THD()
               /* statement id */ 0),
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
+   uses_admission_control(QUERY_NOT_SCHEDULED),
    user_time(0), in_sub_stmt(0),
    sql_log_bin_toplevel(false),
    binlog_table_maps(0), binlog_flags(0UL),
@@ -886,6 +887,7 @@ void THD::init(void)
   my_io_perf_init(&io_perf_read);
   my_io_perf_init(&io_perf_write);
 
+  uses_admission_control = QUERY_NOT_SCHEDULED;
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
   debug_sync_init_thread(this);
@@ -1731,8 +1733,13 @@ bool select_send::send_data(List<Item> &items)
     protocol->remove_last_row();
     DBUG_RETURN(1);
   }
-  if (thd->vio_ok())
-    DBUG_RETURN(protocol->write());
+  if (thd->vio_ok()) {
+    admission_control_exit(thd);
+    bool ret = protocol->write();
+    admission_control_enter(thd, 0);
+    DBUG_RETURN(ret);
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -1743,6 +1750,7 @@ bool select_send::send_eof()
     InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
     by thd 
   */
+  admission_control_exit(thd);
   ha_release_temporary_latches(thd);
 
   /* Unlock tables before sending packet to gain some speed */
@@ -1755,6 +1763,7 @@ bool select_send::send_eof()
     Don't send EOF if we're in error condition (which implies we've already
     sent or are sending an error)
   */
+  admission_control_enter(thd, 0);
   if (thd->is_error())
     return TRUE;
   ::my_eof(thd);

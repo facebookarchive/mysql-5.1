@@ -27,6 +27,75 @@
 #include "log.h"
 #include "rpl_tblmap.h"
 
+/* Admission Control helps prevent too many concurrent queries from
+ * each user from being inside a storage engine.  This is not quite
+ * the same as the total number of users running queries as
+ * long-blocking operations such as network IO, disk reads, etc,
+ * briefly discount their user from the limit.  The intention is to
+ * avoid/reduce CPU time spent managing locks and concurrency inside
+ * of storage engines and mysql rather than a hard limit on concurrent
+ * queries.  This feature is primarily intended for use with
+ * innodb_thread_concurrency=0 (ie, no limit on the number of threads
+ * inside of innodb, instead using admission control to prevent
+ * overwhelming the engine).
+ *
+ * General usage is constructing an AdmissionControlBarrier stack
+ * object when executing a command from the user.  When executing a
+ * command, admission_control_enter is called; when leaving the engine
+ * or the command completes, admission_control_exit is invoked.
+ * Alternatively, the barrier's Bypass() method can be invoked to
+ * disregard any admission control (for fast codepaths where no callee
+ * that may be AC-aware should spend time executing AC checks).
+ *
+ * To briefly allow another of the user's queries to run, a thread can
+ * call admission_control_exit and then re-acquire their slot via
+ * admission_control_enter(thd, 0); this does not block and may allow
+ * the count to temporarily burst above the configured limit.  All
+ * calls to exit must be balanced with calls to enter; this is
+ * enforced.
+ */
+
+int admission_control_enter(THD* thd, ulong wait_seconds);
+void admission_control_exit(THD* thd);
+
+enum enum_admission_control {
+  QUERY_SCHEDULED=151,  /* Count and enforce concurrent queries */
+  QUERY_COUNTED,        /* Count concurrent queries */
+  QUERY_NOT_SCHEDULED   /* Do not count concurrent queries */
+};
+
+/* This class provides a "barrier" for admission control -- it is
+ * intended to be a re-entrant, state-preserving indication that
+ * admission control is to be used by this function and all of its
+ * callees.  The Bypass() method indicates no accounting should be
+ * done while under this barrier and is intended for cases where
+ * admission control is not desired (faster codepaths, etc).
+ */
+class AdmissionControlBarrier {
+public:
+  AdmissionControlBarrier(THD* thd);
+  ~AdmissionControlBarrier();
+  void Bypass();
+private:
+  THD* thd_;
+  enum enum_admission_control previous_control_;
+};
+
+/* This class performs sanity checks on the state of admission
+ * control.  When destroyed, it verifies that an equal number of
+ * enters have been called as have exits and that the depth of
+ * admission control enter/exit is rebalanced back to 0.
+ */
+#ifdef DEBUGGING
+class AdmissionControlVerifier {
+public:
+  AdmissionControlVerifier();
+  ~AdmissionControlVerifier();
+private:
+  int initial_depth_;
+};
+#endif
+
 /**
   An interface that is used to take an action when
   the locking module notices that a table version has changed
@@ -1299,7 +1368,6 @@ struct Ha_data
   Ha_data() :ha_ptr(NULL) {}
 };
 
-
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -1368,6 +1436,11 @@ public:
     Is locked when THD is deleted.
   */
   pthread_mutex_t LOCK_thd_data;
+
+  /**
+   Indicates whether query scheduling was used to limit max concurrent queries.
+  */
+  enum_admission_control uses_admission_control;
 
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map;
@@ -2033,21 +2106,43 @@ public:
 #endif
 
   /*
-    For enter_cond() / exit_cond() to work the mutex must be got before
-    enter_cond(); this mutex is then released by exit_cond().
-    Usage must be: lock mutex; enter_cond(); your code; exit_cond().
+    For enter_cond() / exit_cond() to work the mutex must be
+    locked before enter_cond(); this mutex is then released by
+    exit_cond().  Usage must be: lock mutex; enter_cond(); your code;
+    exit_cond().
+
+    By default, when admission control is active, acquiring a
+    condition variable marks the current thread as not in a query and
+    allows the user to begin a new query.
+
+    enter_cond_noscheduler/exit_cond_noscheduler should be used when
+    it is not desirable for the user to begin a query while waiting on
+    this condvar.  This is rare and generally should not be used
+    except by admission_control's implementation.
   */
-  inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
-			  const char* msg)
+  inline const char* enter_cond_func(pthread_cond_t *cond,
+                                     pthread_mutex_t* mutex,
+                                     const char* msg,
+                                     bool use_admission_control)
   {
     const char* old_msg = proc_info;
     safe_mutex_assert_owner(mutex);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
     proc_info = msg;
+
+    if (use_admission_control)
+    {
+      /* Allow another thread to run.  */
+
+      admission_control_exit(this);
+    }
+
     return old_msg;
   }
-  inline void exit_cond(const char* old_msg)
+
+  inline void exit_cond_func(const char* old_msg,
+                             bool use_admission_control)
   {
     /*
       Putting the mutex unlock in exit_cond() ensures that
@@ -2055,6 +2150,14 @@ public:
       locked (if that would not be the case, you'll get a deadlock if someone
       does a THD::awake() on you).
     */
+
+    if (use_admission_control)
+    {
+      /* Get the right to run again without waiting.  */
+
+      (void) admission_control_enter(this, 0);
+    }
+
     pthread_mutex_unlock(mysys_var->current_mutex);
     pthread_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = 0;
@@ -2062,6 +2165,29 @@ public:
     proc_info = old_msg;
     pthread_mutex_unlock(&mysys_var->mutex);
   }
+
+  inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
+			  const char* msg)
+  {
+    return enter_cond_func(cond, mutex, msg, TRUE);
+  }
+
+  inline const char* enter_cond_noscheduler(pthread_cond_t *cond, pthread_mutex_t* mutex,
+			  const char* msg)
+  {
+    return enter_cond_func(cond, mutex, msg, FALSE);
+  }
+
+  inline void exit_cond(const char* old_msg)
+  {
+    exit_cond_func(old_msg, TRUE);
+  }
+
+  inline void exit_cond_noscheduler(const char* old_msg)
+  {
+    exit_cond_func(old_msg, FALSE);
+  }
+
   inline time_t query_start() { query_start_used=1; return start_time; }
   inline void set_time()
   {

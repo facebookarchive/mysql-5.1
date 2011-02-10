@@ -102,6 +102,11 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     uc->host= uc->user + user_len +  1;
     uc->len= temp_len;
     uc->connections= uc->questions= uc->updates= uc->conn_per_hour= 0;
+
+    uc->queries_running = uc->queries_waiting= 0;
+    pthread_mutex_init(&(uc->query_mutex), MY_MUTEX_INIT_FAST);
+    pthread_cond_init(&(uc->query_condvar), NULL);
+
     uc->user_resources= *mqh;
     uc->reset_utime= thd->thr_create_utime;
     if (my_hash_insert(&hash_user_connections, (uchar*) uc))
@@ -555,6 +560,9 @@ extern "C" uchar *get_key_conn(user_conn *buff, size_t *length,
 
 extern "C" void free_user(struct user_conn *uc)
 {
+  pthread_mutex_destroy(&(uc->query_mutex));
+  pthread_cond_destroy(&(uc->query_condvar));
+
   my_free((char*) uc,MYF(0));
 }
 
@@ -1333,7 +1341,6 @@ int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[f++]->store(us->io_perf_read.requests, TRUE);
     table->field[f++]->store(us->io_perf_read.svc_usecs, TRUE);
     table->field[f++]->store(us->io_perf_read.wait_usecs, TRUE);
-
     table->field[f++]->store(us->errors_access_denied, TRUE);
     table->field[f++]->store(us->errors_total, TRUE);
     table->field[f++]->store(us->microseconds_cpu, TRUE);
@@ -1349,6 +1356,8 @@ int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[f++]->store(us->rows_index_next, TRUE);
     table->field[f++]->store(us->transactions_commit, TRUE);
     table->field[f++]->store(us->transactions_rollback, TRUE);
+    table->field[f++]->store(user_conn->queries_running, TRUE);
+    table->field[f++]->store(user_conn->queries_waiting, TRUE);
 
     if (schema_table_store_record(thd, table))
     {

@@ -2198,8 +2198,10 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   thd_proc_info(thd, "Waiting for table");
   DBUG_ENTER("wait_for_condition");
   DEBUG_SYNC(thd, "waiting_for_table");
+  admission_control_exit(thd);
   if (!thd->killed)
     (void) pthread_cond_wait(cond, mutex);
+  admission_control_enter(thd, 0);
 
   /*
     We must unlock mutex first to avoid deadlock becasue conditions are
@@ -2871,7 +2873,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       */
       if (table->in_use != thd)
       {
-        /* wait_for_conditionwill unlock LOCK_open for us */
+        /* wait_for_condition will unlock LOCK_open for us */
         wait_for_condition(thd, &LOCK_open, &COND_refresh);
       }
       else

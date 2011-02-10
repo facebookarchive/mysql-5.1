@@ -21,6 +21,7 @@
 #include <m_ctype.h>
 #include <myisam.h>
 #include <my_dir.h>
+#include "my_atomic.h"
 
 #ifdef LIBMEMCACHE
 #include <mcc/mcc.h>
@@ -515,7 +516,7 @@ static void handle_bootstrap_impl(THD *thd)
     */
     thd->query_id=next_query_id();
     thd->set_time();
-    mysql_parse(thd, thd->query(), length, & found_semicolon, NULL);
+    mysql_parse(thd, thd->query(), length, & found_semicolon, NULL, FALSE);
     close_thread_tables(thd);			// Free tables
 
     bootstrap_error= thd->is_error();
@@ -816,6 +817,10 @@ bool do_command(THD *thd)
   NET *net= &thd->net;
   enum enum_server_command command;
   DBUG_ENTER("do_command");
+
+#ifdef DEBUGGING
+  AdmissionControlVerifier admission_control_verifier;
+#endif
 
   /*
     indicator of uninitialized lex => normal flow of errors handling
@@ -1321,7 +1326,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
 
     mysql_parse(thd, thd->query(), thd->query_length(), &end_of_stmt,
-                &last_timer);
+                &last_timer, TRUE);
 
     while (!thd->killed && (end_of_stmt != NULL) && ! thd->is_error())
     {
@@ -1361,7 +1366,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
       mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt,
-                  &last_timer);
+                  &last_timer, TRUE);
     }
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -2295,7 +2300,8 @@ bool sp_process_definer(THD *thd)
 */
 
 int
-mysql_execute_command(THD *thd, my_fast_timer_t *last_timer)
+mysql_execute_command(THD *thd, my_fast_timer_t *last_timer,
+                      my_bool use_admission_control)
 {
   int res= FALSE;
   bool need_start_waiting= FALSE; // have protection against global read lock
@@ -2309,6 +2315,7 @@ mysql_execute_command(THD *thd, my_fast_timer_t *last_timer)
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *unit= &lex->unit;
+  my_bool setup_ac= FALSE;
 #ifdef HAVE_REPLICATION
   /* have table map for update for multi-update statement (BUG#37051) */
   bool have_table_map_for_update= FALSE;
@@ -2318,6 +2325,8 @@ mysql_execute_command(THD *thd, my_fast_timer_t *last_timer)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
 #endif
+
+  AdmissionControlBarrier ac_barier(thd);
 
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
@@ -2486,10 +2495,42 @@ mysql_execute_command(THD *thd, my_fast_timer_t *last_timer)
 
   DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
 
+  if (use_admission_control)
+  {
+    switch (lex->sql_command) {
+      case SQLCOM_SELECT:
+      case SQLCOM_EXECUTE:
+      case SQLCOM_CREATE_TABLE:
+      case SQLCOM_CREATE_INDEX:
+      case SQLCOM_DROP_TABLE:
+      case SQLCOM_DROP_INDEX:
+      case SQLCOM_ALTER_TABLE:
+      case SQLCOM_UPDATE:
+      case SQLCOM_UPDATE_MULTI:
+      case SQLCOM_REPLACE:
+      case SQLCOM_INSERT:
+      case SQLCOM_REPLACE_SELECT:
+      case SQLCOM_INSERT_SELECT:
+      case SQLCOM_DELETE:
+      case SQLCOM_DELETE_MULTI:
+      case SQLCOM_HA_OPEN:
+      case SQLCOM_HA_READ:
+      case SQLCOM_HA_CLOSE:
+      case SQLCOM_HA_OPEN_READ_CLOSE:
+      case SQLCOM_CALL:
+        admission_control_enter(thd, thd->variables.net_wait_timeout);
+        setup_ac = TRUE;
+        break;
+      default:
+        ac_barier.Bypass();
+        // pass
+        break;
+    }
+  }
+
   /* Count commands by type. Uses a separate switch statement as I don't want to
      repeat the increment of commands_other in so many cases.
   */
- 
   if (thd->user_connect)
   {
     USER_STATS *us= &(thd->user_connect->user_stats);
@@ -5423,6 +5464,12 @@ error:
   res= TRUE;
 
 finish:
+
+  if (setup_ac)
+  {
+    admission_control_exit(thd);
+  }
+
   if (last_timer && lex->sql_command != SQLCOM_SELECT)
   {
     thd->status_var.exec_seconds += my_fast_timer_diff_now(last_timer, last_timer);
@@ -6403,7 +6450,8 @@ void mysql_init_multi_delete(LEX *lex)
 */
 
 void mysql_parse(THD *thd, char *rawbuf, uint length,
-                 const char ** found_semicolon, my_fast_timer_t *last_timer)
+                 const char ** found_semicolon, my_fast_timer_t *last_timer,
+                 my_bool use_admission_control)
 {
   DBUG_ENTER("mysql_parse");
 
@@ -6484,7 +6532,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
             thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           }
           lex->set_trg_event_type_for_tables();
-          mysql_execute_command(thd, last_timer);
+          mysql_execute_command(thd, last_timer, use_admission_control);
 	}
       }
     }
@@ -8395,6 +8443,194 @@ bool parse_sql(THD *thd,
   /* That's it. */
 
   return mysql_parse_status || thd->is_fatal_error;
+}
+
+/* TODO(mcallaghan/chip): count time here blocked per-user */
+
+/* TODO(mcallaghan/chip): Should we allow bursting above the user's
+ * configured limits when globally we are below max connections or
+ * some other metric?  Could still lead to innodb contention but
+ * increase throughput in otherwise idle databases.*/
+
+#ifdef DEBUGGING
+/* Store a per-thread variable for our depth in admission control;
+ * verify this depth on each enter/exit.  Mark: I think this is okay
+ * to leave on in general; the performance impact should be
+ * negligible. Should this thread variable be in THD though? */
+static __thread int admission_depth = 0;
+
+AdmissionControlVerifier::AdmissionControlVerifier() {
+  assert(admission_depth == 0);
+  initial_depth_ = admission_depth;
+}
+
+AdmissionControlVerifier::~AdmissionControlVerifier() {
+  if (admission_depth != initial_depth_) {
+    fprintf(stderr, "Admission control teardown should be %d, is %d\n",
+            initial_depth_, admission_depth);
+  }
+  assert(admission_depth == initial_depth_);
+  assert(admission_depth == 0);
+}
+#endif
+
+AdmissionControlBarrier::AdmissionControlBarrier(THD* thd) : thd_(thd) {
+  previous_control_ = thd->uses_admission_control;
+
+  USER_CONN *uc = thd->user_connect;
+
+  if (!uc)
+  {
+     thd->uses_admission_control = QUERY_NOT_SCHEDULED;
+  }
+  else
+  {
+    thd->uses_admission_control =
+        (admission_control && uc->user_resources.max_concurrent_queries)
+        ? QUERY_SCHEDULED : QUERY_COUNTED;
+  }
+}
+
+AdmissionControlBarrier::~AdmissionControlBarrier() {
+  thd_->uses_admission_control = previous_control_;
+}
+
+void AdmissionControlBarrier::Bypass()
+{
+  thd_->uses_admission_control = QUERY_NOT_SCHEDULED;
+}
+
+/**
+  Possibly block until this user can run a query.
+
+  If thd->user_connect is NULL then return immediately. Otherwise based on
+  the value of thd->uses_admission_control:
+  * QUERY_NOT_SCHEDULED - return 0 immediately
+  * QUERY_COUNTED - increment the count of queries per account and return 0
+  * QUERY_SCHEDULED - wait up to wait_seconds for the count to be less than
+                      the limit. Return 0 when the caller can continue to
+                      run a query and the per-user count has been incremented.
+                      Return 1 when the timeout was reached.
+
+    @param thd - THD for the caller
+    @param wait_seconds - number of seconds to block. When 0 increment the
+                          count of queries per user without waiting.
+
+    @return Error status
+      @retval 1 when an error or timeout occurred
+      @retval 0 otherwise
+ */
+
+int admission_control_enter(THD* thd, ulong wait_seconds)
+{
+  USER_CONN *uc = thd->user_connect;
+
+  DBUG_ENTER("admission_control_enter");
+
+  if (thd->uses_admission_control == QUERY_NOT_SCHEDULED)
+    DBUG_RETURN(0);
+
+#ifdef DEBUGGING
+  ++admission_depth;
+#endif
+
+  if (!wait_seconds || thd->uses_admission_control == QUERY_COUNTED)
+  {
+    my_atomic_add32(&(uc->queries_running), 1);
+    DBUG_RETURN(0);
+  }
+
+  assert(thd->uses_admission_control == QUERY_SCHEDULED);
+
+  while (1)
+  {
+    int nr = uc->queries_running;
+    const char* old_msg;
+    struct timespec abstime;
+    int timed_out = 0;
+
+    if (nr < uc->user_resources.max_concurrent_queries &&
+        my_atomic_cas32(&(uc->queries_running), &nr, nr+1))
+    {
+      DBUG_RETURN(0);
+    }
+
+    /* Do this before locking uc->query_mutex */
+    set_timespec(abstime, wait_seconds);
+
+    pthread_mutex_lock(&(uc->query_mutex));
+    ++uc->queries_waiting;
+
+    // Enforce a memory barrier for the optimization below.
+    asm volatile("" ::: "memory");
+
+    old_msg=  thd->enter_cond_noscheduler(&(uc->query_condvar),
+                                          &(uc->query_mutex),
+                                          "wait for max concurrent queries");
+
+    while (uc->queries_running >= uc->user_resources.max_concurrent_queries)
+    {
+      int error = pthread_cond_timedwait(&(uc->query_condvar),
+                                         &(uc->query_mutex),
+                                         &abstime);
+
+      if (error == ETIME || error == ETIMEDOUT)
+      {
+        timed_out = 1;
+        break;
+      }
+
+      assert(error == 0 || error == EINTR);
+    }
+
+    --uc->queries_waiting;
+    assert(uc->queries_waiting >= 0);
+
+    thd->exit_cond_noscheduler(old_msg); // unlocks mutex
+
+    if (timed_out)
+      DBUG_RETURN(1);
+  }
+}
+
+void admission_control_exit(THD* thd)
+{
+  USER_CONN *uc = thd->user_connect;
+
+  DBUG_ENTER("admission_control_exit");
+
+  if (thd->uses_admission_control == QUERY_NOT_SCHEDULED)
+    DBUG_VOID_RETURN;
+
+#ifdef DEBUGGING
+  --admission_depth;
+#endif
+
+  if (thd->uses_admission_control == QUERY_COUNTED)
+  {
+    int val = my_atomic_add32(&(uc->queries_running), -1);
+    assert(val >= 0);
+    DBUG_VOID_RETURN;
+  }
+
+  assert(thd->uses_admission_control == QUERY_SCHEDULED);
+
+  int qr = my_atomic_add32(&(uc->queries_running), -1);
+  assert(qr >= 0);
+
+  // Memory barrier.  Mark has a remarkable proof this is safe, but it
+  // will not fit in these margins.
+  asm volatile("" ::: "memory");
+
+  if (qr <= (uc->user_resources.max_concurrent_queries + 1) &&
+      uc->queries_waiting)
+  {
+    // No attempt is made to be fair to who gets to wake from blocking
+    // on the condvar.
+    pthread_cond_signal(&(uc->query_condvar));
+  }
+
+  DBUG_VOID_RETURN;
 }
 
 /**

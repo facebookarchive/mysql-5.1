@@ -1052,7 +1052,8 @@ bool mysql_opt_change_db(THD *thd,
                          bool *cur_db_changed);
 
 void mysql_parse(THD *thd, char *rawbuf, uint length,
-                 const char ** semicolon, my_fast_timer_t *last_timer);
+                 const char ** semicolon, my_fast_timer_t *last_timer,
+                 my_bool use_admission_control);
 
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
@@ -1068,7 +1069,8 @@ void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
 pthread_handler_t handle_bootstrap(void *arg);
-int mysql_execute_command(THD *thd, my_fast_timer_t *last_timer);
+int mysql_execute_command(THD *thd, my_fast_timer_t *last_timer,
+                          my_bool use_admission_control);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
@@ -2136,6 +2138,8 @@ extern SHOW_COMP_OPTION have_compress;
 /* Added for patches */
 extern int xa_recovery_did_rollback;
 extern ulong sync_relay_info_period, sync_relay_info_events;
+
+extern my_bool admission_control;
 
 extern my_bool log_datagram;
 extern ulong log_datagram_usecs;

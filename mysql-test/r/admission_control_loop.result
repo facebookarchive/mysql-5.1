@@ -1,0 +1,115 @@
+show global variables like "admission_control";
+Variable_name	Value
+admission_control	ON
+grant all on *.* to 'adminc'@'%' with max_concurrent_queries 3 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_queries
+adminc	%	100	3
+flush privileges;
+Run for loop 100
+Run for loop 99
+Run for loop 98
+Run for loop 97
+Run for loop 96
+Run for loop 95
+Run for loop 94
+Run for loop 93
+Run for loop 92
+Run for loop 91
+Run for loop 90
+Run for loop 89
+Run for loop 88
+Run for loop 87
+Run for loop 86
+Run for loop 85
+Run for loop 84
+Run for loop 83
+Run for loop 82
+Run for loop 81
+Run for loop 80
+Run for loop 79
+Run for loop 78
+Run for loop 77
+Run for loop 76
+Run for loop 75
+Run for loop 74
+Run for loop 73
+Run for loop 72
+Run for loop 71
+Run for loop 70
+Run for loop 69
+Run for loop 68
+Run for loop 67
+Run for loop 66
+Run for loop 65
+Run for loop 64
+Run for loop 63
+Run for loop 62
+Run for loop 61
+Run for loop 60
+Run for loop 59
+Run for loop 58
+Run for loop 57
+Run for loop 56
+Run for loop 55
+Run for loop 54
+Run for loop 53
+Run for loop 52
+Run for loop 51
+Run for loop 50
+Run for loop 49
+Run for loop 48
+Run for loop 47
+Run for loop 46
+Run for loop 45
+Run for loop 44
+Run for loop 43
+Run for loop 42
+Run for loop 41
+Run for loop 40
+Run for loop 39
+Run for loop 38
+Run for loop 37
+Run for loop 36
+Run for loop 35
+Run for loop 34
+Run for loop 33
+Run for loop 32
+Run for loop 31
+Run for loop 30
+Run for loop 29
+Run for loop 28
+Run for loop 27
+Run for loop 26
+Run for loop 25
+Run for loop 24
+Run for loop 23
+Run for loop 22
+Run for loop 21
+Run for loop 20
+Run for loop 19
+Run for loop 18
+Run for loop 17
+Run for loop 16
+Run for loop 15
+Run for loop 14
+Run for loop 13
+Run for loop 12
+Run for loop 11
+Run for loop 10
+Run for loop 9
+Run for loop 8
+Run for loop 7
+Run for loop 6
+Run for loop 5
+Run for loop 4
+Run for loop 3
+Run for loop 2
+Run for loop 1
+Should be empty
+select User, State, Info from information_schema.processlist where Info like 'select sleep%';
+User	State	Info
+select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
+queries_running	queries_waiting
+0	0
+drop user 'adminc'@'%';

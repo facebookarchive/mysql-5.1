@@ -533,6 +533,18 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         }
         else
           user.user_resource.user_conn= 0;
+
+        if (table->s->fields >= 40)
+        {
+          /* Facebook patch adds max_concurrent_queries */
+          ptr= get_field(thd->mem_root, table->field[next_field++]);
+          user.user_resource.max_concurrent_queries= ptr ? atoi(ptr) : 0;
+        }
+        else
+        {
+          user.user_resource.max_concurrent_queries= 0;
+        }
+
       }
       else
       {
@@ -1214,6 +1226,8 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->user_resource.conn_per_hour= mqh->conn_per_hour;
 	if (mqh->specified_limits & USER_RESOURCES::USER_CONNECTIONS)
 	  acl_user->user_resource.user_conn= mqh->user_conn;
+	if (mqh->specified_limits & USER_RESOURCES::USER_CONCURRENT_QUERIES)
+	  acl_user->user_resource.max_concurrent_queries= mqh->max_concurrent_queries;
 	if (ssl_type != SSL_TYPE_NOT_SPECIFIED)
 	{
 	  acl_user->ssl_type= ssl_type;
@@ -2057,6 +2071,9 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (table->s->fields >= 36 &&
         (mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS))
       table->field[next_field+3]->store((longlong) mqh.user_conn, TRUE);
+    if (table->s->fields >= 40 &&
+        (mqh.specified_limits & USER_RESOURCES::USER_CONCURRENT_QUERIES))
+      table->field[next_field+4]->store((longlong) mqh.max_concurrent_queries, TRUE);
     mqh_used= mqh_used || mqh.questions || mqh.updates || mqh.conn_per_hour;
   }
   if (old_row_exists)
@@ -4700,7 +4717,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	(acl_user->user_resource.questions ||
          acl_user->user_resource.updates ||
          acl_user->user_resource.conn_per_hour ||
-         acl_user->user_resource.user_conn))
+         acl_user->user_resource.user_conn ||
+         acl_user->user_resource.max_concurrent_queries))
     {
       global.append(STRING_WITH_LEN(" WITH"));
       if (want_access & GRANT_ACL)
@@ -4713,6 +4731,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 		      "MAX_CONNECTIONS_PER_HOUR");
       add_user_option(&global, acl_user->user_resource.user_conn,
 		      "MAX_USER_CONNECTIONS");
+      add_user_option(&global, acl_user->user_resource.max_concurrent_queries,
+		      "MAX_CONCURRENT_QUERIES");
     }
     protocol->prepare_for_resend();
     protocol->store(global.ptr(),global.length(),global.charset());

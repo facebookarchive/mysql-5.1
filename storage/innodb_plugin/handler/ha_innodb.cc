@@ -1004,6 +1004,34 @@ thd_lock_wait_timeout(
 	return(THDVAR((THD*) thd, lock_wait_timeout));
 }
 
+/******************************************************************//**
+Schedule this query to run. */
+extern "C" UNIV_INTERN
+void
+thd_admission_control_enter(
+/*=======================*/
+	void*	thd)	/*!< in: thread handle (THD*), or NULL to query
+			the global innodb_lock_wait_timeout */
+{
+	if (thd) {
+		int r = admission_control_enter((THD*)thd, 0);
+		ut_a(r == 0);
+	}
+}
+
+/******************************************************************//**
+Indicate this thread has stopped running. */
+extern "C" UNIV_INTERN
+void
+thd_admission_control_exit(
+/*=======================*/
+	void*	thd)	/*!< in: thread handle (THD*), or NULL to query
+			the global innodb_lock_wait_timeout */
+{
+	if (thd)
+		admission_control_exit((THD*)thd);
+}
+
 /********************************************************************//**
 Returns the merge-sort block size used for the secondary index creation
 for the current connection.

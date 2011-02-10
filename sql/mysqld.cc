@@ -623,6 +623,8 @@ my_bool cachedev_enabled= FALSE;
 /* Added by patches */
 ulong reserved_super_connections=0;
 
+my_bool admission_control= FALSE;
+
 my_bool log_datagram= 0;
 ulong log_datagram_usecs= 0;
 int log_datagram_sock= -1;
@@ -6141,6 +6143,7 @@ enum options_mysqld
   OPT_NET_COMPRESSION_LEVEL,
   OPT_RPL_TRANSACTION_ENABLED,
   OPT_FORCE_BINLOG_ORDER,
+  OPT_ADMISSION_CONTROL,
   OPT_CONNECTION_RECYCLE,
   OPT_CONNECTION_RECYCLE_PCT_CONNECTIONS_MIN,
   OPT_CONNECTION_RECYCLE_PCT_CONNECTIONS_MAX,
@@ -7721,6 +7724,10 @@ thread is in the relay logs.",
    "Use 0 (default) to disable synchronous flushing.",
    &sync_relay_info_period, &sync_relay_info_period, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
+  {"admission_control", OPT_ADMISSION_CONTROL,
+   "Limit number of queries that run concurrently",
+   &admission_control, &admission_control,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"perftools_profile", OPT_PERFTOOLS_PROFILE,
    "Enable profiling using Google Perftools and write output to this file.",
    &opt_perftools_profile_output, &opt_perftools_profile_output,
@@ -8428,6 +8435,8 @@ static int mysql_init_variables(void)
   log_datagram= 0;
   log_datagram_usecs= 0;
   log_datagram_sock= -1;
+
+  admission_control= FALSE;
 
   opt_log_slow_extra= FALSE;
 

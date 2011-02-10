@@ -195,12 +195,14 @@ typedef struct user_resources {
   uint conn_per_hour;
   /* Maximum number of concurrent connections. */
   uint user_conn;
+  /* Maximum number of concurrent queries. */
+  int max_concurrent_queries;
   /*
      Values of this enum and specified_limits member are used by the
      parser to store which user limits were specified in GRANT statement.
   */
   enum {QUERIES_PER_HOUR= 1, UPDATES_PER_HOUR= 2, CONNECTIONS_PER_HOUR= 4,
-        USER_CONNECTIONS= 8};
+        USER_CONNECTIONS= 8, USER_CONCURRENT_QUERIES= 16};
   uint specified_limits;
 } USER_RESOURCES;
 
@@ -290,6 +292,18 @@ typedef struct  user_conn {
      per hour and total number of statements per hour for this account.
   */
   uint conn_per_hour, updates, questions;
+
+  /* Tracking variables for admission control.  Tracks the number of
+   * running and waiting queries.  */
+  volatile int      queries_running; /* changed by atomic inc */
+  volatile int      queries_waiting; /* protected by query_mutex */
+
+  /* Condvar used to block when waiting for the user to be able to
+   * start a new query, and signal when a new query can begin.
+   * query_mutex guards queries_waiting. */
+  pthread_mutex_t   query_mutex;
+  pthread_cond_t    query_condvar;
+
   /* Maximum amount of resources which account is allowed to consume. */
   USER_RESOURCES user_resources;
 

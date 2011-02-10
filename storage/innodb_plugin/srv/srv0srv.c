@@ -1795,6 +1795,8 @@ srv_suspend_mysql_thread(
 		break;
 	}
 
+	thd_admission_control_exit(trx->mysql_thd);
+
 	ut_a(trx->dict_operation_lock_mode == 0);
 
 	/* Suspend this thread and wait for the event. */
@@ -1812,6 +1814,8 @@ srv_suspend_mysql_thread(
 		row_mysql_lock_data_dictionary(trx);
 		break;
 	}
+
+	thd_admission_control_enter(trx->mysql_thd);
 
 	if (was_declared_inside_innodb) {
 

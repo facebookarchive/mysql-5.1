@@ -3270,7 +3270,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       my_get_fast_timer(&init_timer);
       last_timer = init_timer;
       const char* found_semicolon= NULL;
-      mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon, &last_timer);
+      mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon, &last_timer, FALSE);
       command_slave_seconds += my_fast_timer_diff_now(&init_timer, &init_timer);
       log_slow_statement(thd);
 

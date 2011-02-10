@@ -992,6 +992,8 @@ static sys_var_readonly         sys_myisam_mmap_size(&vars, "myisam_mmap_size",
                                                      OPT_GLOBAL,
                                                      SHOW_LONGLONG,
                                                      get_myisam_mmap_size);
+static sys_var_bool_ptr sys_admission_control(&vars, "admission_control",
+                                              &admission_control);
 
 
 static sys_var_bool_ptr	sys_process_can_disable_bin_log(&vars,

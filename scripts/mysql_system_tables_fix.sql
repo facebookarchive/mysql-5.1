@@ -330,6 +330,11 @@ UPDATE host SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv, 
 ALTER TABLE user ADD max_user_connections int(11) unsigned DEFAULT '0' NOT NULL AFTER max_connections;
 
 #
+# Add max_concurrent_queries resource limit
+#
+ALTER TABLE user ADD max_concurrent_queries int(11) unsigned DEFAULT '0' NOT NULL AFTER max_user_connections;
+
+#
 # user.Create_user_priv
 #
 

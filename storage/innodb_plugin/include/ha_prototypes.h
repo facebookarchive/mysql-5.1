@@ -279,4 +279,21 @@ thd_merge_sort_block_size(
 	void* thd); /*!< in: thread handle (THD*), or NULL to query
 			the global merge_sort_block_size */
 
+/******************************************************************//**
+Schedule this thread to run. */
+
+void
+thd_admission_control_enter(
+/*======================*/
+	void*	thd);	/*!< in: thread handle (THD*), or NULL */
+
+/******************************************************************//**
+Indicate this thread has stopped running. */
+
+void
+thd_admission_control_exit(
+/*======================*/
+	void*	thd);	/*!< in: thread handle (THD*), or NULL */
+
+
 #endif

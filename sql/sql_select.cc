@@ -10945,6 +10945,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   }
 
   // Release latches since this can take a long time
+  admission_control_exit(thd);
   ha_release_temporary_latches(thd);
 
   new_table= *table;
@@ -10952,8 +10953,11 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   new_table.s= &share;
   new_table.s->db_plugin= ha_lock_engine(thd, myisam_hton);
   if (!(new_table.file= get_new_handler(&share, &new_table.mem_root,
-                                        new_table.s->db_type())))
+                                        new_table.s->db_type()))) {
+    admission_control_enter(thd, 0);
     DBUG_RETURN(1);				// End of memory
+  }
+
 
   save_proc_info=thd->proc_info;
   thd_proc_info(thd, "converting HEAP to MyISAM");
@@ -11022,6 +11026,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   if (save_proc_info)
     thd_proc_info(thd, (!strcmp(save_proc_info,"Copying to tmp table") ?
                   "Copying to tmp table on disk" : save_proc_info));
+  admission_control_enter(thd, 0);
   DBUG_RETURN(0);
 
  err:
@@ -11035,6 +11040,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   delete new_table.file;
   thd_proc_info(thd, save_proc_info);
   table->mem_root= new_table.mem_root;
+  admission_control_enter(thd, 0);
   DBUG_RETURN(1);
 }
 
