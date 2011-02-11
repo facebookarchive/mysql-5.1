@@ -38,6 +38,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
+#include "m_string.h"
 #include "my_sys.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0sync.h"
@@ -1642,6 +1643,30 @@ loop:
 }
 
 /***********************************************************************//**
+Helper function to delete a file along with the file it points to, if it is
+a symlink.
+@return 0 on success and nonzero on error */
+UNIV_INLINE
+int
+os_file_delete_with_symlink(
+/*========================*/
+	const char* name) /*!< in: file path as a null-terminated string */
+{
+	char link_name[FN_REFLEN];
+	ulint len = readlink(name, link_name, FN_REFLEN - 1);
+	if (len != -1) {
+		*(link_name + len) = '\0';
+	}
+	int result;
+	if (!(result=unlink(name))) {
+		if (len != -1) {
+			result = unlink(link_name);
+		}
+	}
+	return result;
+}
+
+/***********************************************************************//**
 Deletes a file. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
@@ -1690,7 +1715,7 @@ loop:
 
 	goto loop;
 #else
-	if (my_delete_with_symlink(name, 0)) {
+	if (os_file_delete_with_symlink(name)) {
 		os_file_handle_error_no_exit(name, "delete");
 
 		return(FALSE);
@@ -1698,6 +1723,75 @@ loop:
 
 	return(TRUE);
 #endif
+}
+
+/***********************************************************************//**
+Renames a file and the file it points to, if the actual file is a symlink.
+If the file is a normal file, just rename it.
+If the file is a symlink:
+ - Create a new file with the name 'to' that points at
+   symlink_dir/basename(to)
+ - Rename the symlinked file to symlink_dir/basename(to)
+ - Delete 'from'
+If something goes wrong, restore everything.
+@return 0 on success nonzero on error */
+UNIV_INLINE
+int
+os_file_rename_with_symlink(
+/*========================*/
+	const char* from,/*!< in: old file path as a null-terminated
+				string */
+	const char*	to)/*!< in: new file path */
+{
+	char link_name[FN_REFLEN], tmp_name[FN_REFLEN];
+	int len = readlink(from, link_name, FN_REFLEN - 1);
+	if (len == -1) {
+		return rename(from, to);
+	}
+	*(link_name + len) = '\0';
+	int result = 0;
+	int name_is_different;
+
+	/* Change filename that symlink pointed to */
+	strmov(tmp_name, to);
+	fn_same(tmp_name, link_name, 1);		/* Copy dir */
+	name_is_different = strcmp(link_name, tmp_name);
+	if (name_is_different && !access(tmp_name, F_OK))
+	{
+		return 1;
+	}
+
+	/* Create new symlink */
+	if (symlink(tmp_name, to))
+		return 1;
+
+	/*
+		Rename symlinked file if the base name didn't change.
+		This can happen if you use this function where 'from' and 'to' has
+		the same basename and different directories.
+	*/
+
+	if (name_is_different && rename(link_name, tmp_name))
+	{
+		int save_errno = errno;
+		unlink(to);			/* Remove created symlink */
+		errno=save_errno;
+		return 1;
+	}
+
+	/* Remove original symlink */
+	if (unlink(from))
+	{
+		int save_errno = errno;
+		/* Remove created link */
+		unlink(to);
+		/* Rename file back */
+		if (strcmp(link_name, tmp_name))
+			(void) rename(tmp_name, link_name);
+		errno = save_errno;
+		result= 1;
+	}
+	return result;
 }
 
 /***********************************************************************//**
@@ -1725,7 +1819,7 @@ os_file_rename(
 
 	return(FALSE);
 #else
-	if(my_rename_with_symlink(oldpath, newpath, 0)) {
+	if(os_file_rename_with_symlink(oldpath, newpath)) {
 		os_file_handle_error_no_exit(oldpath, "rename");
 
 		return(FALSE);
