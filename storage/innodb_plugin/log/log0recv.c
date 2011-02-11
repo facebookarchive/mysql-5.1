@@ -1254,6 +1254,17 @@ recv_parse_or_apply_log_rec_body(
 		ptr = page_zip_parse_compress(ptr, end_ptr,
 					      page, page_zip);
 		break;
+	case MLOG_ZIP_PAGE_COMPRESS_NO_DATA:
+		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr, TRUE, &index))) {
+			ut_a(!page || ((ibool)!!page_is_comp(page)
+										 == dict_table_is_comp(index->table)));
+			ptr = page_zip_parse_compress_no_data(ptr,
+			                                      end_ptr,
+			                                      page,
+			                                      page_zip,
+			                                      index);
+		}
+		break;
 	default:
 		ptr = NULL;
 		recv_sys->found_corrupt_log = TRUE;

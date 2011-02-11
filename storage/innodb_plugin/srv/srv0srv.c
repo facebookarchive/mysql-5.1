@@ -129,6 +129,9 @@ UNIV_INTERN ulint	srv_file_format = 0;
 /** Do DROP TABLE processing in the background to reduce time for
 which LOCK_open is locked */
 UNIV_INTERN my_bool  srv_background_drop_table = FALSE;
+/** If true, always log the images of compressed pages when the page is
+recompressed */
+UNIV_INTERN my_bool srv_log_compressed_pages = TRUE;
 /** Whether to check file format during startup.  A value of
 DICT_TF_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
 set it to the highest format we support. */

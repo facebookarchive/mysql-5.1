@@ -116,6 +116,21 @@ page_zip_compress(
 	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 	__attribute__((nonnull(1,2,3)));
 
+ /**********************************************************************//**
+Parses a log record of compressing an index page without the data.
+@return	end of log record or NULL */
+UNIV_INLINE
+byte*
+page_zip_parse_compress_no_data(
+/*============================*/
+/*====================*/
+	byte*		ptr,	/*!< in: buffer */
+	byte*		end_ptr, /*!< in: buffer end */
+	page_t*		page,	/*!< in: uncompressed page */
+	page_zip_des_t*	page_zip, /*!< out: compressed page */
+	dict_index_t*		index)
+	__attribute__((nonnull(1,2)));
+
 /**********************************************************************//**
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
@@ -437,6 +452,21 @@ page_zip_parse_compress(
 	__attribute__((nonnull(1,2)));
 
 /**********************************************************************//**
+Parses a log record of compressing an index page without the data.
+@return	end of log record or NULL */
+UNIV_INLINE
+byte*
+page_zip_parse_compress_no_data(
+/*============================*/
+/*====================*/
+	byte*		ptr,	/*!< in: buffer */
+	byte*		end_ptr, /*!< in: buffer end */
+	page_t*		page,	/*!< in: uncompressed page */
+	page_zip_des_t*	page_zip, /*!< out: compressed page */
+	dict_index_t*		index)
+	__attribute__((nonnull(1,2)));
+
+/**********************************************************************//**
 Calculate the compressed page checksum.
 @return	page checksum */
 UNIV_INTERN
@@ -450,6 +480,16 @@ page_zip_calc_checksum(
 /**  Compression level used for compressed row format.  0 is no compression
   (only for testing), 1 is fastest, 9 is best compression, default is 6. */
 extern uint page_compression_level;
+
+/**********************************************************************//**
+Write a log record of compressing an index page without the data on the page. */
+UNIV_INLINE
+void
+page_zip_compress_write_log_no_data(
+/*================================*/
+	const page_t*	page,
+	dict_index_t*	index,
+	mtr_t*		mtr);
 
 #ifndef UNIV_HOTBACKUP
 /** Check if a pointer to an uncompressed page matches a compressed page.

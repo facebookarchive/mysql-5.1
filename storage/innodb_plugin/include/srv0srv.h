@@ -101,6 +101,10 @@ extern ibool	srv_file_per_table;
 which LOCK_open is locked */
 extern my_bool	srv_background_drop_table;
 
+/** If true, always log the images of compressed pages when the page is
+recompressed */
+extern my_bool srv_log_compressed_pages;
+
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
 /** Whether to check file format during startup.  A value of

@@ -11550,6 +11550,14 @@ static MYSQL_SYSVAR_BOOL(log_archive, innobase_log_archive,
   "Set to 1 if you want to have logs archived.", NULL, NULL, FALSE);
 #endif /* UNIV_LOG_ARCHIVE */
 
+static MYSQL_SYSVAR_BOOL(log_compressed_pages, srv_log_compressed_pages,
+	PLUGIN_VAR_OPCMDARG,
+  "Enables/disables the logging of entire compressed page images. InnoDB"
+  " logs the compressed pages to prevent against corruption because of a change"
+  " in the algorithm to compress the pages. When turned OFF, this variable"
+  " makes InnoDB assume that the compression algorithm doesn't change.",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_STR(log_group_home_dir, innobase_log_group_home_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Path to InnoDB log files.", NULL, NULL, NULL);
@@ -11907,6 +11915,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_archive),
 #endif /* UNIV_LOG_ARCHIVE */
   MYSQL_SYSVAR(log_buffer_size),
+  MYSQL_SYSVAR(log_compressed_pages),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),
   MYSQL_SYSVAR(log_group_home_dir),

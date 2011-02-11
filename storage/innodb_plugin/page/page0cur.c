@@ -32,6 +32,7 @@ Created 10/4/1994 Heikki Tuuri
 #include "mtr0log.h"
 #include "log0recv.h"
 #include "ut0ut.h"
+#include "srv0srv.h"
 #ifndef UNIV_HOTBACKUP
 #include "rem0cmp.h"
 
@@ -1164,14 +1165,25 @@ page_cur_insert_rec_zip_reorg(
 	buf_block_t*	block,	/*!< in: buffer block */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	rec_t*		rec,	/*!< in: inserted record */
+	ulint 		rec_size, /*!< in: size of the inserted record */
 	page_t*		page,	/*!< in: uncompressed page */
 	page_zip_des_t*	page_zip,/*!< in: compressed page */
 	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 {
 	ulint		pos;
+	my_bool log_compressed_pages = srv_log_compressed_pages;
 
-	/* Recompress or reorganize and recompress the page. */
-	if (UNIV_LIKELY(page_zip_compress(page_zip, page, index, mtr))) {
+	/* Recompress or reorganize and recompress the page.
+	   Don't log anything if log_compressed_pages is FALSE.
+	   We log an MLOG_COMP_REC_INSERT and MLOG_ZIP_PAGE_COMPRESS_NO_DATA if
+	   compression was successful. */
+	if (UNIV_LIKELY(page_zip_compress(page_zip, page, index,
+		                                log_compressed_pages ? mtr : NULL))) {
+		if (!log_compressed_pages) {
+			page_cur_insert_rec_write_log(rec, rec_size,
+			                              *current_rec, index, mtr);
+			page_zip_compress_write_log_no_data(page, index, mtr);
+		}
 		return(rec);
 	}
 
@@ -1277,7 +1289,7 @@ page_cur_insert_rec_zip(
 
 		if (UNIV_LIKELY(insert_rec != NULL)) {
 			insert_rec = page_cur_insert_rec_zip_reorg(
-				current_rec, block, index, insert_rec,
+				current_rec, block, index, insert_rec, rec_size,
 				page, page_zip, mtr);
 		}
 
