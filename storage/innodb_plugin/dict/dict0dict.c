@@ -424,7 +424,7 @@ dict_index_get_on_id_low(
 	index = dict_table_get_first_index(table);
 
 	while (index) {
-		if (0 == ut_dulint_cmp(id, index->id)) {
+		if (id == index->id) {
 			/* Found */
 
 			return(index);
@@ -828,7 +828,7 @@ dict_table_add_to_cache(
 		dict_table_t*	table2;
 		HASH_SEARCH(id_hash, dict_sys->table_id_hash, id_fold,
 			    dict_table_t*, table2, ut_ad(table2->cached),
-			    ut_dulint_cmp(table2->id, table->id) == 0);
+			    table2->id == table->id);
 		ut_a(table2 == NULL);
 
 #ifdef UNIV_DEBUG
@@ -874,7 +874,7 @@ dict_index_find_on_id_low(
 		index = dict_table_get_first_index(table);
 
 		while (index) {
-			if (0 == ut_dulint_cmp(id, index->id)) {
+			if (id == index->id) {
 				/* Found */
 
 				return(index);
@@ -2461,8 +2461,7 @@ dict_table_get_index_by_max_id(
 				/* We found a matching index, select
 				the index with the higher id*/
 
-				if (!found
-				    || ut_dulint_cmp(index->id, found->id) > 0) {
+				if (!found || index->id > found->id) {
 
 					found = index;
 				}
@@ -4889,8 +4888,7 @@ dict_table_get_index_on_name_and_min_id(
 
 	while (index != NULL) {
 		if (ut_strcmp(index->name, name) == 0) {
-			if (!min_index
-			    || ut_dulint_cmp(index->id, min_index->id) < 0) {
+			if (!min_index || index->id < min_index->id) {
 
 				min_index = index;
 			}

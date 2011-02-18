@@ -29,22 +29,9 @@ Created 1/20/1994 Heikki Tuuri
 
 #include "univ.i"
 
-/** Pair of ulint integers. */
-typedef	struct dulint_struct	dulint;
-/** Type definition for a 64-bit unsigned integer, which works also
-in 32-bit machines. NOTE! Access the fields only with the accessor
-functions. This definition appears here only for the compiler to
-know the size of a dulint. */
-struct dulint_struct{
-	ulint	high;	/*!< most significant 32 bits */
-	ulint	low;	/*!< least significant 32 bits */
-};
-
-/** Zero value for a dulint */
-extern const dulint	ut_dulint_zero;
-
-/** Maximum value for a dulint */
-extern const dulint	ut_dulint_max;
+typedef ib_uint64_t dulint;
+static const dulint ut_dulint_zero = 0L;
+static const dulint ut_dulint_max = ULONG_MAX;
 
 /*******************************************************//**
 Creates a 64-bit dulint out of two ulints.
@@ -186,19 +173,12 @@ ut_uint64_align_up(
 					which must be a power of 2 */
 /*******************************************************//**
 Increments a dulint variable by 1. */
-#define UT_DULINT_INC(D)\
-{\
-	if ((D).low == 0xFFFFFFFFUL) {\
-		(D).high = (D).high + 1;\
-		(D).low = 0;\
-	} else {\
-		(D).low = (D).low + 1;\
-	}\
-}
+#define UT_DULINT_INC(D) { ++D; }
+
 /*******************************************************//**
 Tests if two dulints are equal. */
-#define UT_DULINT_EQ(D1, D2)	(((D1).low == (D2).low)\
-						&& ((D1).high == (D2).high))
+#define UT_DULINT_EQ(D1, D2) ((D1) == (D2))
+
 #ifdef notdefined
 /************************************************************//**
 Sort function for dulint arrays. */

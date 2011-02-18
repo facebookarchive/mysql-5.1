@@ -1319,9 +1319,10 @@ trx_sys_file_format_max_read(void)
 
 	mtr_commit(&mtr);
 
-	format_id = file_format_id.low - TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
+	format_id = ut_dulint_get_low(file_format_id) -
+                    TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
 
-	if (file_format_id.high != TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH
+	if (ut_dulint_get_high(file_format_id) != TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH
 	    || format_id >= FILE_FORMAT_NAME_N) {
 
 		/* Either it has never been tagged, or garbage in it. */
@@ -1634,9 +1635,10 @@ trx_sys_read_file_format_id(
 	ptr = page + TRX_SYS_FILE_FORMAT_TAG;
 	file_format_id = mach_read_from_8(ptr);
 
-	*format_id = file_format_id.low - TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
+	*format_id = ut_dulint_get_low(file_format_id) -
+                     TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
 
-	if (file_format_id.high != TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH
+	if (ut_dulint_get_high(file_format_id) != TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH
 	    || *format_id >= FILE_FORMAT_NAME_N) {
 
 		/* Either it has never been tagged, or garbage in it. */

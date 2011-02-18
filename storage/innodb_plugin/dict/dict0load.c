@@ -499,7 +499,7 @@ dict_load_columns(
 
 		field = rec_get_nth_field_old(rec, 0, &len);
 		ut_ad(len == 8);
-		ut_a(ut_dulint_cmp(table->id, mach_read_from_8(field)) == 0);
+		ut_a(table->id == mach_read_from_8(field));
 
 		field = rec_get_nth_field_old(rec, 1, &len);
 		ut_ad(len == 4);
@@ -1133,7 +1133,7 @@ dict_load_table_on_id(
 	ut_ad(len == 8);
 
 	/* Check if the table id in record is the one searched for */
-	if (ut_dulint_cmp(table_id, mach_read_from_8(field)) != 0) {
+	if (table_id != mach_read_from_8(field)) {
 		goto func_exit;
 	}
 

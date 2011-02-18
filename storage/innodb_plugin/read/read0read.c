@@ -280,7 +280,7 @@ read_view_open_now(
 	/* No active transaction should be visible, except cr_trx */
 
 	while (trx) {
-		if (ut_dulint_cmp(trx->id, cr_trx_id) != 0
+		if (trx->id != cr_trx_id
 		    && (trx->conc_state == TRX_ACTIVE
 			|| trx->conc_state == TRX_PREPARED)) {
 
@@ -294,7 +294,7 @@ read_view_open_now(
 			transaction starts, we initialize trx->no to
 			ut_dulint_max. */
 
-			if (ut_dulint_cmp(view->low_limit_no, trx->no) > 0) {
+			if (view->low_limit_no > trx->no) {
 
 				view->low_limit_no = trx->no;
 			}
