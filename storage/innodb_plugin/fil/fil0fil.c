@@ -1386,6 +1386,7 @@ fil_init(
 	fil_system = mem_zalloc(sizeof(fil_system_t));
 
 	mutex_create(&fil_system->mutex, SYNC_ANY_LATCH);
+	mutex_create(&fil_system->file_extend_mutex, SYNC_OUTER_ANY_LATCH);
 
 	fil_system->spaces = hash_create(hash_size);
 	fil_system->name_hash = hash_create(hash_size);
@@ -4193,6 +4194,13 @@ fil_extend_space_to_desired_size(
 	ulint		page_size;
 	ibool		success		= TRUE;
 
+	/* file_extend_mutex is for http://bugs.mysql.com/56433 */
+	/* to protect from the other fil_extend_space_to_desired_size() */
+	/* during temprary releasing &fil_system->mutex */
+	/* file_extend_mutex is locked first in case there are concurrent */
+	/* threads extending a file, this keeps the second threads from */
+	/* getting fil_system->mutex and then blocking on file_extend_mutex */
+	mutex_enter(&fil_system->file_extend_mutex);
 	fil_mutex_enter_and_prepare_for_io(space_id);
 
 	space = fil_space_get_by_id(space_id);
@@ -4204,6 +4212,7 @@ fil_extend_space_to_desired_size(
 		*actual_size = space->size;
 
 		mutex_exit(&fil_system->mutex);
+		mutex_exit(&fil_system->file_extend_mutex);
 
 		return(TRUE);
 	}
@@ -4236,6 +4245,8 @@ fil_extend_space_to_desired_size(
 		offset_low  = ((start_page_no - file_start_page_no)
 			       % (4096 * ((1024 * 1024) / page_size)))
 			* page_size;
+
+		mutex_exit(&fil_system->mutex);
 #ifdef UNIV_HOTBACKUP
 		success = os_file_write(node->name, node->handle, buf,
 					offset_low, offset_high,
@@ -4247,6 +4258,8 @@ fil_extend_space_to_desired_size(
 				 page_size * n_pages,
 				 NULL, NULL, &space->io_perf2, NULL);
 #endif
+		mutex_enter(&fil_system->mutex);
+
 		if (success) {
 			node->size += n_pages;
 			space->size += n_pages;
@@ -4292,6 +4305,7 @@ fil_extend_space_to_desired_size(
 	printf("Extended %s to %lu, actual size %lu pages\n", space->name,
 	size_after_extend, *actual_size); */
 	mutex_exit(&fil_system->mutex);
+	mutex_exit(&fil_system->file_extend_mutex);
 
 	fil_flush(space_id, FLUSH_FROM_OTHER);
 

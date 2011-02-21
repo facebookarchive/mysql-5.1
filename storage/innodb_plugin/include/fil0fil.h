@@ -289,6 +289,8 @@ the ib_logfiles form a 'space' and it is handled here */
 struct fil_system_struct {
 #ifndef UNIV_HOTBACKUP
 	mutex_t		mutex;		/*!< The mutex protecting the cache */
+	mutex_t		file_extend_mutex;
+					/*!< locked during file extend */
 #endif /* !UNIV_HOTBACKUP */
 	hash_table_t*	spaces;		/*!< The hash table of spaces in the
 					system; they are hashed on the space

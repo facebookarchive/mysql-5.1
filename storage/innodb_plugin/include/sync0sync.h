@@ -501,6 +501,7 @@ or row lock! */
 #define	SYNC_BUF_PAGE_HASH	149	/* buf_pool->page_hash mutex */
 #define	SYNC_BUF_BLOCK		147	/* Block mutex */
 #define SYNC_DOUBLEWRITE	140
+#define	SYNC_OUTER_ANY_LATCH	136
 #define	SYNC_ANY_LATCH		135
 #define SYNC_THR_LOCAL		133
 #define	SYNC_MEM_HASH		131
