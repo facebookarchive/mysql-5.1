@@ -4936,6 +4936,8 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log)
   group= (uint)my_b_tell(&log_file);
   hdr_offs= carry= 0;
 
+  DBUG_ASSERT(!cache->error);
+
   do
   {
 
@@ -5030,7 +5032,9 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log)
 
   DBUG_ASSERT(carry == 0);
 
-  return 0;                                     // All OK
+  /* Check for error from my_b_fill -- see http://bugs.mysql.com/60173
+   */
+  return cache->error ? ER_ERROR_ON_WRITE : 0;  // All OK
 }
 
 /*
