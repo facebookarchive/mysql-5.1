@@ -2417,6 +2417,9 @@ srv_export_innodb_status(void)
 	export_vars.innodb_lsn_oldest = lsn_oldest;
 	export_vars.innodb_lsn_diff = lsn_gap;
 
+	export_vars.innodb_trx_doublewrite_page_no =
+		trx_doublewrite ? trx_doublewrite->block1 : 0;
+
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 

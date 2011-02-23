@@ -654,6 +654,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_data_sync_write_bytes,      SHOW_LONG},
   {"data_sync_write_svc_seconds",
   (char*) &export_vars.innodb_data_sync_write_svc_secs,   SHOW_DOUBLE},
+  {"dblwr_page_number",
+  (char*) &export_vars.innodb_trx_doublewrite_page_no,    SHOW_LONG},
   {"dblwr_pages_written",
   (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
   {"dblwr_writes",

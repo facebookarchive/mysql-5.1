@@ -900,6 +900,7 @@ struct export_var_struct{
 	double innodb_srv_foreground_checkpoint_secs;
 						/*!< srv_foreground_checkpoint_secs */
 	double innodb_srv_main_sleep_secs;	/*!< srv_main_sleep_secs */
+	ulint innodb_trx_doublewrite_page_no;	/*!< trx_doublewrite->block1 */
 	ulint innodb_trx_n_commit_all; /*!< srv_n_commit_with_undo */
 	ulint innodb_trx_n_commit_with_undo; /*!< srv_n_commit_with_undo */
 	ulint innodb_trx_n_rollback_partial; /*!< srv_n_rollback_partial */
