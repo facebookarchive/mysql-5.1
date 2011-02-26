@@ -174,6 +174,26 @@ int init_relay_log_info(Relay_log_info* rli,
                             llstr(group_master_log_pos, llbuf2));
     }
 
+    if (xa_recovery_did_rollback)
+    {
+      /*
+        rpl_transaction_enabled state in InnoDB won't get updated for the rollback
+        but rollback will be done to InnoDB for a prepared transaction that did not
+        have its XID in the binlog. If it continued from here, InnoDB would lose the
+        last transaction on rollback but slave SQL thread would skip it. Sorry.
+      */
+      const char* emsg=
+          "Rollback done for prepared transaction because its XID was not "
+          "in the binlog. rpl_transaction_enabled does not handle this case. "
+          "You might need to manually replay the last InnoDB transaction "
+          "prior to the slave offset listed for InnoDB above.";
+
+      rli->report(ERROR_LEVEL, ER_MASTER_INFO, emsg, "init_relay_log_info");
+      pthread_mutex_unlock(&rli->data_lock);
+      sql_print_error(emsg);
+      DBUG_RETURN(1);
+    }
+
     /*
        If InnoDB's transaction log does not have any information associated
        with replication progress, then do not adjust master.info.  We

@@ -1,0 +1,54 @@
+#
+# Confirm crash recovery in slave is correct for crash prior to commit
+#
+
+source include/have_innodb.inc;
+source include/have_debug.inc;
+source include/master-slave.inc;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+# TODO: use a better suppression
+call mtr.add_suppression(".*");
+
+CREATE TABLE t1(a int primary key) engine=innodb;
+sync_slave_with_master;
+
+# Setup the mysqld to crash at certain point
+connection slave;
+SET GLOBAL debug="d,crash_commit_before";
+
+# Write file to make mysql-test-run.pl expect crash and restart
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+
+connection master;
+
+# The commit crashes the slave after prepare in innobase_xa_prepare. There
+# was a bug where the prepared transaction would get replayed on crash
+# recovery. If that happens for this test it stops replication with a
+# duplicate key error.
+BEGIN;
+insert into t1 values(10);
+COMMIT;
+insert into t1 values(11);
+
+connection slave;
+--source include/wait_until_disconnected.inc
+
+# Call script that will poll the server waiting for it to be back online again
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+start slave;
+
+connection master;
+sync_slave_with_master;
+select * from t1;
+
+connection slave;
+select * from t1;
+
+connection master;
+DROP TABLE t1;

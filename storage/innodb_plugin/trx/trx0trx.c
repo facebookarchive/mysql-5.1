@@ -1885,6 +1885,17 @@ trx_prepare_off_kernel(
 
 		mutex_exit(&(rseg->mutex));
 
+                if (trx->mysql_relay_log_file_name[0] != '\0') {
+
+                        /* Work done on a MySQL replication slave on behalf of rpl_transaction_enabled. */
+                        trx_sys_update_slave_state(
+                                trx->mysql_relay_log_file_name,
+                                trx->mysql_relay_log_pos,
+                                trx->mysql_master_log_file_name,
+                                trx->mysql_master_log_pos,
+                                TRX_SYS_MYSQL_RELAY_INFO, &mtr, NULL, FALSE);
+                }
+
 		/*--------------*/
 		mtr_commit(&mtr);	/* This mtr commit makes the
 					transaction prepared in the file-based

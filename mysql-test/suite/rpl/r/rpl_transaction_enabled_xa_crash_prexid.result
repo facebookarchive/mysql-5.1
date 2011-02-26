@@ -1,0 +1,37 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop table if exists t1;
+call mtr.add_suppression(".*");
+CREATE TABLE t1(a int primary key) engine=innodb;
+SET GLOBAL debug="d,crash_before_writing_xid";
+BEGIN;
+insert into t1 values(10);
+COMMIT;
+insert into t1 values(11);
+start slave;
+ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
+DROP TABLE t1;
+reset master;
+SET SESSION debug="d,crash_commit_before";
+insert into t1 values (12);
+ERROR HY000: Lost connection to MySQL server during query
+stop slave;
+Warnings:
+Note	1255	Slave already has been stopped
+reset slave;
+start slave;
+DROP TABLE t1;
+CREATE TABLE t2(a int primary key) engine=innodb;
+insert into t2 values (1);
+select * from t2;
+a
+1
+show tables;
+Tables_in_test
+t2
+SET GLOBAL INNODB_FILE_FORMAT_CHECK=`ANTELOPE`;
+drop table t2;

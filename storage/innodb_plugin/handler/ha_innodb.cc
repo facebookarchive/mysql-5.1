@@ -2748,7 +2748,8 @@ innobase_commit_low(
 		return;
 	}
 
-	innobase_set_tx_replication_state(trx);
+	if (trx->conc_state != TRX_PREPARED)
+		innobase_set_tx_replication_state(trx);
 
 	trx_commit_for_mysql(trx);
 }
@@ -10523,6 +10524,7 @@ innobase_xa_prepare(
 
 		ut_ad(trx->active_trans);
 
+		innobase_set_tx_replication_state(trx); 
 		error = (int) trx_prepare_for_mysql(trx);
 	} else {
 		/* We just mark the SQL statement ended and do not do a
@@ -10653,7 +10655,11 @@ innobase_rollback_by_xid(
 	trx = trx_get_trx_by_xid(xid);
 
 	if (trx) {
-		return(innobase_rollback_trx(trx));
+		int r = innobase_rollback_trx(trx);
+		mutex_enter(&kernel_mutex);
+		trx_sys_read_slave_state(TRUE);
+		mutex_exit(&kernel_mutex);
+		return r;
 	} else {
 		return(XAER_NOTA);
 	}

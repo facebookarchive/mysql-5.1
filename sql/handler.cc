@@ -34,6 +34,13 @@
 #endif
 
 /*
+  Incremented for each rollback of a prepared XA transaction done when
+  the server is started. That breaks rpl_transaction_enabled so when it
+  occurs, this is checked and can halt replication.
+ */
+int xa_recovery_did_rollback= 0;
+
+/*
   While we have legacy_db_type, we have this array to
   check for dups and to find handlerton from legacy_db_type.
   Remove when legacy_db_type is finally gone
@@ -1187,6 +1194,7 @@ int ha_commit_trans(THD *thd, bool all)
         status_var_increment(thd->status_var.ha_prepare_count);
       }
       DBUG_EXECUTE_IF("crash_commit_after_prepare", abort(););
+
       if (error || (is_real_trans && xid &&
                     (error= !(cookie= tc_log->log_xid(thd, xid)))))
       {
@@ -1196,11 +1204,14 @@ int ha_commit_trans(THD *thd, bool all)
       }
       DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
     }
+
     error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
     DBUG_EXECUTE_IF("crash_commit_before_unlog", abort(););
+
     if (cookie)
       tc_log->unlog(cookie, xid);
     DBUG_EXECUTE_IF("crash_commit_after", abort(););
+
 end:
     if (rw_trans)
       start_waiting_global_read_lock(thd);
@@ -1561,6 +1572,7 @@ static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
                                 xid_to_str(buf, info->list+i));
 #endif
           hton->rollback_by_xid(hton, info->list+i);
+          xa_recovery_did_rollback++;
         }
       }
       if (got < info->len)
