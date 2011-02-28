@@ -68,7 +68,7 @@ bool hostname_cache_init()
 				     &my_charset_bin)))
     return 1;
   hostname_cache->clear();
-  (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_FAST);
   return 0;
 }
 

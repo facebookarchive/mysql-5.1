@@ -558,6 +558,8 @@ uint    opt_large_page_size= 0;
 uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
+long opt_max_spin_wait_loops= 0;
+long spin_wait_microseconds= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -3233,6 +3235,8 @@ SHOW_VAR com_status_vars[]= {
   {"load_master_data",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOAD_MASTER_DATA]), SHOW_LONG_STATUS},
   {"load_master_table",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOAD_MASTER_TABLE]), SHOW_LONG_STATUS},
   {"lock_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOCK_TABLES]), SHOW_LONG_STATUS},
+  {"spin_wait_microseconds",
+                           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GLOBAL_MUTEX_STATUS]), SHOW_LONG_STATUS},
   {"optimize",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_OPTIMIZE]), SHOW_LONG_STATUS},
   {"preload_keys",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PRELOAD_KEYS]), SHOW_LONG_STATUS},
   {"prepare_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PREPARE]), SHOW_LONG_STATUS},
@@ -3689,17 +3693,17 @@ You should consider changing lower_case_table_names to 1 or 2",
 
 static int init_thread_environment()
 {
-  (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_lock_db,MY_MUTEX_INIT_SLOW);
-  (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_lock_db,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_open, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_status,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_error_log,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_delayed_insert,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_delayed_status,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_delayed_create,MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_delayed_create,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_manager,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_crypt,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
@@ -4704,6 +4708,25 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     }
 #endif
   }
+
+#if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
+ {
+   struct timeval s, e;
+   my_fastmutex_set_max_spin_wait_loops(opt_max_spin_wait_loops);
+   my_fastmutex_delay();
+   gettimeofday(&s, NULL);
+   my_fastmutex_delay();
+   gettimeofday(&e, NULL);
+   double mics =
+       (e.tv_sec * 1000000.0 + e.tv_usec) -
+       (s.tv_sec * 1000000.0 + s.tv_usec);
+   spin_wait_microseconds= (long) mics;
+   sql_print_information("Mutex spin delay is %d microseconds for "
+                         "mysql_max_spin_wait_loops=%d",
+                         (int) spin_wait_microseconds,
+                         (int) opt_max_spin_wait_loops);
+ }
+#endif
 
   if (init_server_components())
     unireg_abort(1);
@@ -6152,7 +6175,8 @@ enum options_mysqld
   OPT_PROCESS_CAN_DISABLE_BIN_LOG,
   OPT_LOG_QUERY_SAMPLE_RATE,
   OPT_LOG_ERROR_SAMPLE_RATE,
-  OPT_ENABLE_NO_SLAVE_EXEC
+  OPT_ENABLE_NO_SLAVE_EXEC,
+  OPT_MYSQL_SPIN_WAIT_LOOPS
 };
 
 
@@ -7746,7 +7770,11 @@ thread is in the relay logs.",
    "The PROCESS privilege is sufficient to set sql_log_bin=0",
    &process_can_disable_bin_log, &process_can_disable_bin_log,
    0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  {"mysql_max_spin_wait_loops", OPT_MYSQL_SPIN_WAIT_LOOPS,
+   "Busy wait time for MySQL mutex (100 = 6 microseconds on circa 2008 x86_64",
+   &opt_max_spin_wait_loops, &opt_max_spin_wait_loops,
+   0, GET_LONG, REQUIRED_ARG, 100L, 0L, 1000000L, 0, 1L, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 };
 
 
@@ -8426,6 +8454,8 @@ static int mysql_init_variables(void)
   opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   key_map_full.set_all();
+  opt_max_spin_wait_loops= 0;
+  spin_wait_microseconds= 0;
 
   /* Things added by patches */
   reserved_super_connections=0;

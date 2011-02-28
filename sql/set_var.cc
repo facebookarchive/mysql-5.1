@@ -456,6 +456,10 @@ static sys_var_thd_enum         sys_myisam_stats_method(&vars, "myisam_stats_met
                                                 &myisam_stats_method_typelib,
                                                 NULL);
 
+static sys_var_const sys_mysql_max_spin_wait_loops(&vars, "mysql_max_spin_wait_loops",
+                                                   OPT_GLOBAL, SHOW_LONG,
+                                                   (uchar*) &opt_max_spin_wait_loops);
+
 #ifdef __NT__
 /* purecov: begin inspected */
 static sys_var_const            sys_named_pipe(&vars, "named_pipe",

@@ -413,33 +413,147 @@ void safe_mutex_end(FILE *file __attribute__((unused)))
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
 
-ulong mutex_delay(ulong delayloops)
+static ulong mutex_delay(ulong delayloops)
 {
   ulong	i;
   volatile ulong j;
 
   j = 0;
 
-  for (i = 0; i < delayloops * 50; i++)
+  for (i = 0; i < delayloops; i++) {
+    asm volatile("PAUSE");
     j += i;
+  }
 
-  return(j); 
-}	
+  return(j);
+}
 
-#define MY_PTHREAD_FASTMUTEX_SPINS 8
-#define MY_PTHREAD_FASTMUTEX_DELAY 4
+#define MY_PTHREAD_FASTMUTEX_SPINS 4
+#define MAX_STATS 10000
+
+static my_fastmutex_stats mutex_stats[MAX_STATS];
+
+#if defined(MY_COUNT_MUTEX_CALLERS)
+static my_fastmutex_stats mutex_caller_stats[MAX_STATS];
+#endif
 
 static int cpu_count= 0;
 
-int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp,
-                              const pthread_mutexattr_t *attr)
+/* The total spin-wait time is ~6 microseonds on a circa-2008 x86_64
+ * CPU with 4 (MY_PTHREAD_FASTMUTEX_SPINS) loops & fastmutex_max_spin_wait_loops
+ * set to 100. That may change and the result is displayed in the db error log
+ * and in SHOW STATUS as mysql_spin_wait_microseconds.
+ */
+static long fastmutex_max_spin_wait_loops= 100;
+
+/* Delays for the maximum spin wait time. The caller can time this to determine
+ * the max wait time. Ignore the return value.
+ */
+ulong my_fastmutex_delay()
 {
-  if ((cpu_count > 1) && (attr == MY_MUTEX_INIT_FAST))
-    mp->spins= MY_PTHREAD_FASTMUTEX_SPINS; 
-  else
-    mp->spins= 0;
-  mp->rng_state= 1;
-  return pthread_mutex_init(&mp->mutex, attr); 
+  int x;
+  ulong res= 0;
+  uint maxdelay= fastmutex_max_spin_wait_loops;
+  for (x=0; x < MY_PTHREAD_FASTMUTEX_SPINS; ++x)
+  {
+    res += mutex_delay(maxdelay);
+    /* Use the average delay */
+    maxdelay += (fastmutex_max_spin_wait_loops / 2);
+  }
+  return res;
+}
+
+/* Returns pointer to mutex contention statistics array. Reads from
+ * this are dirty (no locks). Returns in 'num_stats' the size of the
+ * array. Entries with fms_name != NULL are valid.
+ */
+my_fastmutex_stats* my_fastmutex_get_stats(int *num_stats)
+{
+  *num_stats= MAX_STATS;
+  return mutex_stats;
+}
+
+#if defined(MY_COUNT_MUTEX_CALLERS)
+my_fastmutex_stats* my_fastmutex_get_caller_stats(int *num_stats)
+{
+  *num_stats= MAX_STATS;
+  return mutex_caller_stats;
+}
+#endif
+
+/* Initialized the mutex contention statistics array */
+static void my_fastmutex_init(my_fastmutex_stats* stats)
+{
+  int i;
+
+  for (i=0; i < MAX_STATS; ++i)
+  {
+    stats[i].fms_name= NULL;
+    stats[i].fms_line= 0;
+    stats[i].fms_users= 0;
+    stats[i].fms_locks= 0;
+    stats[i].fms_spins= 0;
+    stats[i].fms_sleeps= 0;
+  }
+}
+
+/* Returns counters aggregated over all entries in the statistics array.
+ * 'num_mutexes' returns the number of valid entries. 
+ */
+void my_fastmutex_report_stats(unsigned long long* sleeps,
+                               unsigned long long* spins,
+                               unsigned long long* locks,
+                               int* num_mutexes)
+{
+  unsigned long long num_sleeps= 0;
+  unsigned long long num_spins= 0;
+  unsigned long long num_locks= 0;
+  int i;
+  my_fastmutex_stats *fms;
+
+  for (i= 0, fms= mutex_stats; i < MAX_STATS; ++i, ++fms)
+  {
+    num_sleeps += fms->fms_sleeps;
+    num_spins += fms->fms_spins;
+    num_locks += fms->fms_locks;
+    (*num_mutexes)++;
+  }
+  *sleeps= num_sleeps;
+  *spins= num_spins;
+  *locks= num_locks;
+}
+
+/* All of the ut* functions and constants are copied from Innodb.
+ * Thanks Heikki.
+ */
+
+/* Constants for random number generation.
+ */
+#define UT_HASH_RANDOM_MASK     1463735687UL
+#define UT_HASH_RANDOM_MASK2    1653893711UL
+
+/* Returns the hash from a pair of ulong values
+ *   n1, n2: input for which the hash is computed
+ */
+static ulong
+ut_fold_ulong_pair(ulong n1, ulong n2)
+{
+  return(((((n1 ^ n2 ^ UT_HASH_RANDOM_MASK2) << 8) + n1)
+          ^ UT_HASH_RANDOM_MASK) + n2);
+}
+
+/* Returns the hash from a string
+ *   str: null-terminated string for which the hash is computed
+ */
+static ulong
+ut_fold_string(const char* str)
+{
+  ulong fold= 0;
+  while (*str != '\0') {
+    fold = ut_fold_ulong_pair(fold, (ulong)(*str));
+    str++;
+  }
+  return(fold);
 }
 
 /**
@@ -459,31 +573,91 @@ int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp,
   Commun. ACM, October 1988, Volume 31, No 10, pages 1192-1201.
 */
 
-static double park_rng(my_pthread_fastmutex_t *mp)
+static double park_rng(uint *state)
 {
-  mp->rng_state= ((my_ulonglong)mp->rng_state * 279470273U) % 4294967291U;
-  return (mp->rng_state / 2147483647.0);
+  *state= (((my_ulonglong) *state) * 279470273U) % 4294967291U;
+  return (*state / 2147483647.0);
 }
 
-int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp)
+#if defined(MY_COUNT_MUTEX_CALLERS)
+static void
+increment_sleep_for_caller(const char* caller, int line)
+{
+  ulong index= ut_fold_ulong_pair(ut_fold_string(caller), line) % MAX_STATS;
+  my_fastmutex_stats* stats= &mutex_caller_stats[index];
+  // Note that fms_locks, fms_spins and fms_users are not updated because
+  // this is only called when a thread might sleep (to be fast). To run
+  // faster this is not thread safe. The last updater of the array slot
+  // gets to name it (fms_name).
+  stats->fms_sleeps++;
+  stats->fms_name= caller;
+  stats->fms_line= line;
+}
+#endif
+
+int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp,
+                              const pthread_mutexattr_t *attr,
+                              const char* caller,
+                              const int line)
+{
+  DBUG_ASSERT(caller);
+  if ((cpu_count > 1) && (attr == MY_MUTEX_INIT_FAST))
+    mp->spins= MY_PTHREAD_FASTMUTEX_SPINS;
+  else
+    mp->spins= 0;
+
+  mp->rng_state= 1;
+  mp->stats_index=
+      ut_fold_ulong_pair(ut_fold_string(caller), line) % MAX_STATS;
+  mutex_stats[mp->stats_index].fms_name= caller;
+  mutex_stats[mp->stats_index].fms_line= line;
+  mutex_stats[mp->stats_index].fms_users++;
+  return pthread_mutex_init(&mp->mutex, attr); 
+}
+
+int my_pthread_fastmutex_init_by_name(my_pthread_fastmutex_t *mp,
+                                      const pthread_mutexattr_t *attr,
+                                      const char* name)
+{
+  return my_pthread_fastmutex_init(mp, attr, name, 0);
+}
+
+int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp
+#if defined(MY_COUNT_MUTEX_CALLERS)
+                              , const char* caller, int line
+#endif
+                              )
 {
   int   res;
   uint  i;
-  uint  maxdelay= MY_PTHREAD_FASTMUTEX_DELAY;
+  uint  maxdelay= fastmutex_max_spin_wait_loops;
+  my_fastmutex_stats *fms= &mutex_stats[mp->stats_index];
 
+  fms->fms_locks++;
   for (i= 0; i < mp->spins; i++)
   {
     res= pthread_mutex_trylock(&mp->mutex);
 
-    if (res == 0)
+    if (res == 0) {
+      fms->fms_spins += i;
       return 0;
+    }
 
-    if (res != EBUSY)
+    if (res != EBUSY) {
+      fms->fms_spins += i;
       return res;
+    }
 
     mutex_delay(maxdelay);
-    maxdelay += park_rng(mp) * MY_PTHREAD_FASTMUTEX_DELAY + 1;
+    maxdelay += park_rng(&mp->rng_state) * fastmutex_max_spin_wait_loops + 1;
   }
+  fms->fms_spins += mp->spins;
+  fms->fms_sleeps++;
+
+#if defined(MY_COUNT_MUTEX_CALLERS)
+  increment_sleep_for_caller(caller, line);
+#endif
+
   return pthread_mutex_lock(&mp->mutex);
 }
 
@@ -493,6 +667,149 @@ void fastmutex_global_init(void)
 #ifdef _SC_NPROCESSORS_CONF
   cpu_count= sysconf(_SC_NPROCESSORS_CONF);
 #endif
+  my_fastmutex_init(mutex_stats);
+#if defined(MY_COUNT_MUTEX_CALLERS)
+  my_fastmutex_init(mutex_caller_stats);
+#endif
+}
+
+/* There is a my.cnf variable to set the number of loops.
+ */
+void my_fastmutex_set_max_spin_wait_loops(long spin_wait_loops)
+{
+  fastmutex_max_spin_wait_loops= spin_wait_loops;
 }
   
 #endif /* defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX) */ 
+
+#if defined(MY_FASTRWLOCK)
+
+int my_fastrwlock_init(my_fastrwlock_t *rw,
+                       const pthread_rwlockattr_t *attr,
+                       const char* caller, const int line)
+{
+  /* TODO -- check attr */
+  DBUG_ASSERT(caller);
+  if (cpu_count > 1)
+  {
+    rw->spins= MY_PTHREAD_FASTMUTEX_SPINS;
+  }
+  else
+    rw->spins= 0;
+
+  rw->stats_index=
+      ut_fold_ulong_pair(ut_fold_string(caller), line) % MAX_STATS;
+  mutex_stats[rw->stats_index].fms_name= caller;
+  mutex_stats[rw->stats_index].fms_line= line;
+  mutex_stats[rw->stats_index].fms_users++;
+  return pthread_rwlock_init(&rw->frw_lock, attr); 
+}
+
+int my_fastrwlock_init_by_name(my_fastrwlock_t *rw,
+                               const pthread_rwlockattr_t *attr,
+                               const char* caller)
+{
+  return my_fastrwlock_init(rw, attr, caller, 0);
+}
+
+int my_fastrwlock_rdlock(my_fastrwlock_t *rw
+#if defined(MY_COUNT_MUTEX_CALLERS)
+                              , const char* caller, int line
+#endif
+                              )
+{
+  int   res;
+  uint  i;
+  uint  maxdelay= fastmutex_max_spin_wait_loops;
+  my_fastmutex_stats *fms= &mutex_stats[rw->stats_index];
+
+  fms->fms_locks++;
+  for (i= 0; i < rw->spins; i++)
+  {
+    res= pthread_rwlock_tryrdlock(&rw->frw_lock);
+
+    if (res == 0) {
+      fms->fms_spins += i;
+      return 0;
+    }
+
+    if (res != EBUSY) {
+      fms->fms_spins += i;
+      return res;
+    }
+
+    mutex_delay(maxdelay);
+    maxdelay += park_rng(&rw->rng_state) * fastmutex_max_spin_wait_loops + 1;
+  }
+  fms->fms_spins += rw->spins;
+  fms->fms_sleeps++;
+
+#if defined(MY_COUNT_MUTEX_CALLERS)
+  increment_sleep_for_caller(caller, line);
+#endif
+
+  return pthread_rwlock_rdlock(&rw->frw_lock);
+}
+
+int my_fastrwlock_wrlock(my_fastrwlock_t *rw
+#if defined(MY_COUNT_MUTEX_CALLERS)
+                              , const char* caller, int line
+#endif
+                              )
+{
+  int   res;
+  uint  i;
+  uint  maxdelay= fastmutex_max_spin_wait_loops;
+  my_fastmutex_stats *fms= &mutex_stats[rw->stats_index];
+
+  fms->fms_locks++;
+  for (i= 0; i < rw->spins; i++)
+  {
+    res= pthread_rwlock_trywrlock(&rw->frw_lock);
+
+    if (res == 0) {
+      fms->fms_spins += i;
+      return 0;
+    }
+
+    if (res != EBUSY) {
+      fms->fms_spins += i;
+      return res;
+    }
+
+    mutex_delay(maxdelay);
+    maxdelay += park_rng(&rw->rng_state) * fastmutex_max_spin_wait_loops + 1;
+  }
+  fms->fms_spins += rw->spins;
+  fms->fms_sleeps++;
+
+#if defined(MY_COUNT_MUTEX_CALLERS)
+  increment_sleep_for_caller(caller, line);
+#endif
+
+  return pthread_rwlock_wrlock(&rw->frw_lock);
+}
+
+int my_fastrwlock_tryrdlock(my_fastrwlock_t *rw)
+{
+  /* TODO: should counters be updated here */
+  return pthread_rwlock_tryrdlock(&rw->frw_lock);
+}
+
+int my_fastrwlock_trywrlock(my_fastrwlock_t *rw)
+{
+  /* TODO: should counters be updated here */
+  return pthread_rwlock_trywrlock(&rw->frw_lock);
+}
+
+int my_fastrwlock_destroy(my_fastrwlock_t *rw)
+{
+  return pthread_rwlock_destroy(&rw->frw_lock);
+}
+
+int my_fastrwlock_unlock(my_fastrwlock_t *rw)
+{
+  return pthread_rwlock_unlock(&rw->frw_lock);
+}
+
+#endif /* defined(MY_FASTRWLOCK) */

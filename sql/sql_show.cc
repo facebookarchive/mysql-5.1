@@ -269,6 +269,78 @@ bool mysqld_show_contributors(THD *thd)
   DBUG_RETURN(FALSE);
 }
 
+/***************************************************************************
+ List contention stats for mutexes.
+ TODO -- use info schema
+***************************************************************************/
+int show_global_mutex_status(THD *thd)
+{
+  Protocol        *protocol= thd->protocol;
+  List<Item> field_list;
+
+  DBUG_ENTER("show_global_mutex_status");
+
+  field_list.push_back(new Item_uint("Locks", 21));
+  field_list.push_back(new Item_uint("Spins", 21));
+  field_list.push_back(new Item_int("Sleeps", 21));
+  field_list.push_back(new Item_empty_string("Name", FN_REFLEN));
+  field_list.push_back(new Item_uint("Line", FN_REFLEN));
+  field_list.push_back(new Item_uint("Users", FN_REFLEN));
+
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    DBUG_RETURN(1);
+
+  int num_stats;
+
+#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
+  my_fastmutex_stats *fms= my_fastmutex_get_stats(&num_stats);
+  int x;
+  for (x= 0; x < num_stats; ++x, ++fms) {
+    if (!fms->fms_name)
+      continue;
+
+    if (fms->fms_locks > 0 || fms->fms_spins > 0 || fms->fms_sleeps > 0) {
+      protocol->prepare_for_resend();
+      protocol->store((ulonglong)fms->fms_locks);
+      protocol->store((ulonglong)fms->fms_spins);
+      protocol->store((longlong)fms->fms_sleeps);
+      protocol->store(fms->fms_name, system_charset_info);
+      protocol->store((ulonglong)fms->fms_line);
+      protocol->store((ulonglong)fms->fms_users);
+
+      if (protocol->write())
+        DBUG_RETURN(1);
+    }
+  }
+
+#if defined(MY_COUNT_MUTEX_CALLERS)
+  fms= my_fastmutex_get_caller_stats(&num_stats);
+  for (x= 0; x < num_stats; ++x, ++fms)
+  {
+    if (!fms->fms_name)
+      continue;
+
+    if (fms->fms_locks > 0 || fms->fms_spins > 0 || fms->fms_sleeps > 0) {
+      protocol->prepare_for_resend();
+      protocol->store((ulonglong)fms->fms_locks);
+      protocol->store((ulonglong)fms->fms_spins);
+      protocol->store((longlong) -(fms->fms_sleeps));
+      protocol->store(fms->fms_name, system_charset_info);
+      protocol->store((ulonglong)fms->fms_line);
+      protocol->store((ulonglong)fms->fms_users);
+
+      if (protocol->write())
+        DBUG_RETURN(1);
+    }
+  }
+#endif
+
+#endif
+
+  my_eof(thd);
+  DBUG_RETURN(0);
+}
 
 /***************************************************************************
  List all privileges supported
