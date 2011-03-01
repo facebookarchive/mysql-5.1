@@ -9473,11 +9473,11 @@ innodb_mutex_show_status(
 	char buf1[IO_SIZE], buf2[IO_SIZE];
 	mutex_t*	mutex;
 	rw_lock_t*	lock;
-	ulint		block_mutex_oswait_count = 0;
 	ulint		block_lock_oswait_count = 0;
 	mutex_t*	block_mutex = NULL;
 	rw_lock_t*	block_lock = NULL;
 #ifdef UNIV_DEBUG
+	ulint	  block_mutex_oswait_count = 0;
 	ulint	  rw_lock_count= 0;
 	ulint	  rw_lock_count_spin_loop= 0;
 	ulint	  rw_lock_count_spin_rounds= 0;
@@ -9485,7 +9485,7 @@ innodb_mutex_show_status(
 	ulint	  rw_lock_count_os_yield= 0;
 	ulonglong rw_lock_wait_time= 0;
 #endif /* UNIV_DEBUG */
-	uint	  hton_name_len= (uint) strlen(innobase_hton_name), buf1len, buf2len;
+	uint	  hton_name_len= (uint) strlen(innobase_hton_name), buf1len, buf2len=0;
 	DBUG_ENTER("innodb_mutex_show_status");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -9493,16 +9493,18 @@ innodb_mutex_show_status(
 
 	for (mutex = UT_LIST_GET_FIRST(mutex_list); mutex != NULL;
 	     mutex = UT_LIST_GET_NEXT(list, mutex)) {
+		if (buf_pool_is_block_mutex(mutex)) {
+			block_mutex = mutex;
+#ifdef UNIV_DEBUG
+			block_mutex_oswait_count += mutex->count_os_wait;
+#endif
+			continue;
+		}
+#ifdef UNIV_DEBUG
 		if (mutex->count_os_wait == 0) {
 			continue;
 		}
 
-		if (buf_pool_is_block_mutex(mutex)) {
-			block_mutex = mutex;
-			block_mutex_oswait_count += mutex->count_os_wait;
-			continue;
-		}
-#ifdef UNIV_DEBUG
 		if (mutex->mutex_type != 1) {
 			if (mutex->count_using > 0) {
 				buf1len= my_snprintf(buf1, sizeof(buf1),
@@ -9535,11 +9537,11 @@ innodb_mutex_show_status(
 			rw_lock_count_os_yield += mutex->count_os_yield;
 			rw_lock_wait_time += mutex->lspent_time;
 		}
+		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
+				     (ulong) mutex->count_os_wait);
 #else /* UNIV_DEBUG */
 		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
 				     mutex->cfile_name, (ulong) mutex->cline);
-		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
-				     (ulong) mutex->count_os_wait);
 
 		if (stat_print(thd, innobase_hton_name,
 			       hton_name_len, buf1, buf1len,
@@ -9555,9 +9557,11 @@ innodb_mutex_show_status(
 					     "combined %s:%lu",
 					     block_mutex->cfile_name,
 					     (ulong) block_mutex->cline);
+#ifdef UNIV_DEBUG
 		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
 					     "os_waits=%lu",
 					     (ulong) block_mutex_oswait_count);
+#endif
 
 		if (stat_print(thd, innobase_hton_name,
 			       hton_name_len, buf1, buf1len,

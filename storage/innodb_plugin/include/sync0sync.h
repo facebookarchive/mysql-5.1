@@ -41,6 +41,8 @@ Created 9/5/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "sync0arr.h"
 
+#include <time.h>
+
 /** The number of iterations in the mutex_spin_wait() spin loop.
 Intended for performance monitoring. */
 extern ib_int64_t      mutex_spin_round_count;
@@ -54,13 +56,6 @@ extern ib_int64_t      mutex_os_wait_count;
 #if  defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
 extern my_bool	timed_mutexes;
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
-
-#ifdef HAVE_WINDOWS_ATOMICS
-typedef LONG lock_word_t;	/*!< On Windows, InterlockedExchange operates
-				on LONG variable */
-#else
-typedef byte lock_word_t;
-#endif
 
 /******************************************************************//**
 Initializes the synchronization data structures. */
@@ -216,7 +211,7 @@ UNIV_INTERN
 ibool
 mutex_own(
 /*======*/
-	const mutex_t*	mutex)	/*!< in: mutex */
+	mutex_t*	mutex)	/*!< in: mutex */
 	__attribute__((warn_unused_result));
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
@@ -288,16 +283,6 @@ UNIV_INTERN
 ulint
 mutex_n_reserved(void);
 /*==================*/
-#endif /* UNIV_SYNC_DEBUG */
-/******************************************************************//**
-NOT to be used outside this module except in debugging! Gets the value
-of the lock word. */
-UNIV_INLINE
-lock_word_t
-mutex_get_lock_word(
-/*================*/
-	const mutex_t*	mutex);	/*!< in: mutex */
-#ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
 NOT to be used outside this module except in debugging! Gets the waiters
 field in a mutex.
@@ -308,6 +293,19 @@ mutex_get_waiters(
 /*==============*/
 	const mutex_t*	mutex);	/*!< in: mutex */
 #endif /* UNIV_SYNC_DEBUG */
+
+/* Funcitons used to track waiting threads on the waiting thread lists. */
+
+/* Global initializer and deinitializer for the thread waiting
+ * lists. */
+void mutex_init_thread_waiting_list();
+void mutex_shutdown_thread_waiting_list();
+/* Mark the current thread as no longer blocking a mutex lock. */
+void mutex_remove_from_thread_waiting_list();
+/* Mark the current thread as blocking on the specified mutex. */
+void mutex_add_to_thread_waiting_list(mutex_t* mutex);
+/* Used during SHOW INNODB STATUS to display thread information. */
+void mutex_print_thread_waiter_list(FILE* fp);
 
 /*
 		LATCHING ORDER WITHIN THE DATABASE
@@ -513,7 +511,6 @@ or row lock! */
 #define RW_LOCK_EXCLUSIVE	351
 #define RW_LOCK_SHARED		352
 #define RW_LOCK_WAIT_EX		353
-#define SYNC_MUTEX		354
 
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! The structure used in the spin lock
@@ -521,16 +518,8 @@ implementation of a mutual exclusion semaphore. */
 
 /** InnoDB mutex */
 struct mutex_struct {
-	os_event_t	event;	/*!< Used by sync0arr.c for the wait queue */
-	volatile lock_word_t	lock_word;	/*!< lock_word is the target
-				of the atomic test-and-set instruction when
-				atomic operations are enabled. */
-
-#if !defined(HAVE_ATOMIC_BUILTINS)
 	os_fast_mutex_t
-		os_fast_mutex;	/*!< We use this OS mutex in place of lock_word
-				when atomic operations are not enabled */
-#endif
+		os_fast_mutex;  /* the mutex itself */
 	ulint	waiters;	/*!< This ulint is set to 1 if there are (or
 				may be) threads waiting in the global wait
 				array for this mutex to be released.
@@ -544,9 +533,9 @@ struct mutex_struct {
 #endif /* UNIV_SYNC_DEBUG */
 	const char*	cfile_name;/*!< File name where mutex created */
 	ulint		cline;	/*!< Line where created */
-#ifdef UNIV_DEBUG
 	os_thread_id_t thread_id; /*!< The thread id of the thread
 				which locked the mutex. */
+#ifdef UNIV_DEBUG
 	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
 /** Value of mutex_struct::magic_n */
 # define MUTEX_MAGIC_N	(ulint)979585

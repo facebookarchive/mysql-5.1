@@ -81,7 +81,6 @@ struct sync_cell_struct {
 	void*		wait_object;	/*!< pointer to the object the
 					thread is waiting for; if NULL
 					the cell is free for use */
-	mutex_t*	old_wait_mutex;	/*!< the latest wait mutex in cell */
 	rw_lock_t*	old_wait_rw_lock;
 					/*!< the latest wait rw-lock
 					in cell */
@@ -322,9 +321,7 @@ sync_cell_get_event(
 {
 	ulint type = cell->request_type;
 
-	if (type == SYNC_MUTEX) {
-		return(((mutex_t *) cell->wait_object)->event);
-	} else if (type == RW_LOCK_WAIT_EX) {
+	if (type == RW_LOCK_WAIT_EX) {
 		return(((rw_lock_t *) cell->wait_object)->wait_ex_event);
 	} else { /* RW_LOCK_SHARED and RW_LOCK_EX wait on the same event */
 		return(((rw_lock_t *) cell->wait_object)->event);
@@ -365,11 +362,7 @@ sync_array_reserve_cell(
 			cell->waiting = FALSE;
 			cell->wait_object = object;
 
-			if (type == SYNC_MUTEX) {
-				cell->old_wait_mutex = object;
-			} else {
-				cell->old_wait_rw_lock = object;
-			}
+			cell->old_wait_rw_lock = object;
 
 			cell->request_type = type;
 
@@ -385,7 +378,7 @@ sync_array_reserve_cell(
 			/* Make sure the event is reset and also store
 			the value of signal_count at which the event
 			was reset. */
-                        event = sync_cell_get_event(cell);
+			event = sync_cell_get_event(cell);
 			cell->signal_count = os_event_reset(event);
 
 			cell->reservation_time = time(NULL);
@@ -462,7 +455,6 @@ sync_array_cell_print(
 	FILE*		file,	/*!< in: file where to print */
 	sync_cell_t*	cell)	/*!< in: sync cell */
 {
-	mutex_t*	mutex;
 	rw_lock_t*	rwlock;
 	ulint		type;
 	ulint		writer;
@@ -475,28 +467,9 @@ sync_array_cell_print(
 		(ulong) os_thread_pf(cell->thread), cell->file,
 		(ulong) cell->line,
 		difftime(time(NULL), cell->reservation_time));
-
-	if (type == SYNC_MUTEX) {
-		/* We use old_wait_mutex in case the cell has already
-		been freed meanwhile */
-		mutex = cell->old_wait_mutex;
-
-		fprintf(file,
-			"Mutex at %p created file %s line %lu, lock var %lu\n"
-#ifdef UNIV_SYNC_DEBUG
-			"Last time reserved in file %s line %lu, "
-#endif /* UNIV_SYNC_DEBUG */
-			"waiters flag %lu\n",
-			(void*) mutex, mutex->cfile_name, (ulong) mutex->cline,
-			(ulong) mutex->lock_word,
-#ifdef UNIV_SYNC_DEBUG
-			mutex->file_name, (ulong) mutex->line,
-#endif /* UNIV_SYNC_DEBUG */
-			(ulong) mutex->waiters);
-
-	} else if (type == RW_LOCK_EX
-		   || type == RW_LOCK_WAIT_EX
-		   || type == RW_LOCK_SHARED) {
+	if (type == RW_LOCK_EX
+	    || type == RW_LOCK_WAIT_EX
+	    || type == RW_LOCK_SHARED) {
 
 		fputs(type == RW_LOCK_EX ? "X-lock on"
 		      : type == RW_LOCK_WAIT_EX ? "X-lock (wait_ex) on"
@@ -521,7 +494,7 @@ sync_array_cell_print(
 
 		fprintf(file,
 			"number of readers %lu, waiters flag %lu, "
-                        "lock_word: %lx\n"
+			"lock_word: %lx\n"
 			"Last time read locked in file %s line %lu\n"
 			"Last time write locked in file %s line %lu\n",
 			(ulong) rw_lock_get_reader_count(rwlock),
@@ -633,7 +606,6 @@ sync_array_detect_deadlock(
 	sync_cell_t*	cell,	/*!< in: cell to search */
 	ulint		depth)	/*!< in: recursion depth */
 {
-	mutex_t*	mutex;
 	rw_lock_t*	lock;
 	os_thread_id_t	thread;
 	ibool		ret;
@@ -653,38 +625,7 @@ sync_array_detect_deadlock(
 		return(FALSE); /* No deadlock here */
 	}
 
-	if (cell->request_type == SYNC_MUTEX) {
-
-		mutex = cell->wait_object;
-
-		if (mutex_get_lock_word(mutex) != 0) {
-
-			thread = mutex->thread_id;
-
-			/* Note that mutex->thread_id above may be
-			also OS_THREAD_ID_UNDEFINED, because the
-			thread which held the mutex maybe has not
-			yet updated the value, or it has already
-			released the mutex: in this case no deadlock
-			can occur, as the wait array cannot contain
-			a thread with ID_UNDEFINED value. */
-
-			ret = sync_array_deadlock_step(arr, start, thread, 0,
-						       depth);
-			if (ret) {
-				fprintf(stderr,
-			"Mutex %p owned by thread %lu file %s line %lu\n",
-					mutex, (ulong) os_thread_pf(mutex->thread_id),
-					mutex->file_name, (ulong) mutex->line);
-				sync_array_cell_print(stderr, cell);
-
-				return(TRUE);
-			}
-		}
-
-		return(FALSE); /* No deadlock */
-
-	} else if (cell->request_type == RW_LOCK_EX
+	if (cell->request_type == RW_LOCK_EX
 		   || cell->request_type == RW_LOCK_WAIT_EX) {
 
 		lock = cell->wait_object;
@@ -772,19 +713,9 @@ sync_arr_cell_can_wake_up(
 /*======================*/
 	sync_cell_t*	cell)	/*!< in: cell to search */
 {
-	mutex_t*	mutex;
 	rw_lock_t*	lock;
 
-	if (cell->request_type == SYNC_MUTEX) {
-
-		mutex = cell->wait_object;
-
-		if (mutex_get_lock_word(mutex) == 0) {
-
-			return(TRUE);
-		}
-
-	} else if (cell->request_type == RW_LOCK_EX) {
+	if (cell->request_type == RW_LOCK_EX) {
 
 		lock = cell->wait_object;
 
@@ -794,11 +725,11 @@ sync_arr_cell_can_wake_up(
 			return(TRUE);
 		}
 
-        } else if (cell->request_type == RW_LOCK_WAIT_EX) {
+	} else if (cell->request_type == RW_LOCK_WAIT_EX) {
 
 		lock = cell->wait_object;
 
-                /* lock_word == 0 means all readers have left */
+		/* lock_word == 0 means all readers have left */
 		if (lock->lock_word == 0) {
 
 			return(TRUE);
@@ -806,7 +737,7 @@ sync_arr_cell_can_wake_up(
 	} else if (cell->request_type == RW_LOCK_SHARED) {
 		lock = cell->wait_object;
 
-                /* lock_word > 0 means no writer or reserved writer */
+		/* lock_word > 0 means no writer or reserved writer */
 		if (lock->lock_word > 0) {
 
 			return(TRUE);

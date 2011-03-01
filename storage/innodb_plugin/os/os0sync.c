@@ -675,6 +675,23 @@ os_fast_mutex_lock(
 }
 
 /**********************************************************//**
+Acquires ownership of a fast mutex. */
+UNIV_INTERN
+int
+os_fast_mutex_timedlock(
+/*===============*/
+	os_fast_mutex_t*	fast_mutex,	/*!< in: mutex to acquire */
+	const struct timespec *abs_timeout)
+{
+#ifdef __WIN__
+	ut_a(0);
+	return -1;
+#else
+	return pthread_mutex_timedlock(fast_mutex, abs_timeout);
+#endif
+}
+
+/**********************************************************//**
 Releases ownership of a fast mutex. */
 UNIV_INTERN
 void
@@ -688,6 +705,21 @@ os_fast_mutex_unlock(
 	pthread_mutex_unlock(fast_mutex);
 #endif
 }
+
+#ifdef UNIV_DEBUG
+UNIV_INTERN
+int
+os_fast_mutex_check_owned(
+/*===============*/
+	os_fast_mutex_t*	fast_mutex) {
+	int ret = 1;
+	if (os_fast_mutex_trylock(fast_mutex) == 0) {
+		ret = 0;
+		os_fast_mutex_unlock(fast_mutex);
+	}
+	return ret;
+}
+#endif
 
 /**********************************************************//**
 Frees a mutex object. */

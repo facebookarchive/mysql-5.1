@@ -31,6 +31,7 @@
 #undef pthread_mutex_t
 #undef pthread_mutex_init
 #undef pthread_mutex_lock
+#undef pthread_mutex_timedlock
 #undef pthread_mutex_unlock
 #undef pthread_mutex_destroy
 #undef pthread_cond_wait
@@ -148,6 +149,58 @@ int safe_mutex_lock(safe_mutex_t *mp, my_bool try_lock, const char *file, uint l
   }
   else
     error= pthread_mutex_lock(&mp->mutex);
+
+  if (error || (error=pthread_mutex_lock(&mp->global)))
+  {
+    fprintf(stderr,"Got error %d when trying to lock mutex at %s, line %d\n",
+	    error, file, line);
+    fflush(stderr);
+    abort();
+  }
+  mp->thread= pthread_self();
+  if (mp->count++)
+  {
+    fprintf(stderr,"safe_mutex: Error in thread libray: Got mutex at %s, \
+line %d more than 1 time\n", file,line);
+    fflush(stderr);
+    abort();
+  }
+  mp->file= file;
+  mp->line=line;
+  pthread_mutex_unlock(&mp->global);
+  return error;
+}
+
+
+int safe_mutex_timedlock(safe_mutex_t *mp, const struct timespec *abs_timeout,
+                         const char *file, uint line)
+{
+  int error;
+  if (!mp->file)
+  {
+    fprintf(stderr,
+	    "safe_mutex: Trying to lock unitialized mutex at %s, line %d\n",
+	    file, line);
+    fflush(stderr);
+    abort();
+  }
+
+  pthread_mutex_lock(&mp->global);
+  if (mp->count > 0)
+  {
+    if (pthread_equal(pthread_self(),mp->thread))
+    {
+      fprintf(stderr,
+              "safe_mutex: Trying to lock mutex at %s, line %d, when the"
+              " mutex was already locked at %s, line %d in thread %s\n",
+              file,line,mp->file, mp->line, my_thread_name());
+      fflush(stderr);
+      abort();
+    }
+  }
+  pthread_mutex_unlock(&mp->global);
+
+  error= pthread_mutex_timedlock(&mp->mutex, abs_timeout);
 
   if (error || (error=pthread_mutex_lock(&mp->global)))
   {
@@ -408,6 +461,7 @@ void safe_mutex_end(FILE *file __attribute__((unused)))
 #undef pthread_mutex_t
 #undef pthread_mutex_init
 #undef pthread_mutex_lock
+#undef pthread_mutex_timedlock
 #undef pthread_mutex_trylock
 #undef pthread_mutex_unlock
 #undef pthread_mutex_destroy
@@ -720,6 +774,62 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp
   return pthread_mutex_lock(&mp->mutex);
 }
 
+int my_pthread_fastmutex_timedlock(my_pthread_fastmutex_t *mp,
+                                   const struct timespec *abs_timeout
+#if defined(MY_COUNT_MUTEX_CALLERS)
+                                 , const char* caller, int line
+#endif
+                                  )
+{
+  int   res;
+  uint  i;
+  uint  maxdelay= fastmutex_max_spin_wait_loops;
+  my_fastmutex_stats *fms= &mutex_stats[mp->stats_index];
+
+  fms->fms_locks++;
+  for (i= 0; i < mp->fast_spins; i++)
+  {
+    res= pthread_mutex_trylock(&mp->mutex);
+    assert(res == 0 || res == EBUSY);
+
+    if (res != EBUSY) {
+      fms->fms_fast_spins += i;
+      fms->fms_fast_spin_wins += (i > 0);  // don't count zero contention!
+      return res;
+    }
+
+    pause_cpu();
+  }
+  fms->fms_fast_spins += mp->fast_spins;
+
+  if (num_current_spinners < MAX_CONCURRENT_SPINNERS) {
+    my_atomic_add32(&num_current_spinners, 1);
+    for (i= 0; i < mp->slow_spins; i++) {
+      res= pthread_mutex_trylock(&mp->mutex);
+      assert(res == 0 || res == EBUSY);
+
+      if (res != EBUSY) {
+        fms->fms_slow_spins += i;
+        fms->fms_slow_spin_wins++;
+        my_atomic_add32(&num_current_spinners, -1);
+        return res;
+      }
+
+      mutex_delay(maxdelay);
+      maxdelay += park_rng(&mp->rng_state) * fastmutex_max_spin_wait_loops + 1;
+    }
+    my_atomic_add32(&num_current_spinners, -1);
+  }
+  fms->fms_slow_spins += mp->slow_spins;
+
+  fms->fms_sleeps++;
+
+#if defined(MY_COUNT_MUTEX_CALLERS)
+  increment_sleep_for_caller(caller, line);
+#endif
+
+  return pthread_mutex_timedlock(&mp->mutex, abs_timeout);
+}
 
 void fastmutex_global_init(void)
 {

@@ -1097,17 +1097,21 @@ trx_assign_read_view(
 /*=================*/
 	trx_t*	trx)	/*!< in: active transaction */
 {
+	read_view_t* preallocated_view;
 	ut_ad(trx->conc_state == TRX_ACTIVE);
 
 	if (trx->read_view) {
 		return(trx->read_view);
 	}
 
+	preallocated_view = read_view_create_low(UT_LIST_GET_LEN(trx_sys->trx_list) + 5,
+						 trx->global_read_view_heap, NULL);
 	mutex_enter(&kernel_mutex);
 
 	if (!trx->read_view) {
 		trx->read_view = read_view_open_now(
-			trx->id, trx->global_read_view_heap);
+			trx->id, trx->global_read_view_heap,
+			preallocated_view);
 		trx->global_read_view = trx->read_view;
 	}
 

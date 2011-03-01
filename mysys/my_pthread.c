@@ -409,6 +409,7 @@ int sigwait(sigset_t *setp, int *sigp)
 /* Undefined wrappers set my_pthread.h so that we call os functions */
 #undef pthread_mutex_init
 #undef pthread_mutex_lock
+#undef pthread_mutex_timedlock
 #undef pthread_mutex_unlock
 #undef pthread_mutex_destroy
 #undef pthread_mutex_wait

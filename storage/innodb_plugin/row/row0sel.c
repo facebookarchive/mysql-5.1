@@ -4691,6 +4691,7 @@ row_search_check_if_query_cache_permitted(
 					'/' char, table name */
 {
 	dict_table_t*	table;
+	read_view_t*	preallocated_view;
 	ibool		ret	= FALSE;
 
 	table = dict_table_get(norm_name, FALSE, TRUE);
@@ -4700,6 +4701,8 @@ row_search_check_if_query_cache_permitted(
 		return(FALSE);
 	}
 
+	preallocated_view = read_view_create_low(UT_LIST_GET_LEN(trx_sys->trx_list) + 5,
+						 trx->global_read_view_heap, NULL);
 	mutex_enter(&kernel_mutex);
 
 	/* Start the transaction if it is not started yet */
@@ -4724,7 +4727,8 @@ row_search_check_if_query_cache_permitted(
 		    && !trx->read_view) {
 
 			trx->read_view = read_view_open_now(
-				trx->id, trx->global_read_view_heap);
+				trx->id, trx->global_read_view_heap,
+				preallocated_view);
 			trx->global_read_view = trx->read_view;
 		}
 	}

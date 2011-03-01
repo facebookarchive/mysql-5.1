@@ -283,6 +283,21 @@ os_fast_mutex_lock(
 /*===============*/
 	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to acquire */
 /**********************************************************//**
+Acquires ownership of a fast mutex. */
+UNIV_INTERN
+int
+os_fast_mutex_timedlock(
+/*===============*/
+	os_fast_mutex_t*	fast_mutex,	/*!< in: mutex to acquire */
+	const struct timespec *abs_timeout);
+/**********************************************************//**
+Test if a mutex is locked (owned) or not.*/
+UNIV_INTERN
+int
+os_fast_mutex_check_owned(
+/*===============*/
+	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to free */
+/**********************************************************//**
 Frees an mutex object. */
 UNIV_INTERN
 void

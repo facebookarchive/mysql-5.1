@@ -247,13 +247,7 @@ mutex_create_func(
 	const char*	cfile_name,	/*!< in: file name where created */
 	ulint		cline)		/*!< in: file line where created */
 {
-#if defined(HAVE_ATOMIC_BUILTINS)
-	mutex_reset_lock_word(mutex);
-#else
-	os_fast_mutex_init(&(mutex->os_fast_mutex));
-	mutex->lock_word = 0;
-#endif
-	mutex->event = os_event_create(NULL);
+	os_fast_mutex_init_real(&(mutex->os_fast_mutex), cfile_name, cline);
 	mutex_set_waiters(mutex, 0);
 #ifdef UNIV_DEBUG
 	mutex->magic_n = MUTEX_MAGIC_N;
@@ -265,9 +259,9 @@ mutex_create_func(
 #endif /* UNIV_SYNC_DEBUG */
 	mutex->cfile_name = cfile_name;
 	mutex->cline = cline;
-	mutex->count_os_wait = 0;
 #ifdef UNIV_DEBUG
 	mutex->cmutex_name=	  cmutex_name;
+	mutex->count_os_wait = 0;
 	mutex->count_using=	  0;
 	mutex->mutex_type=	  0;
 	mutex->lspent_time=	  0;
@@ -276,9 +270,6 @@ mutex_create_func(
 	mutex->count_spin_rounds=   0;
 	mutex->count_os_yield=  0;
 #endif /* UNIV_DEBUG */
-
-	/* Check that lock_word is aligned; this is important on Intel */
-	ut_ad(((ulint)(&(mutex->lock_word))) % 4 == 0);
 
 	/* NOTE! The very first mutexes are not put to the mutex list */
 
@@ -312,7 +303,6 @@ mutex_free(
 	mutex_t*	mutex)	/*!< in: mutex */
 {
 	ut_ad(mutex_validate(mutex));
-	ut_a(mutex_get_lock_word(mutex) == 0);
 	ut_a(mutex_get_waiters(mutex) == 0);
 
 #ifdef UNIV_MEM_DEBUG
@@ -344,13 +334,10 @@ mutex_free(
 		mutex_exit(&mutex_list_mutex);
 	}
 
-	os_event_free(mutex->event);
 #ifdef UNIV_MEM_DEBUG
 func_exit:
 #endif /* UNIV_MEM_DEBUG */
-#if !defined(HAVE_ATOMIC_BUILTINS)
 	os_fast_mutex_free(&(mutex->os_fast_mutex));
-#endif
 	/* If we free the mutex protecting the mutex list (freeing is
 	not necessary), we have to reset the magic number AFTER removing
 	it from the list. */
@@ -377,8 +364,7 @@ mutex_enter_nowait_func(
 {
 	ut_ad(mutex_validate(mutex));
 
-	if (!mutex_test_and_set(mutex)) {
-
+	if (os_fast_mutex_trylock(&mutex->os_fast_mutex) == 0) {
 		ut_d(mutex->thread_id = os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
@@ -414,11 +400,11 @@ UNIV_INTERN
 ibool
 mutex_own(
 /*======*/
-	const mutex_t*	mutex)	/*!< in: mutex */
+	mutex_t*	mutex)	/*!< in: mutex */
 {
 	ut_ad(mutex_validate(mutex));
 
-	return(mutex_get_lock_word(mutex) == 1
+	return(os_fast_mutex_check_owned(&mutex->os_fast_mutex)
 	       && os_thread_eq(mutex->thread_id, os_thread_get_curr_id()));
 }
 #endif /* UNIV_DEBUG */
@@ -440,206 +426,6 @@ mutex_set_waiters(
 
 	*ptr = n;		/* Here we assume that the write of a single
 				word in memory is atomic */
-}
-
-/******************************************************************//**
-Reserves a mutex for the current thread. If the mutex is reserved, the
-function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
-for the mutex before suspending the thread. */
-UNIV_INTERN
-void
-mutex_spin_wait(
-/*============*/
-	mutex_t*	mutex,		/*!< in: pointer to mutex */
-	const char*	file_name,	/*!< in: file name where mutex
-					requested */
-	ulint		line)		/*!< in: line where requested */
-{
-	ulint	   index; /* index of the reserved wait cell */
-	ulint	   i;	  /* spin round count */
-#ifdef UNIV_DEBUG
-	ib_int64_t lstart_time = 0, lfinish_time; /* for timing os_wait */
-	ulint ltime_diff;
-	ulint sec;
-	ulint ms;
-	uint timer_started = 0;
-#endif /* UNIV_DEBUG */
-	ut_ad(mutex);
-
-	/* This update is not thread safe, but we don't mind if the count
-	isn't exact. Moved out of ifdef that follows because we are willing
-	to sacrifice the cost of counting this as the data is valuable.
-	Count the number of calls to mutex_spin_wait. */
-	mutex_spin_wait_count++;
-
-mutex_loop:
-
-	i = 0;
-
-	/* Spin waiting for the lock word to become zero. Note that we do
-	not have to assume that the read access to the lock word is atomic,
-	as the actual locking is always committed with atomic test-and-set.
-	In reality, however, all processors probably have an atomic read of
-	a memory word. */
-
-spin_loop:
-	ut_d(mutex->count_spin_loop++);
-
-	while (mutex_get_lock_word(mutex) != 0 && i < SYNC_SPIN_ROUNDS) {
-		if (srv_spin_wait_delay) {
-			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
-		}
-
-		i++;
-	}
-
-	if (i == SYNC_SPIN_ROUNDS) {
-#ifdef UNIV_DEBUG
-		mutex->count_os_yield++;
-#ifndef UNIV_HOTBACKUP
-		if (timed_mutexes && timer_started == 0) {
-			ut_usectime(&sec, &ms);
-			lstart_time= (ib_int64_t)sec * 1000000 + ms;
-			timer_started = 1;
-		}
-#endif /* UNIV_HOTBACKUP */
-#endif /* UNIV_DEBUG */
-		os_thread_yield();
-	}
-
-#ifdef UNIV_SRV_PRINT_LATCH_WAITS
-	fprintf(stderr,
-		"Thread %lu spin wait mutex at %p"
-		" cfile %s cline %lu rnds %lu\n",
-		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
-		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
-#endif
-
-	mutex_spin_round_count += i;
-
-	ut_d(mutex->count_spin_rounds += i);
-
-	if (mutex_test_and_set(mutex) == 0) {
-		/* Succeeded! */
-
-		ut_d(mutex->thread_id = os_thread_get_curr_id());
-#ifdef UNIV_SYNC_DEBUG
-		mutex_set_debug_info(mutex, file_name, line);
-#endif
-
-		goto finish_timing;
-	}
-
-	/* We may end up with a situation where lock_word is 0 but the OS
-	fast mutex is still reserved. On FreeBSD the OS does not seem to
-	schedule a thread which is constantly calling pthread_mutex_trylock
-	(in mutex_test_and_set implementation). Then we could end up
-	spinning here indefinitely. The following 'i++' stops this infinite
-	spin. */
-
-	i++;
-
-	if (i < SYNC_SPIN_ROUNDS) {
-		goto spin_loop;
-	}
-
-	sync_array_reserve_cell(sync_primary_wait_array, mutex,
-				SYNC_MUTEX, file_name, line, &index);
-
-	/* The memory order of the array reservation and the change in the
-	waiters field is important: when we suspend a thread, we first
-	reserve the cell and then set waiters field to 1. When threads are
-	released in mutex_exit, the waiters field is first set to zero and
-	then the event is set to the signaled state. */
-
-	mutex_set_waiters(mutex, 1);
-
-	/* Try to reserve still a few times */
-	for (i = 0; i < 4; i++) {
-		if (mutex_test_and_set(mutex) == 0) {
-			/* Succeeded! Free the reserved wait cell */
-
-			sync_array_free_cell(sync_primary_wait_array, index);
-
-			ut_d(mutex->thread_id = os_thread_get_curr_id());
-#ifdef UNIV_SYNC_DEBUG
-			mutex_set_debug_info(mutex, file_name, line);
-#endif
-
-#ifdef UNIV_SRV_PRINT_LATCH_WAITS
-			fprintf(stderr, "Thread %lu spin wait succeeds at 2:"
-				" mutex at %p\n",
-				(ulong) os_thread_pf(os_thread_get_curr_id()),
-				(void*) mutex);
-#endif
-
-			goto finish_timing;
-
-			/* Note that in this case we leave the waiters field
-			set to 1. We cannot reset it to zero, as we do not
-			know if there are other waiters. */
-		}
-	}
-
-	/* Now we know that there has been some thread holding the mutex
-	after the change in the wait array and the waiters field was made.
-	Now there is no risk of infinite wait on the event. */
-
-#ifdef UNIV_SRV_PRINT_LATCH_WAITS
-	fprintf(stderr,
-		"Thread %lu OS wait mutex at %p cfile %s cline %lu rnds %lu\n",
-		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
-		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
-#endif
-
-	mutex_os_wait_count++;
-
-	mutex->count_os_wait++;
-#ifdef UNIV_DEBUG
-	/* !!!!! Sometimes os_wait can be called without os_thread_yield */
-#ifndef UNIV_HOTBACKUP
-	if (timed_mutexes == 1 && timer_started == 0) {
-		ut_usectime(&sec, &ms);
-		lstart_time= (ib_int64_t)sec * 1000000 + ms;
-		timer_started = 1;
-	}
-#endif /* UNIV_HOTBACKUP */
-#endif /* UNIV_DEBUG */
-
-	sync_array_wait_event(sync_primary_wait_array, index);
-	goto mutex_loop;
-
-finish_timing:
-#ifdef UNIV_DEBUG
-	if (timed_mutexes == 1 && timer_started==1) {
-		ut_usectime(&sec, &ms);
-		lfinish_time= (ib_int64_t)sec * 1000000 + ms;
-
-		ltime_diff= (ulint) (lfinish_time - lstart_time);
-		mutex->lspent_time += ltime_diff;
-
-		if (mutex->lmax_spent_time < ltime_diff) {
-			mutex->lmax_spent_time= ltime_diff;
-		}
-	}
-#endif /* UNIV_DEBUG */
-	return;
-}
-
-/******************************************************************//**
-Releases the threads waiting in the primary wait array for this mutex. */
-UNIV_INTERN
-void
-mutex_signal_object(
-/*================*/
-	mutex_t*	mutex)	/*!< in: mutex */
-{
-	mutex_set_waiters(mutex, 0);
-
-	/* The memory order of resetting the waiters field and
-	signaling the object is important. See LEMMA 1 above. */
-	os_event_set(mutex->event);
-	sync_array_object_signalled(sync_primary_wait_array);
 }
 
 #ifdef UNIV_SYNC_DEBUG
@@ -706,7 +492,7 @@ mutex_list_print_info(
 	while (mutex != NULL) {
 		count++;
 
-		if (mutex_get_lock_word(mutex) != 0) {
+		if (os_fast_mutex_check_owned(mutex->os_fast_mutex) != 0) {
 			mutex_get_debug_info(mutex, &file_name, &line,
 					     &thread_id);
 			fprintf(file,
@@ -740,8 +526,7 @@ mutex_n_reserved(void)
 	mutex = UT_LIST_GET_FIRST(mutex_list);
 
 	while (mutex != NULL) {
-		if (mutex_get_lock_word(mutex) != 0) {
-
+		if (os_fast_mutex_check_owned(mutex->os_fast_mutex)) {
 			count++;
 		}
 
@@ -895,7 +680,8 @@ sync_thread_levels_g(
 						mutex->cfile_name,
 						(ulong) mutex->cline);
 
-					if (mutex_get_lock_word(mutex) != 0) {
+					if (os_fast_mutex_check_owned(
+					      mutex->os_fast_mutex)) {
 						const char*	file_name;
 						ulint		line;
 						os_thread_id_t	thread_id;
@@ -1380,6 +1166,7 @@ sync_init(void)
 	ulint		i;
 #endif /* UNIV_SYNC_DEBUG */
 
+	mutex_init_thread_waiting_list();
 	ut_a(sync_initialized == FALSE);
 
 	sync_initialized = TRUE;
@@ -1455,6 +1242,7 @@ sync_close(void)
 	sync_order_checks_on = FALSE;
 #endif /* UNIV_SYNC_DEBUG */
 
+	mutex_shutdown_thread_waiting_list();
 	sync_initialized = FALSE;	
 }
 
@@ -1505,6 +1293,7 @@ sync_print(
 /*=======*/
 	FILE*	file)		/*!< in: file where to print */
 {
+	mutex_print_thread_waiter_list(file);
 #ifdef UNIV_SYNC_DEBUG
 	mutex_list_print_info(file);
 
@@ -1514,4 +1303,109 @@ sync_print(
 	sync_array_print_info(file, sync_primary_wait_array);
 
 	sync_print_wait_info(file);
+}
+
+/* Per-thread information tracked while a thread waits on a mutex. */
+typedef struct waiting_thread_info_struct waiting_thread_info_t;
+struct waiting_thread_info_struct {
+	os_thread_id_t thread_id;
+	mutex_t* waiting_on;
+	UT_LIST_NODE_T(waiting_thread_info_t) list;
+};
+
+/* To avoid allocating and deacllocating when acquiring and releasing
+ * locks, we use a thread local instance of waiting_thread_info_t.
+ * Since a thread can be waiting on at most one mutex, this is
+ * sufficient and avoids costly allocation in critical paths. */
+static __thread waiting_thread_info_t local_waiting_info;
+
+/* Track threads that are blocking on mutexes by keeping N lists of
+ * threads.  N should be a modestly large prime number.  Threads are
+ * hashed into one of the N lists.  Each list has a mutex protecting
+ * access to it.  */
+typedef struct waiting_thread_list_struct waiting_thread_list_t;
+struct waiting_thread_list_struct {
+	os_fast_mutex_t mutex;
+	int thread_count;
+	UT_LIST_BASE_NODE_T(waiting_thread_info_t) waiting_threads;
+};
+
+#define NUM_MUTEX_WAITER_LISTS 257
+static waiting_thread_list_t waiter_lists[NUM_MUTEX_WAITER_LISTS];
+
+void
+mutex_init_thread_waiting_list()
+{
+	int i;
+	for (i = 0; i < NUM_MUTEX_WAITER_LISTS; ++i) {
+		os_fast_mutex_init(&(waiter_lists[i].mutex));
+		waiter_lists[i].thread_count = 0;
+		UT_LIST_INIT(waiter_lists[i].waiting_threads);
+	}
+}
+
+void
+mutex_shutdown_thread_waiting_list()
+{
+	int i;
+	for (i = 0; i < NUM_MUTEX_WAITER_LISTS; ++i) {
+		ut_a(NULL == UT_LIST_GET_FIRST(waiter_lists[i].waiting_threads));
+		os_fast_mutex_free(&(waiter_lists[i].mutex));
+	}
+}
+
+void
+mutex_remove_from_thread_waiting_list()
+{
+	waiting_thread_list_t* wtl =
+	  &waiter_lists[ut_hash_ulint((ulint) os_thread_get_curr_id(),
+				      NUM_MUTEX_WAITER_LISTS)];
+
+	os_fast_mutex_lock(&(wtl->mutex));
+	--wtl->thread_count;
+	local_waiting_info.waiting_on = NULL;
+	ut_a(wtl->thread_count >= 0);
+	UT_LIST_REMOVE(list, wtl->waiting_threads, &local_waiting_info);
+	os_fast_mutex_unlock(&(wtl->mutex));
+}
+
+void
+mutex_add_to_thread_waiting_list(mutex_t* mutex)
+{
+	waiting_thread_list_t* wtl =
+	  &waiter_lists[ut_hash_ulint((ulint) os_thread_get_curr_id(),
+				      NUM_MUTEX_WAITER_LISTS)];
+
+	os_fast_mutex_lock(&(wtl->mutex));
+	++wtl->thread_count;
+	local_waiting_info.waiting_on = mutex;
+	local_waiting_info.thread_id = os_thread_get_curr_id();
+	ut_a(local_waiting_info.list.next != &local_waiting_info);
+	UT_LIST_ADD_FIRST(list, wtl->waiting_threads, &local_waiting_info);
+	os_fast_mutex_unlock(&(wtl->mutex));
+}
+
+void
+mutex_print_thread_waiter_list(FILE* fp)
+{
+	int i;
+	mutex_enter(&kernel_mutex);
+	for (i = 0; i < NUM_MUTEX_WAITER_LISTS; ++i) {
+		waiting_thread_list_t* wtl = &waiter_lists[i];
+		waiting_thread_info_t *thread;
+		os_fast_mutex_lock(&(wtl->mutex));
+		thread = UT_LIST_GET_FIRST(wtl->waiting_threads);
+
+		while (thread) {
+			fprintf(fp, "Thread %lu waiting on mutex %p "
+				"(%s:%lu) (held by thread %lu)\n",
+				thread->thread_id, thread->waiting_on,
+				thread->waiting_on->cfile_name,
+				thread->waiting_on->cline,
+			   thread->waiting_on->thread_id);
+			thread = UT_LIST_GET_NEXT(list, thread);
+		}
+		os_fast_mutex_unlock(&(wtl->mutex));
+	}
+	mutex_exit(&kernel_mutex);
 }

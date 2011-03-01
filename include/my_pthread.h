@@ -487,6 +487,8 @@ typedef struct st_safe_mutex_info_t
 int safe_mutex_init(safe_mutex_t *mp, const pthread_mutexattr_t *attr,
                     const char *file, uint line);
 int safe_mutex_lock(safe_mutex_t *mp, my_bool try_lock, const char *file, uint line);
+int safe_mutex_timedlock(safe_mutex_t *mp, const struct timespec *abs_timeout,
+                         const char *file, uint line);
 int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line);
 int safe_mutex_destroy(safe_mutex_t *mp,const char *file, uint line);
 int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp,const char *file,
@@ -500,6 +502,7 @@ void safe_mutex_end(FILE *file);
 #ifdef SAFE_MUTEX
 #undef pthread_mutex_init
 #undef pthread_mutex_lock
+#undef pthread_mutex_timedlock
 #undef pthread_mutex_unlock
 #undef pthread_mutex_destroy
 #undef pthread_mutex_wait
@@ -510,6 +513,7 @@ void safe_mutex_end(FILE *file);
 #undef pthread_mutex_trylock
 #define pthread_mutex_init(A,B) safe_mutex_init((A),(B),__FILE__,__LINE__)
 #define pthread_mutex_lock(A) safe_mutex_lock((A), FALSE, __FILE__, __LINE__)
+#define pthread_mutex_timedlock(A, B) safe_mutex_timedlock((A), (B), __FILE__, __LINE__)
 #define pthread_mutex_unlock(A) safe_mutex_unlock((A),__FILE__,__LINE__)
 #define pthread_mutex_destroy(A) safe_mutex_destroy((A),__FILE__,__LINE__)
 #define pthread_cond_wait(A,B) safe_cond_wait((A),(B),__FILE__,__LINE__)
@@ -549,8 +553,13 @@ extern int my_pthread_fastmutex_init_by_name(my_pthread_fastmutex_t *mp,
 #if defined(MY_COUNT_MUTEX_CALLERS)
 extern int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp,
                                      const char* caller, int line);
+extern int my_pthread_fastmutex_timedlock(my_pthread_fastmutex_t *mp,
+                                          const struct timespec *abs_timeout,
+                                          const char* caller, int line);
 #else
 extern int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
+extern int my_pthread_fastmutex_timedlock(my_pthread_fastmutex_t *mp,
+                                          const struct timespec *abs_timeout);
 #endif
 
 /* Returns aggregated result over all mutexes and rw-locks. sleeps, spins
@@ -594,6 +603,7 @@ extern my_fastmutex_stats* my_fastmutex_get_caller_stats(int *num_stats);
 
 #undef pthread_mutex_init
 #undef pthread_mutex_lock
+#undef pthread_mutex_timedlock
 #undef pthread_mutex_unlock
 #undef pthread_mutex_destroy
 #undef pthread_mutex_wait
@@ -610,8 +620,11 @@ my_pthread_fastmutex_init_by_name(my_pthread_fastmutex_t *mp,
 #if defined(MY_COUNT_MUTEX_CALLERS)
 #define pthread_mutex_lock(A) \
     my_pthread_fastmutex_lock((A), __FILE__, __LINE__)
+#define pthread_mutex_timedlock(A, B) \
+    my_pthread_fastmutex_timedlock((A), (B), __FILE__, __LINE__)
 #else
 #define pthread_mutex_lock(A) my_pthread_fastmutex_lock((A))
+#define pthread_mutex_timedlock(A, B) my_pthread_fastmutex_timedlock((A), (B))
 #endif
 
 #define pthread_mutex_init(A,B) \

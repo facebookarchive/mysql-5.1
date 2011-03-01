@@ -45,8 +45,17 @@ read_view_open_now(
 	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
 					transaction, or ut_dulint_zero
 					used in purge */
-	mem_heap_t*	heap);		/*!< in: memory heap from which
+	mem_heap_t*	heap,		/*!< in: memory heap from which
 					allocated */
+	read_view_t*	preallocated_view);
+
+UNIV_INLINE
+read_view_t*
+read_view_create_low(
+	ulint		n,	/*!< in: number of cells in the trx_ids array */
+	mem_heap_t*	heap,	/*!< in: memory heap from which allocated */
+	read_view_t*	preallocated_view);
+
 /*********************************************************************//**
 Makes a copy of the oldest existing read view, or opens a new. The view
 must be closed with ..._close.
