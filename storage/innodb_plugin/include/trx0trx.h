@@ -779,7 +779,12 @@ struct trx_struct{
 #define	TRX_NOT_STARTED		0
 #define	TRX_ACTIVE		1
 #define	TRX_COMMITTED_IN_MEMORY	2
-#define	TRX_PREPARED		3	/* Support for 2PC/XA */
+/* TRX_PREPARED_RELEASED is used when row locks have been released early */
+#define	TRX_PREPARED_UNRELEASED	3	/* Support for 2PC/XA */
+#define	TRX_PREPARED_RELEASED	4	/* Support for 2PC/XA */
+
+#define trx_is_prepared(s) \
+  ((s) == TRX_PREPARED_RELEASED || (s) == TRX_PREPARED_UNRELEASED)
 
 /* Transaction execution states when trx->conc_state == TRX_ACTIVE */
 #define TRX_QUE_RUNNING		0	/* transaction is running */

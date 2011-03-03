@@ -1,0 +1,327 @@
+connection c1
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (k INT NOT NULL, a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, PRIMARY KEY(k)) ENGINE=InnoDB;
+INSERT INTO t1 (k, a, b, c) VALUES (1, 0, 0, 0);
+INSERT INTO t1 (k, a, b, c) VALUES (2, 0, 0, 0);
+SET GLOBAL group_commit_min_size=2;
+""
+Confirm error during prepare works
+echo ""
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL group_commit_timeout_usecs=900000;
+set GLOBAL debug="d,error_on_prepare";
+select * from t1 where k=1;
+k	a	b	c
+1	0	0	0
+this update fails
+UPDATE t1 SET a=15 WHERE k=1;
+select * from t1 where k=1;
+k	a	b	c
+1	0	0	0
+set GLOBAL debug="RESET";
+UPDATE t1 SET a=15 WHERE k=1;
+select * from t1 where k=1;
+k	a	b	c
+1	15	0	0
+""
+verify that group commit can still be done after error on prepare
+""
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL group_commit_timeout_usecs=900000;
+select variable_value into @fsc1 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select variable_value into @fsg1 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+connection c1
+SET DEBUG_SYNC='after_prepare1 SIGNAL stopped WAIT_FOR go';
+UPDATE t1 SET a=10 WHERE k=1;
+connection c2
+SET DEBUG_SYNC='now WAIT_FOR stopped';
+SET DEBUG_SYNC='before_binlog_sync SIGNAL go';
+UPDATE t1 SET a=20 WHERE k=2;
+select a,k from t1 order by k;
+a	k
+10	1
+20	2
+select variable_value into @fsc2 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select @fsc2 - @fsc1;
+@fsc2 - @fsc1
+1
+select variable_value into @fsg2 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+select @fsg2 - @fsg1;
+@fsg2 - @fsg1
+1
+""
+Make first thread for group commit wait before commit_fast
+Confirm the second thread is blocked for in-order commits
+Timeout in c1 is the confirmation
+""
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='RESET';
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL force_binlog_order=1;
+connection c1
+BEGIN;
+UPDATE t1 SET a=5 WHERE k=1;
+SET DEBUG_SYNC='before_commit_fast SIGNAL c1_prepared WAIT_FOR c2_committed TIMEOUT 3';
+COMMIT;
+connection c2
+SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 5';
+UPDATE t1 SET a=9 WHERE k=2;
+SET DEBUG_SYNC='now SIGNAL c2_committed';
+connection c1
+Warnings:
+Warning	1639	debug sync point wait timed out
+SET DEBUG_SYNC='RESET';
+select * from t1 where k=1;
+k	a	b	c
+1	5	0	0
+select * from t1 where k=2;
+k	a	b	c
+2	9	0	0
+""
+Make first thread for group commit wait before commit_fast
+Confirm the second thread is not blocked for in-order commits
+No timeouts are the confirmation
+""
+SET DEBUG_SYNC='RESET';
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL force_binlog_order=0;
+connection c1
+BEGIN;
+UPDATE t1 SET a=11 WHERE k=1;
+SET DEBUG_SYNC='before_commit SIGNAL c1_prepared WAIT_FOR c2_committed TIMEOUT 3';
+COMMIT;
+connection c2
+SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
+UPDATE t1 SET a=12 WHERE k=2;
+SET DEBUG_SYNC='now SIGNAL c2_committed';
+connection c1
+SET DEBUG_SYNC='RESET';
+select * from t1 where k=1;
+k	a	b	c
+1	11	0	0
+select * from t1 where k=2;
+k	a	b	c
+2	12	0	0
+""
+Fail during 2PC in commit step in binlog_end_trans and
+echo confirm group commit is possible afterwards
+echo ""
+delete from t1;
+INSERT INTO t1 (k, a, b, c) VALUES (1, 0, 0, 0), (2, 0, 0, 0);
+SET DEBUG_SYNC='RESET';
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL group_commit_timeout_usecs=900000;
+SET GLOBAL force_binlog_order=1;
+set GLOBAL debug="d,error_in_binlog_end_trans";
+first get a failure
+select * from t1 where k=1;
+k	a	b	c
+1	0	0	0
+this update fails
+UPDATE t1 SET a=15 WHERE k=1;
+select * from t1 where k=1;
+k	a	b	c
+1	0	0	0
+set GLOBAL debug="RESET";
+then get an update that does not fail
+UPDATE t1 SET a=15 WHERE k=1;
+select * from t1 where k=1;
+k	a	b	c
+1	15	0	0
+now do group commit
+connection c1
+select variable_value into @fsc1 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select variable_value into @fsg1 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+SET DEBUG_SYNC='after_prepare1 SIGNAL stopped WAIT_FOR go';
+UPDATE t1 SET a=10 WHERE k=1;
+connection c2
+SET DEBUG_SYNC='now WAIT_FOR stopped';
+SET DEBUG_SYNC='before_binlog_sync SIGNAL go';
+UPDATE t1 SET a=20 WHERE k=2;
+connection c1
+select a,k from t1 order by k;
+a	k
+10	1
+20	2
+select variable_value into @fsc2 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select @fsc2 - @fsc1;
+@fsc2 - @fsc1
+1
+select variable_value into @fsg2 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+select @fsg2 - @fsg1;
+@fsg2 - @fsg1
+1
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='RESET';
+""
+Fail during 2PC in commit step in flush_and_sync before getting ticket and
+echo confirm group commit is possible afterwards
+echo ""
+call mtr.add_suppression("Error writing file .*");
+delete from t1;
+INSERT INTO t1 (k, a, b, c) VALUES (1, 0, 0, 0), (2, 0, 0, 0);
+SET DEBUG_SYNC='RESET';
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL group_commit_timeout_usecs=900000;
+SET GLOBAL force_binlog_order=1;
+set GLOBAL debug="d,error_in_flush_and_sync_before";
+first get a failure
+select * from t1 where k=1;
+k	a	b	c
+1	0	0	0
+this update fails
+UPDATE t1 SET a=15 WHERE k=1;
+select * from t1 where k=1;
+k	a	b	c
+1	0	0	0
+set GLOBAL debug="RESET";
+then get an update that does not fail
+UPDATE t1 SET a=15 WHERE k=1;
+select * from t1 where k=1;
+k	a	b	c
+1	15	0	0
+now do group commit
+connection c1
+select variable_value into @fsc1 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select variable_value into @fsg1 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+SET DEBUG_SYNC='after_prepare1 SIGNAL stopped WAIT_FOR go';
+UPDATE t1 SET a=10 WHERE k=1;
+connection c2
+SET DEBUG_SYNC='now WAIT_FOR stopped';
+SET DEBUG_SYNC='before_binlog_sync SIGNAL go';
+UPDATE t1 SET a=20 WHERE k=2;
+connection c1
+select a,k from t1 order by k;
+a	k
+10	1
+20	2
+select variable_value into @fsc2 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select @fsc2 - @fsc1;
+@fsc2 - @fsc1
+1
+select variable_value into @fsg2 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+select @fsg2 - @fsg1;
+@fsg2 - @fsg1
+1
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='RESET';
+""
+Fail during 2PC in commit step in flush_and_sync after getting ticket and
+echo confirm group commit is possible afterwards
+echo ""
+delete from t1;
+INSERT INTO t1 (k, a, b, c) VALUES (1, 0, 0, 0), (2, 0, 0, 0);
+SET DEBUG_SYNC='RESET';
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL group_commit_timeout_usecs=900000;
+SET GLOBAL force_binlog_order=1;
+set GLOBAL debug="d,error_in_flush_and_sync_after";
+first get a failure
+select * from t1 where k=1;
+k	a	b	c
+1	0	0	0
+this update fails
+UPDATE t1 SET a=15 WHERE k=1;
+select * from t1 where k=1;
+k	a	b	c
+1	0	0	0
+set GLOBAL debug="RESET";
+then get an update that does not fail
+UPDATE t1 SET a=15 WHERE k=1;
+select * from t1 where k=1;
+k	a	b	c
+1	15	0	0
+now do group commit
+connection c1
+select variable_value into @fsc1 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select variable_value into @fsg1 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+SET DEBUG_SYNC='after_prepare1 SIGNAL stopped WAIT_FOR go';
+UPDATE t1 SET a=10 WHERE k=1;
+connection c2
+SET DEBUG_SYNC='now WAIT_FOR stopped';
+SET DEBUG_SYNC='before_binlog_sync SIGNAL go';
+UPDATE t1 SET a=20 WHERE k=2;
+connection c1
+select a,k from t1 order by k;
+a	k
+10	1
+20	2
+select variable_value into @fsc2 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select @fsc2 - @fsc1;
+@fsc2 - @fsc1
+1
+select variable_value into @fsg2 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+select @fsg2 - @fsg1;
+@fsg2 - @fsg1
+1
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='RESET';
+""
+Fail during 2PC in commit step before calling group_commit
+echo confirm group commit is possible afterwards
+echo ""
+delete from t1;
+INSERT INTO t1 (k, a, b, c) VALUES (1, 0, 0, 0), (2, 0, 0, 0);
+SET DEBUG_SYNC='RESET';
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL group_commit_timeout_usecs=900000;
+SET GLOBAL force_binlog_order=1;
+set GLOBAL debug="d,skip_group_commit";
+first get a failure
+select * from t1 where k=1;
+k	a	b	c
+1	0	0	0
+this update doesn't commit
+begin;
+UPDATE t1 SET a=15 WHERE k=1;
+rollback;
+select * from t1 where k=1;
+k	a	b	c
+1	0	0	0
+set GLOBAL debug="RESET";
+then get an update that does not fail
+UPDATE t1 SET a=15 WHERE k=1;
+select * from t1 where k=1;
+k	a	b	c
+1	15	0	0
+now do group commit
+connection c1
+select variable_value into @fsc1 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select variable_value into @fsg1 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+SET DEBUG_SYNC='after_prepare1 SIGNAL stopped WAIT_FOR go';
+UPDATE t1 SET a=10 WHERE k=1;
+connection c2
+SET DEBUG_SYNC='now WAIT_FOR stopped';
+SET DEBUG_SYNC='before_binlog_sync SIGNAL go';
+UPDATE t1 SET a=20 WHERE k=2;
+connection c1
+select a,k from t1 order by k;
+a	k
+10	1
+20	2
+select variable_value into @fsc2 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select @fsc2 - @fsc1;
+@fsc2 - @fsc1
+1
+select variable_value into @fsg2 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+select @fsg2 - @fsg1;
+@fsg2 - @fsg1
+1
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='RESET';
+""
+final cleanup
+""
+DROP TABLE t1;
+SET GLOBAL innodb_prepare_commit_mutex=1;
+SET GLOBAL sync_binlog=0;
+SET GLOBAL group_commit_timeout_usecs=1000;
+SET GLOBAL group_commit_min_size=8;

@@ -371,12 +371,6 @@ void thd_inc_row_count(THD *thd)
   thd->row_count++;
 }
 
-extern "C"
-void thd_binlog_enqueue(THD *thd)
-{
-  mysql_bin_log.enqueue_thread(thd);
-}
-
 /**
   Dumps a text description of a thread, its security context
   (user, host) and the current query.

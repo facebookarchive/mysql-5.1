@@ -282,7 +282,7 @@ read_view_open_now(
 	while (trx) {
 		if (trx->id != cr_trx_id
 		    && (trx->conc_state == TRX_ACTIVE
-			|| trx->conc_state == TRX_PREPARED)) {
+			|| trx_is_prepared(trx->conc_state))) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
 
@@ -450,7 +450,7 @@ read_cursor_view_create_for_mysql(
 	while (trx) {
 
 		if (trx->conc_state == TRX_ACTIVE
-		    || trx->conc_state == TRX_PREPARED) {
+		    || trx_is_prepared(trx->conc_state)) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
 

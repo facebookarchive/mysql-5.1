@@ -34,6 +34,8 @@
 #include "ha_partition.h"
 #endif
 
+#include "my_atomic.h"
+
 /*
   Incremented for each rollback of a prepared XA transaction done when
   the server is started. That breaks rpl_transaction_enabled so when it
@@ -1105,10 +1107,35 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
     we can't commit or rollback stmt transactions while we are inside
     stored functions or triggers. So we simply do nothing now.
     TODO: This should be fixed in later ( >= 5.1) releases.
+
+  Group commit is supported for engines that implement two handlerton methods:
+  1) is_ordered_commit - returns TRUE when the trx should use group commit
+  2) group_commit - similar to commit, but must call
+       mysql_bin_log_increment_group_commit_ticket between fast and slow parts
+       of commit.  For innodb this is called after the commit record is written
+       to the log and before the log is forced to disk.
+
+  Pseudo-code for group commit:
+  innobase_xa_prepare
+    trx_prepare_for_mysql
+  log_xid -> flush_and_sync
+    write binlog
+    call handlerton::is_ordered_commit to determine if transaction should be ordered
+      release row locks (optional)
+    release LOCK_log and wait for others (optional)
+    fsync binlog
+  ha_commit_one_phase
+    wait_for_group_commit_order
+    handlerton::group_commit -> innobase_commit
+      innobase_commit_low
+      mysql_bin_log_increment_group_commit_ticket
+      trx_commit_complete_for_mysql
 */
 int ha_commit_trans(THD *thd, bool all, bool async)
 {
   int error= 0, cookie= 0;
+  static volatile int32 in_progress= 0;
+
   /*
     'all' means that this is either an explicit commit issued by
     user, or an implicit commit issued by a DDL.
@@ -1160,6 +1187,10 @@ int ha_commit_trans(THD *thd, bool all, bool async)
   {
     uint rw_ha_count;
     bool rw_trans;
+    handlerton *group_commit_ht= NULL;
+
+    DBUG_ASSERT(thd->ticket == 0);
+    thd->ticket= 0;
 
     DBUG_EXECUTE_IF("crash_commit_before", abort(););
 
@@ -1178,6 +1209,8 @@ int ha_commit_trans(THD *thd, bool all, bool async)
       DBUG_RETURN(1);
     }
 
+    my_atomic_add32(&in_progress, 1);
+
     if (rw_trans &&
         opt_readonly &&
         !(thd->security_ctx->master_access & SUPER_ACL) &&
@@ -1191,6 +1224,14 @@ int ha_commit_trans(THD *thd, bool all, bool async)
 
     if (!trans->no_2pc && (rw_ha_count > 1))
     {
+      if (rw_ha_count != 2)
+      {
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), 7777);
+        sql_print_error("Cannot do XA commit for more than 2 engines");
+        error= 1;
+        goto end;
+      }
+
       for (; ha_info && !error; ha_info= ha_info->next())
       {
         int err;
@@ -1212,14 +1253,49 @@ int ha_commit_trans(THD *thd, bool all, bool async)
           error= 1;
         }
         status_var_increment(thd->status_var.ha_prepare_count);
+
+        if (is_real_trans && ht->is_ordered_commit)
+        {
+          DEBUG_SYNC(thd, "after_prepare1");
+        }
+
+        /*
+          Enter this block in the same cases as when log_xid is called,
+          excluding errors.
+        */
+        if (is_real_trans && xid && ht->is_ordered_commit)
+        {
+          if (group_commit_ht)
+          {
+            my_error(ER_ERROR_DURING_COMMIT, MYF(0), 7778);
+            sql_print_error("Both storage engines in XA commit have is_ordered_commit");
+            unireg_abort(1);
+          }
+          group_commit_ht= ht;
+        }
       }
       DBUG_EXECUTE_IF("crash_commit_after_prepare", abort(););
+      DBUG_EXECUTE_IF("error_on_prepare", error = 1; );
 
       if (error || (is_real_trans && xid &&
-                    (error= !(cookie= tc_log->log_xid(thd, xid, async)))))
+                    (error= !(cookie= tc_log->log_xid(thd, xid, async,
+                                                      group_commit_ht,
+                                                      in_progress)))))
       {
         ha_rollback_trans(thd, all);
         error= 1;
+
+        /*
+          Wait for turn to do group commit and then increment the count as this
+          block is doing a rollback on error and ha_commit_one_phase will not be
+          called to commit in order (and increment the count).
+        */
+        if (thd->ticket && group_commit_ht)
+        {
+          mysql_bin_log.wait_for_group_commit_order(thd);
+          mysql_bin_log.increment_group_commit_ticket(thd);
+        }
+
         goto end;
       }
       DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
@@ -1233,6 +1309,9 @@ int ha_commit_trans(THD *thd, bool all, bool async)
     DBUG_EXECUTE_IF("crash_commit_after", abort(););
 
 end:
+
+    my_atomic_add32(&in_progress, -1);
+
     if (rw_trans)
       start_waiting_global_read_lock(thd);
   }
@@ -1264,11 +1343,54 @@ int ha_commit_one_phase(THD *thd, bool all, bool async)
 #ifdef USING_TRANSACTIONS
   if (ha_info)
   {
+    bool group_commit_done= FALSE;
+
+    DEBUG_SYNC(thd, "before_commit");
+
     for (; ha_info; ha_info= ha_info_next)
     {
       int err;
       handlerton *ht= ha_info->ht();
-      if ((err= ht->commit(ht, thd, all, async)))
+
+      /* This transaction is ordered for this handlerton */
+      if (thd->ticket && ht->is_ordered_commit)
+      {
+        DBUG_ASSERT(is_real_trans);
+
+        DBUG_ASSERT(!group_commit_done);
+        group_commit_done= TRUE;
+
+        DEBUG_SYNC(thd, "before_commit_fast");
+
+        mysql_bin_log.wait_for_group_commit_order(thd);
+
+        DBUG_EXECUTE_IF("skip_group_commit", { err=1; goto skip_group_commit; });
+
+        if ((err= ht->group_commit(ht, thd, all, async)))
+        {
+          my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
+          error=1;
+        }
+
+        /*
+          The engine should have called increment_group_commit_ticket and
+          that clears thd->ticket.
+        */
+        DBUG_ASSERT(!thd->ticket);
+
+#ifndef DBUG_OFF
+skip_group_commit:
+#endif
+
+        if (thd->ticket)
+        {
+          /* This is called to be paranoid */
+          mysql_bin_log.increment_group_commit_ticket(thd);
+        }
+
+
+      }
+      else if ((err= ht->commit(ht, thd, all, async)))
       {
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
         error=1;
@@ -1282,6 +1404,7 @@ int ha_commit_one_phase(THD *thd, bool all, bool async)
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
+
     trans->ha_list= 0;
     trans->no_2pc=0;
     if (all)
@@ -1300,6 +1423,10 @@ int ha_commit_one_phase(THD *thd, bool all, bool async)
   DBUG_RETURN(error);
 }
 
+void mysql_bin_log_increment_group_commit_ticket(THD* thd)
+{
+  mysql_bin_log.increment_group_commit_ticket(thd);
+}
 
 int ha_rollback_trans(THD *thd, bool all)
 {

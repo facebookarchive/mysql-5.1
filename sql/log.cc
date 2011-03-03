@@ -41,6 +41,7 @@
 
 #include <mysql/plugin.h>
 #include "mysql_priv.h"
+#include "debug_sync.h"
 
 /** The max InnoDB allowed replication binlog filename length: the value should
     be the same as TRX_SYS_MYSQL_RELAY_NAME_LEN. */
@@ -1415,6 +1416,8 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
     end_ev   The end event to use, or NULL
     all      True if the entire transaction should be ended, false if
              only the statement transaction should be ended.
+    ht       handlerton for transaction used for group commit optimization
+    pending  count of transactions in ha_commit_trans including the caller
 
   DESCRIPTION
 
@@ -1429,7 +1432,8 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
  */
 static int
 binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
-                 Log_event *end_ev, bool all, bool async)
+                 Log_event *end_ev, bool all, bool async, handlerton *ht,
+                 int32 pending)
 {
   DBUG_ENTER("binlog_end_trans");
   int error=0;
@@ -1450,6 +1454,9 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
   {
     if (thd->binlog_flush_pending_rows_event(TRUE))
       DBUG_RETURN(1);
+
+    DBUG_EXECUTE_IF("error_in_binlog_end_trans", DBUG_RETURN(1); );
+
     /*
       Doing a commit or a rollback including non-transactional tables,
       i.e., ending a transaction where we might write the transaction
@@ -1461,7 +1468,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
       inside a stored function.
      */
     error= mysql_bin_log.write(thd, &trx_data->trans_log, end_ev,
-                               trx_data->has_incident(), async);
+                               trx_data->has_incident(), async, ht, pending);
     trx_data->reset();
 
     statistic_increment(binlog_cache_use, &LOCK_status);
@@ -1553,7 +1560,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all, bool async)
        !stmt_has_updated_trans_table(thd) && stmt_has_updated_non_trans_table(thd)))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, TRUE, 0);
-    error= binlog_end_trans(thd, trx_data, &qev, all, FALSE);
+    error= binlog_end_trans(thd, trx_data, &qev, all, FALSE, NULL, 0);
   }
 
   trx_data->at_least_one_stmt_committed = my_b_tell(&trx_data->trans_log) > 0;
@@ -1617,7 +1624,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
         (thd->options & OPTION_KEEP_LOG)) &&
         mysql_bin_log.check_write_error(thd))
       trx_data->set_incident();
-    error= binlog_end_trans(thd, trx_data, 0, all, FALSE);
+    error= binlog_end_trans(thd, trx_data, 0, all, FALSE, NULL, 0);
   }
   else
   {
@@ -1637,7 +1644,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
          thd->current_stmt_binlog_row_based))
     {
       Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
-      error= binlog_end_trans(thd, trx_data, &qev, all, FALSE);
+      error= binlog_end_trans(thd, trx_data, &qev, all, FALSE, NULL, 0);
     }
     /*
       Otherwise, we simply truncate the cache as there is no change on
@@ -1645,7 +1652,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     */
     else if (ending_trans(thd, all) ||
              (!(thd->options & OPTION_KEEP_LOG) && !stmt_has_updated_non_trans_table(thd)))
-      error= binlog_end_trans(thd, trx_data, 0, all, FALSE);
+      error= binlog_end_trans(thd, trx_data, 0, all, FALSE, NULL, 0);
   }
   if (!all)
     trx_data->before_stmt_pos = MY_OFF_T_UNDEF; // part of the stmt rollback
@@ -2067,6 +2074,7 @@ void MYSQL_LOG::init_pthread_objects()
   DBUG_ASSERT(inited == 0);
   inited= 1;
   (void) pthread_mutex_init(&LOCK_log, MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_group_commit, MY_MUTEX_INIT_FAST);
 }
 
 /*
@@ -2118,6 +2126,7 @@ void MYSQL_LOG::cleanup()
   {
     inited= 0;
     (void) pthread_mutex_destroy(&LOCK_log);
+    (void) pthread_mutex_destroy(&LOCK_group_commit);
     close(0);
   }
   DBUG_VOID_RETURN;
@@ -2552,9 +2561,10 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 
 
 MYSQL_BIN_LOG::MYSQL_BIN_LOG()
-  :current_ticket(1),
+  :group_commit_allowed(TRUE),
+   current_ticket(1),
    next_ticket(1),
-   bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
+   bytes_written(0), stop_new_xids(FALSE), prepared_xids(0), file_id(1), open_count(1),
    need_start_event(TRUE),
    active_mi(NULL),
    is_relay_log(0),
@@ -2583,6 +2593,7 @@ void MYSQL_BIN_LOG::cleanup()
     delete description_event_for_queue;
     delete description_event_for_exec;
     (void) pthread_mutex_destroy(&LOCK_log);
+    (void) pthread_mutex_destroy(&LOCK_group_commit);
     (void) pthread_mutex_destroy(&LOCK_index);
     (void) pthread_cond_destroy(&update_cond);
     for (int i=0; i < NUM_BINLOG_COMMIT_COND; i++)
@@ -2591,6 +2602,7 @@ void MYSQL_BIN_LOG::cleanup()
     }
     (void) pthread_cond_destroy(&binlog_cond);
   }
+  (void) pthread_cond_destroy(&COND_stop_xids);
   DBUG_VOID_RETURN;
 }
 
@@ -2612,12 +2624,14 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   inited= 1;
   (void) pthread_mutex_init(&LOCK_log, MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_group_commit, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&update_cond, 0);
   for (int i=0; i < NUM_BINLOG_COMMIT_COND; i++)
   {
     (void) pthread_cond_init(&binlog_commit_cond_array[i], 0);
   }
   (void) pthread_cond_init(&binlog_cond, 0);
+  (void) pthread_cond_init(&COND_stop_xids, 0);
 }
 
 
@@ -3963,24 +3977,53 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   safe_mutex_assert_owner(&LOCK_log);
   safe_mutex_assert_owner(&LOCK_index);
 
+  /* As LOCK_log can be released below, stop_new_xids is used to prevent
+     1) increments of prepared_xids
+     2) new_file_impl from running concurrently
+  */
+  if (stop_new_xids)
+  {
+    DBUG_ASSERT(!stop_new_xids);
+    sql_print_error("new_file_impl called concurrently");
+
+    pthread_mutex_unlock(&LOCK_index);
+
+    while (stop_new_xids)
+      pthread_cond_wait(&COND_stop_xids, &LOCK_log);
+      
+    pthread_mutex_lock(&LOCK_index);
+  }
+  stop_new_xids= TRUE;
+
   /*
     if binlog is used as tc log, be sure all xids are "unlogged",
     so that on recover we only need to scan one - latest - binlog file
     for prepared xids. As this is expected to be a rare event,
-    simple wait strategy is enough. We're locking LOCK_log to be sure no
-    new Xid_log_event's are added to the log (and prepared_xids is not
-    increased), and waiting on COND_prep_xids for late threads to
-    catch up.
+    simple wait strategy is enough.
+
+    If this slept while holding LOCK_log then the transactions it is waiting
+    for to finish might get stuck if they were sleeping in flush_and_sync.
+    When waking in flush_and_sync they would not be able to lock LOCK_log.
+    The workaround is to set stop_new_xids before unlocking LOCK_log while
+    waiting.
   */
   if (prepared_xids)
   {
     tc_log_page_waits++;
     pthread_mutex_lock(&LOCK_prep_xids);
+
+    pthread_mutex_unlock(&LOCK_index);
+    pthread_mutex_unlock(&LOCK_log);
+
     while (prepared_xids) {
       DBUG_PRINT("info", ("prepared_xids=%lu", prepared_xids));
       pthread_cond_wait(&COND_prep_xids, &LOCK_prep_xids);
     }
     pthread_mutex_unlock(&LOCK_prep_xids);
+    pthread_mutex_lock(&LOCK_log);
+    pthread_mutex_lock(&LOCK_index);
+
+    DBUG_ASSERT(!prepared_xids);
   }
 
   /* Reuse old name if not binlog and not update log */
@@ -4039,6 +4082,10 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   my_free(old_name,MYF(0));
 
 end:
+
+  stop_new_xids= FALSE;
+  pthread_cond_broadcast(&COND_stop_xids);
+
   if (need_lock)
     pthread_mutex_unlock(&LOCK_log);
   pthread_mutex_unlock(&LOCK_index);
@@ -4073,7 +4120,11 @@ bool MYSQL_BIN_LOG::append(Log_event* ev)
   }
 
   DBUG_PRINT("info",("max_size: %lu",max_size));
-  if ((uint) my_b_append_tell(&log_file) > max_size)
+
+  /* A call to ::new_file_impl is in progress when stop_new_xids==TRUE.
+     I don't think this needs to wait to force a rotate.
+  */
+  if (!stop_new_xids && (uint) my_b_append_tell(&log_file) > max_size)
     new_file_without_locking();
 
 err:
@@ -4110,7 +4161,11 @@ bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
 
   } while ((buf=va_arg(args,const char*)) && (len=va_arg(args,uint)));
   DBUG_PRINT("info",("max_size: %lu",max_size));
-  if ((uint) my_b_append_tell(&log_file) > max_size)
+
+  /* A call to ::new_file_impl is in progress when stop_new_xids==TRUE
+     I don't think this needs to wait to force a rotate.
+  */
+  if (!stop_new_xids && (uint) my_b_append_tell(&log_file) > max_size)
     new_file_without_locking();
 
 err:
@@ -4119,133 +4174,298 @@ err:
   DBUG_RETURN(error);
 }
 
+void MYSQL_BIN_LOG::disable_group_commit(THD *thd, const char* msg)
+{
+  /* 
+     Disable group commit forever because a bug has been hit. I prefer
+     to not crash a production server via assert.
+  */
+  group_commit_allowed= FALSE;
+
+  sql_print_error("Group commit disabled because a bug has been found. "
+                  "Ticket values: current(%lu), next(%lu), thd(%lu). %s",
+                  (unsigned long) current_ticket,
+                  (unsigned long) next_ticket,
+                  (unsigned long) thd->ticket,
+                  msg);
+}
+
 /**
- * Enqueue the given thread for flushing to the binlog
- *
- * Enqueuing is actually done by ticket numbers,
- * but that is an implementation detail
+ * Remember order in which XID events are written to the binlog.
+ * @return 0 if this transaction is to be ordered and transaction log commit
+ * record will match binlog XID event order.
  */
-void MYSQL_BIN_LOG::enqueue_thread(THD *thd) {
-  if (force_binlog_order)
+int MYSQL_BIN_LOG::order_for_group_commit(THD *thd, handlerton *ht)
+{
+  DBUG_ASSERT(!thd->ticket);
+  DBUG_EXECUTE_IF("group_commit_already_set", thd->ticket= 1; );
+
+  if (thd->ticket)
   {
-    thd->ticket = my_atomic_add_bigint(&next_ticket, 1);
+    disable_group_commit(thd, "ticket already set");
+    return 1;
   }
+
+  if (!group_commit_allowed ||
+      !force_binlog_order ||
+      !ht ||
+      !ht->is_ordered_commit(ht, thd))
+    return 1;
+
+  pthread_mutex_lock(&LOCK_group_commit);
+  thd->ticket = next_ticket++;
+  pthread_mutex_unlock(&LOCK_group_commit);
+
+  DBUG_EXECUTE_IF("group_commit_rollover", {
+    current_ticket= 0xFFFFFFFFFFFFFFFFULL;
+    next_ticket= current_ticket + 1;
+    thd->ticket= current_ticket; });
+
+  if ((thd->ticket + 1) == 0)
+  {
+    disable_group_commit(thd, "ticket rolled over");
+    return 1;
+  }
+
+  return 0;
 }
 
 /**
  * Increment current ticket and let other waiting threads
  * know that it may be their turn in the queue
  */
-void MYSQL_BIN_LOG::next_thread_broadcast(THD* thd) {
-  safe_mutex_assert_owner(&LOCK_log);
-  current_ticket++;
-  // wakeup the threads sleeping on the NEXT slot
-  int slot = (1 + (ulonglong) thd->ticket) % NUM_BINLOG_COMMIT_COND;
+void MYSQL_BIN_LOG::increment_group_commit_ticket(THD* thd)
+{
+  int slot;
+
+  if (!thd->ticket)
+  {
+    /*
+       The caller of this might not know whether an error prevented
+       it from being called during commit processing.
+    */
+    return;
+  }
+
+  DBUG_EXECUTE_IF("group_commit_increment_bad_state", --thd->ticket; );
+
+  /*
+    Wakeup the threads sleeping on the NEXT slot
+  */
+  slot = (1 + thd->ticket) % NUM_BINLOG_COMMIT_COND;
+
+  pthread_mutex_lock(&LOCK_group_commit);
+
+  if (thd->ticket != current_ticket)
+    disable_group_commit(thd, "ticket != current on increment");
+
+  ++current_ticket;
   pthread_cond_broadcast(&binlog_commit_cond_array[slot]);
+  pthread_mutex_unlock(&LOCK_group_commit);
+  thd->ticket = 0;
 }
 
 /**
  * Will not return until it is the current thread's turn.
  *
- * Ensures that threads are written to the binlog in same order as to innodb
+ * Ensures that handlerton::commit_fast is called in the same order as
+ * XID events are written to the binlog.
  */
-void MYSQL_BIN_LOG::dequeue_thread_in_order(THD *thd)
+void MYSQL_BIN_LOG::wait_for_group_commit_order(THD *thd)
 {
-  if (force_binlog_order)
+  ulonglong initial_ticket;
+  timespec cond_wake_time;
+  my_bool first_loop= TRUE;
+  my_fast_timer_t wait_start;
+  double wait_secs;
+
+  DBUG_EXECUTE_IF("group_commit_wait_bad_state", thd->ticket= 0; );
+
+  if (!thd->ticket)
   {
-    safe_mutex_assert_owner(&LOCK_log);
-    // We prefer to reason about the tickets assuming the range is 0 to maxval
-    // for unsigned 4 or 8 byte int. But atomic operations are provided for
-    // signed int. So we do that math using signed ints and comparisons using
-    // unsigned ints.
-    //
-    // thd->ticket is initialized to zero when a new thd is created, and it is
-    // only currently set to nonzero by innobase_xa_prepare().
-    // current_ticket starts at 1 and only increases (well, until the maxval
-    // for my_atomic_bigint transactions have completed, after which it will
-    // roll over) So, thd->ticket <= current_ticket for all
-    // non-innodb-transaction binlog writes, so this will only affect innodb
-    // transactions in the binlog
-    //
-    // TODO(rmcelroy): make this work when the next_ticket rolls over
-    int hangseconds = 0; // seconds for which current ticket has not advanced
-    my_atomic_bigint save_ticket = current_ticket;
-    while ((ulonglong) thd->ticket > (ulonglong) current_ticket) {
-      timespec cond_wake_time;
+    disable_group_commit(thd, "ticket not set before wait_for_group_commit_order");
+    return;
+  }
+
+  DEBUG_SYNC(thd, "on_group_commit_dequeue");
+
+  set_timespec(cond_wake_time, GROUP_COMMIT_HANG_ERROR_SECONDS);
+  my_get_fast_timer(&wait_start);
+
+  pthread_mutex_lock(&LOCK_group_commit);
+  initial_ticket = current_ticket;
+
+  DBUG_EXECUTE_IF("group_commit_long_wait", goto wait_loop; );
+  DBUG_EXECUTE_IF("group_commit_really_long_wait", goto wait_loop; );
+
+  /*
+    thd->ticket is initialized to zero when a new thd is created and is set
+    for transactions in which commit will be ordered for real group commit.
+    current_ticket starts at 1 and only increases.
+  */
+  while (group_commit_allowed &&
+         thd->ticket > current_ticket)
+  {
+    int slot, err;
+    my_bool first_err;
+
+#ifndef DBUG_OFF
+wait_loop:
+#endif
+
+    first_err= FALSE;
+
+    if (!first_loop)
+    {
       set_timespec(cond_wake_time, GROUP_COMMIT_HANG_ERROR_SECONDS);
+    }
+    else
+    {
+      first_loop= FALSE;
+    }
 
-      int slot = ((ulonglong) thd->ticket) % NUM_BINLOG_COMMIT_COND;
-      int err = pthread_cond_timedwait(&binlog_commit_cond_array[slot],
-                                       &LOCK_log, &cond_wake_time);
+    slot = thd->ticket % NUM_BINLOG_COMMIT_COND;
+    err = pthread_cond_timedwait(&binlog_commit_cond_array[slot],
+                                 &LOCK_group_commit, &cond_wake_time);
 
-      if (err == ETIMEDOUT)
+    DBUG_EXECUTE_IF("group_commit_long_wait", {
+        wait_secs= GROUP_COMMIT_HANG_ERROR_SECONDS+1;
+        goto long_wait;} );
+    DBUG_EXECUTE_IF("group_commit_really_long_wait", {
+        wait_secs= GROUP_COMMIT_HANG_KILL_SECONDS+1;
+        goto really_long_wait;} );
+
+    if (err == ETIMEDOUT)
+    {
+      /*
+        Cannot assume ETIMEDOUT implies this waited for cond_wake_time
+      */
+      wait_secs = my_fast_timer_diff_now(&wait_start, NULL);
+
+      if (wait_secs > GROUP_COMMIT_HANG_KILL_SECONDS)
       {
-        if ((ulonglong)current_ticket > (ulonglong)save_ticket)
-        {
-          // current ticket has advanced.
-          hangseconds = 0;
-          save_ticket = current_ticket;
-        }
-        else if (hangseconds > GROUP_COMMIT_HANG_KILL_SECONDS)
-        {
-          // current ticket stuck duration exceeds limit. kill the server.
-          kill_mysql();
-        }
-        else
-        {
-          hangseconds += GROUP_COMMIT_HANG_ERROR_SECONDS;
-          sql_print_error("Group commit: current ticket stuck for %d seconds!",
-                          hangseconds);
-        }
+#ifndef DBUG_OFF
+really_long_wait:
+#endif
+        /*
+          Will exit the loop because group_commit_allowed is set to FALSE
+         */
+        disable_group_commit(thd, "waited too long for ticket");
+        ++binlog_fsync_reallylongwait;
+      }
+      else if (!first_err && wait_secs > GROUP_COMMIT_HANG_ERROR_SECONDS)
+      {
+#ifndef DBUG_OFF
+long_wait:
+#endif
+        first_err= TRUE;
+        sql_print_error("Group commit: waiting for ticket %lu to reach %lu for "
+                        "%lu microseconds, initial ticket was %lu",
+                        (unsigned long) current_ticket,
+                        (unsigned long) thd->ticket,
+                        (unsigned long) (1000000.0 * wait_secs),
+                        (unsigned long) initial_ticket);
+        ++binlog_fsync_longwait;
       }
     }
   }
-  // even if we are not enforcing order, we may still have a ticket number,
-  // if binlog_force_order had just been turned off, for example
-  if (thd->ticket) {
-    next_thread_broadcast(thd);
-    thd->ticket = 0;
-  }
+  pthread_mutex_unlock(&LOCK_group_commit);
+
+  wait_secs = my_fast_timer_diff_now(&wait_start, NULL);
+  binlog_fsync_ticketwait_secs += wait_secs;
+  ++binlog_fsync_ticketwaits;
 }
 
-bool MYSQL_BIN_LOG::flush_and_sync(THD *thd, bool async)
+int MYSQL_BIN_LOG::flush_and_sync(THD *thd, bool async, handlerton *ht, int32 pending)
 {
   int err=0;
   my_fast_timer_t fsync_start;
   double fsync_time;
+  ulong sync_period= sync_binlog_period;
+  bool group_commit_on= FALSE;
+  int32 min_size= (int32) group_commit_min_size;
 
   safe_mutex_assert_owner(&LOCK_log);
-
-  // If thd has already been dequeued, this is a no-op. Nifty!
-  // Note that this drops and reacquires LOCK_log. In the mean time
-  // things could have changed, such as we may have switched to a
-  // new file.
-  dequeue_thread_in_order(thd);
 
   if (flush_io_cache(&log_file))
     return 1;
 
-  if (!async &&
-      ++sync_binlog_counter >= sync_binlog_period && sync_binlog_period)
+  if (!async && (++sync_binlog_counter >= sync_period && sync_period))
   {
-    // Cache because it is referenced twice and could change in between.
-    ulong sync_timeout_usecs = sync_binlog_timeout_usecs;
+    /*
+      Cache because it is referenced twice and could change in between.
+    */
+    ulong timeout_usecs = group_commit_timeout_usecs;
 
-    if (sync_timeout_usecs)
+    /*
+      Waiting counts the number of threads trying to share one binlog fsync.
+      Threads don't wait and immediately call fsync when enough are waiting.
+      Without the check on this, all can wait for the group commit timeout
+      and that makes commit slow.
+    */
+    static int32 waiting= 0;
+    bool enough_pending, not_too_many_waiting;
+
+    DBUG_EXECUTE_IF("error_in_flush_and_sync_before", return 1; );
+
+    /*
+      Remember the order in which XID events are written. This must be called
+      before LOCK_log is released.
+    */
+    if (!order_for_group_commit(thd, ht))
     {
+      group_commit_on= TRUE;
+      DBUG_ASSERT(thd->ticket);
+    }
+    else
+    {
+      ++binlog_fsync_notry;
+    }
+
+    DBUG_EXECUTE_IF("crash_before_group_commit", abort(););
+    DBUG_EXECUTE_IF("error_in_flush_and_sync_after", return 1; );
+
+    enough_pending= pending >= min_size;
+    binlog_fsync_enough_pending += enough_pending;
+
+    not_too_many_waiting= enough_pending && (waiting < (pending / 2));
+    binlog_fsync_not_too_many_waiting += not_too_many_waiting;
+
+    if (group_commit_on && enough_pending && not_too_many_waiting)
+    {
+      my_fast_timer_t wait_start;
       ulonglong my_fsync_count = binlog_fsync_count;
       timespec cond_wake_time;
 
-      set_timespec_nsec(cond_wake_time, sync_timeout_usecs * 1000);
+      DBUG_EXECUTE_IF("binlog_fsync_signal",
+                      {  pthread_mutex_unlock(&LOCK_log);
+                         DEBUG_SYNC(thd, "wait_for_binlog_fsync_signal");
+                         pthread_mutex_lock(&LOCK_log);
+                      });
+      DEBUG_SYNC(thd, "before_binlog_sync");
+
+      ++binlog_fsync_wait;
+
+      set_timespec_nsec(cond_wake_time, timeout_usecs * 1000);
+
+      my_get_fast_timer(&wait_start);
+      ++waiting;
       err = pthread_cond_timedwait(&binlog_cond, &LOCK_log, &cond_wake_time);
-      // if we get an error, log it and move on.
+
+      double wait_secs = my_fast_timer_diff_now(&wait_start, NULL);
+      binlog_fsync_syncwait_secs += wait_secs;
+      ++binlog_fsync_syncwaits;
+
       if (err && err != EINTR && err != ETIMEDOUT)
       {
-        sql_print_warning("Got error %d from pthread_cond_timedwait\n", err);
+        sql_print_warning("Group commit: got error %d from "
+                          "pthread_cond_timedwait\n", err);
       }
       err = 0;
 
-      // only do a sync if no one else has synced
+      /*
+        Only do a sync if no one else has synced
+      */
       if (my_fsync_count == binlog_fsync_count)
       {
         int fd = log_file.file;
@@ -4254,26 +4474,37 @@ bool MYSQL_BIN_LOG::flush_and_sync(THD *thd, bool async)
         err= my_sync(fd, MYF(MY_WME));
         fsync_time = my_fast_timer_diff_now(&fsync_start, NULL);
         pthread_cond_broadcast(&binlog_cond);
-        statistic_increment(binlog_fsync_count, &LOCK_status);
-        statistic_add(binlog_fsync_total_time, fsync_time, &LOCK_status);
+        ++binlog_fsync_groupsync;
+        ++binlog_fsync_count;
+        binlog_fsync_total_secs += fsync_time;
       }
       else
       {
-        // a grouped commit happened
-        statistic_increment(binlog_fsync_grouped, &LOCK_status);
+        /*
+          Group commit was done
+        */
+        ++binlog_fsync_grouped;
       }
     }
     else
     {
       int fd = log_file.file;
+      waiting= 0;
       sync_binlog_counter= 0;
       my_get_fast_timer(&fsync_start);
       err= my_sync(fd, MYF(MY_WME));
       fsync_time= my_fast_timer_diff_now(&fsync_start, NULL);
-      statistic_increment(binlog_fsync_count, &LOCK_status);
-      statistic_add(binlog_fsync_total_time, fsync_time, &LOCK_status);
+      if (force_binlog_order)
+      {
+        /* Another thread might be waiting */
+        pthread_cond_broadcast(&binlog_cond);
+      }
+      ++binlog_fsync_nowait;
+      ++binlog_fsync_count;
+      binlog_fsync_total_secs += fsync_time;
     }
   }
+
   return err;
 }
 
@@ -4579,8 +4810,6 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
     */
     if (pending->get_cache_stmt() || my_b_tell(&trx_data->trans_log)) {
       file= &trx_data->trans_log;
-    } else {
-      dequeue_thread_in_order(thd);
     }
 
     /*
@@ -4613,7 +4842,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 
     if (file == &log_file)
     {
-      error= flush_and_sync(thd, FALSE);
+      error= flush_and_sync(thd, FALSE, NULL, 0);
       if (!error)
       {
         signal_update();
@@ -4740,7 +4969,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     if (file == &log_file)
     {
       pthread_mutex_lock(&LOCK_log);
-      dequeue_thread_in_order(thd);
     }
 
     /*
@@ -4819,7 +5047,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 
     if (file == &log_file) // we are writing to the real log (disk)
     {
-      if (flush_and_sync(thd, FALSE))
+      if (flush_and_sync(thd, FALSE, NULL, 0))
 	goto err;
       signal_update();
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
@@ -4918,11 +5146,21 @@ bool general_log_write(THD *thd, enum enum_server_command command,
 
 void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
 {
+  DBUG_EXECUTE_IF("enable_group_commit", {
+    group_commit_allowed= TRUE;
+    current_ticket=1;
+    next_ticket=1; });
+
 #ifdef HAVE_REPLICATION
   bool check_purge= false;
 #endif
   if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
     pthread_mutex_lock(&LOCK_log);
+
+  /* A call to ::new_file_impl is in progress when stop_new_xids==TRUE */
+  while (stop_new_xids)
+    pthread_cond_wait(&COND_stop_xids, &LOCK_log);
+
   if ((flags & RP_FORCE_ROTATE) ||
       (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
@@ -5140,7 +5378,6 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
   Incident_log_event ev(thd, incident, write_error_msg);
   if (lock) {
     pthread_mutex_lock(&LOCK_log);
-    dequeue_thread_in_order(thd);
   }
   error= ev.write(&log_file);
   if (us)
@@ -5151,7 +5388,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
 
   if (lock)
   {
-    if (!error && !(error= flush_and_sync(thd, FALSE)))
+    if (!error && !(error= flush_and_sync(thd, FALSE, NULL, 0)))
     {
       signal_update();
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
@@ -5176,6 +5413,9 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
   @param incident       Defines if an incident event should be created to
                         notify that some non-transactional changes did
                         not get into the binlog.
+  @param ht             handlerton to be used for group commit optimization
+  @param pending        Number of transactions in ha_commit_trans including
+                        the caller
 
   @note
     We only come here if there is something in the cache.
@@ -5186,12 +5426,21 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
 */
 
 bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
-                          bool incident, bool async)
+                          bool incident, bool async, handlerton *ht, int32 pending)
 {
   USER_STATS *us= thd ? thd_get_user_stats(thd) : NULL;
   DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
   VOID(pthread_mutex_lock(&LOCK_log));
-  dequeue_thread_in_order(thd);
+
+  if (is_open() &&
+      my_b_tell(cache) > 0 &&
+      commit_event && commit_event->get_type_code() == XID_EVENT)
+  {
+    /* If this will call ::new_file_impl, wait until that call won't wait.
+    */
+    while (stop_new_xids)
+      pthread_cond_wait(&COND_stop_xids, &LOCK_log);
+  }
 
   /* NULL would represent nothing to replicate after ROLLBACK */
   DBUG_ASSERT(commit_event != NULL);
@@ -5233,7 +5482,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
                         if ((write_error= write_cache(cache, false)))
                           DBUG_PRINT("info", ("error writing binlog cache: %d",
                                                write_error));
-                        flush_and_sync(thd, FALSE);
+                        flush_and_sync(thd, FALSE, ht, pending);
                         DBUG_PRINT("info", ("crashing before writing xid"));
                         abort();
                       });
@@ -5258,7 +5507,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
       if (incident && write_incident(thd, FALSE))
         goto err;
 
-      if (flush_and_sync(thd, async))
+      if (flush_and_sync(thd, async, ht, pending))
         goto err;
       DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););
       if (cache->error)				// Error on read
@@ -5280,6 +5529,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
     */
     if (commit_event && commit_event->get_type_code() == XID_EVENT)
     {
+      DBUG_ASSERT(!stop_new_xids);
       pthread_mutex_lock(&LOCK_prep_xids);
       prepared_xids++;
       pthread_mutex_unlock(&LOCK_prep_xids);
@@ -6343,7 +6593,7 @@ int TC_LOG_MMAP::overflow()
     to the position in memory where xid was logged to.
 */
 
-int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid, bool async)
+int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending)
 {
   int err;
   PAGE *p;
@@ -6699,7 +6949,7 @@ void TC_LOG_BINLOG::close()
   @retval
     1    success
 */
-int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid, bool async)
+int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending)
 {
   DBUG_ENTER("TC_LOG_BINLOG::log");
   Xid_log_event xle(thd, xid);
@@ -6709,7 +6959,7 @@ int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid, bool async)
     We always commit the entire transaction when writing an XID. Also
     note that the return value is inverted.
    */
-  DBUG_RETURN(!binlog_end_trans(thd, trx_data, &xle, TRUE, async));
+  DBUG_RETURN(!binlog_end_trans(thd, trx_data, &xle, TRUE, async, ht, pending));
 }
 
 void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
@@ -6718,7 +6968,7 @@ void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
   DBUG_ASSERT(prepared_xids > 0);
   if (--prepared_xids == 0) {
     DBUG_PRINT("info", ("prepared_xids=%lu", prepared_xids));
-    pthread_cond_signal(&COND_prep_xids);
+    pthread_cond_broadcast(&COND_prep_xids);
   }
   pthread_mutex_unlock(&LOCK_prep_xids);
   rotate_and_purge(0);     // as ::write() did not rotate

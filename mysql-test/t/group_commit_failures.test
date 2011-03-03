@@ -1,0 +1,260 @@
+#
+# Test group commit with failure injection
+#
+
+# requirements
+--source include/have_debug_sync.inc
+--source include/have_innodb.inc
+--source include/have_log_bin.inc
+
+--disable_query_log
+call mtr.add_suppression("Group commit disabled because a bug has been found.*");
+call mtr.add_suppression("Group commit: waiting for ticket.*");
+--enable_query_log
+
+# setup
+connect(c1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect(c2,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+--connection c1
+--echo connection c1
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (k INT NOT NULL, a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, PRIMARY KEY(k)) ENGINE=InnoDB;
+INSERT INTO t1 (k, a, b, c) VALUES (1, 0, 0, 0);
+INSERT INTO t1 (k, a, b, c) VALUES (2, 0, 0, 0);
+SET GLOBAL group_commit_min_size=2;
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL group_commit_timeout_usecs=900000;
+
+################################################################################
+echo "";
+echo Test group_commit_already_set error;
+echo "";
+################################################################################
+
+select * from t1 where k=1;
+--connection c1
+set GLOBAL debug="d,group_commit_already_set";
+
+--echo error disables group commit, but update succeeds
+UPDATE t1 SET a=15 WHERE k=1;
+select * from t1 where k=1;
+
+--echo confirm group commit disabled on error
+show global status like "Binlog_fsync_group_commit_allowed";
+
+--echo confirm non-group commit still possible
+UPDATE t1 SET a=16 WHERE k=1;
+select * from t1 where k=1;
+
+set GLOBAL debug="d,enable_group_commit";
+flush logs;
+show global status like "Binlog_fsync_group_commit_allowed";
+set GLOBAL debug="RESET";
+
+################################################################################
+echo "";
+echo Test group_commit_rollover;
+echo "";
+################################################################################
+
+show global status like "Binlog_fsync_group_commit_allowed";
+select * from t1 where k=1;
+--connection c1
+set GLOBAL debug="d,group_commit_rollover";
+
+--echo an error disables group commit
+UPDATE t1 SET a=17 WHERE k=1;
+select * from t1 where k=1;
+
+--echo confirm non-group commit still possible
+UPDATE t1 SET a=18 WHERE k=1;
+select * from t1 where k=1;
+
+--echo confirm group commit disabled on error
+show global status like "Binlog_fsync_group_commit_allowed";
+set GLOBAL debug="d,enable_group_commit";
+flush logs;
+show global status like "Binlog_fsync_group_commit_allowed";
+show global status like "Binlog_fsync_ticket_current";
+show global status like "Binlog_fsync_ticket_next";
+set GLOBAL debug="RESET";
+
+################################################################################
+echo "";
+echo Test group_commit_increment_bad_state
+echo "";
+################################################################################
+
+select * from t1 where k=1;
+--connection c1
+set GLOBAL debug="d,group_commit_increment_bad_state";
+
+--echo connection c1
+SET DEBUG_SYNC='after_prepare1 SIGNAL stopped WAIT_FOR go';
+--send UPDATE t1 SET a=20 WHERE k=1
+
+  --connection c2
+  --echo connection c2
+  SET DEBUG_SYNC='now WAIT_FOR stopped';
+  SET DEBUG_SYNC='before_binlog_sync SIGNAL go';
+  UPDATE t1 SET a=20 WHERE k=2;
+
+--connection c1
+--reap
+select * from t1 where k=1;
+select * from t1 where k=2;
+
+--echo confirm group commit disabled on error
+show global status like "Binlog_fsync_group_commit_allowed";
+
+--echo confirm non-group commit still possible
+UPDATE t1 SET a=10 WHERE k=1;
+select * from t1 where k=1;
+
+set GLOBAL debug="d,enable_group_commit";
+flush logs;
+show global status like "Binlog_fsync_group_commit_allowed";
+--echo reset signal not consumed when group commit is disabled
+set DEBUG_SYNC="RESET";
+set GLOBAL debug="RESET";
+
+################################################################################
+echo "";
+echo Test group_commit_wait_bad_state
+echo "";
+################################################################################
+
+select * from t1 where k=1;
+--connection c1
+set GLOBAL debug="d,group_commit_wait_bad_state";
+
+--echo connection c1
+SET DEBUG_SYNC='after_prepare1 SIGNAL stopped WAIT_FOR go';
+--send UPDATE t1 SET a=20 WHERE k=1
+
+  --connection c2
+  --echo connection c2
+  SET DEBUG_SYNC='now WAIT_FOR stopped';
+  SET DEBUG_SYNC='before_binlog_sync SIGNAL go';
+  UPDATE t1 SET a=20 WHERE k=2;
+
+--connection c1
+--reap
+select * from t1 where k=1;
+select * from t1 where k=2;
+
+--echo confirm group commit disabled on error
+show global status like "Binlog_fsync_group_commit_allowed";
+
+--echo confirm non-group commit still possible
+UPDATE t1 SET a=10 WHERE k=1;
+select * from t1 where k=1;
+
+set GLOBAL debug="d,enable_group_commit";
+flush logs;
+show global status like "Binlog_fsync_group_commit_allowed";
+--echo reset signal not consumed when group commit is disabled
+set DEBUG_SYNC="RESET";
+set GLOBAL debug="RESET";
+
+################################################################################
+echo "";
+echo Test group_commit_long_wait
+echo "";
+################################################################################
+
+select * from t1 where k=1;
+--connection c1
+set SESSION debug="d,group_commit_long_wait";
+select variable_value into @w1 from information_schema.global_status where variable_name='Binlog_fsync_longwait';
+
+--echo connection c1
+SET DEBUG_SYNC='after_prepare1 SIGNAL stopped WAIT_FOR go';
+--send UPDATE t1 SET a=20 WHERE k=1
+
+  --connection c2
+  --echo connection c2
+  SET DEBUG_SYNC='now WAIT_FOR stopped';
+  SET DEBUG_SYNC='before_binlog_sync SIGNAL go';
+  UPDATE t1 SET a=20 WHERE k=2;
+
+--connection c1
+--reap
+select * from t1 where k=1;
+select * from t1 where k=2;
+
+--echo confirm group commit not disabled on error
+show global status like "Binlog_fsync_group_commit_allowed";
+
+--echo confirm long wait occurred for both connections
+select variable_value into @w2 from information_schema.global_status where variable_name='Binlog_fsync_longwait';
+select @w2 - @w1;
+
+--echo confirm non-group commit still possible
+UPDATE t1 SET a=10 WHERE k=1;
+select * from t1 where k=1;
+set DEBUG_SYNC="RESET";
+set SESSION debug="RESET";
+
+################################################################################
+echo "";
+echo Test group_commit_really_long_wait
+echo "";
+################################################################################
+
+select * from t1 where k=1;
+--connection c1
+set SESSION debug="d,group_commit_really_long_wait";
+select variable_value into @w1 from information_schema.global_status where variable_name='Binlog_fsync_reallylongwait';
+
+--echo connection c1
+SET DEBUG_SYNC='after_prepare1 SIGNAL stopped WAIT_FOR go';
+--send UPDATE t1 SET a=20 WHERE k=1
+
+  --connection c2
+  --echo connection c2
+  SET DEBUG_SYNC='now WAIT_FOR stopped';
+  SET DEBUG_SYNC='before_binlog_sync SIGNAL go';
+  UPDATE t1 SET a=20 WHERE k=2;
+
+--connection c1
+--reap
+select * from t1 where k=1;
+select * from t1 where k=2;
+
+--echo confirm group commit disabled by really long wait
+show global status like "Binlog_fsync_group_commit_allowed";
+
+--echo confirm really long wait occurred for both connections
+select variable_value into @w2 from information_schema.global_status where variable_name='Binlog_fsync_reallylongwait';
+select @w2 - @w1;
+
+--echo confirm non-group commit still possible
+UPDATE t1 SET a=10 WHERE k=1;
+select * from t1 where k=1;
+set DEBUG_SYNC="RESET";
+set SESSION debug="RESET";
+
+################################################################################
+echo "";
+echo final cleanup;
+echo "";
+################################################################################
+connection default;
+set GLOBAL debug="RESET";
+set DEBUG_SYNC="RESET";
+disconnect c1;
+disconnect c2;
+DROP TABLE t1;
+SET GLOBAL innodb_prepare_commit_mutex=1;
+SET GLOBAL sync_binlog=0;
+SET GLOBAL group_commit_timeout_usecs=1000;
+SET GLOBAL group_commit_min_size=8;
+
+

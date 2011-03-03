@@ -654,18 +654,31 @@ my_bool log_datagram= 0;
 ulong log_datagram_usecs= 0;
 int log_datagram_sock= -1;
 
+double binlog_fsync_syncwait_secs= 0.0;
+double binlog_fsync_ticketwait_secs= 0.0;
+double binlog_fsync_total_secs= 0.0;
+ulonglong binlog_fsync_wait= 0;
+ulonglong binlog_fsync_nowait= 0;
 ulonglong binlog_fsync_count= 0;
-double binlog_fsync_total_time= 0.0;
+ulonglong binlog_fsync_ticketwaits= 0;
+ulonglong binlog_fsync_syncwaits= 0;
 ulonglong binlog_fsync_grouped= 0;
+ulonglong binlog_fsync_groupsync= 0;
+ulonglong binlog_fsync_longwait= 0;
+ulonglong binlog_fsync_reallylongwait= 0;
+ulonglong binlog_fsync_notry= 0;
+ulonglong binlog_fsync_enough_pending= 0;
+ulonglong binlog_fsync_not_too_many_waiting= 0;
 ulonglong binlog_bytes_written= 0;
 
 my_bool opt_log_slow_extra;
 
 my_bool rpl_transaction_enabled= FALSE;
 
-my_bool force_binlog_order= 0;
+my_bool force_binlog_order= TRUE;
 
-ulong sync_binlog_timeout_usecs = 0;
+ulong group_commit_timeout_usecs= 1000;
+ulong group_commit_min_size= 8;
 
 /**
   Limit of the total number of prepared statements in the server.
@@ -6106,7 +6119,8 @@ enum options_mysqld
   OPT_QUERY_ALLOC_BLOCK_SIZE, OPT_QUERY_PREALLOC_SIZE,
   OPT_TRANS_ALLOC_BLOCK_SIZE, OPT_TRANS_PREALLOC_SIZE,
   OPT_SYNC_FRM, OPT_SYNC_BINLOG,
-  OPT_SYNC_BINLOG_TIMEOUT_USECS,
+  OPT_GROUP_COMMIT_TIMEOUT_USECS,
+  OPT_GROUP_COMMIT_MIN_SIZE,
   OPT_SYNC_REPLICATION,
   OPT_SYNC_REPLICATION_SLAVE_ID,
   OPT_SYNC_REPLICATION_TIMEOUT,
@@ -6430,7 +6444,7 @@ struct my_option my_long_options[] =
    "Force binlog to be written in same order as innodb. "
    "Has no effect if prepare_commit_mutex is held. ",
    &force_binlog_order, &force_binlog_order,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"gdb", OPT_DEBUGGING,
    "Set up signals usable for debugging.",
    &opt_debugging, &opt_debugging,
@@ -7681,11 +7695,22 @@ thread is in the relay logs.",
    "Use 0 (default) to disable synchronous flushing.",
    &sync_binlog_period, &sync_binlog_period, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
-  {"sync-binlog-timeout-usecs", OPT_SYNC_BINLOG_TIMEOUT_USECS,
-   "Maximum time in us to wait to sync the binlog; longer periods allow fewer fsyncs, but make individual queries return more slowly"
-   "Use 0 (default) to disable timed waits, max value of 1,000,000 == 1 second",
-   &sync_binlog_timeout_usecs, &sync_binlog_timeout_usecs,
-   0, GET_ULONG, REQUIRED_ARG, 0, 0, 1000000, 0, 1, 0},
+  {"group_commit_timeout_usecs", OPT_GROUP_COMMIT_TIMEOUT_USECS,
+   "Maximum time in usecs to wait for group commit. Transactions ignore this "
+   "unless group commit (innodb_prepare_commit_mutex) is on and the "
+   "transaction is eligible to do group commit. Longer periods may reduce fsyncs, "
+   "but increase COMMIT latency. Use 0 (default) to disable the wait. The max "
+   "value is 1,000,000 == 1 second",
+   &group_commit_timeout_usecs, &group_commit_timeout_usecs,
+   0, GET_ULONG, REQUIRED_ARG, 1000, 1000, 1000000, 0, 1, 0},
+  {"group_commit_min_size", OPT_GROUP_COMMIT_MIN_SIZE,
+   "Transactions begin to wait for group commit when there are at least this "
+   "many transactions trying to commit at the same time based on the count of "
+   "threads in ha_commit_trans. They wait for group commit by releasing LOCK_log "
+   "and sleeping in flush_and_sync before doing the binlog fsync. By sleeping "
+   "they hope that other transactions arrive and share the binlog fsync. ",
+   &group_commit_min_size, &group_commit_min_size,
+   0, GET_ULONG, REQUIRED_ARG, 8, 2, 1000, 0, 1, 0},
   {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default.",
    &opt_sync_frm, &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
    0, 0, 0, 0},
@@ -7900,12 +7925,72 @@ show_admission_control_disabled(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int show_binlog_fsync_avg_time(THD *thd, SHOW_VAR *var, char *buff)
+static int show_binlog_ticket_current(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_LONGLONG;
+  var->value= buff;
+
+  *((ulonglong *)buff)= mysql_bin_log.get_current_ticket();
+
+  return 0;
+}
+
+static int show_binlog_ticket_next(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_LONGLONG;
+  var->value= buff;
+
+  *((ulonglong *)buff)= mysql_bin_log.get_next_ticket();
+
+  return 0;
+}
+
+static int show_binlog_group_allowed(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_BOOL;
+  var->value= buff;
+
+  if (mysql_bin_log.get_group_commit_allowed()) {
+    *((my_bool *)buff)= TRUE;
+  } else {
+    *((my_bool *)buff)= FALSE;
+  }
+
+  return 0;
+}
+
+static int show_binlog_fsync_avg_fsync(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_DOUBLE;
   var->value= buff;
   if (binlog_fsync_count) {
-    *((double *)buff)= (double) (binlog_fsync_total_time / binlog_fsync_count);
+    *((double *)buff)= binlog_fsync_total_secs / (double) binlog_fsync_count;
+  } else {
+    *((double *)buff)= 0.0;
+  }
+
+  return 0;
+}
+
+static int show_binlog_fsync_avg_ticketwait(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_DOUBLE;
+  var->value= buff;
+  if (binlog_fsync_ticketwaits) {
+    *((double *)buff)= binlog_fsync_ticketwait_secs / (double) binlog_fsync_ticketwaits;
+  } else {
+    *((double *)buff)= 0.0;
+  }
+
+  return 0;
+}
+
+static int show_binlog_fsync_avg_syncwait(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_DOUBLE;
+  var->value= buff;
+  if (binlog_fsync_syncwaits) {
+    *((double *)buff)= binlog_fsync_syncwait_secs / (double) binlog_fsync_syncwaits;
   } else {
     *((double *)buff)= 0.0;
   }
@@ -8250,10 +8335,27 @@ SHOW_VAR status_vars[]= {
   {"Binlog_bytes_written",     (char*) &binlog_bytes_written,   SHOW_LONGLONG},
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
-  {"Binlog_fsync_avg_time",    (char*) &show_binlog_fsync_avg_time, SHOW_FUNC},
-  {"Binlog_fsync_count",       (char*) &binlog_fsync_count,     SHOW_LONGLONG},
+  {"Binlog_fsync_avg_fsync_secs",      (char*) &show_binlog_fsync_avg_fsync,      SHOW_FUNC},
+  {"Binlog_fsync_avg_ticketwait_secs", (char*) &show_binlog_fsync_avg_ticketwait, SHOW_FUNC},
+  {"Binlog_fsync_avg_syncwait_secs",   (char*) &show_binlog_fsync_avg_syncwait,   SHOW_FUNC},
+  {"Binlog_fsync_count",       (char*) &binlog_fsync_count,       SHOW_LONGLONG},
+  {"Binlog_fsync_ticketwaits", (char*) &binlog_fsync_ticketwaits, SHOW_LONGLONG},
+  {"Binlog_fsync_syncwaits",   (char*) &binlog_fsync_syncwaits,   SHOW_LONGLONG},
+  {"Binlog_fsync_longwait",    (char*) &binlog_fsync_longwait,    SHOW_LONGLONG},
+  {"Binlog_fsync_reallylongwait", (char*) &binlog_fsync_reallylongwait,  SHOW_LONGLONG},
+  {"Binlog_fsync_notry",       (char*) &binlog_fsync_notry,     SHOW_LONGLONG},
+  {"Binlog_fsync_nowait",      (char*) &binlog_fsync_nowait,    SHOW_LONGLONG},
+  {"Binlog_fsync_wait",        (char*) &binlog_fsync_wait,      SHOW_LONGLONG},
+  {"Binlog_fsync_group_commit_allowed", (char*) &show_binlog_group_allowed, SHOW_FUNC},
   {"Binlog_fsync_grouped",     (char*) &binlog_fsync_grouped,   SHOW_LONGLONG},
-  {"Binlog_fsync_total_time",  (char*) &binlog_fsync_total_time,SHOW_DOUBLE},
+  {"Binlog_fsync_groupsync",   (char*) &binlog_fsync_groupsync, SHOW_LONGLONG},
+  {"Binlog_fsync_enough_pending",       (char*) &binlog_fsync_enough_pending,       SHOW_LONGLONG},
+  {"Binlog_fsync_not_too_many_waiting", (char*) &binlog_fsync_not_too_many_waiting, SHOW_LONGLONG},
+  {"Binlog_fsync_total_seconds",      (char*) &binlog_fsync_total_secs,     SHOW_DOUBLE},
+  {"Binlog_fsync_ticketwait_seconds", (char*) &binlog_fsync_ticketwait_secs,SHOW_DOUBLE},
+  {"Binlog_fsync_syncwait_seconds",   (char*) &binlog_fsync_syncwait_secs,  SHOW_DOUBLE},
+  {"Binlog_fsync_ticket_current", (char*) &show_binlog_ticket_current, SHOW_FUNC},
+  {"Binlog_fsync_ticket_next", (char*) &show_binlog_ticket_next, SHOW_FUNC},
   {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received), SHOW_LONGLONG_STATUS},
   {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent), SHOW_LONGLONG_STATUS},
   {"Com",                      (char*) com_status_vars, SHOW_ARRAY},
@@ -8591,8 +8693,16 @@ static int mysql_init_variables(void)
   specialflag= 0;
   binlog_bytes_written= 0;
   binlog_cache_use=  binlog_cache_disk_use= 0;
-  binlog_fsync_total_time= 0.0;
+  binlog_fsync_total_secs= 0.0;
+  binlog_fsync_syncwait_secs= 0.0;
+  binlog_fsync_ticketwait_secs= 0.0;
   binlog_fsync_count= binlog_fsync_grouped= 0;
+  binlog_fsync_ticketwaits= binlog_fsync_syncwaits= 0;
+  binlog_fsync_groupsync= binlog_fsync_notry= 0;
+  binlog_fsync_longwait= binlog_fsync_reallylongwait= 0;
+  binlog_fsync_wait= binlog_fsync_nowait= 0;
+  binlog_fsync_enough_pending= 0;
+  binlog_fsync_not_too_many_waiting= 0;
   max_used_connections= slow_launch_threads = 0;
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
   opt_perftools_profile_output= 0;
@@ -8631,6 +8741,9 @@ static int mysql_init_variables(void)
   rpl_transaction_enabled= FALSE;
 
   check_client_interval_msecs= 1000;
+
+  group_commit_min_size= 8;
+  group_commit_timeout_usecs= 1000;
 
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;

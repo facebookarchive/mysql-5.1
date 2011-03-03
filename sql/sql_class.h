@@ -2542,7 +2542,7 @@ private:
 
 public:
   /** ticket for in-order commit */
-  my_atomic_bigint ticket;
+  ulonglong ticket;
 };
 
 /*

@@ -5,82 +5,170 @@ INSERT INTO t1 (k, a, b, c) VALUES (1, 0, 0, 0);
 INSERT INTO t1 (k, a, b, c) VALUES (2, 0, 0, 0);
 INSERT INTO t1 (k, a, b, c) VALUES (3, 0, 0, 0);
 INSERT INTO t1 (k, a, b, c) VALUES (4, 0, 0, 0);
+SET GLOBAL group_commit_timeout_usecs=90000;
+SET GLOBAL group_commit_min_size=2;
+""
+Verify that release early works with group commit for transactions that
+modify different rows
+""
 RESET MASTER;
 SET DEBUG_SYNC= 'RESET';
 SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL force_binlog_order=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL force_binlog_order=1;
 SET GLOBAL innodb_release_locks_early=1;
 connection c1
 BEGIN;
 UPDATE t1 SET a=10 WHERE k=1;
-SET DEBUG_SYNC='after_innobase_xa_prepare SIGNAL c1_prepared WAIT_FOR c2_committed TIMEOUT 3';
-COMMIT;;
-connection c2
-SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
-BEGIN;
-UPDATE t1 SET a=20 WHERE k=1;
+SET DEBUG_SYNC='after_prepare1 SIGNAL c1_prepared WAIT_FOR c2_prepared TIMEOUT 3';
 COMMIT;
-SET DEBUG_SYNC='now SIGNAL c2_committed';
-connection c1
-SHOW BINLOG EVENTS LIMIT 2,1;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	174	Query	1	265	use `test`; UPDATE t1 SET a=20 WHERE k=1
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL force_binlog_order=0;
-SET GLOBAL innodb_release_locks_early=1;
-connection c1
-SET DEBUG_SYNC='after_innobase_xa_prepare SIGNAL c1_prepared WAIT_FOR c2_committed TIMEOUT 3';
-UPDATE t1 SET a=10 WHERE k=2;;
 connection c2
+BEGIN;
 SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
 UPDATE t1 SET a=20 WHERE k=2;
-SET DEBUG_SYNC='now SIGNAL c2_committed';
+SET DEBUG_SYNC='after_prepare1 SIGNAL c2_prepared';
+COMMIT;
 connection c1
-SHOW BINLOG EVENTS LIMIT 2,1;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	174	Query	1	265	use `test`; UPDATE t1 SET a=20 WHERE k=2
+select * from t1 where k=1;
+k	a	b	c
+1	10	0	0
+select * from t1 where k=2;
+k	a	b	c
+2	20	0	0
+""
+Verify first transaction commits when the second does rollback
+after modifying the same row and release early is enabled
+""
 RESET MASTER;
 SET DEBUG_SYNC= 'RESET';
 SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
 SET GLOBAL force_binlog_order=1;
 SET GLOBAL innodb_release_locks_early=1;
 connection c1
 BEGIN;
-UPDATE t1 SET a=10 WHERE k=3;
-SET DEBUG_SYNC='after_innobase_xa_prepare SIGNAL c1_prepared WAIT_FOR c2_committed TIMEOUT 3';
+UPDATE t1 SET a=11 WHERE k=1;
+SET DEBUG_SYNC='before_commit_fast SIGNAL c1_ready WAIT_FOR c2_rollback TIMEOUT 30';
+COMMIT;
+connection c2
+SET DEBUG_SYNC='now WAIT_FOR c1_ready TIMEOUT 3';
+BEGIN;
+SELECT * FROM t1 WHERE k=1;
+k	a	b	c
+1	10	0	0
+UPDATE t1 SET a=21 WHERE k=1;
+SELECT * FROM t1 WHERE k=1;
+k	a	b	c
+1	21	0	0
+ROLLBACK;
+SET DEBUG_SYNC='now SIGNAL c2_rollback';
+connection c1
+select * from t1 where k=1;
+k	a	b	c
+1	11	0	0
+""
+Verify no timeout occurs after modifying the same row and release early
+is enabled
+""
+RESET MASTER;
+SET DEBUG_SYNC= 'RESET';
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL force_binlog_order=1;
+SET GLOBAL innodb_release_locks_early=1;
+connection c1
+BEGIN;
+UPDATE t1 SET a=11 WHERE k=1;
+SET DEBUG_SYNC='before_commit_fast SIGNAL c1_ready WAIT_FOR c2_ready TIMEOUT 3';
 COMMIT;;
 connection c2
-SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
 BEGIN;
-UPDATE t1 SET a=20 WHERE k=3;
+SET DEBUG_SYNC='now WAIT_FOR c1_ready TIMEOUT 3';
+SELECT * FROM t1 WHERE k=1;
+k	a	b	c
+1	11	0	0
+UPDATE t1 SET a=21 WHERE k=1;
+SET DEBUG_SYNC='after_prepare1 SIGNAL c2_ready';
 COMMIT;
-SET DEBUG_SYNC='now SIGNAL c2_committed';
+connection c1
+select * from t1 where k=1;
+k	a	b	c
+1	21	0	0
+""
+Verify that a timeout occurs in c1 for group commit when the transactions
+modify the same row and release early is disabled
+""
+RESET MASTER;
+SET DEBUG_SYNC= 'RESET';
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL force_binlog_order=1;
+SET GLOBAL innodb_release_locks_early=0;
+connection c1
+BEGIN;
+UPDATE t1 SET a=11 WHERE k=1;
+SET DEBUG_SYNC='after_prepare1 SIGNAL c1_prepared WAIT_FOR c2_prepared TIMEOUT 3';
+COMMIT;;
+connection c2
+BEGIN;
+SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
+SELECT * FROM t1 WHERE k=1;
+k	a	b	c
+1	21	0	0
+UPDATE t1 SET a=21 WHERE k=1;
+SET DEBUG_SYNC='after_prepare1 SIGNAL c2_prepared';
+COMMIT;
 connection c1
 Warnings:
 Warning	1639	debug sync point wait timed out
-SHOW BINLOG EVENTS LIMIT 2,1;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	174	Query	1	265	use `test`; UPDATE t1 SET a=10 WHERE k=3
+select * from t1 where k=1;
+k	a	b	c
+1	21	0	0
+""
+Verify no timeout occurs after incrementing the same row and release early
+is enabled
+""
 RESET MASTER;
 SET DEBUG_SYNC= 'RESET';
 SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
 SET GLOBAL force_binlog_order=1;
 SET GLOBAL innodb_release_locks_early=1;
+select * from t1 where k=1;
+k	a	b	c
+1	21	0	0
 connection c1
-SET DEBUG_SYNC='after_innobase_xa_prepare SIGNAL c1_prepared WAIT_FOR c2_committed TIMEOUT 3';
-UPDATE t1 SET a=10 WHERE k=4;;
+BEGIN;
+UPDATE t1 SET a=a+1 WHERE k=1;
+SET DEBUG_SYNC='before_commit_fast SIGNAL c1_ready WAIT_FOR c2_ready TIMEOUT 3';
+COMMIT;;
 connection c2
-SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
-UPDATE t1 SET a=20 WHERE k=4;
-SET DEBUG_SYNC='now SIGNAL c2_committed';
+BEGIN;
+SET DEBUG_SYNC='now WAIT_FOR c1_ready TIMEOUT 3';
+SELECT * FROM t1 WHERE k=1;
+k	a	b	c
+1	21	0	0
+UPDATE t1 SET a=a+1 WHERE k=1;
+SELECT * FROM t1 WHERE k=1;
+k	a	b	c
+1	23	0	0
+SET DEBUG_SYNC='after_prepare1 SIGNAL c2_ready';
+COMMIT;
+SELECT * FROM t1 WHERE k=1;
+k	a	b	c
+1	23	0	0
 connection c1
-SHOW BINLOG EVENTS LIMIT 2,1;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	174	Query	1	265	use `test`; UPDATE t1 SET a=10 WHERE k=4
-DROP TABLE t1;
-SET GLOBAL force_binlog_order=0;
+select * from t1 where k=1;
+k	a	b	c
+1	23	0	0
+""
+cleanup
+""
+SET DEBUG_SYNC= 'RESET';
+SET GLOBAL force_binlog_order=1;
 SET GLOBAL innodb_prepare_commit_mutex=1;
 SET GLOBAL innodb_release_locks_early=0;
-SET DEBUG_SYNC= 'RESET';
+SET GLOBAL group_commit_timeout_usecs=1000;
+SET GLOBAL group_commit_min_size=8;
+SET GLOBAL sync_binlog=0;
+DROP TABLE t1;

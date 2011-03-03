@@ -2009,7 +2009,8 @@ extern ulong MYSQL_PLUGIN_IMPORT specialflag;
 #ifdef MYSQL_SERVER
 extern ulong current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
-extern ulong sync_binlog_timeout_usecs;
+extern ulong group_commit_timeout_usecs;
+extern ulong group_commit_min_size;
 extern my_bool force_binlog_order;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
@@ -2177,9 +2178,21 @@ extern ulong opt_log_query_sample_rate;
 extern ulong opt_log_error_sample_rate;
 
 extern ulonglong binlog_bytes_written;
+extern ulonglong binlog_fsync_wait;
+extern ulonglong binlog_fsync_nowait;
+extern ulonglong binlog_fsync_notry;
 extern ulonglong binlog_fsync_count;
-extern double binlog_fsync_total_time;
+extern ulonglong binlog_fsync_ticketwaits;
+extern ulonglong binlog_fsync_syncwaits;
 extern ulonglong binlog_fsync_grouped;
+extern ulonglong binlog_fsync_groupsync;
+extern ulonglong binlog_fsync_longwait;
+extern ulonglong binlog_fsync_reallylongwait;
+extern ulonglong binlog_fsync_enough_pending;
+extern ulonglong binlog_fsync_not_too_many_waiting;
+extern double binlog_fsync_syncwait_secs;
+extern double binlog_fsync_ticketwait_secs;
+extern double binlog_fsync_total_secs;
 
 extern my_bool opt_log_slow_extra;
 

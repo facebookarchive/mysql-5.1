@@ -338,7 +338,7 @@ trx_is_active(
 
 	trx = trx_get_on_id(trx_id);
 	if (trx && (trx->conc_state == TRX_ACTIVE
-		    || (!innobase_release_locks_early && trx->conc_state == TRX_PREPARED ))) {
+		    || trx->conc_state == TRX_PREPARED_UNRELEASED)) {
 
 		return(TRUE);
 	}

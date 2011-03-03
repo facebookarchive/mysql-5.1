@@ -53,7 +53,6 @@ while ($numtests)
 # nuke binlogs and sync points
   RESET MASTER;
   SET GLOBAL innodb_prepare_commit_mutex=0;
-  SET GLOBAL force_binlog_order=1;
   SET GLOBAL innodb_release_locks_early=1;
 
   START TRANSACTION;
@@ -89,7 +88,6 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP PROCEDURE setcrash;
 SET GLOBAL innodb_prepare_commit_mutex=1;
-SET GLOBAL force_binlog_order=0;
 SET GLOBAL innodb_release_locks_early=0;
 SET SESSION DEBUG= 'RESET';
 # clean exit

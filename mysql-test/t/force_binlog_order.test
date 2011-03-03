@@ -1,18 +1,14 @@
-################################################################################
-################################################################################
+#
+# Test group commit
+#
 
 # requirements
---source include/have_debug_sync.inc
 --source include/have_innodb.inc
 --source include/have_log_bin.inc
 
 # setup
 connect(c1,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect(c2,127.0.0.1,root,,test,$MASTER_MYPORT,);
-
---disable_query_log
-call mtr.add_suppression("Group commit: current ticket stuck for [0-9]* seconds!");
---enable_query_log
 
 --connection c1
 --echo connection c1
@@ -25,133 +21,137 @@ CREATE TABLE t1 (k INT NOT NULL, a INT NOT NULL, b INT NOT NULL, c INT NOT NULL,
 INSERT INTO t1 (k, a, b, c) VALUES (1, 0, 0, 0);
 INSERT INTO t1 (k, a, b, c) VALUES (2, 0, 0, 0);
 
+SET GLOBAL group_commit_min_size=2;
 
 ################################################################################
-# first, verify that when force_binlog_order is off, transactions can indeed
-# show up in binlog out-of-order when different rows are affected
-################################################################################
-# nuke binlogs and sync points
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL force_binlog_order=0;
-
---connection c1
---echo connection c1
-BEGIN;
-UPDATE t1 SET a=10 WHERE k=1;
-SET DEBUG_SYNC='after_innobase_xa_prepare SIGNAL c1_prepared WAIT_FOR c2_committed TIMEOUT 3';
---send COMMIT;
-
-  --connection c2
-  --echo connection c2
-  SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
-  BEGIN;
-  UPDATE t1 SET a=20 WHERE k=2;
-  COMMIT;
-  SET DEBUG_SYNC='now SIGNAL c2_committed';
-
---connection c1
---echo connection c1
---reap;
-SHOW BINLOG EVENTS LIMIT 2,1;
-
-
-################################################################################
-# repeat with autocommit
-################################################################################
-# nuke binlogs and sync points
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL force_binlog_order=0;
-
---connection c1
---echo connection c1
-SET DEBUG_SYNC='after_innobase_xa_prepare SIGNAL c1_prepared WAIT_FOR c2_committed TIMEOUT 3';
---send UPDATE t1 SET a=100 WHERE k=1;
-
-  --connection c2
-  --echo connection c2
-  SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
-  UPDATE t1 SET a=200 WHERE k=2;
-  SET DEBUG_SYNC='now SIGNAL c2_committed';
-
---connection c1
---echo connection c1
---reap
-SHOW BINLOG EVENTS LIMIT 2,1;
-
-
-################################################################################
-# next verify that these are back in order when force_binlog_order is
-# enabled the debug_sync will time out, but that is a price we have to pay
-################################################################################
-# nuke binlogs and sync points
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL force_binlog_order=1;
-
---connection c1
---echo connection c1
-BEGIN;
-UPDATE t1 SET a=10 WHERE k=1;
-SET DEBUG_SYNC='after_innobase_xa_prepare SIGNAL c1_prepared WAIT_FOR c2_committed TIMEOUT 3';
---send COMMIT;
-
-  --connection c2
-  --echo connection c2
-  SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
-  BEGIN;
-  UPDATE t1 SET a=20 WHERE k=2;
-  COMMIT;
-  SET DEBUG_SYNC='now SIGNAL c2_committed';
-
---connection c1
---echo connection c1
---reap;
-SHOW BINLOG EVENTS LIMIT 2,1;
-
-
-################################################################################
-# repeat for autocommit
-################################################################################
-# nuke binlogs and sync points
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL force_binlog_order=1;
-
---connection c1
---echo connection c1
-SET DEBUG_SYNC='after_innobase_xa_prepare SIGNAL c1_prepared WAIT_FOR c2_committed TIMEOUT 3';
---send UPDATE t1 SET a=10 WHERE k=1;
-
-  --connection c2
-  --echo connection c2
-  SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
-  UPDATE t1 SET a=20 WHERE k=2;
-  SET DEBUG_SYNC='now SIGNAL c2_committed';
-
---connection c1
---echo connection c1
---reap
-SHOW BINLOG EVENTS LIMIT 2,1;
-
-
-################################################################################
+echo "";
+echo verify that group commit is not done when prepare_commit_mutex is used;
+echo without autocommit;
+echo "";
 ################################################################################
 
-# final cleanup
-DROP TABLE t1;
-SET GLOBAL force_binlog_order=0;
 SET GLOBAL innodb_prepare_commit_mutex=1;
-SET DEBUG_SYNC= 'RESET';
+SET GLOBAL sync_binlog=1;
+SET GLOBAL group_commit_timeout_usecs=900000;
+
+select variable_value into @fsc1 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select variable_value into @fsg1 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+
+--connection c1
+--echo connection c1
+BEGIN;
+UPDATE t1 SET a=10 WHERE k=1;
+--send COMMIT
+
+  --connection c2
+  --echo connection c2
+  BEGIN;
+  UPDATE t1 SET a=20 WHERE k=2;
+  COMMIT;
+
+--connection c1
+--echo connection c1
+--reap
+
+select variable_value into @fsc2 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select @fsc2 - @fsc1;
+select variable_value into @fsg2 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+select @fsg2 - @fsg1;
+
+################################################################################
+echo "";
+echo verify that group commit is not done when prepare_commit_mutex is used;
+echo with autocommit;
+echo "";
+################################################################################
+
+SET GLOBAL innodb_prepare_commit_mutex=1;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL group_commit_timeout_usecs=900000;
+
+select variable_value into @fsc1 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select variable_value into @fsg1 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+
+--connection c1
+--echo connection c1
+--send UPDATE t1 SET a=10 WHERE k=1
+
+  --connection c2
+  --echo connection c2
+  UPDATE t1 SET a=20 WHERE k=2;
+
+--connection c1
+--echo connection c1
+--reap
+
+select variable_value into @fsc2 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select @fsc2 - @fsc1;
+select variable_value into @fsg2 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+select @fsg2 - @fsg1;
+
+################################################################################
+echo "";
+echo verify that rollback is OK
+echo "";
+################################################################################
+
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL group_commit_timeout_usecs=900000;
+
+--connection c1
+--echo connection c1
+select * from t1 where k=1;
+BEGIN;
+UPDATE t1 SET a=15 WHERE k=1;
+ROLLBACK;
+select * from t1 where k=1;
+
+################################################################################
+echo "";
+echo verify that group commit is not done when group_commit_min_size is not met
+echo "";
+################################################################################
+
+SET GLOBAL innodb_prepare_commit_mutex=0;
+SET GLOBAL sync_binlog=1;
+SET GLOBAL group_commit_timeout_usecs=900000;
+SET GLOBAL group_commit_min_size=3;
+
+select variable_value into @fsc1 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select variable_value into @fsg1 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+
+--connection c1
+--echo connection c1
+--send UPDATE t1 SET a=10 WHERE k=1
+
+  --connection c2
+  --echo connection c2
+  UPDATE t1 SET a=20 WHERE k=2;
+
+--connection c1
+--echo connection c1
+--reap
+
+select variable_value into @fsc2 from information_schema.global_status where variable_name='Binlog_fsync_count';
+select @fsc2 - @fsc1;
+select variable_value into @fsg2 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
+select @fsg2 - @fsg1;
+
+################################################################################
+echo "";
+echo final cleanup;
+echo "";
+################################################################################
+connection default;
+disconnect c1;
+disconnect c2;
+DROP TABLE t1;
+SET GLOBAL force_binlog_order=1;
+SET GLOBAL innodb_prepare_commit_mutex=1;
+SET GLOBAL sync_binlog=0;
+SET GLOBAL group_commit_timeout_usecs=1000;
+SET GLOBAL group_commit_min_size=8;
 
 # clean exit
 --exit

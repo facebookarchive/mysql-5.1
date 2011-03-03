@@ -667,6 +667,18 @@ struct handlerton
      and 'real commit' mean the same event.
    */
    int  (*commit)(handlerton *hton, THD *thd, bool all, bool async);
+   /*
+     Similar to commit, but does group commit. Engine should call X_increment_group_commit_ticket
+     prior to calling fsync on a transaction log. See ha_commit_trans
+   */
+   int  (*group_commit)(handlerton *hton, THD *thd, bool all, bool async);
+   /*
+      Returns TRUE when this commit should be ordered for real group commit.
+      and group_commit will then be called instead of commit. See ha_commit_trans.
+      This is called after the transaction has been written to the binlog so it is safe
+      from a transaction ordering perspective to release row locks at this time.
+   */
+   bool (*is_ordered_commit)(handlerton *hton, THD *thd);
    int  (*rollback)(handlerton *hton, THD *thd, bool all);
    int  (*prepare)(handlerton *hton, THD *thd, bool all, bool async);
    int  (*recover)(handlerton *hton, XID *xid_list, uint len);
@@ -2161,6 +2173,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 */
 #define trans_need_2pc(thd, all)                   ((total_ha_2pc > 1) && \
         !((all ? &thd->transaction.all : &thd->transaction.stmt)->no_2pc))
+
+void mysql_bin_log_increment_group_commit_ticket(THD* thd);
 
 #if defined(HAVE_NDB_BINLOG) || defined(HAVE_INNODB_BINLOG)
 int ha_reset_logs(THD *thd);

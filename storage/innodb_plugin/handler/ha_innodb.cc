@@ -49,8 +49,6 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include <mysys_err.h>
 #include <mysql/plugin.h>
 
-#include "debug_sync.h"
-
 /** @file ha_innodb.cc */
 
 /* Include necessary InnoDB headers */
@@ -206,7 +204,10 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
 static int innobase_close_connection(handlerton *hton, THD* thd);
+static int innobase_really_commit(handlerton *hton, THD* thd, bool all, bool group, bool async);
 static int innobase_commit(handlerton *hton, THD* thd, bool all, bool async);
+static int innobase_group_commit(handlerton *hton, THD* thd, bool all, bool async);
+static bool innobase_is_ordered_commit(handlerton *hton, THD* thd);
 static int innobase_rollback(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback_to_savepoint(handlerton *hton, THD* thd,
            void *savepoint);
@@ -2566,6 +2567,8 @@ innobase_init(
         innobase_hton->savepoint_rollback=innobase_rollback_to_savepoint;
         innobase_hton->savepoint_release=innobase_release_savepoint;
         innobase_hton->commit=innobase_commit;
+        innobase_hton->group_commit=innobase_group_commit;
+        innobase_hton->is_ordered_commit=innobase_is_ordered_commit;
         innobase_hton->rollback=innobase_rollback;
         innobase_hton->prepare=innobase_xa_prepare;
         innobase_hton->recover=innobase_xa_recover;
@@ -3031,7 +3034,7 @@ innobase_commit_low(
 		return;
 	}
 
-	if (trx->conc_state != TRX_PREPARED)
+	if (!trx_is_prepared(trx->conc_state))
 		innobase_set_tx_replication_state(trx);
 
 	trx_commit_for_mysql(trx);
@@ -3126,6 +3129,43 @@ innobase_commit(
 				FALSE - the current SQL statement ended */
 	bool		async)	/*!< in: TRUE - don't sync log */
 {
+	/* No group commit */
+	return innobase_really_commit(hton, thd, all, FALSE, async);
+}
+
+/*****************************************************************//**
+Does group commit. 
+@return	0 */
+static
+int
+innobase_group_commit(
+/*==================*/
+        handlerton *hton, /*!< in: Innodb handlerton */
+	THD* 	thd,	/*!< in: MySQL thread handle of the user for whom
+			the transaction should be committed */
+	bool	all,	/*!< in:	TRUE - commit transaction
+				FALSE - the current SQL statement ended */
+	bool		async)	/*!< in: TRUE - don't sync log */
+{
+	/* Group commit */
+	return innobase_really_commit(hton, thd, all, TRUE, async);
+}
+
+/*****************************************************************//**
+Called by innobase_commit and innobase_group_commit to reall do the commit.
+@return	0 */
+static
+int
+innobase_really_commit(
+/*===================*/
+        handlerton *hton, /*!< in: Innodb handlerton */
+	THD* 	thd,	/*!< in: MySQL thread handle of the user for whom
+			the transaction should be committed */
+	bool	all,	/*!< in:	TRUE - commit transaction
+				FALSE - the current SQL statement ended */
+	bool	group,	/*!< in:        TRUE - do group commit */
+	bool	async)	/*!< in:        FALSE - do not sync */
+{
 	trx_t*		trx;
 
 	DBUG_ENTER("innobase_commit");
@@ -3162,6 +3202,24 @@ innobase_commit(
 		sql_print_error("trx->active_trans == 0, but"
 			" trx->conc_state != TRX_NOT_STARTED");
 	}
+
+	if (group) {
+		ut_a(trx_is_prepared(trx->conc_state));
+
+		if (trx->active_trans != 1 && trx->active_trans != 0) {
+			sql_print_error("trx->active_trans = %d and trx->conc_state = %d\n",
+				(int) trx->active_trans, (int) trx->conc_state);
+			ut_a(0);
+		}
+
+		if (!all && thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
+			sql_print_error("group commit requested by all is %d and options are %d\n",
+				(int) all,
+				(int) thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+			ut_a(0);
+		}
+	}
+
 	if (all
 		|| (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
@@ -3223,6 +3281,11 @@ retry:
 			pthread_mutex_unlock(&prepare_commit_mutex);
 		}
 
+		if (group) {
+			/* Allow thread with next ticket to proceed */
+			mysql_bin_log_increment_group_commit_ticket(thd);
+		}
+
 		/* Now do a write + flush of logs. */
 		trx_commit_complete_for_mysql(trx, async);
 		trx->active_trans = 0;
@@ -3256,6 +3319,40 @@ retry:
 	srv_active_wake_master_thread();
 
 	DBUG_RETURN(0);
+}
+
+/*****************************************************************//**
+Return TRUE when this commit should be ordered for real group commit.
+If that is done innobase_group_commit will be called in the same
+order as XID events are written to the binlog. */
+static
+bool
+innobase_is_ordered_commit(
+/*==================*/
+        handlerton *hton, /*!< in: Innodb handlerton */
+	THD* 	thd)	/*!< in: MySQL thread handle of the user for whom
+			the transaction should be committed */
+{
+	trx_t*		trx = check_trx_exists(thd);
+
+	/* It is safe to release locks early because the transaction has been written
+	to the binlog when this function is called. */
+
+	if (innobase_release_locks_early && trx->conc_state == TRX_PREPARED_UNRELEASED) {
+		mutex_enter(&kernel_mutex);
+		lock_release_off_kernel(trx);
+		trx->conc_state = TRX_PREPARED_RELEASED;
+		mutex_exit(&kernel_mutex);
+	}
+
+	/* If prepare_commit_mutex was not locked then this is eligible
+	for group commit. ha_commit_trans and innobase_xa_prepare have
+	different logic for when real prepare is done as innobase_xa_prepare
+	calls thd_test_options. That logic is a rats nest so this assumes
+	that if the transaction was prepared, then innobase_xa_prepare
+	did a prepare and this is good for group commit. */
+
+	return (trx->active_trans != 2 && trx_is_prepared(trx->conc_state));
 }
 
 /*****************************************************************//**
@@ -3295,7 +3392,7 @@ innobase_rollback(
 	row_unlock_table_autoinc_for_mysql(trx);
 
 	// if transaction has already released locks, it is too late to rollback
-	if (innobase_release_locks_early && trx->conc_state == TRX_PREPARED
+	if (trx->conc_state == TRX_PREPARED_RELEASED
 	    && UT_LIST_GET_LEN(trx->trx_locks) == 0) {
 		const char *s = "Rollback after releasing locks! errno=%d, dberr=%d";
 		sql_print_error(s, errno, trx->error_state);
@@ -10858,19 +10955,9 @@ innobase_xa_prepare(
 		if (innobase_prepare_commit_mutex) {
 			pthread_mutex_lock(&prepare_commit_mutex);
 			trx->active_trans = 2;
-		} else {
-			/* grab a ticket or no-op, depending on server variable */
-			thd_binlog_enqueue(thd);
-			if (innobase_release_locks_early)
-			{
-				mutex_enter(&kernel_mutex);
-				lock_release_off_kernel(trx);
-				mutex_exit(&kernel_mutex);
-			}
 		}
 	}
 
-	DEBUG_SYNC(thd, "after_innobase_xa_prepare");
 	return(error);
 }
 

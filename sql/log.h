@@ -40,7 +40,8 @@ class TC_LOG
 
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
-  virtual int log_xid(THD *thd, my_xid xid, bool async)=0;
+  virtual int log_xid(THD *thd, my_xid xid, bool async, handlerton *ht,
+                      int32 pending)=0;
   virtual void unlog(ulong cookie, my_xid xid)=0;
 };
 
@@ -50,7 +51,8 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  int log_xid(THD *thd, my_xid xid, bool async)         { return 1; }
+  int log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending)
+      { return 1; }
   void unlog(ulong cookie, my_xid xid)  { }
 };
 
@@ -95,7 +97,7 @@ class TC_LOG_MMAP: public TC_LOG
   TC_LOG_MMAP(): inited(0) {}
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid, bool async);
+  int log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending);
   void unlog(ulong cookie, my_xid xid);
   int recover();
 
@@ -194,6 +196,11 @@ public:
  protected:
   /* LOCK_log is inited by init_pthread_objects() */
   pthread_mutex_t LOCK_log;
+  /*
+    Used to order transactions with group commit. A new mutex
+    is used to avoid increasing contention on LOCK_log.
+  */
+  pthread_mutex_t LOCK_group_commit;
   char *name;
   char log_file_name[FN_REFLEN];
   char time_buff[20], db[NAME_LEN + 1];
@@ -274,15 +281,22 @@ private:
    *
    * When the binlog does flush, LOCK_log is held, so all binlog entries
    * will be in the same order as innodb commits in the innodb transaction log.
+   *
+   * group_commit_allowed is set to FALSE when a bug in group commit is detected
+   * and that disables use of group commit until mysqld is restarted. This is
+   * done to avoid an assert crash.
    */
-  my_atomic_bigint current_ticket;
-  volatile my_atomic_bigint next_ticket;
+  volatile my_bool group_commit_allowed;
+  ulonglong current_ticket;
+  ulonglong next_ticket;
   pthread_cond_t binlog_commit_cond_array[NUM_BINLOG_COMMIT_COND];
   pthread_cond_t binlog_cond;
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   pthread_mutex_t LOCK_index;
   pthread_mutex_t LOCK_prep_xids;
   pthread_cond_t  COND_prep_xids;
+  /* Use in conjunction with LOCK_log to protect stop_new_xids */
+  pthread_cond_t  COND_stop_xids;
   pthread_cond_t update_cond;
   ulonglong bytes_written;
   IO_CACHE index_file;
@@ -306,6 +320,17 @@ private:
      fix_max_relay_log_size).
   */
   ulong max_size;
+  /* LOCK_prep_xids and COND_prep_xids protect prepared_xids.
+     LOCK_log and COND_stop_xids protect stop_new_xids.
+
+     When stop_new_xids==TRUE then ::new_file_impl will wait after unlocking
+     LOCK_log. So callers can check stop_new_xids before calling
+     ::new_file_impl assuming they have locked LOCK_log.
+
+     Callers should not hold LOCK_prep_xids while trying to lock LOCK_log
+     or LOCK_index
+  */
+  my_bool stop_new_xids;
   long prepared_xids; /* for tc log - number of xids to remember */
   // current file sequence number for load data infile binary logging
   uint file_id;
@@ -409,7 +434,7 @@ public:
 
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid, bool async);
+  int log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending);
   void unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
@@ -456,7 +481,7 @@ public:
   void reset_gathered_updates(THD *thd);
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident,
-             bool async=FALSE);
+             bool async, handlerton *ht, int32 pending);
 
   bool write_incident(THD *thd, bool lock);
   int  write_cache(IO_CACHE *cache, bool lock_log);
@@ -478,10 +503,11 @@ public:
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
   void rotate_and_purge(uint flags);
-  void enqueue_thread(THD* thd);
-  void next_thread_broadcast(THD* thd);
-  void dequeue_thread_in_order(THD *thd);
-  bool flush_and_sync(THD *thd, bool async);
+  void disable_group_commit(THD *thd, const char* msg);
+  int order_for_group_commit(THD* thd, handlerton *ht);
+  void increment_group_commit_ticket(THD* thd);
+  void wait_for_group_commit_order(THD *thd);
+  int flush_and_sync(THD *thd, bool async, handlerton *ht, int32 pending);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
@@ -517,6 +543,10 @@ public:
   inline void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
+
+  my_bool get_group_commit_allowed() { return group_commit_allowed; }
+  ulonglong get_current_ticket() { return current_ticket; }
+  ulonglong get_next_ticket() { return next_ticket; }
 
   /*
      Update master-log's log filename and log position based on events in
