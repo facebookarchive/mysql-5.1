@@ -281,7 +281,11 @@ int show_global_mutex_status(THD *thd)
   DBUG_ENTER("show_global_mutex_status");
 
   field_list.push_back(new Item_uint("Locks", 21));
-  field_list.push_back(new Item_uint("Spins", 21));
+  field_list.push_back(new Item_uint("Instant Acquires", 21));
+  field_list.push_back(new Item_uint("Fast Spins", 21));
+  field_list.push_back(new Item_uint("Fast Spin Wins", 21));
+  field_list.push_back(new Item_uint("Slow Spins", 21));
+  field_list.push_back(new Item_uint("Slow Spin Wins", 21));
   field_list.push_back(new Item_int("Sleeps", 21));
   field_list.push_back(new Item_empty_string("Name", FN_REFLEN));
   field_list.push_back(new Item_uint("Line", FN_REFLEN));
@@ -300,10 +304,18 @@ int show_global_mutex_status(THD *thd)
     if (!fms->fms_name)
       continue;
 
-    if (fms->fms_locks > 0 || fms->fms_spins > 0 || fms->fms_sleeps > 0) {
+    if (fms->fms_locks > 0 || fms->fms_fast_spins > 0 ||
+        fms->fms_slow_spins > 0 || fms->fms_sleeps > 0) {
       protocol->prepare_for_resend();
       protocol->store((ulonglong)fms->fms_locks);
-      protocol->store((ulonglong)fms->fms_spins);
+      protocol->store((ulonglong)fms->fms_locks -
+                      fms->fms_fast_spin_wins -
+                      fms->fms_slow_spin_wins -
+                      fms->fms_sleeps);
+      protocol->store((ulonglong)fms->fms_fast_spins);
+      protocol->store((ulonglong)fms->fms_fast_spin_wins);
+      protocol->store((ulonglong)fms->fms_slow_spins);
+      protocol->store((ulonglong)fms->fms_slow_spin_wins);
       protocol->store((longlong)fms->fms_sleeps);
       protocol->store(fms->fms_name, system_charset_info);
       protocol->store((ulonglong)fms->fms_line);
@@ -321,10 +333,18 @@ int show_global_mutex_status(THD *thd)
     if (!fms->fms_name)
       continue;
 
-    if (fms->fms_locks > 0 || fms->fms_spins > 0 || fms->fms_sleeps > 0) {
+    if (fms->fms_locks > 0 || fms->fms_fast_spins > 0 ||
+        fms->fms_slow_spins > 0 || fms->fms_sleeps > 0) {
       protocol->prepare_for_resend();
       protocol->store((ulonglong)fms->fms_locks);
-      protocol->store((ulonglong)fms->fms_spins);
+      protocol->store((ulonglong)fms->fms_locks -
+                      fms->fms_fast_spin_wins -
+                      fms->fms_slow_spin_wins -
+                      fms->fms_sleeps);
+      protocol->store((ulonglong)fms->fms_fast_spins);
+      protocol->store((ulonglong)fms->fms_fast_spin_wins);
+      protocol->store((ulonglong)fms->fms_slow_spins);
+      protocol->store((ulonglong)fms->fms_slow_spin_wins);
       protocol->store((longlong) -(fms->fms_sleeps));
       protocol->store(fms->fms_name, system_charset_info);
       protocol->store((ulonglong)fms->fms_line);

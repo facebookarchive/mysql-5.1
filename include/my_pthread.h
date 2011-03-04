@@ -531,7 +531,8 @@ void safe_mutex_end(FILE *file);
 typedef struct st_my_pthread_fastmutex_t
 {
   pthread_mutex_t mutex;
-  uint spins;
+  uint fast_spins;
+  uint slow_spins;
   ulong stats_index;
   uint rng_state;
 } my_pthread_fastmutex_t;
@@ -556,7 +557,10 @@ extern int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
  * locks and num_mutexes must not be null.
  */
 extern void my_fastmutex_report_stats(unsigned long long* sleeps,
-                                      unsigned long long* spins,
+                                      unsigned long long* fast_spins,
+                                      unsigned long long* slow_spins,
+                                      unsigned long long* fast_spin_wins,
+                                      unsigned long long* slow_spin_wins,
                                       unsigned long long* locks,
                                       int* num_mutexes);
 
@@ -572,7 +576,10 @@ extern void my_fastmutex_report_stats(unsigned long long* sleeps,
  */
 typedef struct {
   unsigned long long fms_locks;  /* Number of times this has been locked */
-  unsigned long long fms_spins;  /* Number of spin-wait loops done */
+  unsigned long long fms_fast_spins;  /* Number of fast spin-wait loops done */
+  unsigned long long fms_slow_spins;  /* Number of slow spin-wait loops done */
+  unsigned long long fms_fast_spin_wins;  /* Number of fast spin lock acquires */
+  unsigned long long fms_slow_spin_wins;  /* Number of slow spin lock acquires */
   unsigned long long fms_sleeps; /* Number of possible sleeps */
   const char* fms_name;          /* Lock created by this file */
   int fms_line;                  /* Lock created at this line# in fms_name */
@@ -700,7 +707,8 @@ extern int my_rw_trywrlock(my_rw_lock_t *);
 typedef struct st_my_fastrwlock_t
 {
   pthread_rwlock_t frw_lock;
-  uint spins;
+  uint fast_spins;
+  uint slow_spins;
   ulong stats_index;
   uint rng_state;
 } my_fastrwlock_t;
