@@ -77,6 +77,84 @@ trx_set_detailed_error_from_file(
 			    sizeof(trx->detailed_error));
 }
 
+/*************************************************************//**
+It turns out to be very efficient for all of our trx_t structures to
+be in contiguous memory; this forced locality results in significant
+speedups when iterating over the open transactions.  We achieve this
+with trx_t blocks of contiguous memory, each holding TRX_PER_BLOCK
+trx_t's.  As we fill blocks, we allocate new ones.
+
+TRX_PER_BLOCK is pretty arbitrary, but you want it to be large (so
+that all transactions span only a handful of memory regions).
+*/
+#define TRX_PER_BLOCK (1024 * 1024 / sizeof(trx_t))
+struct trx_block_struct {
+	struct trx_block_struct* next_block;
+	trx_t transactions[TRX_PER_BLOCK];
+};
+
+/* A linked list of our transaction blocks. */
+static struct trx_block_struct* transaction_blocks = NULL;
+/* Track the next free transaction (for fast allocation) */
+static trx_t *next_free_transaction = NULL;
+
+trx_t*
+trx_allocate()
+{
+	int i;
+	trx_t* ret = NULL;
+
+	ut_ad(mutex_own(&kernel_mutex));
+
+	/* If we don't have a next_free_transaction -- either because
+	this is the first allocation or because we are using every
+	transaction in previous blocks -- allocate a new one, set
+	all of the trx_t's next_free_trx pointer to the next trx_t
+	in the block, and set next_free_transaction to be the first
+	trx_t in the block. */
+
+	if (!next_free_transaction) {
+		struct trx_block_struct* block_tmp =
+		  mem_alloc(sizeof(struct trx_block_struct));
+
+		block_tmp->next_block = transaction_blocks;
+		transaction_blocks = block_tmp;
+		for (i = 0; i < TRX_PER_BLOCK; ++i) {
+			trx_t* next = NULL;
+			if (i < TRX_PER_BLOCK - 1) {
+				next = &(block_tmp->transactions[i + 1]);
+			}
+			block_tmp->transactions[i].next_free_trx = next;
+			block_tmp->transactions[i].magic_n = TRX_FREE_MAGIC_N;
+		}
+
+		next_free_transaction = &(transaction_blocks->transactions[0]);
+	}
+
+	ut_a(next_free_transaction->magic_n == TRX_FREE_MAGIC_N);
+
+	/* We return the next free transaction and remove it from the list. */
+	ret = next_free_transaction;
+	next_free_transaction = ret->next_free_trx;
+	ret->next_free_trx = NULL;
+	return ret;
+}
+
+void trx_deallocate(trx_t* t) {
+	ut_ad(mutex_own(&kernel_mutex));
+	ut_a(t->magic_n == TRX_FREE_MAGIC_N);
+
+	/* Place this transaction at the head of our free list.	 Note
+	that if somehow this is the last used transaction in a
+	transaction block, we do not free the block.  This is a
+	wasteful optimization as there are at most a few megabytes of
+	blocks in an extremely busy system. */
+
+	t->next_free_trx = next_free_transaction;
+	t->magic_n = TRX_FREE_MAGIC_N;
+	next_free_transaction = t;
+}
+
 /****************************************************************//**
 Creates and initializes a transaction object.
 @return	own: the transaction */
@@ -91,7 +169,7 @@ trx_create(
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(sess);
 
-	trx = mem_alloc(sizeof(trx_t));
+	trx = trx_allocate();
 
 	trx->magic_n = TRX_MAGIC_N;
 
@@ -301,7 +379,7 @@ trx_free(
 
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 
-	trx->magic_n = 11112222;
+	trx->magic_n = TRX_FREE_MAGIC_N;
 
 	ut_a(trx->conc_state == TRX_NOT_STARTED);
 
@@ -344,7 +422,7 @@ trx_free(
 
 	os_event_free(trx->trx_event);
 
-	mem_free(trx);
+	trx_deallocate(trx);
 }
 
 /********************************************************************//**

@@ -465,7 +465,8 @@ struct trx_sig_struct{
 					transaction is waiting a reply */
 };
 
-#define TRX_MAGIC_N	91118598
+#define TRX_MAGIC_N		91118598
+#define TRX_FREE_MAGIC_N	8675309
 
 /* The transaction handle; every session has a trx object which is freed only
 when the session is freed; in addition there may be session-less transactions
@@ -473,15 +474,22 @@ rolling back after a database recovery */
 
 struct trx_struct{
 	ulint		magic_n;
+	trx_id_t	id;		/*!< transaction id */
+	ulint		conc_state;	/*!< state of the trx from the point
+					of view of concurrency control:
+					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
+					... */
+	trx_id_t	no;		/*!< transaction serialization number ==
+					max trx id when the transaction is
+					moved to COMMITTED_IN_MEMORY state */
+	trx_t*		next_free_trx;	/* Next transaction free (see trx_create
+					for details); NULL if transaction is in
+					use */
 
 	/* These fields are not protected by any mutex. */
 	const char*	op_info;	/*!< English text describing the
 					current operation, or an empty
 					string */
-	ulint		conc_state;	/*!< state of the trx from the point
-					of view of concurrency control:
-					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
-					... */
 	ulint		isolation_level;/* TRX_ISO_REPEATABLE_READ, ... */
 	ulint		check_foreigns;	/* normally TRUE, but if the user
 					wants to suppress foreign key checks,
@@ -552,13 +560,9 @@ struct trx_struct{
 	time_t		start_time;	/*!< time the trx object was created
 					or the state last time became
 					TRX_ACTIVE */
-	trx_id_t	id;		/*!< transaction id */
 	XID		xid;		/*!< X/Open XA transaction
 					identification to identify a
 					transaction branch */
-	trx_id_t	no;		/*!< transaction serialization number ==
-					max trx id when the transaction is
-					moved to COMMITTED_IN_MEMORY state */
 	ib_uint64_t	commit_lsn;	/*!< lsn at the time of the commit */
 	trx_id_t	table_id;	/*!< Table to drop iff dict_operation
 					is TRUE, or ut_dulint_zero. */
