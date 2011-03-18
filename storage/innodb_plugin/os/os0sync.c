@@ -638,8 +638,12 @@ os_fast_mutex_init_real(
 
 	InitializeCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
+#ifdef UNIV_DEBUG
+	ut_a(0 == pthread_mutex_init(fast_mutex, MY_MUTEX_INIT_FAST));
+#else
 	ut_a(0 == my_pthread_fastmutex_init(fast_mutex, MY_MUTEX_INIT_FAST,
-                                            file, line));
+					    file, line));
+#endif
 #endif
 	if (UNIV_LIKELY(os_sync_mutex_inited)) {
 		/* When creating os_sync_mutex itself (in Unix) we cannot
