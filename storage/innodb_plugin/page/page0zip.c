@@ -267,20 +267,6 @@ page_zip_dir_get(
 #ifndef UNIV_HOTBACKUP
 
 /**********************************************************************//**
-Write a log record of compressing an index page without the data on the page. */
-UNIV_INLINE
-void
-page_zip_compress_write_log_no_data(
-/*================================*/
-	const page_t*	page,
-	dict_index_t*	index,
-	mtr_t*				mtr)
-{
-	mlog_open_and_write_index(mtr, page, index,
-	                          MLOG_ZIP_PAGE_COMPRESS_NO_DATA, 0);
-}
-
-/**********************************************************************//**
 Write a log record of compressing an index page. */
 static
 void
@@ -4604,29 +4590,6 @@ page_zip_copy_recs(
 	page_zip_compress_write_log(page_zip, page, index, mtr);
 }
 #endif /* !UNIV_HOTBACKUP */
-
-/**********************************************************************//**
-Parses a log record of compressing an index page without the data.
-@return	end of log record or NULL */
-UNIV_INLINE
-byte*
-page_zip_parse_compress_no_data(
-/*============================*/
-/*====================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr, /*!< in: buffer end */
-	page_t*		page,	/*!< in: uncompressed page */
-	page_zip_des_t*	page_zip, /*!< out: compressed page */
-	dict_index_t* index)
-{
-	/* If page compression fails then there must be something wrong
-	   because a compress log record is logged only if the compression
-	   was successful. Crash in this case. */
-	if (page && !page_zip_compress(page_zip, page, index, NULL)) {
-		ut_error;
-	}
-	return ptr;
-}
 
 /**********************************************************************//**
 Parses a log record of compressing an index page.
