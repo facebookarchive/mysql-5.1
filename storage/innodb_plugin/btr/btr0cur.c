@@ -1641,6 +1641,8 @@ btr_cur_update_alloc_zip(
 	ut_a(page_zip == buf_block_get_page_zip(block));
 	ut_ad(page_zip);
 	ut_ad(!dict_index_is_ibuf(index));
+	my_bool log_compressed_pages = srv_log_compressed_pages;
+	page_t* page;
 
 	if (page_zip_available(page_zip, dict_index_is_clust(index),
 			       length, create)) {
@@ -1653,10 +1655,17 @@ btr_cur_update_alloc_zip(
 		return(FALSE);
 	}
 
-	if (!page_zip_compress(page_zip, buf_block_get_frame(block),
-			       index, mtr)) {
+	page = buf_block_get_frame(block);
+	/* we can safely pass a null pointer here because btr_cur_update_alloc_zip()
+		 is called before any modification to page is made. This makes sure that the
+		 compressed page image here is redundant.*/
+	if (!page_zip_compress(page_zip, page, index,
+	                       log_compressed_pages ? mtr : NULL)) {
 		/* Unable to compress the page */
 		return(FALSE);
+	}
+	if (mtr && !log_compressed_pages) {
+		page_zip_compress_write_log_no_data(page, index, mtr);
 	}
 
 	/* After recompressing a page, we must make sure that the free
