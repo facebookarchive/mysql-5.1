@@ -1,0 +1,42 @@
+grant all on *.* to 'adminc'@'%' with max_concurrent_transactions 1 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_transactions
+adminc	%	100	1
+show grants;
+Grants for adminc@%
+GRANT ALL PRIVILEGES ON *.* TO 'adminc'@'%' WITH MAX_USER_CONNECTIONS 100 MAX_CONCURRENT_TRANSACTIONS 1
+create table tctest(id int, primary key(id)) engine=innodb;
+insert into tctest values (1), (2), (3);
+select * from tctest;
+id
+1
+2
+3
+select id, sleep(id) from tctest;
+select * from tctest;
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	#	NULL	show processlist
+#	adminc	localhost	test	Query	#	wait for max concurrent transactions	select * from tctest
+#	adminc	localhost	test	Query	#	User sleep	select id, sleep(id) from tctest
+id	sleep(id)
+1	0
+2	0
+3	0
+id
+1
+2
+3
+begin;
+insert into tctest values (4);
+select * from tctest;
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	#	NULL	show processlist
+#	adminc	localhost	test	Sleep	#		NULL
+#	adminc	localhost	test	Query	#	wait for max concurrent transactions	select * from tctest
+commit;
+drop user 'adminc'@'%';
+drop table tctest;
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_transactions

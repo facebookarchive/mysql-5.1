@@ -1108,6 +1108,11 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 int ha_commit_trans(THD *thd, bool all)
 {
   int error= 0, cookie= 0;
+
+  if (thd->transaction.tx_control_state == TX_CONTROL_STATEMENT &&
+      !thd->in_sub_stmt)
+    transaction_control_exit(thd);
+
   /*
     'all' means that this is either an explicit commit issued by
     user, or an implicit commit issued by a DDL.
@@ -1303,6 +1308,9 @@ int ha_commit_one_phase(THD *thd, bool all)
 int ha_rollback_trans(THD *thd, bool all)
 {
   int error=0;
+
+  transaction_control_exit(thd);
+
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
   /*

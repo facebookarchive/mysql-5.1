@@ -107,6 +107,10 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     pthread_mutex_init(&(uc->query_mutex), MY_MUTEX_INIT_FAST);
     pthread_cond_init(&(uc->query_condvar), NULL);
 
+    uc->tx_running = uc->tx_waiting= 0;
+    pthread_mutex_init(&(uc->tx_control_mutex), MY_MUTEX_INIT_FAST);
+    pthread_cond_init(&(uc->tx_control_condvar), NULL);
+
     uc->user_resources= *mqh;
     uc->reset_utime= thd->thr_create_utime;
     if (my_hash_insert(&hash_user_connections, (uchar*) uc))
@@ -562,6 +566,9 @@ extern "C" void free_user(struct user_conn *uc)
 {
   pthread_mutex_destroy(&(uc->query_mutex));
   pthread_cond_destroy(&(uc->query_condvar));
+
+  pthread_mutex_destroy(&(uc->tx_control_mutex));
+  pthread_cond_destroy(&(uc->tx_control_condvar));
 
   my_free((char*) uc,MYF(0));
 }
@@ -1357,7 +1364,7 @@ update_user_stats_after_statement(USER_STATS *us,
 }
 
 static void
-fill_one_user_stats(TABLE *table, USER_STATS *us,
+fill_one_user_stats(TABLE *table, USER_CONN *uc, USER_STATS* us,
                     const char* username, uint connections,
                     int queries_running, int queries_waiting)
 {
@@ -1415,6 +1422,14 @@ fill_one_user_stats(TABLE *table, USER_STATS *us,
   table->field[f++]->store(us->transactions_rollback, TRUE);
   table->field[f++]->store(queries_running, TRUE);
   table->field[f++]->store(queries_waiting, TRUE);
+  if (uc) {
+    table->field[f++]->store(uc->tx_running, TRUE);
+    table->field[f++]->store(uc->tx_waiting, TRUE);
+  } else {
+    table->field[f++]->store(0, TRUE);
+    table->field[f++]->store(0, TRUE);
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -1429,9 +1444,9 @@ int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond)
   for (uint idx=0;idx < hash_user_connections.records; idx++)
   {
     USER_CONN *user_conn= (struct user_conn *) hash_element(&hash_user_connections, idx);
-    USER_STATS *us= &(user_conn->user_stats);
+    USER_STATS *us = &(user_conn->user_stats);
 
-    fill_one_user_stats(table, us, user_conn->user, user_conn->connections,
+    fill_one_user_stats(table, user_conn, us, user_conn->user, user_conn->connections,
                         user_conn->queries_running, user_conn->queries_waiting);
 
     if (schema_table_store_record(thd, table))
@@ -1441,14 +1456,14 @@ int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     }
   }
 
-  fill_one_user_stats(table, &slave_user_stats, "sys:slave", 0, 0, 0);
+  fill_one_user_stats(table, NULL, &slave_user_stats, "sys:slave", 0, 0, 0);
   if (schema_table_store_record(thd, table))
   {
     (void) pthread_mutex_unlock(&LOCK_user_conn);
     DBUG_RETURN(-1);
   }
 
-  fill_one_user_stats(table, &other_user_stats, "sys:other", 0, 0, 0);
+  fill_one_user_stats(table, NULL, &other_user_stats, "sys:other", 0, 0, 0);
   if (schema_table_store_record(thd, table))
   {
     (void) pthread_mutex_unlock(&LOCK_user_conn);

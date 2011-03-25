@@ -976,6 +976,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MASTER_USER_SYM
 %token  MATCH                         /* SQL-2003-R */
 %token  MAX_CONCURRENT_QUERIES
+%token  MAX_CONCURRENT_TRANSACTIONS
 %token  MAX_CONNECTIONS_PER_HOUR
 %token  MAX_QUERIES_PER_HOUR
 %token  MAX_ROWS
@@ -11818,6 +11819,7 @@ keyword_sp:
         | MASTER_SSL_CIPHER_SYM    {}
         | MASTER_SSL_KEY_SYM       {}
         | MAX_CONCURRENT_QUERIES   {}
+        | MAX_CONCURRENT_TRANSACTIONS {}
         | MAX_CONNECTIONS_PER_HOUR {}
         | MAX_QUERIES_PER_HOUR     {}
         | MAX_SIZE_SYM             {}
@@ -12969,6 +12971,12 @@ grant_option:
             LEX *lex=Lex;
             lex->mqh.max_concurrent_queries= $2;
             lex->mqh.specified_limits|= USER_RESOURCES::USER_CONCURRENT_QUERIES;
+          }
+        | MAX_CONCURRENT_TRANSACTIONS ulong_num
+          {
+            LEX *lex=Lex;
+            lex->mqh.max_concurrent_transactions= $2;
+            lex->mqh.specified_limits|= USER_RESOURCES::USER_CONCURRENT_TRANSACTIONS;
           }
         ;
 

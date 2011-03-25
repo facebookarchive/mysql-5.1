@@ -335,6 +335,11 @@ ALTER TABLE user ADD max_user_connections int(11) unsigned DEFAULT '0' NOT NULL 
 ALTER TABLE user ADD max_concurrent_queries int(11) unsigned DEFAULT '0' NOT NULL AFTER max_user_connections;
 
 #
+# Add max_concurrent_transactions resource limit
+#
+ALTER TABLE user ADD max_concurrent_transactions int(11) unsigned DEFAULT '0' NOT NULL AFTER max_concurrent_queries;
+
+#
 # user.Create_user_priv
 #
 

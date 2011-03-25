@@ -2529,7 +2529,11 @@ mysql_execute_command(THD *thd,
       case SQLCOM_HA_OPEN_READ_CLOSE:
       case SQLCOM_CALL:
         admission_control_enter(thd, thd->variables.net_wait_timeout);
+        transaction_control_enter(thd, thd->variables.net_wait_timeout, FALSE);
         setup_ac = TRUE;
+        break;
+      case SQLCOM_BEGIN:
+        transaction_control_enter(thd, thd->variables.net_wait_timeout, TRUE);
         break;
       default:
         ac_barier.Bypass();
@@ -8679,6 +8683,121 @@ bool admission_control_diskio_exit(THD* thd) {
   } else {
     return false;
   }
+}
+
+int transaction_control_enter(THD* thd, ulong wait_seconds,
+                              bool explicit_transaction)
+{
+  USER_CONN *uc = thd->user_connect;
+  if (!uc) return 0;
+
+  DBUG_ENTER("transaction_control_enter");
+  DBUG_ASSERT(thd->transaction.tx_control_state >= TX_CONTROL_NONE &&
+              thd->transaction.tx_control_state <= TX_CONTROL_TRANSACTION);
+
+  // If we're in a transaction, promote if necessary and simply
+  // return.  Otherwise we need to check transaction counts (possibly
+  // blocking wait_seconds).
+  if (thd->transaction.tx_control_state != TX_CONTROL_NONE) {
+    if (explicit_transaction) {
+      thd->transaction.tx_control_state = TX_CONTROL_TRANSACTION;
+    }
+    DBUG_RETURN(0);
+  }
+
+  while (1)
+  {
+    int nr = uc->tx_running;
+    int max_transactions;
+    if (uc->user_resources.max_concurrent_transactions) {
+      max_transactions =
+        uc->user_resources.max_concurrent_transactions;
+    } else {
+      max_transactions = INT_MAX;
+    }
+
+    const char* old_msg;
+    struct timespec abstime;
+    int timed_out = 0;
+
+    if (nr < max_transactions && my_atomic_cas32(&(uc->tx_running), &nr, nr+1))
+    {
+      thd->transaction.tx_control_state =
+        explicit_transaction ? TX_CONTROL_TRANSACTION : TX_CONTROL_STATEMENT;
+      DBUG_RETURN(0);
+    }
+
+    /* Do this before locking uc->tx_control_mutex */
+    set_timespec(abstime, wait_seconds);
+
+    pthread_mutex_lock(&(uc->tx_control_mutex));
+    ++uc->tx_waiting;
+
+    // Enforce a memory barrier for the optimization below.
+    asm volatile("" ::: "memory");
+
+    old_msg=  thd->enter_cond_noscheduler(&(uc->tx_control_condvar),
+                                          &(uc->tx_control_mutex),
+                                          "wait for max concurrent transactions");
+
+    while (uc->tx_running >= max_transactions)
+    {
+      int error = pthread_cond_timedwait(&(uc->tx_control_condvar),
+                                         &(uc->tx_control_mutex),
+                                         &abstime);
+
+      if (error == ETIME || error == ETIMEDOUT)
+      {
+        timed_out = 1;
+        break;
+      }
+
+      assert(error == 0 || error == EINTR);
+    }
+
+    --uc->tx_waiting;
+    assert(uc->tx_waiting >= 0);
+
+    thd->exit_cond_noscheduler(old_msg); // unlocks mutex
+
+    if (timed_out)
+      DBUG_RETURN(1);
+  }
+}
+
+void transaction_control_exit(THD* thd)
+{
+  USER_CONN *uc = thd->user_connect;
+  if (!uc) return;
+  if (thd->transaction.tx_control_state == TX_CONTROL_NONE) return;
+
+  DBUG_ENTER("transaction_control_exit");
+  DBUG_ASSERT(thd->transaction.tx_control_state >= TX_CONTROL_NONE &&
+              thd->transaction.tx_control_state <= TX_CONTROL_TRANSACTION);
+
+  int qr = my_atomic_add32(&(uc->tx_running), -1);
+  assert(qr >= 0);
+
+  if (uc->user_resources.max_concurrent_transactions == 0) {
+    thd->transaction.tx_control_state = TX_CONTROL_NONE;
+    DBUG_VOID_RETURN;
+  }
+
+  // Memory barrier.  Mark has a remarkable proof this is safe, but it
+  // will not fit in these margins.
+  asm volatile("" ::: "memory");
+
+  if (qr <= (uc->user_resources.max_concurrent_transactions + 1) &&
+      uc->tx_waiting)
+  {
+    // No attempt is made to be fair to who gets to wake from blocking
+    // on the condvar.
+    pthread_cond_signal(&(uc->tx_control_condvar));
+  }
+
+  thd->transaction.tx_control_state = TX_CONTROL_NONE;
+
+  DBUG_VOID_RETURN;
 }
 
 /**

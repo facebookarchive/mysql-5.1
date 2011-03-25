@@ -197,12 +197,15 @@ typedef struct user_resources {
   uint user_conn;
   /* Maximum number of concurrent queries. */
   int max_concurrent_queries;
+  /* Maximum number of concurrent transactions. */
+  int max_concurrent_transactions;
   /*
      Values of this enum and specified_limits member are used by the
      parser to store which user limits were specified in GRANT statement.
   */
   enum {QUERIES_PER_HOUR= 1, UPDATES_PER_HOUR= 2, CONNECTIONS_PER_HOUR= 4,
-        USER_CONNECTIONS= 8, USER_CONCURRENT_QUERIES= 16};
+        USER_CONNECTIONS= 8, USER_CONCURRENT_QUERIES= 16,
+        USER_CONCURRENT_TRANSACTIONS= 32};
   uint specified_limits;
 } USER_RESOURCES;
 
@@ -312,6 +315,12 @@ typedef struct  user_conn {
    * query_mutex guards queries_waiting. */
   pthread_mutex_t   query_mutex;
   pthread_cond_t    query_condvar;
+
+  volatile int      tx_running; /* changed by atomic inc */
+  volatile int      tx_waiting; /* protected by query_mutex */
+
+  pthread_mutex_t   tx_control_mutex;
+  pthread_cond_t    tx_control_condvar;
 
   /* Maximum amount of resources which account is allowed to consume. */
   USER_RESOURCES user_resources;
