@@ -2142,6 +2142,7 @@ extern int xa_recovery_did_rollback;
 extern ulong sync_relay_info_period, sync_relay_info_events;
 
 extern my_bool admission_control;
+extern my_bool admission_control_diskio;
 
 extern my_bool log_datagram;
 extern ulong log_datagram_usecs;

@@ -8641,6 +8641,25 @@ void admission_control_exit(THD* thd)
   DBUG_VOID_RETURN;
 }
 
+int admission_control_diskio_enter(THD* thd, bool diskio_used_for_exit,
+                                   ulong wait_seconds)
+{
+  if (diskio_used_for_exit) {
+    return admission_control_enter(thd, wait_seconds);
+  } else {
+    return 0;
+  }
+}
+
+bool admission_control_diskio_exit(THD* thd) {
+  if (admission_control_diskio) {
+    admission_control_exit(thd);
+    return true;
+  } else {
+    return false;
+  }
+}
+
 /**
   @} (end of group Runtime_Environment)
 */

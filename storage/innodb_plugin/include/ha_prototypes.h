@@ -287,6 +287,12 @@ thd_admission_control_enter(
 /*======================*/
 	void*	thd);	/*!< in: thread handle (THD*), or NULL */
 
+void
+thd_admission_control_diskio_enter(
+/*======================*/
+	void*	thd,	/*!< in: thread handle (THD*), or NULL */
+	int diskio_used_for_exit);
+
 /******************************************************************//**
 Indicate this thread has stopped running. */
 
@@ -295,5 +301,9 @@ thd_admission_control_exit(
 /*======================*/
 	void*	thd);	/*!< in: thread handle (THD*), or NULL */
 
+int
+thd_admission_control_diskio_exit(
+/*======================*/
+	void*	thd);	/*!< in: thread handle (THD*), or NULL */
 
 #endif

@@ -57,6 +57,9 @@
 
 int admission_control_enter(THD* thd, ulong wait_seconds);
 void admission_control_exit(THD* thd);
+int admission_control_diskio_enter(THD* thd, bool diskio_used_for_exit,
+                                   ulong wait_seconds);
+bool admission_control_diskio_exit(THD* thd);
 
 enum enum_admission_control {
   QUERY_SCHEDULED=151,  /* Count and enforce concurrent queries */

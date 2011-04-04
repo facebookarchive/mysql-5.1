@@ -1020,6 +1020,23 @@ thd_admission_control_enter(
 }
 
 /******************************************************************//**
+Schedule this query to run. */
+extern "C" UNIV_INTERN
+void
+thd_admission_control_diskio_enter(
+/*=======================*/
+	void*	thd,	/*!< in: thread handle (THD*), or NULL to query
+			the global innodb_lock_wait_timeout */
+	int diskio_used_for_exit)
+{
+	if (thd) {
+		int r = admission_control_diskio_enter((THD*)thd,
+						       diskio_used_for_exit, 0);
+		ut_a(r == 0);
+	}
+}
+
+/******************************************************************//**
 Indicate this thread has stopped running. */
 extern "C" UNIV_INTERN
 void
@@ -1030,6 +1047,21 @@ thd_admission_control_exit(
 {
 	if (thd)
 		admission_control_exit((THD*)thd);
+}
+
+/******************************************************************//**
+Indicate this thread has stopped running. */
+extern "C" UNIV_INTERN
+int
+thd_admission_control_diskio_exit(
+/*=======================*/
+	void*	thd)	/*!< in: thread handle (THD*), or NULL to query
+			the global innodb_lock_wait_timeout */
+{
+	if (thd)
+		return admission_control_diskio_exit((THD*)thd);
+	else
+		return 0;
 }
 
 /********************************************************************//**

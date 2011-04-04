@@ -626,6 +626,7 @@ my_bool cachedev_enabled= FALSE;
 ulong reserved_super_connections=0;
 
 my_bool admission_control= FALSE;
+my_bool admission_control_diskio= FALSE;
 
 my_bool log_datagram= 0;
 ulong log_datagram_usecs= 0;
@@ -6167,6 +6168,7 @@ enum options_mysqld
   OPT_RPL_TRANSACTION_ENABLED,
   OPT_FORCE_BINLOG_ORDER,
   OPT_ADMISSION_CONTROL,
+  OPT_ADMISSION_CONTROL_DISKIO,
   OPT_CONNECTION_RECYCLE,
   OPT_CONNECTION_RECYCLE_PCT_CONNECTIONS_MIN,
   OPT_CONNECTION_RECYCLE_PCT_CONNECTIONS_MAX,
@@ -7751,6 +7753,10 @@ thread is in the relay logs.",
   {"admission_control", OPT_ADMISSION_CONTROL,
    "Limit number of queries that run concurrently",
    &admission_control, &admission_control,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"admission_control_diskio", OPT_ADMISSION_CONTROL_DISKIO,
+   "Release admission control locks when performing InnoDB reads",
+   &admission_control_diskio, &admission_control_diskio,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"perftools_profile", OPT_PERFTOOLS_PROFILE,
    "Enable profiling using Google Perftools and write output to this file.",

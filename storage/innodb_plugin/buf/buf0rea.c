@@ -137,6 +137,11 @@ buf_read_page_low(
 
 	ut_ad(buf_page_in_file(bpage));
 
+	int diskio_used_for_exit = 0;
+	if (sync && trx) {
+		diskio_used_for_exit =
+		  thd_admission_control_diskio_exit(trx->mysql_thd);
+	}
 	if (zip_size) {
 		*err = _fil_io(OS_FILE_READ | wake_later,
 			      sync, space, zip_size, offset, 0, zip_size,
@@ -158,6 +163,10 @@ buf_read_page_low(
 		buf_page_io_complete(bpage);
 	}
 
+	if (sync && trx) {
+		thd_admission_control_diskio_enter(trx->mysql_thd,
+						   diskio_used_for_exit);
+	}
 	return(1);
 }
 
