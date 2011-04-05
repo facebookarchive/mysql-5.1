@@ -190,7 +190,7 @@ int init_relay_log_info(Relay_log_info* rli,
 
       rli->report(ERROR_LEVEL, ER_MASTER_INFO, emsg, "init_relay_log_info");
       pthread_mutex_unlock(&rli->data_lock);
-      sql_print_error(emsg);
+      sql_print_error("%s", emsg);
       DBUG_RETURN(1);
     }
 
