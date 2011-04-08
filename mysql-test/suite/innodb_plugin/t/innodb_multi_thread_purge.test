@@ -1,0 +1,107 @@
+-- source include/have_innodb_plugin.inc
+
+#
+# Testing of explicit table locks with enforced table locks
+#
+
+connect (con1,localhost,root,,);
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# load the test tables
+#
+
+create table t1 (i int primary key auto_increment) engine=innodb;
+create table t2 (i int primary key auto_increment) engine=innodb;
+create table t3 (i int primary key auto_increment) engine=innodb;
+create table t4 (i int primary key auto_increment) engine=innodb;
+
+insert into t1 values (1);
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+insert into t1 select null from t1;
+
+insert into t2 select * from t1;
+insert into t3 select * from t1;
+insert into t4 select * from t1;
+
+#
+# start a transaction to block purge
+#
+connection con1;
+begin;
+select count(*) from t1;
+
+#
+# create work for the purge threads
+#
+connection default;
+delete from t1 limit 1000;
+delete from t2 limit 1000;
+delete from t3 limit 1000;
+delete from t4 limit 1000;
+
+delete from t1 limit 1000;
+delete from t2 limit 1000;
+delete from t3 limit 1000;
+delete from t4 limit 1000;
+
+delete from t1 limit 1000;
+delete from t2 limit 1000;
+delete from t3 limit 1000;
+delete from t4 limit 1000;
+
+delete from t1 limit 1000;
+delete from t2 limit 1000;
+delete from t3 limit 1000;
+delete from t4 limit 1000;
+
+delete from t1 limit 1000;
+delete from t2 limit 1000;
+delete from t3 limit 1000;
+delete from t4 limit 1000;
+
+delete from t1 limit 1000;
+delete from t2 limit 1000;
+delete from t3 limit 1000;
+delete from t4 limit 1000;
+
+#
+# unblock purge
+#
+connection con1;
+rollback;
+
+#
+# run queries when purge is active
+#
+select count(*) from t1;
+select count(*) from t2;
+select count(*) from t3;
+select count(*) from t4;
+
+#
+# cleanup
+#
+
+connection default;
+disconnect con1;
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+

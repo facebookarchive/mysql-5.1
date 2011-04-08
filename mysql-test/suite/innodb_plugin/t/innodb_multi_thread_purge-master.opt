@@ -1,0 +1,1 @@
+--innodb_use_purge_thread=8

@@ -3203,6 +3203,14 @@ logs_empty_and_mark_files_at_shutdown(void)
 {
 	ib_uint64_t	lsn;
 	ulint		arch_log_no;
+	ibool		print_monitor	= FALSE;
+	ibool		print_trx	= FALSE;
+	ibool		print_master	= FALSE;
+	ibool		print_nonmaster	= FALSE;
+	ibool		print_log	= FALSE;
+	ibool		print_bufpool	= FALSE;
+	ibool		print_checkpoint	= FALSE;
+	ibool		print_freed	= FALSE;
 
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
@@ -3227,6 +3235,12 @@ loop:
 
 		mutex_exit(&kernel_mutex);
 
+		if (!print_monitor && srv_print_verbose_log) {
+			print_monitor = TRUE;
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: shutdown waiting for monitor threads\n");
+		}
 		goto loop;
 	}
 
@@ -3239,6 +3253,12 @@ loop:
 
 		mutex_exit(&kernel_mutex);
 
+		if (!print_trx && srv_print_verbose_log) {
+			print_trx = TRUE;
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: shutdown waiting for transactions\n");
+		}
 		goto loop;
 	}
 
@@ -3253,6 +3273,11 @@ loop:
 
 		log_buffer_flush_to_disk();
 
+		if (srv_print_verbose_log) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Shutdown fast done\n");
+		}
+
 		return; /* We SKIP ALL THE REST !! */
 	}
 
@@ -3262,6 +3287,28 @@ loop:
 
 		mutex_exit(&kernel_mutex);
 
+		if (!print_master && srv_print_verbose_log) {
+			print_master = TRUE;
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: shutdown waiting for master thread\n");
+		}
+		goto loop;
+	}
+
+	/* Check that the purge threads ended */
+	if (srv_use_purge_thread
+	    && (srv_n_threads_active[SRV_PURGE] != 0
+		|| srv_n_threads_active[SRV_PURGE_WORKER] != 0)) {
+
+		mutex_exit(&kernel_mutex);
+
+		if (!print_nonmaster && srv_print_verbose_log) {
+			print_nonmaster = TRUE;
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: shutdown waiting for non-master thread\n");
+		}
 		goto loop;
 	}
 
@@ -3277,6 +3324,12 @@ loop:
 
 		mutex_exit(&(log_sys->mutex));
 
+		if (!print_log && srv_print_verbose_log) {
+			print_log = TRUE;
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: shutdown waiting for pending log writes\n");
+		}
 		goto loop;
 	}
 
@@ -3284,6 +3337,12 @@ loop:
 
 	if (!buf_pool_check_no_pending_io()) {
 
+		if (!print_bufpool && srv_print_verbose_log) {
+			print_bufpool = TRUE;
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: shutdown waiting for pending bufpool writes\n");
+		}
 		goto loop;
 	}
 
@@ -3306,6 +3365,12 @@ loop:
 
 		mutex_exit(&(log_sys->mutex));
 
+		if (!print_checkpoint && srv_print_verbose_log) {
+			print_checkpoint = TRUE;
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: shutdown waiting for checkpoint or log archive\n");
+		}
 		goto loop;
 	}
 
@@ -3347,6 +3412,12 @@ loop:
 
 	if (!buf_all_freed()) {
 
+		if (!print_freed && srv_print_verbose_log) {
+			print_freed = TRUE;
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: shutdown waiting for buf_all_freed\n");
+		}
 		goto loop;
 	}
 
@@ -3377,6 +3448,11 @@ loop:
 	ut_a(srv_n_threads_active[SRV_MASTER] == 0);
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);
+
+	if (srv_print_verbose_log) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Shutdown done\n");
+	}
 }
 
 #ifdef UNIV_LOG_DEBUG

@@ -125,10 +125,14 @@ static mutex_t		ios_mutex;
 /** Count of I/O operations in io_handler_thread() */
 static ulint		ios;
 
-/** io_handler_thread parameters for thread identification */
-static ulint		n[SRV_MAX_N_IO_THREADS + 7];
+/** UNIV_MAX_PARALLELISM is the max value for innodb_use_purge_threads */
+#define SRV_MAX_N_IO_THREADS_PLUS_EXTRA (SRV_MAX_N_IO_THREADS + 7 + UNIV_MAX_PARALLELISM)
+
+/** io_handler_thread parameters for thread identification
++64 is for multi-threaded purge */
+static ulint		n[SRV_MAX_N_IO_THREADS_PLUS_EXTRA];
 /** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 7];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS_PLUS_EXTRA];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -1685,6 +1689,24 @@ innobase_start_or_create_for_mysql(void)
 
 	os_thread_create(&srv_master_thread, NULL, thread_ids
 			 + (1 + SRV_MAX_N_IO_THREADS));
+
+	if (srv_use_purge_thread) {
+		ulint i;
+
+		ut_a(srv_use_purge_thread <= UNIV_MAX_PARALLELISM);
+
+		os_thread_create(&srv_purge_thread, NULL, thread_ids
+				 + (6 + SRV_MAX_N_IO_THREADS));
+
+		for (i = 0; i < srv_use_purge_thread - 1; i++) {
+			int ix = 7 + i + SRV_MAX_N_IO_THREADS;
+			ut_a(ix < SRV_MAX_N_IO_THREADS_PLUS_EXTRA);
+
+			n[ix] = i; /* using as index for arrays in purge_sys */
+			os_thread_create(&srv_purge_worker_thread, n + ix,
+					 thread_ids + ix);
+		}
+	}
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
 #endif /* UNIV_DEBUG */

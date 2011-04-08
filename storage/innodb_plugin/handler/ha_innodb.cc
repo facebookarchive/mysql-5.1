@@ -11914,6 +11914,10 @@ static MYSQL_SYSVAR_BOOL(lru_dump_old_pages, srv_lru_dump_old_pages,
   "The default is to only dump young pages.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_ULONG(use_purge_thread, srv_use_purge_thread,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of purge devoted threads. #### over 1 is EXPERIMENTAL ####",
+  NULL, NULL, 0, 0, UNIV_MAX_PARALLELISM, 0);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
@@ -11997,6 +12001,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(expand_import),
   MYSQL_SYSVAR(merge_sort_block_size),
   MYSQL_SYSVAR(sync_checkpoint_limit),
+  MYSQL_SYSVAR(use_purge_thread),
   NULL
 };
 

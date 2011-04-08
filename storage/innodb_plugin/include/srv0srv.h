@@ -121,6 +121,8 @@ extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
 extern ulint*	srv_data_file_is_raw_partition;
 
+extern ulint	srv_use_purge_thread;
+
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
 extern char**	srv_log_group_home_dirs;
@@ -539,6 +541,8 @@ enum srv_thread_type {
 	SRV_RECOVERY,	/**< threads finishing a recovery */
 	SRV_INSERT,	/**< thread flushing the insert buffer to disk */
 #endif
+	SRV_PURGE,	/* thread purging undo records */
+	SRV_PURGE_WORKER,	/* thread purging undo records */
 	SRV_MASTER	/**< the master thread, (whose type number must
 			be biggest) */
 };
@@ -612,6 +616,21 @@ srv_master_thread(
 /*==============*/
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
+/*************************************************************************
+The undo purge thread. */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_thread(
+/*=============*/
+	void*	arg);	/* in: a dummy parameter required by
+			os_thread_create */
+/*************************************************************************
+The undo purge thread. */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_worker_thread(
+/*====================*/
+	void*	arg);
 /*******************************************************************//**
 Tells the Innobase server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
