@@ -2346,6 +2346,10 @@ wait_until_unfixed:
 			goto loop;
 		}
 
+		/* Temporarily fix the compressed page to prevent reusing it
+		   by the following call to buf_LRU_get_free_block() */
+		buf_block_buf_fix_inc(block, file, line);
+
 		/* Allocate an uncompressed page. */
 		mutex_exit(block_mutex);
 
@@ -2365,6 +2369,12 @@ wait_until_unfixed:
 
 
 		mutex_enter(&block->mutex);
+
+		/* Remove the temporary fix on the compressed page */
+		mutex_enter(&buf_pool_zip_mutex);
+		bpage->buf_fix_count--;
+		mutex_exit(&buf_pool_zip_mutex);
+
 		if (UNIV_UNLIKELY(bpage != hash_bpage)) {
 			/* The buf_pool->page_hash was modified
 			while buf_pool_mutex was released.
