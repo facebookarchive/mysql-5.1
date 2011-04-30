@@ -359,6 +359,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_AUTOINC_READ_FAILED,    ER(ER_AUTOINC_READ_FAILED));
   SETMSG(HA_ERR_AUTOINC_ERANGE,         ER(ER_WARN_DATA_OUT_OF_RANGE));
   SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER(ER_TOO_MANY_CONCURRENT_TRXS));
+  SETMSG(HA_ERR_TMP_TABLE_MAX_FILE_SIZE_EXCEEDED, ER(ER_TMP_TABLE_MAX_FILE_SIZE_EXCEEDED));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -2871,6 +2872,9 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_TOO_MANY_CONCURRENT_TRXS:
     textno= ER_TOO_MANY_CONCURRENT_TRXS;
+    break;
+  case HA_ERR_TMP_TABLE_MAX_FILE_SIZE_EXCEEDED:
+    textno= ER_TMP_TABLE_MAX_FILE_SIZE_EXCEEDED;
     break;
   default:
     {

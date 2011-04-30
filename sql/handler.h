@@ -1188,6 +1188,12 @@ public:
   */
   uint auto_inc_intervals_count;
 
+  /* Max on-disk size of the table. Set to 0 when unlimited. Otherwise,
+     this is enforced on insert and update for MyISAM temp tables. */
+  ulonglong max_bytes;
+  void set_max_bytes(ulonglong v) { max_bytes= v; }
+  ulonglong get_max_bytes() { return max_bytes; }
+
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     table_stats(NULL),
@@ -1198,7 +1204,7 @@ public:
     ft_handler(0), inited(NONE),
     locked(FALSE), implicit_emptied(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
-    auto_inc_intervals_count(0)
+    auto_inc_intervals_count(0), max_bytes(0)
     {}
   virtual ~handler(void)
   {

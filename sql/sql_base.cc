@@ -5683,6 +5683,11 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   share->tmp_table= (tmp_table->file->has_transactions() ? 
                      TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
 
+  /* I would rather put this in handler::open for specific storage engines
+     but the flags that indicate the opened table is a temp table are not
+     passed to handler::open. I think that is a bug. */
+  tmp_table->file->set_max_bytes(thd->variables.tmp_table_max_file_size);
+
   if (link_in_list)
   {
     /* growing temp list at the head */

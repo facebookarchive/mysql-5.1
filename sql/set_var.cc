@@ -689,6 +689,8 @@ static sys_var_thd_enum	sys_tx_isolation(&vars, "tx_isolation",
 					 check_tx_isolation);
 static sys_var_thd_ulonglong	sys_tmp_table_size(&vars, "tmp_table_size",
 					   &SV::tmp_table_size);
+static sys_var_thd_ulonglong	sys_tmp_table_max_file_size(&vars, "tmp_table_max_file_size",
+					   &SV::tmp_table_max_file_size);
 static sys_var_bool_ptr  sys_timed_mutexes(&vars, "timed_mutexes",
                                     &timed_mutexes);
 static sys_var_const_str	sys_version(&vars, "version", server_version);

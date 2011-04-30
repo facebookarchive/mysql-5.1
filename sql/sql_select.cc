@@ -126,7 +126,7 @@ static COND *optimize_cond(JOIN *join, COND *conds,
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
-				    ulonglong options);
+				    ulonglong options, THD *thd);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 
@@ -10605,7 +10605,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   share->db_record_offset= 1;
   if (share->db_type() == myisam_hton)
   {
-    if (create_myisam_tmp_table(table,param,select_options))
+    if (create_myisam_tmp_table(table,param,select_options,thd))
       goto err;
   }
   if (open_tmp_table(table))
@@ -10769,7 +10769,7 @@ static bool open_tmp_table(TABLE *table)
 
 
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
-				    ulonglong options)
+				    ulonglong options, THD *thd)
 {
   int error;
   MI_KEYDEF keydef;
@@ -10873,6 +10873,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
   }
   status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
   share->db_record_offset= 1;
+  table->file->set_max_bytes(thd->variables.tmp_table_max_file_size);
   DBUG_RETURN(0);
  err:
   DBUG_RETURN(1);
@@ -10963,7 +10964,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   thd_proc_info(thd, "converting HEAP to MyISAM");
 
   if (create_myisam_tmp_table(&new_table, param,
-			      thd->lex->select_lex.options | thd->options))
+			      thd->lex->select_lex.options | thd->options, thd))
     goto err2;
   if (open_tmp_table(&new_table))
     goto err1;

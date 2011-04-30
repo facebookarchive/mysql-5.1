@@ -375,6 +375,7 @@ struct system_variables
   ulonglong myisam_max_sort_file_size;
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
+  ulonglong tmp_table_max_file_size;
   ulonglong long_query_time;
   ha_rows select_limit;
   ha_rows max_join_size;

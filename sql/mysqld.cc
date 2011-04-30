@@ -6178,7 +6178,8 @@ enum options_mysqld
   OPT_LOG_QUERY_SAMPLE_RATE,
   OPT_LOG_ERROR_SAMPLE_RATE,
   OPT_ENABLE_NO_SLAVE_EXEC,
-  OPT_MYSQL_SPIN_WAIT_LOOPS
+  OPT_MYSQL_SPIN_WAIT_LOOPS,
+  OPT_TMP_TABLE_MAX_FILE_SIZE,
 };
 
 
@@ -7703,6 +7704,12 @@ thread is in the relay logs.",
    &global_system_variables.tmp_table_size,
    &max_system_variables.tmp_table_size, 0, GET_ULL,
    REQUIRED_ARG, 16*1024*1024L, 1024, MAX_MEM_TABLE_SIZE, 0, 1, 0},
+  {"tmp_table_max_file_size", OPT_TMP_TABLE_MAX_FILE_SIZE,
+   "The max size of a file to use for a temporary table. Raise an error "
+   "when this is exceeded. 0 means no limit. ",
+   &global_system_variables.tmp_table_max_file_size,
+   &max_system_variables.tmp_table_max_file_size,
+   0, GET_ULL, REQUIRED_ARG, 0, 0, ULONGLONG_MAX, 0, 0, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
    "Allocation block size for transactions to be stored in binary log.",
    &global_system_variables.trans_alloc_block_size,
