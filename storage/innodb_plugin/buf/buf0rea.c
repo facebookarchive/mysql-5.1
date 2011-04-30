@@ -47,6 +47,11 @@ read-ahead is not done: this is to prevent flooding the buffer pool with
 i/o-fixed buffer blocks */
 #define BUF_READ_AHEAD_PEND_LIMIT	2
 
+/* See ha_prototypes.h for the definition of these functions; copied
+ * here to avoid a header inclusion mess. */
+int thd_admission_control_diskio_exit(void* thd);
+void thd_admission_control_diskio_enter(void* thd, int diskio_used_for_exit);
+
 /********************************************************************//**
 Low-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there, in which case does nothing.

@@ -295,9 +295,9 @@ int show_global_mutex_status(THD *thd)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
+#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
   int num_stats;
 
-#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
   my_fastmutex_stats *fms= my_fastmutex_get_stats(&num_stats);
   int x;
   for (x= 0; x < num_stats; ++x, ++fms) {
@@ -327,8 +327,10 @@ int show_global_mutex_status(THD *thd)
   }
 
 #if defined(MY_COUNT_MUTEX_CALLERS)
-  fms= my_fastmutex_get_caller_stats(&num_stats);
-  for (x= 0; x < num_stats; ++x, ++fms)
+  int caller_num_stats;
+
+  fms= my_fastmutex_get_caller_stats(&caller_num_stats);
+  for (x= 0; x < caller_num_stats; ++x, ++fms)
   {
     if (!fms->fms_name)
       continue;

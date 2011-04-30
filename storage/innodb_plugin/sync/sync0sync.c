@@ -492,7 +492,7 @@ mutex_list_print_info(
 	while (mutex != NULL) {
 		count++;
 
-		if (os_fast_mutex_check_owned(mutex->os_fast_mutex) != 0) {
+		if (os_fast_mutex_check_owned(&mutex->os_fast_mutex) != 0) {
 			mutex_get_debug_info(mutex, &file_name, &line,
 					     &thread_id);
 			fprintf(file,
@@ -526,7 +526,7 @@ mutex_n_reserved(void)
 	mutex = UT_LIST_GET_FIRST(mutex_list);
 
 	while (mutex != NULL) {
-		if (os_fast_mutex_check_owned(mutex->os_fast_mutex)) {
+		if (os_fast_mutex_check_owned(&mutex->os_fast_mutex)) {
 			count++;
 		}
 
@@ -681,7 +681,7 @@ sync_thread_levels_g(
 						(ulong) mutex->cline);
 
 					if (os_fast_mutex_check_owned(
-					      mutex->os_fast_mutex)) {
+					      &mutex->os_fast_mutex)) {
 						const char*	file_name;
 						ulint		line;
 						os_thread_id_t	thread_id;
@@ -1357,31 +1357,37 @@ mutex_shutdown_thread_waiting_list()
 void
 mutex_remove_from_thread_waiting_list()
 {
+	/* The info variable is to avoid a compiler warning about a
+	 * test inside the UT_LIST_REMOVE macro that is always true
+	 * for a thread local variable. */
+	waiting_thread_info_t* info = &local_waiting_info;
 	waiting_thread_list_t* wtl =
 	  &waiter_lists[ut_hash_ulint((ulint) os_thread_get_curr_id(),
 				      NUM_MUTEX_WAITER_LISTS)];
 
 	os_fast_mutex_lock(&(wtl->mutex));
 	--wtl->thread_count;
-	local_waiting_info.waiting_on = NULL;
+	info->waiting_on = NULL;
 	ut_a(wtl->thread_count >= 0);
-	UT_LIST_REMOVE(list, wtl->waiting_threads, &local_waiting_info);
+	UT_LIST_REMOVE(list, wtl->waiting_threads, info);
 	os_fast_mutex_unlock(&(wtl->mutex));
 }
 
 void
 mutex_add_to_thread_waiting_list(mutex_t* mutex)
 {
+	/* Same comment as mutex_remove_from_thread_waiting_list */
+	waiting_thread_info_t* info = &local_waiting_info;
 	waiting_thread_list_t* wtl =
 	  &waiter_lists[ut_hash_ulint((ulint) os_thread_get_curr_id(),
 				      NUM_MUTEX_WAITER_LISTS)];
 
 	os_fast_mutex_lock(&(wtl->mutex));
 	++wtl->thread_count;
-	local_waiting_info.waiting_on = mutex;
-	local_waiting_info.thread_id = os_thread_get_curr_id();
-	ut_a(local_waiting_info.list.next != &local_waiting_info);
-	UT_LIST_ADD_FIRST(list, wtl->waiting_threads, &local_waiting_info);
+	info->waiting_on = mutex;
+	info->thread_id = os_thread_get_curr_id();
+	ut_a(info->list.next != info);
+	UT_LIST_ADD_FIRST(list, wtl->waiting_threads, info);
 	os_fast_mutex_unlock(&(wtl->mutex));
 }
 

@@ -120,6 +120,9 @@ mutex_enter_func(
 	ut_ad(mutex_validate(mutex));
 	ut_ad(!mutex_own(mutex));
 
+#ifdef UNIV_SYNC_DEBUG
+	mutex_set_debug_info(mutex, file_name, line);
+#endif
 	mutex_add_to_thread_waiting_list(mutex);
 	ut_d(mutex->count_using++);
 
