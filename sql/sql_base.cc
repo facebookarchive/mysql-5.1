@@ -1578,7 +1578,7 @@ void close_temporary_tables(THD *thd)
       thd->variables.character_set_client= cs_save;
       if (mysql_bin_log.write(&qinfo))
       {
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, ER_UKNOWN_ERROR,
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, ER_UNKNOWN_ERROR,
                      "Failed to write the DROP statement for temporary tables to binary log");
       }
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
