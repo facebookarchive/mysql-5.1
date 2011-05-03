@@ -452,6 +452,8 @@ static char *default_storage_engine_str;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static I_List<THD> thread_cache;
 static double long_query_time;
+static double long_slave_query_time;
+ulonglong long_slave_query_time_usecs;
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
@@ -6537,7 +6539,7 @@ each time the SQL thread starts.",
   "Log slow statements executed by slave thread to the slow log if it is open.",
   &opt_log_slow_slave_statements,
   &opt_log_slow_slave_statements,
-  0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"log_slow_queries", OPT_SLOW_QUERY_LOG,
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
@@ -7255,6 +7257,12 @@ thread is in the relay logs.",
    "microsecond precision.",
    &long_query_time, &long_query_time, 0, GET_DOUBLE,
    REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
+  {"long_slave_query_time", OPT_LONG_QUERY_TIME,
+   "Log all SQL slave queries that have taken more than long_slave_query_time "
+   "seconds to execute. The argument will be treated as a decimal value with "
+   "microsecond precision.",
+   &long_slave_query_time, &long_slave_query_time, 0, GET_DOUBLE,
+   REQUIRED_ARG, 1, 0, LONG_TIMEOUT, 0, 0, 0},
   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
    "If set to 1, table names are stored in lowercase on disk and table names "
    "will be case-insensitive.  Should be set to 2 if you are using a case-"
@@ -9377,10 +9385,13 @@ static int get_options(int *argc,char **argv)
   (*argc)++; /* add back one for the progname handle_options removes */
              /* no need to do this for argv as we are discarding it. */
 
-  if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes ||
-       opt_log_slow_slave_statements) &&
+  /*
+    Don't check for opt_log_slow_slave_statements here because it is enabled by
+    default and will generate warnings that are not worth reading.
+  */
+  if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes) &&
       !opt_slow_log)
-    sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --log_slow_queries is not set");
+    sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes have no effect if --log_slow_queries is not set");
 
 #if defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
@@ -9430,6 +9441,9 @@ static int get_options(int *argc,char **argv)
   /* long_query_time is in microseconds */
   global_system_variables.long_query_time= max_system_variables.long_query_time=
     (longlong) (long_query_time * 1000000.0);
+
+  /* long_slave_query_time_usecs is in microseconds */
+  long_slave_query_time_usecs= (longlong) (long_slave_query_time * 1000000.0);
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;

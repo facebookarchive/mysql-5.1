@@ -2138,6 +2138,7 @@ extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
 
 /* Added for patches */
+extern ulonglong long_slave_query_time_usecs;
 extern int xa_recovery_did_rollback;
 extern ulong sync_relay_info_period, sync_relay_info_events;
 

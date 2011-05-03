@@ -3272,6 +3272,14 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       const char* found_semicolon= NULL;
       mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon, &last_timer, FALSE);
       command_slave_seconds += my_fast_timer_diff_now(&init_timer, &init_timer);
+
+      /* 
+         This is a bit of a hack. As this is a session variable it would only be
+         set when the slave is restarted. I prefer to not do that. I don't want
+         to add another field to the session variable struct only for the slave.
+      */
+      thd->variables.long_query_time= long_slave_query_time_usecs;
+
       log_slow_statement(thd);
 
       /*

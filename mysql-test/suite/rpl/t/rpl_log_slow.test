@@ -1,0 +1,56 @@
+# 
+
+source include/master-slave.inc;
+source include/have_innodb.inc;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (a int);
+insert into t1 values (0);
+
+show global variables like "log_slow_slave_statements";
+show global variables like "long_slave_query_time";
+
+set global log_slow_slave_statements=OFF;
+set global long_slave_query_time=2;
+show global variables like "log_slow_slave_statements";
+show global variables like "long_slave_query_time";
+
+set global log_slow_slave_statements=ON;
+set global long_slave_query_time=1;
+show global variables like "log_slow_slave_statements";
+show global variables like "long_slave_query_time";
+
+save_master_pos;
+connection slave;
+sync_with_master;
+show global variables like "log_slow_slave_statements";
+show global variables like "long_slave_query_time";
+
+connection master;
+insert into t1 values (1);
+
+connection slave;
+set global long_slave_query_time=0;
+
+connection master;
+insert into t1 values (2);
+
+save_master_pos;
+connection slave;
+sync_with_master;
+show global variables like "log_slow_slave_statements";
+show global variables like "long_slave_query_time";
+select * from t1;
+set global long_slave_query_time=1;
+
+connection default;
+
+drop table t1;
+
+save_master_pos;
+connection slave;
+sync_with_master;
+

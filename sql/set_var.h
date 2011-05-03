@@ -1195,6 +1195,24 @@ public:
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
 };
 
+class sys_var_microseconds_ptr :public sys_var
+{
+public:
+  ulonglong *value;
+  sys_var_microseconds_ptr(sys_var_chain *chain, const char *name_arg,
+                           ulonglong *value_arg):
+    sys_var(name_arg, NULL), value(value_arg)
+  { chain_sys_var(chain); }
+  bool check(THD *thd, set_var *var) {return 0;}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  SHOW_TYPE show_type() { return SHOW_DOUBLE; }
+  bool check_update_type(Item_result type)
+  {
+    return (type != INT_RESULT && type != REAL_RESULT && type != DECIMAL_RESULT);
+  }
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+};
 
 class sys_var_trust_routine_creators :public sys_var_bool_ptr
 {
