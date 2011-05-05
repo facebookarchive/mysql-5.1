@@ -4315,9 +4315,9 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
       records= (info->param->table->file->
                 records_in_range(scan->keynr, &min_range, &max_range));
 
-      if (thd && thd->user_connect)
+      if (thd)
       {
-        USER_STATS *us= &(thd->user_connect->user_stats);
+        USER_STATS *us= thd_get_user_stats(thd);
         my_atomic_add_bigint(&(us->records_in_range_calls), 1);
       }
 
@@ -7700,9 +7700,9 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
                                                 (key_range*) 0));
     }
 
-    if (param->thd && param->thd->user_connect)
+    if (param->thd)
     {
-      USER_STATS *us= &(param->thd->user_connect->user_stats);
+      USER_STATS *us= thd_get_user_stats(param->thd);
       my_atomic_add_bigint(&(us->records_in_range_calls), 1);
     }
 

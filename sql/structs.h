@@ -307,7 +307,10 @@ typedef struct  user_conn {
   /* Maximum amount of resources which account is allowed to consume. */
   USER_RESOURCES user_resources;
 
-  /* Counts resources consumed for this user */
+  /*
+    Counts resources consumed for this user.
+    Use thd_get_user_stats(THD*) rather than USER_CONN::user_stats directly
+  */
   USER_STATS user_stats;
 
 } USER_CONN;
@@ -366,6 +369,18 @@ typedef struct st_table_stats {
   handlerton *engine_type;
 } TABLE_STATS;
 
+/*
+   Hack to provide stats for SQL replication slave as THD::user_connect is
+   not set for it. See get_user_stats.
+*/
+extern USER_STATS slave_user_stats;
+
+/*
+   Hack to provide stats for anything that doesn't have THD::user_connect except
+   the SQL slave.  See get_user_stats.
+*/
+extern USER_STATS other_user_stats;
+
 /* Resets counters to zero for all users */
 extern int
 reset_all_user_stats();
@@ -373,6 +388,15 @@ reset_all_user_stats();
 /* Intialize an instance of USER_STATS */
 extern void
 init_user_stats(USER_STATS *user_stats);
+
+/* Update counters at statement end */
+void
+update_user_stats_after_statement(USER_STATS *us,
+                                  THD *thd,
+                                  double wall_seconds,
+                                  bool is_other_command,
+                                  bool is_xid_event,
+                                  my_io_perf_t *start_perf_read);
 
 	/* Bits in form->update */
 #define REG_MAKE_DUPP		1	/* Make a copy of record when read */

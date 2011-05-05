@@ -2576,6 +2576,25 @@ public:
   my_atomic_bigint ticket;
 };
 
+/*
+  Use this to get the USER_STATS handle for a THD as THD::user_connect is not
+  set for the slave SQL replication thread and for other background threads.
+*/
+inline USER_STATS* thd_get_user_stats(THD* thd)
+{
+  if (thd->user_connect)
+  {
+    return &(thd->user_connect->user_stats);
+  }
+  else if (thd->slave_thread)
+  {
+    return &slave_user_stats;
+  }
+  else
+  {
+    return &other_user_stats;
+  }
+}
 
 /** A short cut for thd->main_da.set_ok_status(). */
 

@@ -468,6 +468,15 @@ my_bool opt_fb_always_dirty;
 my_bool opt_fb_libmcc_verbose;
 #endif
 
+/* USER_STATS for the SQL slave */
+USER_STATS slave_user_stats;
+
+/*
+  USER_STATS for everything that doesn't have THD::user_connect except
+  the SQL slave
+*/
+USER_STATS other_user_stats;
+
 bool opt_update_log, opt_bin_log, opt_ignore_builtin_innodb= 0;
 my_bool opt_log, opt_slow_log;
 ulong opt_log_query_sample_rate;
@@ -3022,8 +3031,11 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
                           MYSQL_ERROR::WARN_LEVEL_ERROR))
       DBUG_RETURN(0);
 
-    if (thd->user_connect)
-      my_atomic_add_bigint(&(thd->user_connect->user_stats.errors_total), 1);
+    if (thd)
+    {
+      USER_STATS *us= thd_get_user_stats(thd);
+      my_atomic_add_bigint(&(us->errors_total), 1);
+    }
 
     thd->is_slave_error=  1; // needed to catch query errors during replication
 
@@ -4788,6 +4800,18 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     udf_init();
 #endif
   }
+
+  /*
+    Initialize user_stats object for SQL replication thread.
+    See thd_get_user_stats.
+  */
+  init_user_stats(&slave_user_stats);
+
+  /*
+    Initialize user_stats object for everything else (not SQL slave, not a real user)
+    See thd_get_user_stats.
+  */
+  init_user_stats(&other_user_stats);
 
   init_status_vars();
   if (opt_bootstrap) /* If running with bootstrap, do not start replication. */

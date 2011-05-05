@@ -5995,9 +5995,9 @@ ha_rows ha_partition::estimate_rows(bool is_records_in_range, uint inx,
     if (is_records_in_range)
     {
       rows= m_file[part_id]->records_in_range(inx, min_key, max_key);
-      if (thd && thd->user_connect)
+      if (thd)
       {
-        USER_STATS *us= &(thd->user_connect->user_stats);
+        USER_STATS *us= thd_get_user_stats(thd);
         my_atomic_add_bigint(&(us->records_in_range_calls), 1);
       }
     }

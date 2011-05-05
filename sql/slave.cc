@@ -2225,8 +2225,53 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   if (reason == Log_event::EVENT_SKIP_COUNT)
     --rli->slave_skip_counter;
   pthread_mutex_unlock(&rli->data_lock);
+
+  /*
+     To make it easier to maintain this code as we merge to new releases,
+     I inline even more code into an already too large function.
+  */
+
   if (reason == Log_event::EVENT_SKIP_NOT)
+  {
+    my_io_perf_t start_perf_read;
+    my_fast_timer_t init_timer;
+
+    /* Initialize for user_statistics, see dispatch_command */
+    thd->reset_user_stats_counters();
+    start_perf_read = thd->io_perf_read;
+    my_get_fast_timer(&init_timer);
+
     exec_res= ev->apply_event(rli);
+
+    double wall_seconds= my_fast_timer_diff_now(&init_timer, &init_timer);
+
+    /* Update counters for USER_STATS */
+    bool is_other= FALSE;
+    bool is_xid= FALSE;
+    bool update_slave_stats= FALSE;
+
+    /* TODO: handle WRITE_ROWS_EVENT, UPDATE_ROWS_EVENT, DELETE_ROWS_EVENT */
+
+    switch (ev->get_type_code())
+    {
+      case XID_EVENT:
+        is_xid= TRUE;
+        update_slave_stats= TRUE;
+        break;
+      case QUERY_EVENT:
+        update_slave_stats= TRUE;
+        break;
+      default:
+        break;
+    }
+
+    if (update_slave_stats)
+    {
+      USER_STATS *us= thd_get_user_stats(thd);
+      update_user_stats_after_statement(us, thd, wall_seconds, is_other, is_xid,
+                                        &start_perf_read);
+    }
+  }
 
 #ifndef DBUG_OFF
   /*

@@ -1256,6 +1256,9 @@ void reset_global_user_stats()
     init_user_stats(&(uc->user_stats));
   }
 
+  init_user_stats(&slave_user_stats);
+  init_user_stats(&other_user_stats);
+
   (void) pthread_mutex_unlock(&LOCK_user_conn);
 #endif
   DBUG_VOID_RETURN;
@@ -1301,6 +1304,97 @@ void init_user_stats(USER_STATS *user_stats)
   DBUG_VOID_RETURN;
 }
 
+void
+update_user_stats_after_statement(USER_STATS *us,
+                                  THD *thd,
+                                  double wall_seconds,
+                                  bool is_other_command,
+                                  bool is_xid_event,
+                                  my_io_perf_t *start_perf_read)
+{
+  my_io_perf_t end_perf_read, diff_io_perf;
+
+  my_atomic_add_bigint(&(us->microseconds_wall),
+                       (my_atomic_bigint) (wall_seconds * 1000000));
+
+  /* COM_QUERY is counted in mysql_execute_command */
+  if (is_other_command)
+    my_atomic_add_bigint(&(us->commands_other), 1);
+
+  if (!is_xid_event)
+  {
+    my_atomic_add_bigint(&(us->rows_updated), thd->rows_updated);
+    my_atomic_add_bigint(&(us->rows_deleted), thd->rows_deleted);
+    my_atomic_add_bigint(&(us->rows_inserted), thd->rows_inserted);
+    my_atomic_add_bigint(&(us->rows_read), thd->rows_read);
+
+    my_atomic_add_bigint(&(us->rows_index_first), thd->rows_index_first);
+    my_atomic_add_bigint(&(us->rows_index_next), thd->rows_index_next);
+
+    end_perf_read = thd->io_perf_read;
+
+    my_io_perf_diff(&diff_io_perf, &end_perf_read, start_perf_read);
+    my_io_perf_sum_atomic_helper(&(us->io_perf_read), &diff_io_perf);
+  }
+  else
+  {
+    my_atomic_add_bigint(&(us->commands_transaction), 1);
+  }
+}
+
+static void
+fill_one_user_stats(TABLE *table, USER_STATS *us,
+                    const char* username, uint connections,
+                    int queries_running, int queries_waiting)
+{
+  DBUG_ENTER("fill_one_user_stats");
+  int f= 0; /* field offset */
+
+  restore_record(table, s->default_values);
+
+  table->field[f++]->store(username, strlen(username), system_charset_info);
+
+  table->field[f++]->store(us->binlog_bytes_written, TRUE);
+  table->field[f++]->store(us->bytes_received, TRUE);
+  table->field[f++]->store(us->bytes_sent, TRUE);
+  table->field[f++]->store(us->commands_ddl, TRUE);
+  table->field[f++]->store(us->commands_delete, TRUE);
+  table->field[f++]->store(us->commands_handler, TRUE);
+  table->field[f++]->store(us->commands_insert, TRUE);
+  table->field[f++]->store(us->commands_other, TRUE);
+  table->field[f++]->store(us->commands_select, TRUE);
+  table->field[f++]->store(us->commands_transaction, TRUE);
+  table->field[f++]->store(us->commands_update, TRUE);
+  /* concurrent connections for this user */
+  table->field[f++]->store(connections, TRUE);
+  table->field[f++]->store(us->connections_denied_max_global, TRUE);
+  table->field[f++]->store(us->connections_denied_max_user, TRUE);
+  table->field[f++]->store(us->connections_lost, TRUE);
+  table->field[f++]->store(us->connections_total, TRUE);
+  table->field[f++]->store(us->io_perf_read.bytes, TRUE);
+  table->field[f++]->store(us->io_perf_read.requests, TRUE);
+  table->field[f++]->store(us->io_perf_read.svc_usecs, TRUE);
+  table->field[f++]->store(us->io_perf_read.wait_usecs, TRUE);
+  table->field[f++]->store(us->errors_access_denied, TRUE);
+  table->field[f++]->store(us->errors_total, TRUE);
+  table->field[f++]->store(us->microseconds_cpu, TRUE);
+  table->field[f++]->store(us->microseconds_wall, TRUE);
+  table->field[f++]->store(us->queries_empty, TRUE);
+  table->field[f++]->store(us->records_in_range_calls, TRUE);
+  table->field[f++]->store(us->rows_deleted, TRUE);
+  table->field[f++]->store(us->rows_fetched, TRUE);
+  table->field[f++]->store(us->rows_inserted, TRUE);
+  table->field[f++]->store(us->rows_read, TRUE);
+  table->field[f++]->store(us->rows_updated, TRUE);
+  table->field[f++]->store(us->rows_index_first, TRUE);
+  table->field[f++]->store(us->rows_index_next, TRUE);
+  table->field[f++]->store(us->transactions_commit, TRUE);
+  table->field[f++]->store(us->transactions_rollback, TRUE);
+  table->field[f++]->store(queries_running, TRUE);
+  table->field[f++]->store(queries_waiting, TRUE);
+  DBUG_VOID_RETURN;
+}
+
 int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   DBUG_ENTER("fill_user_stats");
@@ -1313,57 +1407,29 @@ int fill_user_stats(THD *thd, TABLE_LIST *tables, COND *cond)
   {
     USER_CONN *user_conn= (struct user_conn *) hash_element(&hash_user_connections, idx);
     USER_STATS *us= &(user_conn->user_stats);
-    int f= 0; /* field offset */
 
-    restore_record(table, s->default_values);
-
-    table->field[f++]->store(user_conn->user, strlen(user_conn->user),
-                           system_charset_info);
-
-    table->field[f++]->store(us->binlog_bytes_written, TRUE);
-    table->field[f++]->store(us->bytes_received, TRUE);
-    table->field[f++]->store(us->bytes_sent, TRUE);
-    table->field[f++]->store(us->commands_ddl, TRUE);
-    table->field[f++]->store(us->commands_delete, TRUE);
-    table->field[f++]->store(us->commands_handler, TRUE);
-    table->field[f++]->store(us->commands_insert, TRUE);
-    table->field[f++]->store(us->commands_other, TRUE);
-    table->field[f++]->store(us->commands_select, TRUE);
-    table->field[f++]->store(us->commands_transaction, TRUE);
-    table->field[f++]->store(us->commands_update, TRUE);
-    /* concurrent connections for this user */
-    table->field[f++]->store(user_conn->connections, TRUE);
-    table->field[f++]->store(us->connections_denied_max_global, TRUE);
-    table->field[f++]->store(us->connections_denied_max_user, TRUE);
-    table->field[f++]->store(us->connections_lost, TRUE);
-    table->field[f++]->store(us->connections_total, TRUE);
-    table->field[f++]->store(us->io_perf_read.bytes, TRUE);
-    table->field[f++]->store(us->io_perf_read.requests, TRUE);
-    table->field[f++]->store(us->io_perf_read.svc_usecs, TRUE);
-    table->field[f++]->store(us->io_perf_read.wait_usecs, TRUE);
-    table->field[f++]->store(us->errors_access_denied, TRUE);
-    table->field[f++]->store(us->errors_total, TRUE);
-    table->field[f++]->store(us->microseconds_cpu, TRUE);
-    table->field[f++]->store(us->microseconds_wall, TRUE);
-    table->field[f++]->store(us->queries_empty, TRUE);
-    table->field[f++]->store(us->records_in_range_calls, TRUE);
-    table->field[f++]->store(us->rows_deleted, TRUE);
-    table->field[f++]->store(us->rows_fetched, TRUE);
-    table->field[f++]->store(us->rows_inserted, TRUE);
-    table->field[f++]->store(us->rows_read, TRUE);
-    table->field[f++]->store(us->rows_updated, TRUE);
-    table->field[f++]->store(us->rows_index_first, TRUE);
-    table->field[f++]->store(us->rows_index_next, TRUE);
-    table->field[f++]->store(us->transactions_commit, TRUE);
-    table->field[f++]->store(us->transactions_rollback, TRUE);
-    table->field[f++]->store(user_conn->queries_running, TRUE);
-    table->field[f++]->store(user_conn->queries_waiting, TRUE);
+    fill_one_user_stats(table, us, user_conn->user, user_conn->connections,
+                        user_conn->queries_running, user_conn->queries_waiting);
 
     if (schema_table_store_record(thd, table))
     {
       (void) pthread_mutex_unlock(&LOCK_user_conn);
       DBUG_RETURN(-1);
     }
+  }
+
+  fill_one_user_stats(table, &slave_user_stats, "sys:slave", 0, 0, 0);
+  if (schema_table_store_record(thd, table))
+  {
+    (void) pthread_mutex_unlock(&LOCK_user_conn);
+    DBUG_RETURN(-1);
+  }
+
+  fill_one_user_stats(table, &other_user_stats, "sys:other", 0, 0, 0);
+  if (schema_table_store_record(thd, table))
+  {
+    (void) pthread_mutex_unlock(&LOCK_user_conn);
+    DBUG_RETURN(-1);
   }
 
   (void) pthread_mutex_unlock(&LOCK_user_conn);

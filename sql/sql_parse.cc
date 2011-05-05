@@ -1776,30 +1776,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     double wall_seconds = my_fast_timer_diff_now(&init_timer, &last_timer);
     thd->status_var.command_seconds += wall_seconds;
 
-    if (thd->user_connect)
+    if (thd)
     {
-      USER_STATS *us= &(thd->user_connect->user_stats);
-      my_io_perf_t end_perf_read, diff_io_perf;
-
-      my_atomic_add_bigint(&(us->microseconds_wall),
-                           (my_atomic_bigint) (wall_seconds * 1000000));
-
-      /* COM_QUERY is counted in mysql_execute_command */
-      if (command != COM_QUERY)
-        my_atomic_add_bigint(&(us->commands_other), 1);
-
-      my_atomic_add_bigint(&(us->rows_updated), thd->rows_updated);
-      my_atomic_add_bigint(&(us->rows_deleted), thd->rows_deleted);
-      my_atomic_add_bigint(&(us->rows_inserted), thd->rows_inserted);
-      my_atomic_add_bigint(&(us->rows_read), thd->rows_read);
-
-      my_atomic_add_bigint(&(us->rows_index_first), thd->rows_index_first);
-      my_atomic_add_bigint(&(us->rows_index_next), thd->rows_index_next);
-
-      end_perf_read = thd->io_perf_read;
-      
-      my_io_perf_diff(&diff_io_perf, &end_perf_read, &start_perf_read);
-      my_io_perf_sum_atomic_helper(&(us->io_perf_read), &diff_io_perf);
+      USER_STATS *us= thd_get_user_stats(thd);
+      update_user_stats_after_statement(us, thd, wall_seconds,
+                                        command != COM_QUERY,
+                                        FALSE, &start_perf_read);
     }
   }
   DBUG_RETURN(error);
@@ -2531,9 +2513,9 @@ mysql_execute_command(THD *thd, my_fast_timer_t *last_timer,
   /* Count commands by type. Uses a separate switch statement as I don't want to
      repeat the increment of commands_other in so many cases.
   */
-  if (thd->user_connect)
+  if (thd)
   {
-    USER_STATS *us= &(thd->user_connect->user_stats);
+    USER_STATS *us= thd_get_user_stats(thd);
 
     switch (lex->sql_command) {
     case SQLCOM_UPDATE:
