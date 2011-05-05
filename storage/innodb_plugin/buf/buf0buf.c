@@ -2348,7 +2348,7 @@ wait_until_unfixed:
 
 		/* Temporarily fix the compressed page to prevent reusing it
 		   by the following call to buf_LRU_get_free_block() */
-		buf_block_buf_fix_inc(block, file, line);
+		bpage->buf_fix_count++;
 
 		/* Allocate an uncompressed page. */
 		mutex_exit(block_mutex);
