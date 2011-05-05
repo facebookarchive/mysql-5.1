@@ -49,5 +49,9 @@ a
 0
 1
 2
+set global log_slow_extra=1;
+update t1 set a = a + 10;
+update t1 set a = a + 10;
 set global long_slave_query_time=1;
+set global log_slow_extra=0;
 drop table t1;

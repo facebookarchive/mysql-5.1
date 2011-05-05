@@ -1047,8 +1047,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   my_fast_timer_t init_timer, last_timer;
   my_io_perf_t start_perf_read;   /* for USER_STATISTICS */
 
+  /* For per-query performance counters with log_slow_statement */
+  struct system_status_var query_start_status;
+  struct system_status_var *query_start_status_ptr= NULL;
+
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
+
+  if (opt_log_slow_extra)
+  {
+    query_start_status_ptr= &query_start_status;
+    query_start_status= thd->status_var;
+  }
 
   my_get_fast_timer(&init_timer);
   last_timer = init_timer;
@@ -1340,7 +1350,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       close_thread_tables(thd);
       ulong length= (ulong)(packet_end - beginning_of_next_stmt);
 
-      log_slow_statement(thd);
+      log_slow_statement(thd, query_start_status_ptr);
+
+      if (query_start_status_ptr)
+      {
+        /* Reset for values at start of next statement */
+        query_start_status= thd->status_var;
+      }
 
       /* Remove garbage at start of query */
       while (length > 0 && my_isspace(thd->charset(), *beginning_of_next_stmt))
@@ -1757,7 +1773,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   /* Free tables */
   close_thread_tables(thd);
 
-  log_slow_statement(thd);
+  log_slow_statement(thd, query_start_status_ptr);
 
   thd_proc_info(thd, "cleaning up");
   thd->set_query(NULL, 0);
@@ -1788,7 +1804,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 }
 
 
-void log_slow_statement(THD *thd)
+void log_slow_statement(THD *thd, struct system_status_var* query_start_status)
 {
   DBUG_ENTER("log_slow_statement");
 
@@ -1802,7 +1818,7 @@ void log_slow_statement(THD *thd)
 
   ulonglong end_utime_of_query= thd->current_utime();
   // log to unix datagram socket
-  log_to_datagram(thd, end_utime_of_query);
+  log_to_datagram(thd, end_utime_of_query, query_start_status);
 
   /*
     Do not log administrative statements unless the appropriate option is
@@ -1837,7 +1853,7 @@ void log_slow_statement(THD *thd)
       thd_proc_info(thd, "logging slow query");
       thd->status_var.long_query_count++;
       slow_log_print(thd, thd->query(), thd->query_length(), 
-                     end_utime_of_query);
+                     end_utime_of_query, query_start_status);
     }
   }
   DBUG_VOID_RETURN;
@@ -1846,7 +1862,8 @@ void log_slow_statement(THD *thd)
 /*
   Log to a unix local datagram socket
  */
-void log_to_datagram(THD *thd, ulonglong end_utime)
+void log_to_datagram(THD *thd, ulonglong end_utime,
+                     struct system_status_var *query_start_status)
 {
   if (log_datagram &&
       log_datagram_sock >= 0 &&
@@ -1854,7 +1871,8 @@ void log_to_datagram(THD *thd, ulonglong end_utime)
   {
     thd_proc_info(thd, "datagram logging");
 
-    if (write_log_to_socket(log_datagram_sock, thd, end_utime))
+    if (write_log_to_socket(log_datagram_sock, thd, end_utime,
+                            query_start_status))
     {
       // we don't care if the packet was dropped due to contention
       if (errno != 11)
@@ -1869,7 +1887,8 @@ void log_to_datagram(THD *thd, ulonglong end_utime)
   }
 }
 
-bool write_log_to_socket(int sockfd, THD *thd, ulonglong end_utime)
+bool write_log_to_socket(int sockfd, THD *thd, ulonglong end_utime,
+                         struct system_status_var *query_start_status)
 {
   // enough space for query plus all extra info (max 7 lines)
   size_t buf_sz = 7*80 + thd->query_length();

@@ -836,7 +836,8 @@ int error_log_print(enum loglevel level, const char *format,
                     va_list args);
 
 bool slow_log_print(THD *thd, const char *query, uint query_length,
-                    ulonglong current_utime);
+                    ulonglong current_utime,
+                    struct system_status_var *query_start_status);
 
 bool general_log_print(THD *thd, enum enum_server_command command,
                        const char *format,...);
@@ -1074,9 +1075,11 @@ int mysql_execute_command(THD *thd, my_fast_timer_t *last_timer,
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
-void log_slow_statement(THD *thd);
-void log_to_datagram(THD *thd, ulonglong end_utime_of_query);
-bool write_log_to_socket(int sockfd, THD *thd, ulonglong end_utime_of_query);
+void log_slow_statement(THD *thd, struct system_status_var* query_start_status);
+void log_to_datagram(THD *thd, ulonglong end_utime_of_query,
+                     struct system_status_var* query_start_status);
+bool write_log_to_socket(int sockfd, THD *thd, ulonglong end_utime_of_query,
+                         struct system_status_var* query_start_status);
 void setup_datagram_socket(THD *thd, enum_var_type type);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 bool compare_record(TABLE *table);

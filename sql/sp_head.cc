@@ -2901,7 +2901,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       query_cache_end_of_result(thd);
 
       if (!res && unlikely(thd->enable_slow_log))
-        log_slow_statement(thd);
+        log_slow_statement(thd, NULL);
     }
     else
       *nextp= m_ip+1;

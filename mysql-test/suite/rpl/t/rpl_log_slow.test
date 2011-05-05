@@ -44,7 +44,17 @@ sync_with_master;
 show global variables like "log_slow_slave_statements";
 show global variables like "long_slave_query_time";
 select * from t1;
+set global log_slow_extra=1;
+
+connection master;
+update t1 set a = a + 10;
+update t1 set a = a + 10;
+
+save_master_pos;
+connection slave;
+sync_with_master;
 set global long_slave_query_time=1;
+set global log_slow_extra=0;
 
 connection default;
 

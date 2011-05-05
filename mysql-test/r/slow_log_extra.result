@@ -14,3 +14,53 @@ ERROR 42S02: Table 'test.foobar' doesn't exist
 set global log_error_sample_rate=0;
 select * from foobar;
 ERROR 42S02: Table 'test.foobar' doesn't exist
+set global long_query_time=0;
+drop table if exists islow;
+drop table if exists mslow;
+create table islow(i int) engine=innodb;
+insert into islow values (1), (2), (3), (4), (5), (6), (7), (8);
+create table mslow(i int) engine=myisam;
+insert into mslow values (1), (2), (3), (4), (5), (6), (7), (8);
+select * from islow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+select * from islow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+select * from mslow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+select * from mslow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+set global long_query_time=1;
+drop table islow;
+drop table mslow;
