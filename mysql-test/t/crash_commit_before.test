@@ -1,3 +1,12 @@
+#
+# Verify crash recovery works
+#
+
+#
+# record the file format in order to restore in the end.
+#
+--let $file_format_check_save = `SELECT @@innodb_file_format_check`
+
 -- source include/not_embedded.inc
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
@@ -33,3 +42,7 @@ SELECT * FROM t1;
 
 
 DROP TABLE t1;
+
+# restore innodb_file_format and innodb_file_format_check
+eval SET GLOBAL innodb_file_format_check = \"$file_format_check_save\";
+
