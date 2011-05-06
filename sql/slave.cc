@@ -141,6 +141,14 @@ ulong sync_relay_info_events= 0;
 /* Sync every sync_relay_info_period writes to relay-log.info */
 ulong sync_relay_info_period= 0;
 
+/* Count binlog events by type processed by the SQL slave */
+ulonglong repl_event_counts[ENUM_END_EVENT] = { 0 };
+ulonglong repl_event_count_other= 0;
+
+/* Time binlog events by type processed by the SQL slave */
+double repl_event_times[ENUM_END_EVENT] = { 0.0 };
+double repl_event_time_other= 0;
+
 enum enum_slave_reconnect_actions
 {
   SLAVE_RECON_ACT_REG= 0,
@@ -2249,6 +2257,17 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
     bool is_other= FALSE;
     bool is_xid= FALSE;
     bool update_slave_stats= FALSE;
+
+    if (ev->get_type_code() < ENUM_END_EVENT)
+    {
+      repl_event_counts[ev->get_type_code()] += 1;
+      repl_event_times[ev->get_type_code()] += wall_seconds;
+    }
+    else
+    {
+      repl_event_count_other += 1;
+      repl_event_time_other += wall_seconds;
+    }
 
     /* TODO: handle WRITE_ROWS_EVENT, UPDATE_ROWS_EVENT, DELETE_ROWS_EVENT */
 
