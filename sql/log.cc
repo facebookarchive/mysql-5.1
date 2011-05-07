@@ -4050,6 +4050,8 @@ end:
 bool MYSQL_BIN_LOG::append(Log_event* ev)
 {
   bool error = 0;
+  USER_STATS *us= current_thd ? thd_get_user_stats(current_thd) : NULL;
+
   pthread_mutex_lock(&LOCK_log);
   DBUG_ENTER("MYSQL_BIN_LOG::append");
 
@@ -4064,6 +4066,9 @@ bool MYSQL_BIN_LOG::append(Log_event* ev)
     goto err;
   }
   bytes_written+= ev->data_written;
+  if (us)
+    my_atomic_add_bigint(&(us->binlog_bytes_written), ev->data_written);
+
   DBUG_PRINT("info",("max_size: %lu",max_size));
   if ((uint) my_b_append_tell(&log_file) > max_size)
     new_file_without_locking();
@@ -4078,6 +4083,7 @@ err:
 bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
 {
   bool error= 0;
+  USER_STATS *us= current_thd ? thd_get_user_stats(current_thd) : NULL;
   DBUG_ENTER("MYSQL_BIN_LOG::appendv");
   va_list(args);
   va_start(args,len);
@@ -4093,6 +4099,8 @@ bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
       goto err;
     }
     bytes_written += len;
+    if (us)
+      my_atomic_add_bigint(&(us->binlog_bytes_written), len);
   } while ((buf=va_arg(args,const char*)) && (len=va_arg(args,uint)));
   DBUG_PRINT("info",("max_size: %lu",max_size));
   if ((uint) my_b_append_tell(&log_file) > max_size)
@@ -4583,6 +4591,16 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       DBUG_RETURN(1);
     }
 
+    if (file == &log_file)
+    {
+      USER_STATS *us= current_thd ? thd_get_user_stats(current_thd) : NULL;
+      if (us)
+      {
+        my_atomic_add_bigint(&(us->binlog_bytes_written),
+                             pending->data_written);
+      }
+    }
+
     delete pending;
 
     if (file == &log_file)
@@ -4612,6 +4630,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
   THD *thd= event_info->thd;
   bool error= 1;
   IO_CACHE *file= NULL;
+  USER_STATS *us= thd ? thd_get_user_stats(thd) : NULL;
+  my_atomic_bigint written= 0;
+
   DBUG_ENTER("MYSQL_BIN_LOG::write(Log_event *)");
 
   if (thd->binlog_evt_union.do_union)
@@ -4738,6 +4759,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
                              thd->first_successful_insert_id_in_prev_stmt_for_binlog);
           if (e.write(file))
             goto err;
+          written += e.data_written;
         }
         if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
         {
@@ -4749,12 +4771,14 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
                              minimum());
           if (e.write(file))
             goto err;
+          written += e.data_written;
         }
         if (thd->rand_used)
         {
           Rand_log_event e(thd,thd->rand_saved_seed1,thd->rand_saved_seed2);
           if (e.write(file))
             goto err;
+          written += e.data_written;
         }
         if (thd->user_var_events.elements)
         {
@@ -4770,6 +4794,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
                                  user_var_event->charset_number);
             if (e.write(file))
               goto err;
+            written += e.data_written;
           }
         }
       }
@@ -4782,6 +4807,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     if (event_info->write(file) ||
         DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
       goto err;
+    written += event_info->data_written;
 
     if (file == &log_file) // we are writing to the real log (disk)
     {
@@ -4789,6 +4815,8 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 	goto err;
       signal_update();
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
+      if (us)
+        my_atomic_add_bigint(&(us->binlog_bytes_written), written);
     }
     error=0;
 
@@ -5093,6 +5121,7 @@ int query_error_code(THD *thd, bool not_killed)
 bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
 {
   uint error= 0;
+  USER_STATS *us= thd ? thd_get_user_stats(thd) : NULL;
   DBUG_ENTER("MYSQL_BIN_LOG::write_incident");
   LEX_STRING const write_error_msg=
     { C_STRING_WITH_LEN("error writing to the binary log") };
@@ -5103,6 +5132,9 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
     dequeue_thread_in_order(thd);
   }
   error= ev.write(&log_file);
+  if (us)
+    my_atomic_add_bigint(&(us->binlog_bytes_written), ev.data_written);
+
   if (lock)
   {
     if (!error && !(error= flush_and_sync(thd)))
@@ -5142,6 +5174,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
 bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
                           bool incident)
 {
+  USER_STATS *us= thd ? thd_get_user_stats(thd) : NULL;
   DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
   VOID(pthread_mutex_lock(&LOCK_log));
   dequeue_thread_in_order(thd);
@@ -5175,6 +5208,8 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
       */
       if (qinfo.write(&log_file))
         goto err;
+      if (us)
+        my_atomic_add_bigint(&(us->binlog_bytes_written), qinfo.data_written);
 
       DBUG_EXECUTE_IF("crash_before_writing_xid",
                       {
@@ -5188,9 +5223,13 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
 
       if ((write_error= write_cache(cache, false)))
         goto err;
+      if (us)
+        my_atomic_add_bigint(&(us->binlog_bytes_written), my_b_tell(cache));
 
       if (commit_event && commit_event->write(&log_file))
         goto err;
+      if (commit_event && us)
+        my_atomic_add_bigint(&(us->binlog_bytes_written), qinfo.data_written);
 
       if (incident && write_incident(thd, FALSE))
         goto err;

@@ -232,6 +232,7 @@ typedef struct st_user_stats {
   my_atomic_bigint errors_access_denied;          // denied access to table or db
   my_atomic_bigint errors_total;
   my_atomic_bigint microseconds_cpu;
+  my_atomic_bigint microseconds_records_in_range;
   my_atomic_bigint microseconds_wall;
   my_atomic_bigint queries_empty;
   my_atomic_bigint records_in_range_calls;

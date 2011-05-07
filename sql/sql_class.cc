@@ -43,6 +43,7 @@
 #include "sp_rcontext.h"
 #include "sp_cache.h"
 #include "debug_sync.h"
+#include "my_atomic.h"
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -2895,6 +2896,9 @@ void thd_increment_bytes_sent(ulong length)
   if (likely(thd != 0))
   { /* current_thd==0 when close_connection() calls net_send_error() */
     thd->status_var.bytes_sent+= length;
+
+    USER_STATS *us= thd_get_user_stats(thd);
+    my_atomic_add_bigint(&(us->bytes_sent), length);
   }
 }
 
@@ -2902,6 +2906,8 @@ void thd_increment_bytes_sent(ulong length)
 void thd_increment_bytes_received(ulong length)
 {
   current_thd->status_var.bytes_received+= length;
+  USER_STATS *us= thd_get_user_stats(current_thd);
+  my_atomic_add_bigint(&(us->bytes_received), length);
 }
 
 

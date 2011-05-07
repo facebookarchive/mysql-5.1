@@ -1800,6 +1800,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                                         FALSE, &start_perf_read);
     }
   }
+
+  if (thd->lex->sql_command == SQLCOM_SELECT && thd->sent_row_count == 0)
+  {
+    USER_STATS *us= thd_get_user_stats(thd);
+    my_atomic_add_bigint(&(us->queries_empty), 1);
+  }    
+
   DBUG_RETURN(error);
 }
 

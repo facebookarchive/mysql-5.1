@@ -4296,6 +4296,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
     {
       /* create (part1val, ..., part{n-1}val) tuple. */
       ha_rows records;
+      my_fast_timer_t range_timer;
+
       if (!tuple_arg)
       {
         tuple_arg= scan->sel_arg;
@@ -4312,12 +4314,19 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
       }
       min_range.length= max_range.length= (size_t) (key_ptr - key_val);
       min_range.keypart_map= max_range.keypart_map= keypart_map;
+
+      my_get_fast_timer(&range_timer);
       records= (info->param->table->file->
                 records_in_range(scan->keynr, &min_range, &max_range));
 
       if (thd)
       {
         USER_STATS *us= thd_get_user_stats(thd);
+        my_atomic_bigint range_microsecs=
+            my_fast_timer_diff_now(&range_timer, NULL) * 1000000.0;
+
+        my_atomic_add_bigint(&(us->microseconds_records_in_range),
+                             range_microsecs);
         my_atomic_add_bigint(&(us->records_in_range_calls), 1);
       }
 
@@ -7648,6 +7657,8 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
   }
   else
   {
+    my_fast_timer_t range_timer;
+
     if (param->is_ror_scan)
     {
       /*
@@ -7676,6 +7687,7 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
       /* In this case tmp_min_flag contains the handler-read-function */
       min_range.flag=   (ha_rkey_function) (tmp_min_flag ^ GEOM_FLAG);
 
+      my_get_fast_timer(&range_timer);
       tmp= param->table->file->records_in_range(keynr,
                                                 &min_range, (key_range*) 0);
     }
@@ -7693,6 +7705,7 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
       max_range.flag=   (tmp_max_flag & NEAR_MAX ?
                          HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY);
       max_range.keypart_map= make_keypart_map(tmp_max_keypart);
+      my_get_fast_timer(&range_timer);
       tmp=param->table->file->records_in_range(keynr,
                                                (min_key_length ? &min_range :
                                                 (key_range*) 0),
@@ -7703,6 +7716,11 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
     if (param->thd)
     {
       USER_STATS *us= thd_get_user_stats(param->thd);
+      my_atomic_bigint range_microsecs=
+          my_fast_timer_diff_now(&range_timer, NULL) * 1000000.0;
+
+      my_atomic_add_bigint(&(us->microseconds_records_in_range),
+                           range_microsecs);
       my_atomic_add_bigint(&(us->records_in_range_calls), 1);
     }
 

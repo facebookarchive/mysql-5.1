@@ -1255,6 +1255,11 @@ int ha_commit_one_phase(THD *thd, bool all)
         error=1;
       }
       status_var_increment(thd->status_var.ha_commit_count);
+      if (is_real_trans)
+      {
+        USER_STATS *us= thd_get_user_stats(thd);
+        my_atomic_add_bigint(&(us->transactions_commit), 1);
+      }
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
@@ -1329,6 +1334,8 @@ int ha_rollback_trans(THD *thd, bool all)
         error=1;
       }
       status_var_increment(thd->status_var.ha_rollback_count);
+      USER_STATS *us= thd_get_user_stats(thd);
+      my_atomic_add_bigint(&(us->transactions_rollback), 1);
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
@@ -1778,6 +1785,8 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
       error=1;
     }
     status_var_increment(thd->status_var.ha_rollback_count);
+    USER_STATS *us= thd_get_user_stats(thd);
+    my_atomic_add_bigint(&(us->transactions_rollback), 1);
     ha_info_next= ha_info->next();
     ha_info->reset(); /* keep it conveniently zero-filled */
   }

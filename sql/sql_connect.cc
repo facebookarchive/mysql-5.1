@@ -1288,6 +1288,7 @@ void init_user_stats(USER_STATS *user_stats)
   user_stats->errors_access_denied= 0;
   user_stats->errors_total= 0;
   user_stats->microseconds_cpu= 0;
+  user_stats->microseconds_records_in_range= 0;
   user_stats->microseconds_wall= 0;
   user_stats->queries_empty= 0;
   user_stats->records_in_range_calls= 0;
@@ -1378,6 +1379,7 @@ fill_one_user_stats(TABLE *table, USER_STATS *us,
   table->field[f++]->store(us->errors_access_denied, TRUE);
   table->field[f++]->store(us->errors_total, TRUE);
   table->field[f++]->store(us->microseconds_cpu, TRUE);
+  table->field[f++]->store(us->microseconds_records_in_range, TRUE);
   table->field[f++]->store(us->microseconds_wall, TRUE);
   table->field[f++]->store(us->queries_empty, TRUE);
   table->field[f++]->store(us->records_in_range_calls, TRUE);
