@@ -2308,7 +2308,9 @@ bool sp_process_definer(THD *thd)
 */
 
 int
-mysql_execute_command(THD *thd, my_fast_timer_t *last_timer,
+mysql_execute_command(THD *thd,
+                      my_fast_timer_t *statement_start,
+                      my_fast_timer_t *post_parse,
                       my_bool use_admission_control)
 {
   int res= FALSE;
@@ -2536,60 +2538,6 @@ mysql_execute_command(THD *thd, my_fast_timer_t *last_timer,
     }
   }
 
-  /* Count commands by type. Uses a separate switch statement as I don't want to
-     repeat the increment of commands_other in so many cases.
-  */
-  if (thd)
-  {
-    USER_STATS *us= thd_get_user_stats(thd);
-
-    switch (lex->sql_command) {
-    case SQLCOM_UPDATE:
-    case SQLCOM_UPDATE_MULTI:
-      my_atomic_add_bigint(&(us->commands_update), 1);
-      break;
-    case SQLCOM_DELETE:
-    case SQLCOM_DELETE_MULTI:
-    case SQLCOM_TRUNCATE:
-      my_atomic_add_bigint(&(us->commands_delete), 1);
-      break;
-    case SQLCOM_INSERT:
-    case SQLCOM_INSERT_SELECT:
-    case SQLCOM_REPLACE:
-    case SQLCOM_REPLACE_SELECT:
-    case SQLCOM_LOAD:
-      my_atomic_add_bigint(&(us->commands_insert), 1);
-      break;
-    case SQLCOM_SELECT:
-      my_atomic_add_bigint(&(us->commands_select), 1);
-      break;
-    case SQLCOM_CREATE_TABLE:
-    case SQLCOM_ALTER_TABLE:
-    case SQLCOM_DROP_TABLE:
-    case SQLCOM_CREATE_INDEX:
-    case SQLCOM_DROP_INDEX:
-    case SQLCOM_CREATE_DB:
-    case SQLCOM_DROP_DB:
-    case SQLCOM_ALTER_DB:
-      my_atomic_add_bigint(&(us->commands_ddl), 1);
-      break;
-    case SQLCOM_BEGIN:
-    case SQLCOM_COMMIT:
-    case SQLCOM_ROLLBACK:
-      my_atomic_add_bigint(&(us->commands_transaction), 1);
-      break;
-    case SQLCOM_HA_CLOSE:
-    case SQLCOM_HA_OPEN:
-    case SQLCOM_HA_READ:
-    case SQLCOM_HA_OPEN_READ_CLOSE:
-      my_atomic_add_bigint(&(us->commands_handler), 1);
-      break;
-    default:
-      my_atomic_add_bigint(&(us->commands_other), 1);
-      break;
-    }
-  }
-  
   switch (lex->sql_command) {
 
   case SQLCOM_SHOW_EVENTS:
@@ -2600,14 +2548,14 @@ mysql_execute_command(THD *thd, my_fast_timer_t *last_timer,
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
     if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
-      res= execute_sqlcom_select(thd, all_tables, last_timer);
+      res= execute_sqlcom_select(thd, all_tables, post_parse);
     break;
   case SQLCOM_SHOW_STATUS:
   {
     system_status_var old_status_var= thd->status_var;
     thd->initial_status_var= &old_status_var;
     if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
-      res= execute_sqlcom_select(thd, all_tables, last_timer);
+      res= execute_sqlcom_select(thd, all_tables, post_parse);
     /* Don't log SHOW STATUS commands to slow query log */
     thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
                            SERVER_QUERY_NO_GOOD_INDEX_USED);
@@ -2656,7 +2604,7 @@ mysql_execute_command(THD *thd, my_fast_timer_t *last_timer,
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       break;
 
-    res= execute_sqlcom_select(thd, all_tables, last_timer);
+    res= execute_sqlcom_select(thd, all_tables, post_parse);
     break;
   case SQLCOM_PREPARE:
   {
@@ -5481,14 +5429,78 @@ error:
 
 finish:
 
+  /* Count commands by type. Uses a separate switch statement as I don't want to
+     repeat the increment of commands_other in so many cases.
+  */
+  if (thd)
+  {
+    USER_STATS *us= thd_get_user_stats(thd);
+    my_atomic_bigint microsecs=
+        my_fast_timer_diff_now(statement_start, NULL) * 1000000.0;
+
+    switch (lex->sql_command) {
+    case SQLCOM_UPDATE:
+    case SQLCOM_UPDATE_MULTI:
+      my_atomic_add_bigint(&(us->commands_update), 1);
+      my_atomic_add_bigint(&(us->microseconds_update), microsecs);
+      break;
+    case SQLCOM_DELETE:
+    case SQLCOM_DELETE_MULTI:
+      my_atomic_add_bigint(&(us->commands_delete), 1);
+      my_atomic_add_bigint(&(us->microseconds_delete), microsecs);
+      break;
+    case SQLCOM_INSERT:
+    case SQLCOM_INSERT_SELECT:
+    case SQLCOM_REPLACE:
+    case SQLCOM_REPLACE_SELECT:
+    case SQLCOM_LOAD:
+      my_atomic_add_bigint(&(us->commands_insert), 1);
+      my_atomic_add_bigint(&(us->microseconds_insert), microsecs);
+      break;
+    case SQLCOM_SELECT:
+      my_atomic_add_bigint(&(us->commands_select), 1);
+      my_atomic_add_bigint(&(us->microseconds_select), microsecs);
+      break;
+    case SQLCOM_CREATE_TABLE:
+    case SQLCOM_ALTER_TABLE:
+    case SQLCOM_DROP_TABLE:
+    case SQLCOM_CREATE_INDEX:
+    case SQLCOM_DROP_INDEX:
+    case SQLCOM_CREATE_DB:
+    case SQLCOM_DROP_DB:
+    case SQLCOM_ALTER_DB:
+    case SQLCOM_TRUNCATE:
+      my_atomic_add_bigint(&(us->commands_ddl), 1);
+      my_atomic_add_bigint(&(us->microseconds_other), microsecs);
+      break;
+    case SQLCOM_BEGIN:
+    case SQLCOM_COMMIT:
+    case SQLCOM_ROLLBACK:
+      my_atomic_add_bigint(&(us->commands_transaction), 1);
+      my_atomic_add_bigint(&(us->microseconds_transaction), microsecs);
+      break;
+    case SQLCOM_HA_CLOSE:
+    case SQLCOM_HA_OPEN:
+    case SQLCOM_HA_READ:
+    case SQLCOM_HA_OPEN_READ_CLOSE:
+      my_atomic_add_bigint(&(us->commands_handler), 1);
+      my_atomic_add_bigint(&(us->microseconds_handler), microsecs);
+      break;
+    default:
+      my_atomic_add_bigint(&(us->commands_other), 1);
+      my_atomic_add_bigint(&(us->microseconds_other), microsecs);
+      break;
+    }
+  }
+
   if (setup_ac)
   {
     admission_control_exit(thd);
   }
 
-  if (last_timer && lex->sql_command != SQLCOM_SELECT)
+  if (post_parse && lex->sql_command != SQLCOM_SELECT)
   {
-    thd->status_var.exec_seconds += my_fast_timer_diff_now(last_timer, last_timer);
+    thd->status_var.exec_seconds += my_fast_timer_diff_now(post_parse, post_parse);
   }
   if (need_start_waiting)
   {
@@ -6469,9 +6481,17 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                  const char ** found_semicolon, my_fast_timer_t *last_timer,
                  my_bool use_admission_control)
 {
+  my_fast_timer_t statement_start;
+
   DBUG_ENTER("mysql_parse");
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
+
+
+  if (last_timer)
+    statement_start= *last_timer;
+  else
+    my_get_fast_timer(&statement_start);
 
   /*
     Warning.
@@ -6548,7 +6568,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
             thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           }
           lex->set_trg_event_type_for_tables();
-          mysql_execute_command(thd, last_timer, use_admission_control);
+          mysql_execute_command(thd, &statement_start, last_timer,
+                                use_admission_control);
 	}
       }
     }

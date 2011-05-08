@@ -3624,7 +3624,11 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     if (query_cache_send_result_to_client(thd, thd->query(),
                                           thd->query_length()) <= 0)
     {
-      error= mysql_execute_command(thd, NULL,FALSE);
+      my_fast_timer_t start, last;
+      my_get_fast_timer(&start);
+      last= start;
+
+      error= mysql_execute_command(thd, &start, &last, FALSE);
     }
   }
 

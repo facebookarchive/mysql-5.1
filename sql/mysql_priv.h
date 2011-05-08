@@ -1070,7 +1070,8 @@ void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
 pthread_handler_t handle_bootstrap(void *arg);
-int mysql_execute_command(THD *thd, my_fast_timer_t *last_timer,
+int mysql_execute_command(THD *thd, my_fast_timer_t *statement_start,
+                          my_fast_timer_t *post_parse,
                           my_bool use_admission_control);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,

@@ -169,7 +169,11 @@ int mysql_open_cursor(THD *thd, uint flags, select_result *result,
     thd->cursor= sensitive_cursor;
   }
 
-  rc= mysql_execute_command(thd, NULL, FALSE);
+  my_fast_timer_t start, last;
+  my_get_fast_timer(&start);
+  last= start;
+
+  rc= mysql_execute_command(thd, &start, &last, FALSE);
 
   lex->result= save_result;
   thd->lock_id= &thd->main_lock_id;

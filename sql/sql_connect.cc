@@ -1290,6 +1290,14 @@ void init_user_stats(USER_STATS *user_stats)
   user_stats->microseconds_cpu= 0;
   user_stats->microseconds_records_in_range= 0;
   user_stats->microseconds_wall= 0;
+  user_stats->microseconds_ddl= 0;
+  user_stats->microseconds_delete= 0;
+  user_stats->microseconds_handler= 0;
+  user_stats->microseconds_insert= 0;
+  user_stats->microseconds_other= 0;
+  user_stats->microseconds_select= 0;
+  user_stats->microseconds_transaction= 0;
+  user_stats->microseconds_update= 0;
   user_stats->queries_empty= 0;
   user_stats->records_in_range_calls= 0;
   user_stats->rows_deleted= 0;
@@ -1314,13 +1322,16 @@ update_user_stats_after_statement(USER_STATS *us,
                                   my_io_perf_t *start_perf_read)
 {
   my_io_perf_t end_perf_read, diff_io_perf;
+  my_atomic_bigint wall_microsecs= wall_seconds * 1000000.0;
 
-  my_atomic_add_bigint(&(us->microseconds_wall),
-                       (my_atomic_bigint) (wall_seconds * 1000000));
+  my_atomic_add_bigint(&(us->microseconds_wall), wall_microsecs);
 
   /* COM_QUERY is counted in mysql_execute_command */
   if (is_other_command)
+  {
     my_atomic_add_bigint(&(us->commands_other), 1);
+    my_atomic_add_bigint(&(us->microseconds_other), wall_microsecs);
+  }
 
   if (!is_xid_event)
   {
@@ -1340,6 +1351,7 @@ update_user_stats_after_statement(USER_STATS *us,
   else
   {
     my_atomic_add_bigint(&(us->commands_transaction), 1);
+    my_atomic_add_bigint(&(us->microseconds_transaction), wall_microsecs);
   }
 }
 
@@ -1381,6 +1393,14 @@ fill_one_user_stats(TABLE *table, USER_STATS *us,
   table->field[f++]->store(us->microseconds_cpu, TRUE);
   table->field[f++]->store(us->microseconds_records_in_range, TRUE);
   table->field[f++]->store(us->microseconds_wall, TRUE);
+  table->field[f++]->store(us->microseconds_ddl, TRUE);
+  table->field[f++]->store(us->microseconds_delete, TRUE);
+  table->field[f++]->store(us->microseconds_handler, TRUE);
+  table->field[f++]->store(us->microseconds_insert, TRUE);
+  table->field[f++]->store(us->microseconds_other, TRUE);
+  table->field[f++]->store(us->microseconds_select, TRUE);
+  table->field[f++]->store(us->microseconds_transaction, TRUE);
+  table->field[f++]->store(us->microseconds_update, TRUE);
   table->field[f++]->store(us->queries_empty, TRUE);
   table->field[f++]->store(us->records_in_range_calls, TRUE);
   table->field[f++]->store(us->rows_deleted, TRUE);
