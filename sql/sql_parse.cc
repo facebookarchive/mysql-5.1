@@ -2811,14 +2811,6 @@ mysql_execute_command(THD *thd,
     break;
   }
 
-  case SQLCOM_SHOW_GLOBAL_MUTEX_STATUS:
-  {
-    if (check_global_access(thd, SUPER_ACL | PROCESS_ACL))
-      goto error;
-    res = show_global_mutex_status(thd);
-    break;
-  }
-
   case SQLCOM_LOAD_MASTER_DATA: // sync with master
     if (check_global_access(thd, SUPER_ACL))
       goto error;

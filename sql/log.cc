@@ -2066,7 +2066,7 @@ void MYSQL_LOG::init_pthread_objects()
 {
   DBUG_ASSERT(inited == 0);
   inited= 1;
-  (void) pthread_mutex_init(&LOCK_log, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_log, MY_MUTEX_INIT_SLOW);
 }
 
 /*
@@ -2610,8 +2610,8 @@ void MYSQL_BIN_LOG::init_pthread_objects()
 {
   DBUG_ASSERT(inited == 0);
   inited= 1;
-  (void) pthread_mutex_init(&LOCK_log, MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_log, MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
   (void) pthread_cond_init(&update_cond, 0);
   for (int i=0; i < NUM_BINLOG_COMMIT_COND; i++)
   {

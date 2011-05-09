@@ -144,8 +144,8 @@ my_bool my_thread_global_init(void)
   pthread_mutex_init(&THR_LOCK_malloc,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_open,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_lock,MY_MUTEX_INIT_FAST);
-  pthread_mutex_init(&THR_LOCK_isam,MY_MUTEX_INIT_FAST);
-  pthread_mutex_init(&THR_LOCK_myisam,MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&THR_LOCK_isam,MY_MUTEX_INIT_SLOW);
+  pthread_mutex_init(&THR_LOCK_myisam,MY_MUTEX_INIT_SLOW);
   pthread_mutex_init(&THR_LOCK_myisam_mmap,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_heap,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_net,MY_MUTEX_INIT_FAST);
@@ -157,10 +157,10 @@ my_bool my_thread_global_init(void)
   win_pthread_init();
 #endif
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  pthread_mutex_init(&LOCK_localtime_r,MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_localtime_r,MY_MUTEX_INIT_SLOW);
 #endif
 #ifndef HAVE_GETHOSTBYNAME_R
-  pthread_mutex_init(&LOCK_gethostbyname_r,MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_gethostbyname_r,MY_MUTEX_INIT_SLOW);
 #endif
   if (my_thread_init())
   {

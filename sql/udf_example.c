@@ -721,7 +721,7 @@ my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   initid->max_length=11;
   initid->maybe_null=1;
 #if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
-  (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
 #endif
   return 0;
 }
@@ -801,7 +801,7 @@ my_bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   initid->max_length=32;
   initid->maybe_null=1;
 #if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
-  (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
 #endif
   return 0;
 }

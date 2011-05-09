@@ -1344,7 +1344,6 @@ bool mysql_do(THD *thd, List<Item> &values);
 bool append_escaped(String *to_str, String *from_str);
 
 /* sql_show.cc */
-int show_global_mutex_status(THD *thd);
 bool mysqld_show_open_tables(THD *thd,const char *wild);
 bool mysqld_show_logs(THD *thd);
 void append_identifier(THD *thd, String *packet, const char *name,
@@ -1995,7 +1994,6 @@ extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
 extern ulong rpl_recovery_rank, thread_cache_size, thread_pool_size;
 extern ulong back_log;
-extern long opt_max_spin_wait_loops;
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern ulong MYSQL_PLUGIN_IMPORT specialflag;

@@ -487,8 +487,6 @@ typedef struct st_safe_mutex_info_t
 int safe_mutex_init(safe_mutex_t *mp, const pthread_mutexattr_t *attr,
                     const char *file, uint line);
 int safe_mutex_lock(safe_mutex_t *mp, my_bool try_lock, const char *file, uint line);
-int safe_mutex_timedlock(safe_mutex_t *mp, const struct timespec *abs_timeout,
-                         const char *file, uint line);
 int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line);
 int safe_mutex_destroy(safe_mutex_t *mp,const char *file, uint line);
 int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp,const char *file,
@@ -502,7 +500,6 @@ void safe_mutex_end(FILE *file);
 #ifdef SAFE_MUTEX
 #undef pthread_mutex_init
 #undef pthread_mutex_lock
-#undef pthread_mutex_timedlock
 #undef pthread_mutex_unlock
 #undef pthread_mutex_destroy
 #undef pthread_mutex_wait
@@ -513,7 +510,6 @@ void safe_mutex_end(FILE *file);
 #undef pthread_mutex_trylock
 #define pthread_mutex_init(A,B) safe_mutex_init((A),(B),__FILE__,__LINE__)
 #define pthread_mutex_lock(A) safe_mutex_lock((A), FALSE, __FILE__, __LINE__)
-#define pthread_mutex_timedlock(A, B) safe_mutex_timedlock((A), (B), __FILE__, __LINE__)
 #define pthread_mutex_unlock(A) safe_mutex_unlock((A),__FILE__,__LINE__)
 #define pthread_mutex_destroy(A) safe_mutex_destroy((A),__FILE__,__LINE__)
 #define pthread_cond_wait(A,B) safe_cond_wait((A),(B),__FILE__,__LINE__)
@@ -535,75 +531,17 @@ void safe_mutex_end(FILE *file);
 typedef struct st_my_pthread_fastmutex_t
 {
   pthread_mutex_t mutex;
-  uint fast_spins;
-  uint slow_spins;
-  ulong stats_index;
+  uint spins;
   uint rng_state;
 } my_pthread_fastmutex_t;
-extern void fastmutex_global_init();
-extern void my_fastmutex_set_max_spin_wait_loops(long spin_wait_loops);
-extern ulong my_fastmutex_delay(void);
+void fastmutex_global_init(void);
 
-extern int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp, 
-                                     const pthread_mutexattr_t *attr,
-                                     const char* caller, const int line);
-extern int my_pthread_fastmutex_init_by_name(my_pthread_fastmutex_t *mp, 
-                                             const pthread_mutexattr_t *attr,
-                                             const char* caller);
-#if defined(MY_COUNT_MUTEX_CALLERS)
-extern int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp,
-                                     const char* caller, int line);
-extern int my_pthread_fastmutex_timedlock(my_pthread_fastmutex_t *mp,
-                                          const struct timespec *abs_timeout,
-                                          const char* caller, int line);
-#else
-extern int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
-extern int my_pthread_fastmutex_timedlock(my_pthread_fastmutex_t *mp,
-                                          const struct timespec *abs_timeout);
-#endif
-
-/* Returns aggregated result over all mutexes and rw-locks. sleeps, spins
- * locks and num_mutexes must not be null.
- */
-extern void my_fastmutex_report_stats(unsigned long long* sleeps,
-                                      unsigned long long* fast_spins,
-                                      unsigned long long* slow_spins,
-                                      unsigned long long* fast_spin_wins,
-                                      unsigned long long* slow_spin_wins,
-                                      unsigned long long* locks,
-                                      int* num_mutexes);
-
-/* This is an efficient but inaccurate method for computing mutex and rw-lock
- * contention statistiscs. It is inaccurate (but good enough) because the
- * values are read and written without taken locks. It is also inaccurate
- * because the hash of (filename,line#) at which pthread_mutex_create and
- * my_rwlock_init determine the entry to use for statistics. If multiple
- * locks hash to the same entry, the last create or init call determines
- * the name used by this entry. Also, if the multiple mutexes and rw-locks
- * are created by the same line of code, they all update the same entry.
- * fms_users helps to determine whether that is the case. 
- */
-typedef struct {
-  unsigned long long fms_locks;  /* Number of times this has been locked */
-  unsigned long long fms_fast_spins;  /* Number of fast spin-wait loops done */
-  unsigned long long fms_slow_spins;  /* Number of slow spin-wait loops done */
-  unsigned long long fms_fast_spin_wins;  /* Number of fast spin lock acquires */
-  unsigned long long fms_slow_spin_wins;  /* Number of slow spin lock acquires */
-  unsigned long long fms_sleeps; /* Number of possible sleeps */
-  const char* fms_name;          /* Lock created by this file */
-  int fms_line;                  /* Lock created at this line# in fms_name */
-  int fms_users;                 /* Number of times a lock created  */
-} my_fastmutex_stats;
-
-extern my_fastmutex_stats* my_fastmutex_get_stats(int *num_stats);
-
-#if defined(MY_COUNT_MUTEX_CALLERS)
-extern my_fastmutex_stats* my_fastmutex_get_caller_stats(int *num_stats);
-#endif
+int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp, 
+                              const pthread_mutexattr_t *attr);
+int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 
 #undef pthread_mutex_init
 #undef pthread_mutex_lock
-#undef pthread_mutex_timedlock
 #undef pthread_mutex_unlock
 #undef pthread_mutex_destroy
 #undef pthread_mutex_wait
@@ -612,23 +550,8 @@ extern my_fastmutex_stats* my_fastmutex_get_caller_stats(int *num_stats);
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
 #undef pthread_mutex_trylock
-extern int
-my_pthread_fastmutex_init_by_name(my_pthread_fastmutex_t *mp,
-                                  const pthread_mutexattr_t *attr,
-                                  const char* name);
-
-#if defined(MY_COUNT_MUTEX_CALLERS)
-#define pthread_mutex_lock(A) \
-    my_pthread_fastmutex_lock((A), __FILE__, __LINE__)
-#define pthread_mutex_timedlock(A, B) \
-    my_pthread_fastmutex_timedlock((A), (B), __FILE__, __LINE__)
-#else
-#define pthread_mutex_lock(A) my_pthread_fastmutex_lock((A))
-#define pthread_mutex_timedlock(A, B) my_pthread_fastmutex_timedlock((A), (B))
-#endif
-
-#define pthread_mutex_init(A,B) \
-        my_pthread_fastmutex_init((A),(B), __FILE__, __LINE__)
+#define pthread_mutex_init(A,B) my_pthread_fastmutex_init((A),(B))
+#define pthread_mutex_lock(A) my_pthread_fastmutex_lock(A)
 #define pthread_mutex_unlock(A) pthread_mutex_unlock(&(A)->mutex)
 #define pthread_mutex_destroy(A) pthread_mutex_destroy(&(A)->mutex)
 #define pthread_cond_wait(A,B) pthread_cond_wait((A),&(B)->mutex)
@@ -656,24 +579,6 @@ my_pthread_fastmutex_init_by_name(my_pthread_fastmutex_t *mp,
 #define rw_unlock(A) pthread_mutex_unlock((A))
 #define rwlock_destroy(A) pthread_mutex_destroy((A))
 #elif defined(HAVE_PTHREAD_RWLOCK_RDLOCK)
-#if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
-#define MY_FASTRWLOCK
-#define rw_lock_t my_fastrwlock_t
-#define my_rwlock_init(A,B) my_fastrwlock_init((A),(B),__FILE__,__LINE__)
-
-#if defined(MY_COUNT_MUTEX_CALLERS)
-#define rw_rdlock(A) my_fastrwlock_rdlock((A), __FILE__, __LINE__)
-#define rw_wrlock(A) my_fastrwlock_wrlock((A), __FILE__, __LINE__)
-#else
-#define rw_rdlock(A) my_fastrwlock_rdlock(A)
-#define rw_wrlock(A) my_fastrwlock_wrlock(A)
-#endif
-
-#define rw_tryrdlock(A) my_fastrwlock_tryrdlock((A))
-#define rw_trywrlock(A) my_fastrwlock_trywrlock((A))
-#define rw_unlock(A) my_fastrwlock_unlock(A)
-#define rwlock_destroy(A) my_fastrwlock_destroy(A)
-#else
 #define rw_lock_t pthread_rwlock_t
 #define my_rwlock_init(A,B) pthread_rwlock_init((A),(B))
 #define rw_rdlock(A) pthread_rwlock_rdlock(A)
@@ -682,7 +587,6 @@ my_pthread_fastmutex_init_by_name(my_pthread_fastmutex_t *mp,
 #define rw_trywrlock(A) pthread_rwlock_trywrlock((A))
 #define rw_unlock(A) pthread_rwlock_unlock(A)
 #define rwlock_destroy(A) pthread_rwlock_destroy(A)
-#endif /* defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX) */
 #elif defined(HAVE_RWLOCK_INIT)
 #ifdef HAVE_RWLOCK_T				/* For example Solaris 2.6-> */
 #define rw_lock_t rwlock_t
@@ -714,43 +618,6 @@ extern int my_rw_unlock(my_rw_lock_t *);
 extern int my_rw_tryrdlock(my_rw_lock_t *);
 extern int my_rw_trywrlock(my_rw_lock_t *);
 #endif /* USE_MUTEX_INSTEAD_OF_RW_LOCKS */
-
-#if defined(MY_FASTRWLOCK)
-
-typedef struct st_my_fastrwlock_t
-{
-  pthread_rwlock_t frw_lock;
-  uint fast_spins;
-  uint slow_spins;
-  ulong stats_index;
-  uint rng_state;
-} my_fastrwlock_t;
-
-extern int my_fastrwlock_init(my_fastrwlock_t *rw,
-                              const pthread_rwlockattr_t *attr,
-                              const char* caller, const int line);
-extern int my_fastrwlock_init_by_name(my_fastrwlock_t *rw,
-                                      const pthread_rwlockattr_t *attr,
-                                      const char* caller);
-
-#if defined(MY_COUNT_MUTEX_CALLERS)
-extern int my_fastrwlock_rdlock(my_fastrwlock_t *rw, const char* caller,
-                                int line);
-extern int my_fastrwlock_wrlock(my_fastrwlock_t *rw, const char* caller,
-                                int line);
-#else
-extern int my_fastrwlock_rdlock(my_fastrwlock_t *rw);
-extern int my_fastrwlock_wrlock(my_fastrwlock_t *rw);
-#endif
-
-extern int my_fastrwlock_tryrdlock(my_fastrwlock_t *rw);
-extern int my_fastrwlock_trywrlock(my_fastrwlock_t *rw);
-
-extern int my_fastrwlock_destroy(my_fastrwlock_t *rw);
-extern int my_fastrwlock_unlock(my_fastrwlock_t *rw);
-
-#endif /* MY_FASTRWLOCK */
-
 
 #define GETHOSTBYADDR_BUFF_SIZE 2048
 

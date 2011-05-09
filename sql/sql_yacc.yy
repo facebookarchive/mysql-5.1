@@ -10311,8 +10311,6 @@ show_param:
             }
             WARN_DEPRECATED(yythd, "6.0", "SHOW MUTEX STATUS", "'SHOW ENGINE INNODB MUTEX'");
           }
-        | GLOBAL_SYM MUTEX_SYM STATUS_SYM
-          { Lex->sql_command = SQLCOM_SHOW_GLOBAL_MUTEX_STATUS; }
         | opt_full PROCESSLIST_SYM
           { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
         | opt_var_type  VARIABLES wild_and_where

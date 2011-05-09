@@ -122,14 +122,11 @@ Creates an event semaphore, i.e., a semaphore which may just have two states:
 signaled and nonsignaled. The created event is manual reset: it must be reset
 explicitly by calling sync_os_reset_event.
 @return	the event handle */
-#define os_event_create(n) os_event_create_real(n, __FILE__, __LINE__)
 UNIV_INTERN
 os_event_t
-os_event_create_real(
+os_event_create(
 /*============*/
-	const char*	name,
-	const char*     file,
-	unsigned int    line);	/*!< in: the name of the event, if NULL
+	const char*	name);	/*!< in: the name of the event, if NULL
 				the event is created without a name */
 /**********************************************************//**
 Sets an event semaphore to the signaled state: lets waiting threads
@@ -220,14 +217,12 @@ os_event_wait_multiple(
 Creates an operating system mutex semaphore. Because these are slow, the
 mutex semaphore of InnoDB itself (mutex_t) should be used where possible.
 @return	the mutex handle */
-#define os_mutex_create(n) os_mutex_create_real(n, __FILE__, __LINE__)
 UNIV_INTERN
 os_mutex_t
-os_mutex_create_real(
+os_mutex_create(
 /*============*/
-	const char*	name, 	/*!< in: the name of the mutex, if NUL*/
-	const char*     file,   /*the mutex is created without a name */
-	unsigned int    line);
+	const char*	name);	/*!< in: the name of the mutex, if NULL
+				the mutex is created without a name */
 /**********************************************************//**
 Acquires ownership of a mutex semaphore. */
 UNIV_INTERN
@@ -267,14 +262,11 @@ os_fast_mutex_unlock(
 	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to release */
 /*********************************************************//**
 Initializes an operating system fast mutex semaphore. */
-#define os_fast_mutex_init(m) os_fast_mutex_init_real(m, __FILE__, __LINE__)
 UNIV_INTERN
 void
-os_fast_mutex_init_real(
+os_fast_mutex_init(
 /*===============*/
-	os_fast_mutex_t*	fast_mutex,
-	const char* file,
-	unsigned int line);	/*!< in: fast mutex */
+	os_fast_mutex_t*	fast_mutex);	/*!< in: fast mutex */
 /**********************************************************//**
 Acquires ownership of a fast mutex. */
 UNIV_INTERN
@@ -282,21 +274,6 @@ void
 os_fast_mutex_lock(
 /*===============*/
 	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to acquire */
-/**********************************************************//**
-Acquires ownership of a fast mutex. */
-UNIV_INTERN
-int
-os_fast_mutex_timedlock(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex,	/*!< in: mutex to acquire */
-	const struct timespec *abs_timeout);
-/**********************************************************//**
-Test if a mutex is locked (owned) or not.*/
-UNIV_INTERN
-int
-os_fast_mutex_check_owned(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to free */
 /**********************************************************//**
 Frees an mutex object. */
 UNIV_INTERN

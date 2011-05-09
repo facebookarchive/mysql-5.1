@@ -138,6 +138,26 @@ TODO: proof this
 */
 
 /*********************************************************************//**
+Creates a read view object.
+@return	own: read view struct */
+UNIV_INLINE
+read_view_t*
+read_view_create_low(
+/*=================*/
+	ulint		n,	/*!< in: number of cells in the trx_ids array */
+	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+{
+	read_view_t*	view;
+
+	view = mem_heap_alloc(heap, sizeof(read_view_t));
+
+	view->n_trx_ids = n;
+	view->trx_ids = mem_heap_alloc(heap, n * sizeof *view->trx_ids);
+
+	return(view);
+}
+
+/*********************************************************************//**
 Makes a copy of the oldest existing read view, with the exception that also
 the creating trx of the oldest view is set as not visible in the 'copied'
 view. Opens a new view if no views currently exist. The view must be closed
@@ -165,7 +185,8 @@ read_view_oldest_copy_or_open_new(
 	old_view = UT_LIST_GET_LAST(trx_sys->view_list);
 
 	if (old_view == NULL) {
-		return(read_view_open_now(cr_trx_id, heap, NULL));
+
+		return(read_view_open_now(cr_trx_id, heap));
 	}
 
 	n = old_view->n_trx_ids;
@@ -176,7 +197,7 @@ read_view_oldest_copy_or_open_new(
 		needs_insert = FALSE;
 	}
 
-	view_copy = read_view_create_low(n, heap, NULL);
+	view_copy = read_view_create_low(n, heap);
 
 	/* Insert the id of the creator in the right place of the descending
 	array of ids, if needs_insert is TRUE: */
@@ -233,9 +254,8 @@ read_view_open_now(
 	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
 					transaction, or ut_dulint_zero
 					used in purge */
-	mem_heap_t*	heap,		/*!< in: memory heap from which
+	mem_heap_t*	heap)		/*!< in: memory heap from which
 					allocated */
-	read_view_t*	preallocated_view)
 {
 	read_view_t*	view;
 	trx_t*		trx;
@@ -243,8 +263,7 @@ read_view_open_now(
 
 	ut_ad(mutex_own(&kernel_mutex));
 
-	view = read_view_create_low(UT_LIST_GET_LEN(trx_sys->trx_list),
-				    heap, preallocated_view);
+	view = read_view_create_low(UT_LIST_GET_LEN(trx_sys->trx_list), heap);
 
 	view->creator_trx_id = cr_trx_id;
 	view->type = VIEW_NORMAL;
@@ -391,7 +410,6 @@ read_cursor_view_create_for_mysql(
 	read_view_t*	view;
 	mem_heap_t*	heap;
 	trx_t*		trx;
-	read_view_t*	preallocated_view;
 	ulint		n;
 
 	ut_a(cr_trx);
@@ -399,7 +417,7 @@ read_cursor_view_create_for_mysql(
 	/* Use larger heap than in trx_create when creating a read_view
 	because cursors are quite long. */
 
-	heap = mem_heap_create(1024);
+	heap = mem_heap_create(512);
 
 	curview = (cursor_view_t*) mem_heap_alloc(heap, sizeof(cursor_view_t));
 	curview->heap = heap;
@@ -409,18 +427,10 @@ read_cursor_view_create_for_mysql(
 	curview->n_mysql_tables_in_use = cr_trx->n_mysql_tables_in_use;
 	cr_trx->n_mysql_tables_in_use = 0;
 
-	/* We pre-allocate what is hopefully a large enough read view
-	(adding an arbitrary 5 to the dirty read of the size of
-	trx_list) in order to hopefully avoid allocating memory later
-	while we hold kernel_mutex. */
-	preallocated_view = read_view_create_low(
-	  UT_LIST_GET_LEN(trx_sys->trx_list) + 5, curview->heap, NULL);
-
 	mutex_enter(&kernel_mutex);
 
 	curview->read_view = read_view_create_low(
-	  UT_LIST_GET_LEN(trx_sys->trx_list), curview->heap,
-	  preallocated_view);
+		UT_LIST_GET_LEN(trx_sys->trx_list), curview->heap);
 
 	view = curview->read_view;
 	view->creator_trx_id = cr_trx->id;

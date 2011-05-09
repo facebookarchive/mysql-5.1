@@ -138,11 +138,10 @@ must be reset explicitly by calling sync_os_reset_event.
 @return	the event handle */
 UNIV_INTERN
 os_event_t
-os_event_create_real(
+os_event_create(
 /*============*/
-	const char*	name, 	/*!< in: the name of the event, if NUL */
-	const char*     file,   /*the event is created without a name */
-	unsigned int    line)
+	const char*	name)	/*!< in: the name of the event, if NULL
+				the event is created without a name */
 {
 #ifdef __WIN__
 	os_event_t event;
@@ -166,7 +165,7 @@ os_event_create_real(
 
 	event = ut_malloc(sizeof(struct os_event_struct));
 
-	os_fast_mutex_init_real(&(event->os_mutex), file, line);
+	os_fast_mutex_init(&(event->os_mutex));
 
 	ut_a(0 == pthread_cond_init(&(event->cond_var), NULL));
 
@@ -491,11 +490,10 @@ mutex semaphore of InnoDB itself (mutex_t) should be used where possible.
 @return	the mutex handle */
 UNIV_INTERN
 os_mutex_t
-os_mutex_create_real(
+os_mutex_create(
 /*============*/
-	const char*	name, 	/*!< in: the name of the mutex, if NUL*/
-	const char*     file,   /*the mutex is created without a name */
-	unsigned int    line)
+	const char*	name)	/*!< in: the name of the mutex, if NULL
+				the mutex is created without a name */
 {
 #ifdef __WIN__
 	HANDLE		mutex;
@@ -513,7 +511,7 @@ os_mutex_create_real(
 
 	mutex = ut_malloc(sizeof(os_fast_mutex_t));
 
-	os_fast_mutex_init_real(mutex, file, line);
+	os_fast_mutex_init(mutex);
 #endif
 	mutex_str = ut_malloc(sizeof(os_mutex_str_t));
 
@@ -627,23 +625,16 @@ os_mutex_free(
 Initializes an operating system fast mutex semaphore. */
 UNIV_INTERN
 void
-os_fast_mutex_init_real(
+os_fast_mutex_init(
 /*===============*/
-	os_fast_mutex_t*	fast_mutex,
-	const char* file,
-	unsigned int line)	/*!< in: fast mutex */
+	os_fast_mutex_t*	fast_mutex)	/*!< in: fast mutex */
 {
 #ifdef __WIN__
 	ut_a(fast_mutex);
 
 	InitializeCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
-#ifdef UNIV_DEBUG
 	ut_a(0 == pthread_mutex_init(fast_mutex, MY_MUTEX_INIT_FAST));
-#else
-	ut_a(0 == my_pthread_fastmutex_init(fast_mutex, MY_MUTEX_INIT_FAST,
-					    file, line));
-#endif
 #endif
 	if (UNIV_LIKELY(os_sync_mutex_inited)) {
 		/* When creating os_sync_mutex itself (in Unix) we cannot
@@ -675,23 +666,6 @@ os_fast_mutex_lock(
 }
 
 /**********************************************************//**
-Acquires ownership of a fast mutex. */
-UNIV_INTERN
-int
-os_fast_mutex_timedlock(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex,	/*!< in: mutex to acquire */
-	const struct timespec *abs_timeout)
-{
-#ifdef __WIN__
-	ut_a(0);
-	return -1;
-#else
-	return pthread_mutex_timedlock(fast_mutex, abs_timeout);
-#endif
-}
-
-/**********************************************************//**
 Releases ownership of a fast mutex. */
 UNIV_INTERN
 void
@@ -705,21 +679,6 @@ os_fast_mutex_unlock(
 	pthread_mutex_unlock(fast_mutex);
 #endif
 }
-
-#ifdef UNIV_DEBUG
-UNIV_INTERN
-int
-os_fast_mutex_check_owned(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex) {
-	int ret = 1;
-	if (os_fast_mutex_trylock(fast_mutex) == 0) {
-		ret = 0;
-		os_fast_mutex_unlock(fast_mutex);
-	}
-	return ret;
-}
-#endif
 
 /**********************************************************//**
 Frees a mutex object. */

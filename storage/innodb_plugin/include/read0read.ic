@@ -94,34 +94,3 @@ read_view_sees_trx_id(
 
 	return(TRUE);
 }
-
-/*********************************************************************//**
-Creates a read view object.
-@return	own: read view struct */
-UNIV_INLINE
-read_view_t*
-read_view_create_low(
-/*=================*/
-	ulint		n,	/*!< in: number of cells in the trx_ids array */
-	mem_heap_t*	heap,	/*!< in: memory heap from which allocated */
-	read_view_t*	preallocated_view)
-{
-	read_view_t*	view;
-
-	if (preallocated_view && preallocated_view->n_trx_ids >= n) {
-		preallocated_view->n_trx_ids = n;
-		return preallocated_view;
-	}
-
-	if (preallocated_view) {
-		view = preallocated_view;
-	}
-	else {
-		view = (read_view_t*)mem_heap_alloc(heap, sizeof(read_view_t));
-	}
-
-	view->n_trx_ids = n;
-	view->trx_ids = (trx_id_t*)mem_heap_alloc(heap, n * sizeof(*view->trx_ids));
-
-	return(view);
-}

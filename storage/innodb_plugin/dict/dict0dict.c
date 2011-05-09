@@ -373,7 +373,7 @@ dict_table_autoinc_read(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table */
 {
-	ut_ad(mutex_own((mutex_t*)&table->autoinc_mutex));
+	ut_ad(mutex_own(&table->autoinc_mutex));
 
 	return(table->autoinc);
 }
