@@ -4322,8 +4322,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
       if (thd)
       {
         USER_STATS *us= thd_get_user_stats(thd);
-        my_atomic_bigint range_microsecs=
-            my_fast_timer_diff_now(&range_timer, NULL) * 1000000.0;
+        my_atomic_bigint range_microsecs= (my_atomic_bigint)
+            (my_fast_timer_diff_now(&range_timer, NULL) * 1000000.0);
 
         my_atomic_add_bigint(&(us->microseconds_records_in_range),
                              range_microsecs);
@@ -7716,8 +7716,8 @@ check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
     if (param->thd)
     {
       USER_STATS *us= thd_get_user_stats(param->thd);
-      my_atomic_bigint range_microsecs=
-          my_fast_timer_diff_now(&range_timer, NULL) * 1000000.0;
+      my_atomic_bigint range_microsecs= (my_atomic_bigint)
+          (my_fast_timer_diff_now(&range_timer, NULL) * 1000000.0);
 
       my_atomic_add_bigint(&(us->microseconds_records_in_range),
                            range_microsecs);

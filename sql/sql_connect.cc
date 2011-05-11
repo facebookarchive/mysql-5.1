@@ -1322,7 +1322,8 @@ update_user_stats_after_statement(USER_STATS *us,
                                   my_io_perf_t *start_perf_read)
 {
   my_io_perf_t end_perf_read, diff_io_perf;
-  my_atomic_bigint wall_microsecs= wall_seconds * 1000000.0;
+  my_atomic_bigint wall_microsecs= (my_atomic_bigint)
+      (wall_seconds * 1000000.0);
 
   my_atomic_add_bigint(&(us->microseconds_wall), wall_microsecs);
 

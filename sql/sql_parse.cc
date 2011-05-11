@@ -5427,8 +5427,8 @@ finish:
   if (thd)
   {
     USER_STATS *us= thd_get_user_stats(thd);
-    my_atomic_bigint microsecs=
-        my_fast_timer_diff_now(statement_start, NULL) * 1000000.0;
+    my_atomic_bigint microsecs= (my_atomic_bigint)
+        (my_fast_timer_diff_now(statement_start, NULL) * 1000000.0);
 
     switch (lex->sql_command) {
     case SQLCOM_UPDATE:
