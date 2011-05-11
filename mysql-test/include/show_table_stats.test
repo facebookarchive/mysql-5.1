@@ -32,11 +32,15 @@ insert into p1 values (1,1), (2,2);
 
 # Confirm that command output is sane with and without wildcard matches
 --replace_result $se ENGINE
-select * from information_schema.table_statistics order by table_schema, table_name;
+
+select TABLE_SCHEMA,TABLE_NAME,TABLE_ENGINE,ROWS_INSERTED,ROWS_UPDATED,ROWS_DELETED,ROWS_READ,ROWS_REQUESTED,ROWS_INDEX_FIRST,ROWS_INDEX_NEXT,IO_INDEX_INSERTS
+from information_schema.table_statistics order by table_schema, table_name;
 --replace_result $se ENGINE
-select * from information_schema.table_statistics where table_name = 'p1';
+select TABLE_SCHEMA,TABLE_NAME,TABLE_ENGINE,ROWS_INSERTED,ROWS_UPDATED,ROWS_DELETED,ROWS_READ,ROWS_REQUESTED,ROWS_INDEX_FIRST,ROWS_INDEX_NEXT,IO_INDEX_INSERTS
+from information_schema.table_statistics where table_name = 'p1';
 --replace_result $se ENGINE
-select * from information_schema.table_statistics where table_name like 'p%';
+select TABLE_SCHEMA,TABLE_NAME,TABLE_ENGINE,ROWS_INSERTED,ROWS_UPDATED,ROWS_DELETED,ROWS_READ,ROWS_REQUESTED,ROWS_INDEX_FIRST,ROWS_INDEX_NEXT,IO_INDEX_INSERTS
+from information_schema.table_statistics where table_name like 'p%';
 
 select 'should be 0,2,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
 

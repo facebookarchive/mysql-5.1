@@ -727,6 +727,11 @@ struct handlerton
                      const char *wild, bool dir, List<LEX_STRING> *files);
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
+
+   void (*update_table_stats)(void (*cb)(const char *db, const char *tbl,
+                                         my_io_perf_t *r, my_io_perf_t *w,
+                                         const char *engine));
+
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
 };
@@ -2102,6 +2107,11 @@ int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
 
 /* statistics and info */
 bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);
+
+/* Get updated table statistics from all engines */
+void ha_get_table_stats(void (*cb)(const char* db, const char* tbl,
+                                   my_io_perf_t* r, my_io_perf_t* w,
+                                   const char* engine));
 
 /* discovery */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name);

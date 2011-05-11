@@ -136,16 +136,6 @@ STATIC_INLINE void my_io_perf_sum_atomic_helper(my_io_perf_t* sum,
 struct st_table_stats* get_table_stats(struct st_table *table,
                                        struct handlerton *engine_type);
 
-/* Storage engine callback on completion of async IO */
-void async_update_table_stats(
-	struct st_table_stats* table_stats, /* in: table stats structure */
-	my_bool		write,          /* in: true if this is a write operation */
-	longlong	bytes,		/* in: size of request */
-	double		svc_secs,	/* in: secs to perform IO */
-	my_fast_timer_t* stop_timer,	/* in: timer for now */
-	my_fast_timer_t* wait_start,	/* in: timer when IO request submitted */
-	my_bool		old_io);	/* in: true if IO exceeded age threshold */
-
 /* The inverse of the CPU frequency used to convert the time stamp counter
    to seconds. */
 extern double my_tsc_scale;

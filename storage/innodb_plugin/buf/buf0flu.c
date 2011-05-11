@@ -751,19 +751,14 @@ flush:
 		const buf_block_t* block = (buf_block_t*)
 			trx_doublewrite->buf_block_arr[i];
 
-                /* TODO(RDM): Remove temp struct */
-		os_io_table_perf_t table_io_perf;
-		table_io_perf.table_stats = block->page.table_stats;
-
 		ut_a(buf_page_in_file(&block->page));
 		if (UNIV_LIKELY_NULL(block->page.zip.data)) {
-			_fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
+			fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 			       FALSE, buf_page_get_space(&block->page),
 			       buf_page_get_zip_size(&block->page),
 			       buf_page_get_page_no(&block->page), 0,
 			       buf_page_get_zip_size(&block->page),
-			       (void*)block->page.zip.data,
-			       (void*)block, &table_io_perf);
+			       (void*)block->page.zip.data, (void*)block);
 
 			/* Increment the counter of I/O operations used
 			for selecting LRU policy. */
@@ -794,10 +789,10 @@ flush:
 				(ulong)buf_block_get_state(block));
 		}
 
-		_fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
+		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 		       FALSE, buf_block_get_space(block), 0,
 		       buf_block_get_page_no(block), 0, UNIV_PAGE_SIZE,
-		       (void*)block->frame, (void*)block, &table_io_perf);
+		       (void*)block->frame, (void*)block);
 
 		/* Increment the counter of I/O operations used
 		for selecting LRU policy. */
@@ -1040,14 +1035,12 @@ buf_flush_write_block_low(
 	}
 
 	if (!srv_use_doublewrite_buf || !trx_doublewrite) {
-                /* TODO(RDM): Remove temp struct */
-		os_io_table_perf_t table_io_perf;
-		table_io_perf.table_stats = bpage->table_stats;
-		_fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
+
+		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 		       FALSE, buf_page_get_space(bpage), zip_size,
 		       buf_page_get_page_no(bpage), 0,
 		       zip_size ? zip_size : UNIV_PAGE_SIZE,
-		       frame, bpage, &table_io_perf);
+		       frame, bpage);
 	} else {
 		buf_flush_post_to_doublewrite_buf(bpage);
 	}

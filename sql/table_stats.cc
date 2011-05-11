@@ -95,36 +95,57 @@ set_index_stats_names(TABLE_STATS *table_stats, TABLE *table)
   return 0;
 }
 
-/*
-  Return the global TABLE_STATS object for a table.
-
-  SYNOPSIS
-    get_table_stats()
-    table          in: table for which an object is returned
-    type_of_db     in: storage engine type
-
-  RETURN VALUE
-    TABLE_STATS structure for the requested table
-    NULL on failure
-*/
-TABLE_STATS *
-get_table_stats(TABLE *table, handlerton *engine_type)
+static TABLE_STATS*
+get_table_stats_by_name(const char *db_name,
+                        const char *table_name,
+                        const char *engine_name,
+                        const char *cache_key,
+                        uint cache_key_length,
+                        TABLE *tbl)
 {
   TABLE_STATS* table_stats;
+  char local_cache_key[NAME_LEN * 2 + 2];
 
-  if (!table->s || !table->s->db.str || !table->s->table_name.str ||
-      !table->s->table_cache_key.str || !table->s->table_cache_key.length)
+  DBUG_ASSERT(db_name && table_name && engine_name);
+  DBUG_ASSERT(cache_key_length <= (NAME_LEN * 2 + 2));
+
+  if (!db_name || !table_name || !engine_name)
   {
     sql_print_error("No key for table stats.");
     return NULL;
   }
 
+  if (cache_key_length > (NAME_LEN * 2 + 2))
+  {
+    sql_print_error("Cache key length too long for table stats.");
+    return NULL;
+  }
+
+  if (!cache_key)
+  {
+    size_t db_name_len= strlen(db_name);
+    size_t table_name_len= strlen(table_name);
+
+    if (db_name_len > NAME_LEN || table_name_len > NAME_LEN)
+    {
+      sql_print_error("Db or table name too long for table stats :%s:%s:\n",
+                      db_name, table_name);
+      return NULL;
+    }
+
+    cache_key = local_cache_key;
+    cache_key_length = db_name_len + table_name_len + 2;
+
+    strcpy(local_cache_key, db_name);
+    strcpy(local_cache_key + db_name_len + 1, table_name);
+  }
+
   pthread_mutex_lock(&LOCK_global_table_stats);
 
-  // Gets or creates the TABLE_STATS object for this table.
+  // Get or create the TABLE_STATS object for this table.
   if (!(table_stats= (TABLE_STATS*)hash_search(&global_table_stats,
-                                               (uchar*)table->s->table_cache_key.str,
-                                               table->s->table_cache_key.length)))
+                                               (uchar*)cache_key,
+                                               cache_key_length)))
   {
     if (!(table_stats= ((TABLE_STATS*)my_malloc(sizeof(TABLE_STATS),
                                                 MYF(MY_WME)))))
@@ -134,24 +155,21 @@ get_table_stats(TABLE *table, handlerton *engine_type)
       return NULL;
     }
 
-    DBUG_ASSERT(table->s->table_cache_key.length <= (NAME_LEN * 2 + 2));
-    memcpy(table_stats->hash_key, table->s->table_cache_key.str, table->s->table_cache_key.length);
-    table_stats->hash_key_len= table->s->table_cache_key.length;
+    memcpy(table_stats->hash_key, cache_key, cache_key_length);
+    table_stats->hash_key_len= cache_key_length;
 
-    if (snprintf(table_stats->db, NAME_LEN+1, "%s", table->s->db.str) < 0 ||
+    if (snprintf(table_stats->db, NAME_LEN+1, "%s", db_name) < 0 ||
         snprintf(table_stats->table, NAME_LEN+1, "%s",
-                 table->s->table_name.str) < 0 ||
-        snprintf(table_stats->db_table, NAME_LEN * 2 + 2, "%s.%s",
-                 table->s->db.str, table->s->table_name.str) < 0)
+                 table_name) < 0)
     {
       sql_print_error("Cannot generate name for table stats.");
       my_free((char*)table_stats, 0);
       pthread_mutex_unlock(&LOCK_global_table_stats);
       return NULL;
     }
-    table_stats->db_table_len= strlen(table_stats->db_table);
 
-    if (set_index_stats_names(table_stats, table))
+    table_stats->num_indexes= 0;
+    if (tbl && set_index_stats_names(table_stats, tbl))
     {
       sql_print_error("Cannot generate name for index stats.");
       my_free((char*)table_stats, 0);
@@ -160,7 +178,7 @@ get_table_stats(TABLE *table, handlerton *engine_type)
     }
 
     clear_table_stats_counters(table_stats);
-    table_stats->engine_type= engine_type;
+    table_stats->engine_name= engine_name;
 
     if (my_hash_insert(&global_table_stats, (uchar*)table_stats))
     {
@@ -177,9 +195,9 @@ get_table_stats(TABLE *table, handlerton *engine_type)
       Keep things in sync after create or drop index. This doesn't notice create
       followed by drop. "reset statistics" will fix that.
     */
-    if (table_stats->num_indexes != min(table->s->keys, MAX_INDEX_STATS))
+    if (tbl && table_stats->num_indexes != min(tbl->s->keys, MAX_INDEX_STATS))
     {
-      if (set_index_stats_names(table_stats, table))
+      if (set_index_stats_names(table_stats, tbl))
       {
         sql_print_error("Cannot generate name for index stats.");
         pthread_mutex_unlock(&LOCK_global_table_stats);
@@ -191,6 +209,38 @@ get_table_stats(TABLE *table, handlerton *engine_type)
   pthread_mutex_unlock(&LOCK_global_table_stats);
 
   return table_stats;
+}
+
+/*
+  Return the global TABLE_STATS object for a table.
+
+  SYNOPSIS
+    get_table_stats()
+    table          in: table for which an object is returned
+    type_of_db     in: storage engine type
+
+  RETURN VALUE
+    TABLE_STATS structure for the requested table
+    NULL on failure
+*/
+TABLE_STATS*
+get_table_stats(TABLE *table, handlerton *engine_type)
+{
+  DBUG_ASSERT(table->s);
+  const char* engine_name= ha_resolve_storage_engine_name(engine_type);
+
+  if (!table->s)
+  {
+    sql_print_error("No key for table stats.");
+    return NULL;
+  }
+
+  return get_table_stats_by_name(table->s->db.str,
+                                 table->s->table_name.str,
+                                 engine_name,
+                                 table->s->table_cache_key.str,
+                                 table->s->table_cache_key.length,
+                                 table);
 }
   
 extern "C" uchar *get_key_table_stats(TABLE_STATS *table_stats, size_t *length,
@@ -279,10 +329,29 @@ ST_FIELD_INFO table_stats_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
+void fill_table_stats_cb(const char *db,
+                         const char *table,
+                         my_io_perf_t *r,
+                         my_io_perf_t *w,
+                         const char *engine)
+{
+  TABLE_STATS *stats;
+
+  stats= get_table_stats_by_name(db, table, engine, NULL, 0, NULL);
+  if (!stats)
+    return;
+
+  /* These assignments allow for races. That is OK. */
+  stats->io_perf_read = *r;
+  stats->io_perf_write = *w;
+}
+
 int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   DBUG_ENTER("fill_table_stats");
   TABLE* table= tables->table;
+
+  ha_get_table_stats(fill_table_stats_cb);
 
   pthread_mutex_lock(&LOCK_global_table_stats);
 
@@ -296,7 +365,9 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
         table_stats->rows_updated == 0 &&
         table_stats->rows_deleted == 0 &&
         table_stats->rows_read == 0 &&
-        table_stats->rows_requested == 0)
+        table_stats->rows_requested == 0 &&
+        table_stats->io_perf_read.requests == 0 &&
+        table_stats->io_perf_write.requests == 0)
     {
       continue;
     }
@@ -307,9 +378,9 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[f++]->store(table_stats->table, strlen(table_stats->table),
                              system_charset_info);
 
-    // TODO -- this can be optimized in the future
-    const char* engine= ha_resolve_storage_engine_name(table_stats->engine_type);
-    table->field[f++]->store(engine, strlen(engine), system_charset_info);
+    table->field[f++]->store(table_stats->engine_name,
+                             strlen(table_stats->engine_name),
+                             system_charset_info);
 
     table->field[f++]->store(table_stats->rows_inserted, TRUE);
     table->field[f++]->store(table_stats->rows_updated, TRUE);
@@ -412,9 +483,9 @@ int fill_index_stats(THD *thd, TABLE_LIST *tables, COND *cond)
       table->field[f++]->store(index_stats->name, strlen(index_stats->name),
                                system_charset_info);
 
-      // TODO -- this can be optimized in the future
-      const char* engine= ha_resolve_storage_engine_name(table_stats->engine_type);
-      table->field[f++]->store(engine, strlen(engine), system_charset_info);
+      table->field[f++]->store(table_stats->engine_name,
+                               strlen(table_stats->engine_name),
+                               system_charset_info);
 
       table->field[f++]->store(index_stats->rows_inserted, TRUE);
       table->field[f++]->store(index_stats->rows_updated, TRUE);
@@ -445,30 +516,6 @@ int fill_index_stats(THD *thd, TABLE_LIST *tables, COND *cond)
 
   DBUG_RETURN(0);
 }
-
-extern "C" {
-void async_update_table_stats(
-	struct st_table_stats* table_stats, /* in: table stats structure */
-	my_bool		write,          /* in: true if this is a write operation */
-	longlong	bytes,		/* in: size of request */
-	double		svc_secs,	/* in: secs to perform IO */
-	my_fast_timer_t* stop_timer,	/* in: timer for now */
-	my_fast_timer_t* wait_start,	/* in: timer when IO request submitted */
-	my_bool		old_io)		/* in: true if IO exceeded age threshold */
-{
-	longlong svc_usecs = (longlong)(1000000 * svc_secs);
-
-	double	wait_secs = my_fast_timer_diff(wait_start, stop_timer);
-	longlong wait_usecs = (longlong)(1000000 * wait_secs);
-
-	my_io_perf_t* perf = write ? &table_stats->io_perf_write :
-				     &table_stats->io_perf_read;
-
-        my_io_perf_sum_atomic(perf, bytes, /*requests*/ 1, svc_usecs,
-                              wait_usecs, old_io);
-}
-
-} // extern "C"
 
 ST_FIELD_INFO user_stats_fields_info[]=
 {

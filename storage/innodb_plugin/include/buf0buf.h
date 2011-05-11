@@ -1211,10 +1211,6 @@ struct buf_page_struct{
 					/*!< this is set to TRUE when fsp
 					frees a page in buffer pool */
 # endif /* UNIV_DEBUG_FILE_ACCESSES */
-
-	struct st_table_stats* table_stats; /*!< per table async performance
-					    counters, may be set at any time,
-                                            but always valid if non-NULL. */
 #endif /* !UNIV_HOTBACKUP */
 };
 

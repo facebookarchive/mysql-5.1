@@ -243,7 +243,6 @@ struct os_io_table_perf_struct {
 	my_io_perf_t	read;			/*!< sync read */
 	my_io_perf_t	write;			/*!< sync write */
 	longlong      	index_inserts;		/*!< secondary index inserts */
-	struct st_table_stats* table_stats;	/*!< async stats struct */
 };
 typedef struct os_io_table_perf_struct os_io_table_perf_t;
 
@@ -599,8 +598,8 @@ os_file_status(
 The function os_file_dirname returns a directory component of a
 null-terminated pathname string.  In the usual case, dirname returns
 the string up to, but not including, the final '/', and basename
-is the component following the final '/'.  Trailing '/' charac­
-ters are not counted as part of the pathname.
+is the component following the final '/'.  Trailing '/' characters
+are not counted as part of the pathname.
 
 If path does not contain a slash, dirname returns the string ".".
 
@@ -701,8 +700,10 @@ os_aio(
 				OS_AIO_SYNC */
 	os_io_perf2_t*	io_perf2,/*!< in: per fil_space_t performance
 				   counters */
-	os_io_table_perf_t* table_io_perf);/*!< in/out: used for per-table file
-					     stats */
+	os_io_table_perf_t* table_io_perf);
+				/*!< in/out: table IO stats counted for
+				IS.user_statistics only for sync read
+				and writes */
 
 /************************************************************************//**
 Wakes up all async i/o threads so that they know to exit themselves in

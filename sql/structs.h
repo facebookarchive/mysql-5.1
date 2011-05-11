@@ -349,9 +349,6 @@ typedef struct st_index_stats {
 typedef struct st_table_stats {
   char db[NAME_LEN + 1];     /* [db] + '\0' */
   char table[NAME_LEN + 1];  /* [table] + '\0' */
-  /* Used for wildcard matches - [db] + '.' + [table] + '\0' */
-  char db_table[NAME_LEN * 2 + 2];
-  int db_table_len;          /* strlen(db_table) */
   /* Hash table key, table->s->table_cache_key for the table */
   char hash_key[NAME_LEN * 2 + 2];
   int hash_key_len;          /* table->s->key_length for the table */
@@ -375,7 +372,7 @@ typedef struct st_table_stats {
   my_io_perf_t io_perf_read;         /* Read IO performance counters */
   my_io_perf_t io_perf_write;        /* Write IO performance counters */
   volatile my_atomic_bigint index_inserts;  /* Number of secondary index inserts. */
-  handlerton *engine_type;
+  const char* engine_name;
 } TABLE_STATS;
 
 /*

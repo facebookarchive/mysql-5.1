@@ -270,6 +270,17 @@ innobase_alter_table_flags(
 /*=======================*/
 	uint	flags);
 
+/****************************************************************//**
+Update stats with per-table data from InnoDB tables. */
+static
+void
+innobase_update_table_stats(
+/*===============*/
+	/* per-table stats callback */
+	void (*cb)(const char* db, const char* tbl,
+		   my_io_perf_t* r, my_io_perf_t* w,
+		   const char* engine));
+
 /** Reads replication state (relay/master log offset and position)
 from the transaction system header into global variables. After this
 has been called these can be used to get the relay/master log file
@@ -866,8 +877,6 @@ ha_innobase::init_trx_table_stats(
 
 	if (!table_stats)
 		table_stats = get_table_stats(table, ht);
-
-	trx->table_io_perf.table_stats = table_stats;
 }
 
 /**********************************************************************
@@ -2375,6 +2384,7 @@ innobase_init(
         innobase_hton->flags=HTON_NO_FLAGS;
         innobase_hton->release_temporary_latches=innobase_release_temporary_latches;
 	innobase_hton->alter_table_flags = innobase_alter_table_flags;
+	innobase_hton->update_table_stats = innobase_update_table_stats;
 
 #ifdef HAVE_INNODB_BINLOG
 	innobase_hton->binlog_func = innobase_binlog_func;
@@ -2767,6 +2777,20 @@ innobase_alter_table_flags(
 		| HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES
 		| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES
 		| HA_ONLINE_ADD_PK_INDEX_NO_WRITES);
+}
+
+/****************************************************************//**
+Update stats with per-table data from InnoDB tables. */
+static
+void
+innobase_update_table_stats(
+/*===============*/
+	/* per-table stats callback */
+	void (*cb)(const char* db, const char* tbl,
+		   my_io_perf_t* r, my_io_perf_t* w,
+		   const char* engine))
+{
+	fil_update_table_stats(cb);
 }
 
 /*****************************************************************//**

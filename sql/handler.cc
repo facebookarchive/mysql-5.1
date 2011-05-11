@@ -608,6 +608,24 @@ void ha_drop_database(char* path)
 }
 
 
+static my_bool get_table_stats_handlerton(THD *unused, plugin_ref plugin,
+                                          void *cb)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton->state == SHOW_OPTION_YES && hton->update_table_stats)
+    hton->update_table_stats((table_stats_cb) cb);
+
+  return FALSE;
+}
+
+void ha_get_table_stats(table_stats_cb cb)
+{
+  plugin_foreach(NULL, get_table_stats_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, (void*) cb);
+}
+
+
 static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
                                    void *unused)
 {
@@ -4527,10 +4545,6 @@ void handler::update_global_table_stats(THD *thd)
     my_atomic_add_bigint(&table_stats->rows_deleted, stats.rows_deleted);
     my_atomic_add_bigint(&table_stats->rows_read, stats.rows_read);
     my_atomic_add_bigint(&table_stats->rows_requested, stats.rows_requested);
-    my_io_perf_sum_atomic_helper(&table_stats->io_perf_read,
-                                 &stats.table_io_perf_read);
-    my_io_perf_sum_atomic_helper(&table_stats->io_perf_write,
-                                 &stats.table_io_perf_write);
     my_atomic_add_bigint(&table_stats->index_inserts, stats.index_inserts);
     my_atomic_add_bigint(&table_stats->rows_index_first, stats.rows_index_first);
     my_atomic_add_bigint(&table_stats->rows_index_next, stats.rows_index_next);

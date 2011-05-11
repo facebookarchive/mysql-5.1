@@ -262,6 +262,12 @@ struct fil_space_struct {
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/*!< list of all spaces */
 	os_io_perf2_t	io_perf2;/*!< per tablespace IO perf counters */
+	char		db_name[FN_REFLEN / 2];
+				/*!< name from first or only table */
+	char		table_name[FN_REFLEN / 2];
+				/*!< name from first or only table */
+	ibool		used;	/*!< cleared by fil_update_table_stats
+				and set by fil_io */
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
 };
 
@@ -802,6 +808,16 @@ fil_space_get_n_reserved_extents(
 	_fil_io(type, sync, space_id, zip_size, block_offset, \
 	        byte_offset, len, buf, message, NULL)
 
+/****************************************************************//**
+Update stats with per-table data from InnoDB tables. */
+UNIV_INTERN
+void
+fil_update_table_stats(
+/*===================*/
+	/* per-table stats callback */
+	void (*cb)(const char* db, const char* tbl,
+		   my_io_perf_t *r, my_io_perf_t *w,
+		   const char* engine));
 
 /********************************************************************//**
 Reads or writes data. This operation is asynchronous (aio).
@@ -836,7 +852,9 @@ _fil_io(
 				appropriately aligned */
 	void*	message,	/*!< in: message for aio handler if non-sync
 				aio used, else ignored */
-	os_io_table_perf_t* table_io_perf); /*!< in/out: per-table io stats */
+	os_io_table_perf_t* table_io_perf); /*!< in/out: tracks table IO stats
+				to be used in IS.user_statistics only for
+				sync reads and writes */
 /********************************************************************//**
 Confirm whether the parameters are valid or not */
 UNIV_INTERN

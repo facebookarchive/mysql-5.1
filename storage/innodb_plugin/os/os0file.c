@@ -124,8 +124,6 @@ struct os_aio_slot_struct{
 					completed */
 	os_io_perf2_t*	io_perf2;	/*!< per fil_space_t performance 
 					counters */
-	struct st_table_stats*	table_stats;/*!< per-table performance
-					counters */
 #ifdef WIN_ASYNC_IO
 	os_event_t	event;		/*!< event object we need in the
 					OVERLAPPED struct */
@@ -271,9 +269,6 @@ os_io_perf_update_wait(
 	ulonglong wait_usecs = (ulonglong)(1000000 * wait_secs);
 	perf->wait_usecs += wait_usecs;
 	perf->wait_usecs_max = max(perf->wait_usecs_max, wait_usecs);
-
-	if (wait_usecs >= os_aio_old_usecs)
-		perf->old_ios += 1;
 }
 
 /***********************************************************************//**
@@ -294,6 +289,10 @@ os_io_perf_update_all(
 
 	ulonglong svc_usecs = (ulonglong)(1000000 * svc_secs);
 	perf->svc_usecs += svc_usecs;
+
+	if (svc_usecs >= os_aio_old_usecs) {
+		perf->old_ios += 1;
+	}
 
         perf->svc_usecs_max = max(perf->svc_usecs_max, svc_usecs);
 
@@ -3071,8 +3070,8 @@ os_file_get_status(
 The function os_file_dirname returns a directory component of a
 null-terminated pathname string.  In the usual case, dirname returns
 the string up to, but not including, the final '/', and basename
-is the component following the final '/'.  Trailing '/' charac­
-ters are not counted as part of the pathname.
+is the component following the final '/'.  Trailing '/' characters
+are not counted as part of the pathname.
 
 If path does not contain a slash, dirname returns the string ".".
 
@@ -3510,8 +3509,6 @@ os_aio_array_reserve_slot(
 	void*		message2,/*!< in: message to be passed along with
 				the aio operation */
 	os_io_perf2_t*	io_perf2,/*!< in: per fil_space_t perf counters */
-	struct st_table_stats*	table_stats,/*!< in: per-table performance
-				counters */
 	os_file_t	file,	/*!< in: file handle */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
@@ -3591,7 +3588,6 @@ found:
 	slot->message1 = message1;
 	slot->message2 = message2;
 	slot->io_perf2 = io_perf2;
-	slot->table_stats = table_stats;
 	slot->file     = file;
 	slot->name     = name;
 	slot->len      = len;
@@ -3788,8 +3784,9 @@ os_aio(
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
 	os_io_perf2_t*	io_perf2,/*!< in: per fil_space_t perf counters */
-	os_io_table_perf_t* table_io_perf)/*!< in/out: used for per-table
-				file stats */
+	os_io_table_perf_t* table_io_perf)/*!< in/out: counts table IO stats
+				for IS.user_statistics only for sync
+				reads and writes */
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
@@ -3895,7 +3892,6 @@ try_again:
 	}
 
 	slot = os_aio_array_reserve_slot(type, array, message1, message2, io_perf2,
-					 table_io_perf ? table_io_perf->table_stats : NULL,
 					 file, name, buf, offset, offset_high, n);
 	if (type == OS_FILE_READ) {
 		if (os_aio_use_native_aio) {
@@ -4427,16 +4423,6 @@ restart:
 	os_io_perf_update_all(&os_aio_perf[global_segment],
 			n_consecutive * UNIV_PAGE_SIZE, elapsed_secs, &stop_timer,
 			&(slot->reservation_time));
-
-	// TODO(RDM) see if we need to scan the consecutive IO array to find
-	// the table_stats pointer
-	if (slot->table_stats) {
-		/* Per table counters */
-		async_update_table_stats(slot->table_stats,
-			(slot->type == OS_FILE_WRITE),
-			n_consecutive * UNIV_PAGE_SIZE, elapsed_secs,
-			&stop_timer, &(slot->reservation_time), old_io);
- 	}
 
 	os_mutex_enter(array->mutex);
 

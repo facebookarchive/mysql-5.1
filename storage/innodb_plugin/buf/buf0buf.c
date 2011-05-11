@@ -776,8 +776,6 @@ buf_block_init(
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_create(&block->debug_latch, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
-
-	block->page.table_stats = NULL;
 }
 
 /********************************************************************//**
@@ -2307,9 +2305,6 @@ loop:
 
 	must_read = buf_block_get_io_fix(block) == BUF_IO_READ;
 
-	if (mtr->trx && mtr->trx->table_io_perf.table_stats)
-		block->page.table_stats = mtr->trx->table_io_perf.table_stats;
-
 	if (must_read && mode == BUF_GET_IF_IN_POOL) {
 
 		/* The page is being read to buffer pool,
@@ -2877,7 +2872,6 @@ buf_page_init_low(
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	bpage->file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
-        bpage->table_stats = NULL;
 }
 
 /********************************************************************//**
