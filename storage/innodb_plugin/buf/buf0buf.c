@@ -2202,7 +2202,6 @@ buf_page_get_gen(
 	ibool		must_read;
 	mutex_t*	hash_mutex;
 	mutex_t*	block_mutex;
-	buf_page_t*	hash_bpage;
 	ulint		fold;
 	ulint		retries = 0;
 
@@ -2256,7 +2255,6 @@ loop:
 							     fold);
 	}
 
-loop2:
 	if (block == NULL) {
 		/* Page not in buf_pool: needs to be read from file */
 
@@ -2346,8 +2344,10 @@ wait_until_unfixed:
 			goto loop;
 		}
 
-		/* Temporarily fix the compressed page to prevent reusing it
-		   by the following call to buf_LRU_get_free_block() */
+
+		/* Buffer-fix the block so that it cannot be evicted
+		or relocated while we are attempting to allocate an
+		uncompressed page. */
 		bpage->buf_fix_count++;
 
 		/* Allocate an uncompressed page. */
@@ -2365,7 +2365,6 @@ wait_until_unfixed:
 		to verify that bpage is indeed still a part of
 		page_hash. */
 		mutex_enter(hash_mutex);
-		hash_bpage = buf_page_hash_get_low(space, offset, fold);
 
 
 		mutex_enter(&block->mutex);
@@ -2373,35 +2372,22 @@ wait_until_unfixed:
 		/* Remove the temporary fix on the compressed page */
 		mutex_enter(&buf_pool_zip_mutex);
 		bpage->buf_fix_count--;
-		mutex_exit(&buf_pool_zip_mutex);
-
-		if (UNIV_UNLIKELY(bpage != hash_bpage)) {
-			/* The buf_pool->page_hash was modified
-			while buf_pool_mutex was released.
-			Free the block that was allocated. */
-
-			buf_LRU_block_free_non_file_page(block);
-			buf_pool_mutex_exit();
-			mutex_exit(&block->mutex);
-
-			block = (buf_block_t*) hash_bpage;
-
-			/* Note that we are still holding the
-			hash_mutex which is fine as this is what
-			we expect when we move to loop2 above. */
-			goto loop2;
-		}
+		/* Buffer-fixing prevents the page_hash from changing. */
+		ut_ad(bpage == buf_page_hash_get_low(space, offset, fold));
 
 		if (UNIV_UNLIKELY
 		    (bpage->buf_fix_count
 		     || buf_page_get_io_fix(bpage) != BUF_IO_NONE)) {
+
+			mutex_exit(&buf_pool_zip_mutex);
 
 			buf_page_hash_mutex_exit(hash_mutex);
 
 			/* The block was buffer-fixed or I/O-fixed
 			while buf_pool_mutex was not held by this thread.
 			Free the block that was allocated and try again.
-			This should be extremely unlikely. */
+			This should be extremely unlikely, for example,
+			if buf_page_get_zip() was invoked. */
 
 			buf_LRU_block_free_non_file_page(block);
 			buf_pool_mutex_exit();
@@ -2412,8 +2398,6 @@ wait_until_unfixed:
 
 		/* Move the compressed page from bpage to block,
 		and uncompress it. */
-
-		mutex_enter(&buf_pool_zip_mutex);
 
 		buf_relocate(bpage, &block->page);
 		buf_block_init_low(block);
