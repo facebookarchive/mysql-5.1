@@ -1,0 +1,52 @@
+drop table if exists t1;
+create table t1 (i int, j int, k int, pad char(200) default 'foobar');
+create index xj on t1(j, i);
+create index xk on t1(k, i);
+insert into t1 (i,j,k) values (1,1,1), (2,2,2), (3,3,3), (4,4,4);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show global variables like "allow_hint_to_missing_index";
+Variable_name	Value
+allow_hint_to_missing_index	ON
+select count(*) from t1 force index (xj) where i > 0;
+count(*)
+4
+select count(*) from t1 use index (xj) where i > 0;
+count(*)
+4
+select count(*) from t1 ignore index (xj) where i > 0;
+count(*)
+4
+confirm ignore errors for index does not exist
+set global allow_hint_to_missing_index=ON;
+select count(*) from t1 force index (foo) where i > 0;
+count(*)
+4
+select count(*) from t1 use index (foo) where i > 0;
+count(*)
+4
+select count(*) from t1 ignore index (foo) where i > 0;
+count(*)
+4
+confirm ignore errors for index does not exist
+select count(*) from t1 force index (xj,foo) where i > 0;
+count(*)
+4
+select count(*) from t1 use index (xj,foo) where i > 0;
+count(*)
+4
+select count(*) from t1 ignore index (xj,foo) where i > 0;
+count(*)
+4
+force fk, ignore foo does not exist
+explain select count(*) from t1 FORCE INDEX (xk, foo) where i > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	xk	10	NULL	4	Using where; Using index
+explain select count(*) from t1 USE INDEX (xk, foo) where i > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	xk	10	NULL	4	Using where; Using index
+explain select count(*) from t1 IGNORE INDEX (xj, foo) where i > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	xk	10	NULL	4	Using where; Using index
+drop table t1;

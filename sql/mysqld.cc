@@ -632,6 +632,7 @@ int cachedev_fd;
 my_bool cachedev_enabled= FALSE;
 
 /* Added by patches */
+my_bool allow_hint_to_missing_index= FALSE;
 ulong reserved_super_connections=0;
 
 my_bool admission_control= FALSE;
@@ -6170,6 +6171,7 @@ enum options_mysqld
   OPT_NET_COMPRESSION_LEVEL,
   OPT_RPL_TRANSACTION_ENABLED,
   OPT_FORCE_BINLOG_ORDER,
+  OPT_ALLOW_HINT_TO_MISSING_INDEX,
   OPT_ADMISSION_CONTROL,
   OPT_ADMISSION_CONTROL_DISKIO,
   OPT_CONNECTION_RECYCLE,
@@ -7765,6 +7767,11 @@ thread is in the relay logs.",
    "Use 0 (default) to disable synchronous flushing.",
    &sync_relay_info_period, &sync_relay_info_period, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
+  {"allow_hint_to_missing_index", OPT_ALLOW_HINT_TO_MISSING_INDEX,
+   "When set do not raise errors for hints (USE, FORCE, IGNORE INDEX) to "
+   "an index that does not exist. ",
+   &allow_hint_to_missing_index, &allow_hint_to_missing_index,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"admission_control", OPT_ADMISSION_CONTROL,
    "Limit number of queries that run concurrently",
    &admission_control, &admission_control,
@@ -8536,6 +8543,8 @@ static int mysql_init_variables(void)
   log_datagram= 0;
   log_datagram_usecs= 0;
   log_datagram_sock= -1;
+
+  allow_hint_to_missing_index= FALSE;
 
   admission_control= FALSE;
 

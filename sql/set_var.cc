@@ -1001,7 +1001,9 @@ static sys_var_readonly         sys_myisam_mmap_size(&vars, "myisam_mmap_size",
                                                      get_myisam_mmap_size);
 static sys_var_bool_ptr sys_admission_control(&vars, "admission_control",
                                               &admission_control);
-
+static sys_var_bool_ptr
+sys_allow_hint_to_missing_index(&vars, "allow_hint_to_missing_index",
+                                &allow_hint_to_missing_index);
 
 static sys_var_bool_ptr	sys_process_can_disable_bin_log(&vars,
                                                         "process_can_disable_bin_log",

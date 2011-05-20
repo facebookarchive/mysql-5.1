@@ -1,0 +1,35 @@
+# confirm that my.cnf option allow_hint_to_missing_index is parsed
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (i int, j int, k int, pad char(200) default 'foobar');
+create index xj on t1(j, i);
+create index xk on t1(k, i);
+insert into t1 (i,j,k) values (1,1,1), (2,2,2), (3,3,3), (4,4,4);
+analyze table t1;
+
+show global variables like "allow_hint_to_missing_index";
+
+select count(*) from t1 force index (xj) where i > 0;
+select count(*) from t1 use index (xj) where i > 0;
+select count(*) from t1 ignore index (xj) where i > 0;
+
+--echo confirm ignore errors for index does not exist
+set global allow_hint_to_missing_index=ON;
+select count(*) from t1 force index (foo) where i > 0;
+select count(*) from t1 use index (foo) where i > 0;
+select count(*) from t1 ignore index (foo) where i > 0;
+
+--echo confirm ignore errors for index does not exist
+select count(*) from t1 force index (xj,foo) where i > 0;
+select count(*) from t1 use index (xj,foo) where i > 0;
+select count(*) from t1 ignore index (xj,foo) where i > 0;
+
+--echo force fk, ignore foo does not exist
+explain select count(*) from t1 FORCE INDEX (xk, foo) where i > 0;
+explain select count(*) from t1 USE INDEX (xk, foo) where i > 0;
+explain select count(*) from t1 IGNORE INDEX (xj, foo) where i > 0;
+
+drop table t1;

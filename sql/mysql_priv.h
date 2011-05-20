@@ -2144,6 +2144,8 @@ extern ulonglong long_slave_query_time_usecs;
 extern int xa_recovery_did_rollback;
 extern ulong sync_relay_info_period, sync_relay_info_events;
 
+extern my_bool allow_hint_to_missing_index;
+
 extern my_bool admission_control;
 extern my_bool admission_control_diskio;
 
