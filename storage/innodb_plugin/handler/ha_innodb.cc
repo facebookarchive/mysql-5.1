@@ -7641,7 +7641,7 @@ int
 ha_innobase::delayed_drop_table()
 /*=============================*/
 {
-	(void) row_drop_tables_for_mysql_in_background();
+	(void) row_drop_tables_for_mysql_in_background(TRUE);
 	return 0;
 }
 

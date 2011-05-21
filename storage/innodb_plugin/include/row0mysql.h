@@ -408,8 +408,10 @@ dropping of tables is needed in ALTER TABLE on Unix.
 @return	how many tables dropped + remaining tables in list */
 UNIV_INTERN
 ulint
-row_drop_tables_for_mysql_in_background(void);
-/*=========================================*/
+row_drop_tables_for_mysql_in_background(
+/*====================================*/
+	ibool	wait);	/*!< in: when TRUE, wait for pending drops */
+
 /*********************************************************************//**
 Get the background drop list length. NOTE: the caller must own the kernel
 mutex!

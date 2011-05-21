@@ -75,6 +75,14 @@ static UT_LIST_BASE_NODE_T(row_mysql_drop_t)	row_mysql_drop_list;
 /** Flag: has row_mysql_drop_list been initialized? */
 static ibool	row_mysql_drop_list_inited	= FALSE;
 
+/** Increment when table added to row_mysql_drop_list. Start at 0 so that -1
+means 'not initialized'. Protected by kernel_mutex */
+static ib_int64_t	row_mysql_drop_add	= 0;
+
+/** Increment when table on row_mysql_drop_list has been dropped. Start at 0
+so that -1 can mean 'not initialized'. Protected by kernel_mutex */
+static ib_int64_t	row_mysql_drop_done	= 0;
+
 /** Magic table names for invoking various monitor threads */
 /* @{ */
 static const char S_innodb_monitor[] = "innodb_monitor";
@@ -2164,15 +2172,24 @@ dropping of tables is needed in ALTER TABLE on Unix.
 @return	how many tables dropped + remaining tables in list */
 UNIV_INTERN
 ulint
-row_drop_tables_for_mysql_in_background(void)
-/*=========================================*/
+row_drop_tables_for_mysql_in_background(
+/*====================================*/
+	ibool	wait)	/*!< in: when TRUE wait for pending drops */
 {
 	row_mysql_drop_t*	drop;
 	dict_table_t*		table;
 	ulint			n_tables;
 	ulint			n_tables_dropped = 0;
+	ib_int64_t		local_drop_add = -1;
+
 loop:
 	mutex_enter(&kernel_mutex);
+
+	if (local_drop_add == -1) {
+		/* row_mysql_drop_add starts at 0 so that -1 means
+ 		not initialized */
+		local_drop_add = row_mysql_drop_add;
+	}
 
 	if (!row_mysql_drop_list_inited) {
 
@@ -2192,6 +2209,23 @@ loop:
 
 	if (drop == NULL) {
 		/* All tables dropped */
+
+		if (wait) {
+			/* Block until all drops pending on entry to this function
+			have been processed. This guarantees that on return files
+			have been removed for any table dropped by the caller.
+
+			There isn't a clean way to do this wait with a pthread_cond_t
+			because kernel_mutex is not a pthread_mutex_t. */
+
+			mutex_enter(&kernel_mutex);
+			while (row_mysql_drop_done < local_drop_add) {
+				mutex_exit(&kernel_mutex);
+				os_thread_sleep(1000);
+				mutex_enter(&kernel_mutex);
+			}
+			mutex_exit(&kernel_mutex);
+		}
 
 		return(n_tables + n_tables_dropped);
 	}
@@ -2224,6 +2258,7 @@ loop:
 already_dropped:
 	mutex_enter(&kernel_mutex);
 
+	row_mysql_drop_done++;
 	ut_print_timestamp(stderr);
 	fputs("  InnoDB: Dropped table ", stderr);
 	ut_print_name(stderr, NULL, TRUE, drop->table_name);
@@ -2301,6 +2336,7 @@ row_add_table_to_background_drop_list(
 	drop->table_name = mem_strdup(name);
 
 	UT_LIST_ADD_LAST(row_mysql_drop_list, row_mysql_drop_list, drop);
+	row_mysql_drop_add++;
 
 	/*	fputs("InnoDB: Adding table ", stderr);
 	ut_print_name(stderr, trx, TRUE, drop->table_name);

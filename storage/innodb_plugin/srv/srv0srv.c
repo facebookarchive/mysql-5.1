@@ -3000,7 +3000,7 @@ loop:
 
 		srv_main_thread_op_info = "doing background drop tables";
 
-		row_drop_tables_for_mysql_in_background();
+		row_drop_tables_for_mysql_in_background(FALSE);
 
 		srv_main_thread_op_info = "";
 
@@ -3268,7 +3268,7 @@ background_loop:
 	srv_main_background_loops++;
 	srv_main_thread_op_info = "doing background drop tables";
 
-	n_tables_to_drop = row_drop_tables_for_mysql_in_background();
+	n_tables_to_drop = row_drop_tables_for_mysql_in_background(FALSE);
 
 	if (n_tables_to_drop > 0) {
 		/* Do not monopolize the CPU even if there are tables waiting
