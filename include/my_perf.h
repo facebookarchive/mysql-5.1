@@ -87,6 +87,27 @@
 
 C_MODE_START
 
+/** Compression statistics for a fil_space */
+struct comp_stat_struct {
+  /** Size of the compressed data on the page */
+  int page_size;
+  /** Number of page compressions */
+  volatile my_atomic_bigint compressed;
+  /** Number of successful page compressions */
+  volatile my_atomic_bigint compressed_ok;
+  /** Number of page decompressions */
+  volatile my_atomic_bigint decompressed;
+  /** Duration of page compressions in microseconds */
+  volatile my_atomic_bigint compressed_usec;
+	/** Duration of succesful page compressions in microseconds */
+	volatile my_atomic_bigint compressed_ok_usec;
+  /** Duration of page decompressions in microseconds */
+  volatile my_atomic_bigint decompressed_usec;
+};
+
+/** Compression statistics */
+typedef struct comp_stat_struct comp_stat_t;
+
 /* Type used for low-overhead timers */
 typedef ulonglong my_fast_timer_t;
 

@@ -245,10 +245,11 @@ fil_update_table_stats_one_cell(
 	ulint		cell_number,	/*!< in: cell to report */
 	my_io_perf_t*	read_arr,	/*!< in: buffer for read stats */
 	my_io_perf_t*	write_arr,	/*!< in: buffer for write stats */
+	comp_stat_t*	comp_stat_arr, /*!< in: buffer for compression stats */
 	ulint		max_per_cell,	/*!< in: size of buffers */
 	void		(*cb)(const char* db, const char* tbl,
-			      my_io_perf_t *r, my_io_perf_t *w,
-			      const char* engine),
+		              my_io_perf_t *r, my_io_perf_t *w, comp_stat_t* comp_stat,
+		              const char* engine),
 	char*		db_name_buf,	/*!< in: buffer for db names */
 	char*		table_name_buf)	/*!< in: buffer for table names */
 {
@@ -278,6 +279,7 @@ fil_update_table_stats_one_cell(
 
 			read_arr[found] = space->io_perf2.read;
 			write_arr[found] = space->io_perf2.write;
+			comp_stat_arr[found] = space->comp_stat;
 
 			strcpy(&(db_name_buf[found * (FN_REFLEN/2)]),
 				space->db_name);
@@ -299,6 +301,7 @@ fil_update_table_stats_one_cell(
 		   &(table_name_buf[report * (FN_REFLEN/2)]),
 		   &(read_arr[report]),
 		   &(write_arr[report]),
+		   &(comp_stat_arr[report]),
 		   "InnoDB");
 	}
 }
@@ -311,7 +314,7 @@ fil_update_table_stats(
 /*===================*/
 	/* per-table stats callback */
 	void (*cb)(const char* db, const char* tbl,
-		   my_io_perf_t *r, my_io_perf_t *w,
+		   my_io_perf_t *r, my_io_perf_t *w, comp_stat_t* comp_stat,
 		   const char* engine))
 {
 	ulint		n_cells;
@@ -319,6 +322,7 @@ fil_update_table_stats(
 	ulint		max_per_cell = 0;
 	my_io_perf_t*	read_arr;
 	my_io_perf_t*	write_arr;
+	comp_stat_t*	comp_stat_arr;
 	char*		db_name_buf;
 	char*		table_name_buf;
 	static ibool	in_progress = FALSE;
@@ -381,14 +385,19 @@ fil_update_table_stats(
 
 	read_arr = (my_io_perf_t*) ut_malloc(sizeof(my_io_perf_t) * max_per_cell);
 	write_arr = (my_io_perf_t*) ut_malloc(sizeof(my_io_perf_t) * max_per_cell);
+	comp_stat_arr = (comp_stat_t*) ut_malloc(
+	                                    sizeof(comp_stat_t) * max_per_cell);
 	db_name_buf = (char*) ut_malloc((FN_REFLEN/2) * max_per_cell);
 	table_name_buf = (char*) ut_malloc((FN_REFLEN/2) * max_per_cell);
 
-	if (!read_arr || !write_arr || !table_name_buf || !db_name_buf) {
+	if (!read_arr || !write_arr || !comp_stat_arr || !table_name_buf ||
+	    !db_name_buf) {
 		if (read_arr)
 			ut_free(read_arr);
 		if (write_arr)
 			ut_free(write_arr);
+		if (comp_stat_arr)
+			ut_free(comp_stat_arr);
 		if (db_name_buf)
 			ut_free(db_name_buf);
 		if (table_name_buf)
@@ -400,39 +409,19 @@ fil_update_table_stats(
 	/* Then copy out the valid data one cell at a time */
 
 	for (n = 0; n < n_cells; ++n) {
-		fil_update_table_stats_one_cell(n, read_arr, write_arr,
-						max_per_cell, cb,
-						db_name_buf, table_name_buf);
+		fil_update_table_stats_one_cell(n, read_arr, write_arr, comp_stat_arr,
+						max_per_cell, cb, db_name_buf, table_name_buf);
 	}
 
 	ut_free(read_arr);
 	ut_free(write_arr);
+	ut_free(comp_stat_arr);
 	ut_free(table_name_buf);
 	ut_free(db_name_buf);
 
 	mutex_enter(&fil_system->mutex);
 	in_progress = FALSE;
 	mutex_exit(&fil_system->mutex);
-}
-
-/*******************************************************************//**
-Returns the table space by a given id, NULL if not found. */
-UNIV_INLINE
-fil_space_t*
-fil_space_get_by_id(
-/*================*/
-	ulint	id)	/*!< in: space id */
-{
-	fil_space_t*	space;
-
-	ut_ad(mutex_own(&fil_system->mutex));
-
-	HASH_SEARCH(hash, fil_system->spaces, id,
-		    fil_space_t*, space,
-		    ut_ad(space->magic_n == FIL_SPACE_MAGIC_N),
-		    space->id == id);
-
-	return(space);
 }
 
 /*******************************************************************//**
@@ -1381,6 +1370,7 @@ try_again:
 
 	my_io_perf_init(&(space->io_perf2.read));
 	my_io_perf_init(&(space->io_perf2.write));
+	memset(&(space->comp_stat), 0, sizeof space->comp_stat);
 
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
 

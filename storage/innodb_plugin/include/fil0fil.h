@@ -262,6 +262,7 @@ struct fil_space_struct {
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/*!< list of all spaces */
 	os_io_perf2_t	io_perf2;/*!< per tablespace IO perf counters */
+	comp_stat_t	comp_stat; /*!< per tablespace compression counters */
 	char		db_name[FN_REFLEN / 2];
 				/*!< name from first or only table */
 	char		table_name[FN_REFLEN / 2];
@@ -363,6 +364,25 @@ ib_int64_t
 fil_space_get_version(
 /*==================*/
 	ulint	id);	/*!< in: space id */
+/*******************************************************************//**
+Returns the table space by a given id, NULL if not found. */
+STATIC_INLINE
+fil_space_t*
+fil_space_get_by_id(
+/*================*/
+	ulint	id)	/*!< in: space id */
+{
+	fil_space_t*	space;
+
+	ut_ad(mutex_own(&fil_system->mutex));
+
+	HASH_SEARCH(hash, fil_system->spaces, id,
+		    fil_space_t*, space,
+		    ut_ad(space->magic_n == FIL_SPACE_MAGIC_N),
+		    space->id == id);
+
+	return(space);
+};
 /*******************************************************************//**
 Returns the latch of a file space.
 @return	latch protecting storage allocation */
@@ -816,7 +836,7 @@ fil_update_table_stats(
 /*===================*/
 	/* per-table stats callback */
 	void (*cb)(const char* db, const char* tbl,
-		   my_io_perf_t *r, my_io_perf_t *w,
+		   my_io_perf_t *r, my_io_perf_t *w, comp_stat_t *comp_stat,
 		   const char* engine));
 
 /********************************************************************//**

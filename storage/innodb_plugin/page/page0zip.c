@@ -29,6 +29,7 @@ Created June 2005 by Marko Makela
 # include "page0zip.ic"
 #endif
 #undef THIS_MODULE
+#include "fil0fil.h"
 #include "page0page.h"
 #include "mtr0log.h"
 #include "ut0sort.h"
@@ -42,6 +43,7 @@ Created June 2005 by Marko Makela
 # include "btr0sea.h"
 # include "dict0boot.h"
 # include "lock0lock.h"
+# include "my_atomic.h"
 #else /* !UNIV_HOTBACKUP */
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
@@ -1152,7 +1154,12 @@ page_zip_compress(
 	ulint		n_blobs	= 0;
 	byte*		storage;/* storage of uncompressed columns */
 #ifndef UNIV_HOTBACKUP
-	ullint		usec = ut_time_us(NULL);
+	my_fast_timer_t start;
+	ullint udiff;
+	fil_space_t* space;
+	ulint	space_id = page_get_space_id(page);
+	my_get_fast_timer(&start);
+	ut_ad(fil_system);
 #endif /* !UNIV_HOTBACKUP */
 #ifdef PAGE_ZIP_COMPRESS_DBG
 	FILE*		logfile = NULL;
@@ -1182,6 +1189,10 @@ page_zip_compress(
 		ut_a(rec_get_next_offs(page + PAGE_NEW_INFIMUM, TRUE)
 		     == PAGE_NEW_SUPREMUM);
 	}
+
+	mutex_enter(&fil_system->mutex);
+	space = fil_space_get_by_id(space_id);
+	mutex_exit(&fil_system->mutex);
 
 	if (page_is_leaf(page)) {
 		n_fields = dict_index_get_n_fields(index);
@@ -1219,6 +1230,11 @@ page_zip_compress(
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
 	page_zip_stat[page_zip->ssize - 1].compressed++;
+	if (space) {
+		os_atomic_increment(&space->comp_stat.compressed, 1);
+		if (space_id)
+			space->comp_stat.page_size = PAGE_ZIP_MIN_SIZE << (page_zip->ssize - 1);
+	}
 #endif /* !UNIV_HOTBACKUP */
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
@@ -1357,8 +1373,12 @@ err_exit:
 		}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
+		udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
 		page_zip_stat[page_zip->ssize - 1].compressed_usec
-			+= ut_time_us(NULL) - usec;
+			+= udiff;
+		if (space) {
+			my_atomic_add_bigint(&space->comp_stat.compressed_usec, udiff);
+		}
 #endif /* !UNIV_HOTBACKUP */
 		return(FALSE);
 	}
@@ -1419,10 +1439,17 @@ err_exit:
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
 	{
+		udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
 		page_zip_stat_t*	zip_stat
 			= &page_zip_stat[page_zip->ssize - 1];
 		zip_stat->compressed_ok++;
-		zip_stat->compressed_usec += ut_time_us(NULL) - usec;
+		zip_stat->compressed_usec += udiff;
+		zip_stat->compressed_ok_usec += udiff;
+		if (space) {
+			os_atomic_increment(&space->comp_stat.compressed_ok, 1);
+			my_atomic_add_bigint(&space->comp_stat.compressed_usec, udiff);
+			my_atomic_add_bigint(&space->comp_stat.compressed_ok_usec, udiff);
+		}
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2830,10 +2857,11 @@ page_zip_decompress(
 	page_zip_des_t*	page_zip,/*!< in: data, ssize;
 				out: m_start, m_end, m_nonempty, n_blobs */
 	page_t*		page,	/*!< out: uncompressed page, may be trashed */
-	ibool		all)	/*!< in: TRUE=decompress the whole page;
+	ibool		all,	/*!< in: TRUE=decompress the whole page;
 				FALSE=verify but do not copy some
 				page header fields that should not change
 				after page creation */
+	ulint space_id)
 {
 	z_stream	d_stream;
 	dict_index_t*	index	= NULL;
@@ -2843,7 +2871,11 @@ page_zip_decompress(
 	mem_heap_t*	heap;
 	ulint*		offsets;
 #ifndef UNIV_HOTBACKUP
-	ullint		usec = ut_time_us(NULL);
+	my_fast_timer_t start;
+	ullint udiff;
+	fil_space_t* space;
+	my_get_fast_timer(&start);
+	ut_ad(fil_system);
 #endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(page_zip_simple_validate(page_zip));
@@ -3025,10 +3057,20 @@ err_exit:
 	mem_heap_free(heap);
 #ifndef UNIV_HOTBACKUP
 	{
+		udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
 		page_zip_stat_t*	zip_stat
 			= &page_zip_stat[page_zip->ssize - 1];
 		zip_stat->decompressed++;
-		zip_stat->decompressed_usec += ut_time_us(NULL) - usec;
+		zip_stat->decompressed_usec += udiff;
+		mutex_enter(&fil_system->mutex);
+		space = fil_space_get_by_id(space_id);
+		mutex_exit(&fil_system->mutex);
+		if (space) {
+			os_atomic_increment(&space->comp_stat.decompressed, 1);
+			my_atomic_add_bigint(&space->comp_stat.decompressed_usec, udiff);
+			if (space_id)
+				space->comp_stat.page_size = PAGE_ZIP_MIN_SIZE << (page_zip->ssize - 1);
+		}
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3138,7 +3180,7 @@ page_zip_validate_low(
 #endif /* UNIV_DEBUG_VALGRIND */
 
 	temp_page_zip = *page_zip;
-	valid = page_zip_decompress(&temp_page_zip, temp_page, TRUE);
+	valid = page_zip_decompress(&temp_page_zip, temp_page, TRUE, 0);
 	if (!valid) {
 		fputs("page_zip_validate(): failed to decompress\n", stderr);
 		goto func_exit;
@@ -4643,7 +4685,7 @@ corrupt:
 		       - trailer_size, ptr + 8 + size, trailer_size);
 
 		if (UNIV_UNLIKELY(!page_zip_decompress(page_zip, page,
-						       TRUE))) {
+						       TRUE, 0))) {
 
 			goto corrupt;
 		}

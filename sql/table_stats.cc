@@ -306,6 +306,14 @@ ST_FIELD_INFO table_stats_fields_info[]=
   {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
   {"ROWS_REQUESTED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
 
+  {"COMPRESSED_PAGE_SIZE", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"COMPRESS_OPS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"COMPRESS_OPS_OK", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"COMPRESS_USECS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"COMPRESS_OK_USECS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"UNCOMPRESS_OPS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+  {"UNCOMPRESS_USECS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
+
   {"ROWS_INDEX_FIRST", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
   {"ROWS_INDEX_NEXT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0},
 
@@ -333,6 +341,7 @@ void fill_table_stats_cb(const char *db,
                          const char *table,
                          my_io_perf_t *r,
                          my_io_perf_t *w,
+                         comp_stat_t *comp_stat,
                          const char *engine)
 {
   TABLE_STATS *stats;
@@ -344,6 +353,7 @@ void fill_table_stats_cb(const char *db,
   /* These assignments allow for races. That is OK. */
   stats->io_perf_read = *r;
   stats->io_perf_write = *w;
+  stats->comp_stat = *comp_stat;
 }
 
 int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
@@ -366,6 +376,12 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
         table_stats->rows_deleted == 0 &&
         table_stats->rows_read == 0 &&
         table_stats->rows_requested == 0 &&
+        table_stats->comp_stat.compressed == 0 &&
+        table_stats->comp_stat.compressed_ok == 0 &&
+        table_stats->comp_stat.compressed_usec == 0 &&
+        table_stats->comp_stat.compressed_ok_usec == 0 &&
+        table_stats->comp_stat.decompressed == 0 &&
+        table_stats->comp_stat.decompressed_usec == 0 &&
         table_stats->io_perf_read.requests == 0 &&
         table_stats->io_perf_write.requests == 0)
     {
@@ -387,6 +403,14 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[f++]->store(table_stats->rows_deleted, TRUE);
     table->field[f++]->store(table_stats->rows_read, TRUE);
     table->field[f++]->store(table_stats->rows_requested, TRUE);
+
+    table->field[f++]->store(table_stats->comp_stat.page_size, TRUE);
+    table->field[f++]->store(table_stats->comp_stat.compressed, TRUE);
+    table->field[f++]->store(table_stats->comp_stat.compressed_ok, TRUE);
+    table->field[f++]->store(table_stats->comp_stat.compressed_usec, TRUE);
+    table->field[f++]->store(table_stats->comp_stat.compressed_ok_usec, TRUE);
+    table->field[f++]->store(table_stats->comp_stat.decompressed, TRUE);
+    table->field[f++]->store(table_stats->comp_stat.decompressed_usec, TRUE);
 
     table->field[f++]->store(table_stats->rows_index_first, TRUE);
     table->field[f++]->store(table_stats->rows_index_next, TRUE);

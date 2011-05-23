@@ -365,6 +365,7 @@ typedef struct st_table_stats {
                                         this table.  This counts requests
                                          that do not return a row. */
 
+  comp_stat_t comp_stat;	/* Compression statistics */
   /* See variables of same name in ha_statistics */
   my_atomic_bigint volatile rows_index_first;
   my_atomic_bigint volatile rows_index_next;
