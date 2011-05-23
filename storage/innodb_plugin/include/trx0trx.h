@@ -102,6 +102,12 @@ trx_t*
 trx_allocate_for_background(void);
 /*=============================*/
 /********************************************************************//**
+Frees trx_t pool */
+UNIV_INTERN
+void
+trx_free_trx_pool();
+/*==============*/
+/********************************************************************//**
 Frees a transaction object. */
 UNIV_INTERN
 void

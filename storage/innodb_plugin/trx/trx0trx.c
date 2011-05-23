@@ -98,6 +98,31 @@ static struct trx_block_struct* transaction_blocks = NULL;
 /* Track the next free transaction (for fast allocation) */
 static trx_t *next_free_transaction = NULL;
 
+/********************************************************************//**
+Frees trx_t pool */
+UNIV_INTERN
+void
+trx_free_trx_pool()
+/*==============*/
+{
+	trx_t*	next;
+
+	ut_ad(mutex_own(&kernel_mutex));
+
+	/* Confirm that the list looks OK */
+	next = next_free_transaction;
+	while (next) {
+		ut_ad(next->magic_n == TRX_FREE_MAGIC_N);
+		next = next->next_free_trx;
+	}
+
+	while (transaction_blocks) {
+		struct trx_block_struct *next = transaction_blocks->next_block;
+		mem_free(transaction_blocks);
+		transaction_blocks = next;
+	}
+}
+
 trx_t*
 trx_allocate()
 {
