@@ -808,6 +808,7 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
 	ulint innodb_buffer_pool_pages_dirty;	/*!< Dirty data pages */
+	ulint innodb_buffer_pool_pages_unzip;	/*!< #pages on buf_pool->unzip_LRU */
 	ulint innodb_buffer_pool_pages_misc;	/*!< Miscellanous pages */
 	ulint innodb_buffer_pool_pages_free;	/*!< Free pages */
 #ifdef UNIV_DEBUG
@@ -934,6 +935,32 @@ struct export_var_struct{
 
 	ulint innodb_sec_rec_read_sees;		/*!< srv_sec_rec_read_sees */
 	ulint innodb_sec_rec_read_check;	/*!< srv_sec_rec_read_check */
+	/* The following are per-page size stats from page_zip_stat */
+	ulint		zip1024_compressed;
+	ulint		zip1024_compressed_ok;
+	ib_int64_t	zip1024_compressed_usec;
+	ulint		zip1024_decompressed;
+	ib_int64_t	zip1024_decompressed_usec;
+	ulint		zip2048_compressed;
+	ulint		zip2048_compressed_ok;
+	ib_int64_t	zip2048_compressed_usec;
+	ulint		zip2048_decompressed;
+	ib_int64_t	zip2048_decompressed_usec;
+	ulint		zip4096_compressed;
+	ulint		zip4096_compressed_ok;
+	ib_int64_t	zip4096_compressed_usec;
+	ulint		zip4096_decompressed;
+	ib_int64_t	zip4096_decompressed_usec;
+	ulint		zip8192_compressed;
+	ulint		zip8192_compressed_ok;
+	ib_int64_t	zip8192_compressed_usec;
+	ulint		zip8192_decompressed;
+	ib_int64_t	zip8192_decompressed_usec;
+	ulint		zip16384_compressed;
+	ulint		zip16384_compressed_ok;
+	ib_int64_t	zip16384_compressed_usec;
+	ulint		zip16384_decompressed;
+	ib_int64_t	zip16384_decompressed_usec;
 };
 
 /** The server system struct */

@@ -2157,6 +2157,25 @@ srv_printf_innodb_monitor(
 }
 
 /******************************************************************//**
+Set compression related counters */
+static void
+export_zip(
+/*=======*/
+	ulint*			compressed,
+	ulint*			compressed_ok,
+	ib_int64_t*		compressed_usec,
+	ulint*			decompressed,
+	ib_int64_t*		decompressed_usec,
+	page_zip_stat_t*	zip_stat)
+{
+	*compressed		= zip_stat->compressed;
+	*compressed_ok		= zip_stat->compressed_ok;
+	*compressed_usec	= zip_stat->compressed_usec;
+	*decompressed		= zip_stat->decompressed;
+	*decompressed_usec	= zip_stat->decompressed_usec;
+}
+
+/******************************************************************//**
 Function to pass InnoDB status variables to MySQL */
 UNIV_INTERN
 void
@@ -2164,6 +2183,7 @@ srv_export_innodb_status(void)
 /*==========================*/
 {
 	ulint queue_len;
+	uint i;
 	ib_uint64_t lsn_oldest = buf_pool_get_oldest_modification();
 	ib_uint64_t lsn_current = log_sys->lsn;
 	ib_uint64_t lsn_gap = lsn_current - lsn_oldest;
@@ -2243,6 +2263,8 @@ srv_export_innodb_status(void)
 		= UT_LIST_GET_LEN(buf_pool->LRU);
 	export_vars.innodb_buffer_pool_pages_dirty
 		= UT_LIST_GET_LEN(buf_pool->flush_list);
+	export_vars.innodb_buffer_pool_pages_unzip
+		= UT_LIST_GET_LEN(buf_pool->unzip_LRU);
 	export_vars.innodb_buffer_pool_pages_free
 		= UT_LIST_GET_LEN(buf_pool->free);
 #ifdef UNIV_DEBUG
@@ -2428,6 +2450,54 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_trx_doublewrite_page_no =
 		trx_doublewrite ? trx_doublewrite->block1 : 0;
+
+	for (i = 0; i < PAGE_ZIP_NUM_SSIZE - 1; i++) {
+		page_zip_stat_t*        zip_stat = &page_zip_stat[i];
+
+		ulint page_size = PAGE_ZIP_MIN_SIZE << i;
+
+		switch (page_size) {
+		case 1024:
+			export_zip(&export_vars.zip1024_compressed,
+				&export_vars.zip1024_compressed_ok,
+				&export_vars.zip1024_compressed_usec,
+				&export_vars.zip1024_decompressed,
+				&export_vars.zip1024_decompressed_usec,
+				zip_stat);
+		case 2048:
+			export_zip(&export_vars.zip2048_compressed,
+				&export_vars.zip2048_compressed_ok,
+				&export_vars.zip2048_compressed_usec,
+				&export_vars.zip2048_decompressed,
+				&export_vars.zip2048_decompressed_usec,
+				zip_stat);
+			break;
+		case 4096:
+			export_zip(&export_vars.zip4096_compressed,
+				&export_vars.zip4096_compressed_ok,
+				&export_vars.zip4096_compressed_usec,
+				&export_vars.zip4096_decompressed,
+				&export_vars.zip4096_decompressed_usec,
+				zip_stat);
+		case 8192:
+			export_zip(&export_vars.zip8192_compressed,
+				&export_vars.zip8192_compressed_ok,
+				&export_vars.zip8192_compressed_usec,
+				&export_vars.zip8192_decompressed,
+				&export_vars.zip8192_decompressed_usec,
+				zip_stat);
+		case 16384:
+			export_zip(&export_vars.zip16384_compressed,
+				&export_vars.zip16384_compressed_ok,
+				&export_vars.zip16384_compressed_usec,
+				&export_vars.zip16384_decompressed,
+				&export_vars.zip16384_decompressed_usec,
+				zip_stat);
+			break;
+		default:
+			break;
+		}
+	}
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
