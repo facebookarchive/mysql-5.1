@@ -2164,6 +2164,7 @@ export_zip(
 	ulint*			compressed,
 	ulint*			compressed_ok,
 	ib_int64_t*		compressed_usec,
+	ib_int64_t*		compressed_ok_usec,
 	ulint*			decompressed,
 	ib_int64_t*		decompressed_usec,
 	page_zip_stat_t*	zip_stat)
@@ -2171,6 +2172,7 @@ export_zip(
 	*compressed		= zip_stat->compressed;
 	*compressed_ok		= zip_stat->compressed_ok;
 	*compressed_usec	= zip_stat->compressed_usec;
+	*compressed_ok_usec	= zip_stat->compressed_ok_usec;
 	*decompressed		= zip_stat->decompressed;
 	*decompressed_usec	= zip_stat->decompressed_usec;
 }
@@ -2461,6 +2463,7 @@ srv_export_innodb_status(void)
 			export_zip(&export_vars.zip1024_compressed,
 				&export_vars.zip1024_compressed_ok,
 				&export_vars.zip1024_compressed_usec,
+				&export_vars.zip1024_compressed_ok_usec,
 				&export_vars.zip1024_decompressed,
 				&export_vars.zip1024_decompressed_usec,
 				zip_stat);
@@ -2468,6 +2471,7 @@ srv_export_innodb_status(void)
 			export_zip(&export_vars.zip2048_compressed,
 				&export_vars.zip2048_compressed_ok,
 				&export_vars.zip2048_compressed_usec,
+				&export_vars.zip2048_compressed_ok_usec,
 				&export_vars.zip2048_decompressed,
 				&export_vars.zip2048_decompressed_usec,
 				zip_stat);
@@ -2476,6 +2480,7 @@ srv_export_innodb_status(void)
 			export_zip(&export_vars.zip4096_compressed,
 				&export_vars.zip4096_compressed_ok,
 				&export_vars.zip4096_compressed_usec,
+				&export_vars.zip4096_compressed_ok_usec,
 				&export_vars.zip4096_decompressed,
 				&export_vars.zip4096_decompressed_usec,
 				zip_stat);
@@ -2483,6 +2488,7 @@ srv_export_innodb_status(void)
 			export_zip(&export_vars.zip8192_compressed,
 				&export_vars.zip8192_compressed_ok,
 				&export_vars.zip8192_compressed_usec,
+				&export_vars.zip8192_compressed_ok_usec,
 				&export_vars.zip8192_decompressed,
 				&export_vars.zip8192_decompressed_usec,
 				zip_stat);
@@ -2490,6 +2496,7 @@ srv_export_innodb_status(void)
 			export_zip(&export_vars.zip16384_compressed,
 				&export_vars.zip16384_compressed_ok,
 				&export_vars.zip16384_compressed_usec,
+				&export_vars.zip16384_compressed_ok_usec,
 				&export_vars.zip16384_decompressed,
 				&export_vars.zip16384_decompressed_usec,
 				zip_stat);
