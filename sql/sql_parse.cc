@@ -2507,6 +2507,8 @@ mysql_execute_command(THD *thd,
 
   if (use_admission_control)
   {
+    int admission_results = 0;
+    int transaction_results = 0;
     switch (lex->sql_command) {
       case SQLCOM_SELECT:
       case SQLCOM_EXECUTE:
@@ -2528,17 +2530,29 @@ mysql_execute_command(THD *thd,
       case SQLCOM_HA_CLOSE:
       case SQLCOM_HA_OPEN_READ_CLOSE:
       case SQLCOM_CALL:
-        admission_control_enter(thd, thd->variables.net_wait_timeout);
-        transaction_control_enter(thd, thd->variables.net_wait_timeout, FALSE);
+        admission_results = admission_control_enter(
+          thd, thd->variables.net_wait_timeout);
+        transaction_results = transaction_control_enter(
+          thd, thd->variables.net_wait_timeout, FALSE);
         setup_ac = TRUE;
         break;
       case SQLCOM_BEGIN:
-        transaction_control_enter(thd, thd->variables.net_wait_timeout, TRUE);
+        transaction_results = transaction_control_enter(
+          thd, thd->variables.net_wait_timeout, TRUE);
         break;
       default:
         ac_barier.Bypass();
         // pass
         break;
+    }
+    if (admission_results > 0 || transaction_results > 0) {
+      if (admission_results > 0) {
+        my_error(ER_ADMISSION_CONTROL_TIMEOUT, MYF(0), "--use-admission-control");
+      } else {
+        my_error(ER_TRANSACTION_CONTROL_TIMEOUT, MYF(0), "--use-admission-control");
+      }
+
+      DBUG_RETURN(-1);
     }
   }
 

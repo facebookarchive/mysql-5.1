@@ -1109,9 +1109,10 @@ int ha_commit_trans(THD *thd, bool all)
 {
   int error= 0, cookie= 0;
 
-  if (thd->transaction.tx_control_state == TX_CONTROL_STATEMENT &&
-      !thd->in_sub_stmt)
+  if (all || (thd->transaction.tx_control_state == TX_CONTROL_STATEMENT &&
+              !thd->in_sub_stmt)) {
     transaction_control_exit(thd);
+  }
 
   /*
     'all' means that this is either an explicit commit issued by

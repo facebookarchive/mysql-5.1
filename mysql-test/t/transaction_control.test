@@ -15,14 +15,14 @@ connect (tc1, localhost, adminc,,);
 show grants;
 create table tctest(id int, primary key(id)) engine=innodb;
 insert into tctest values (1), (2), (3);
-select * from tctest;
+select * from tctest /* 1 */;
 
 connect (tc2, localhost, adminc,,);
 send select id, sleep(id) from tctest;
 sleep 0.1;
 
 connection tc1;
-send select * from tctest;
+send select * from tctest /* 2 */;
 sleep 0.1;
 
 connection default;
@@ -34,16 +34,35 @@ connection tc2;
 reap;
 connection tc1;
 reap;
-begin;
+begin /* 1 */;
 insert into tctest values (4);
 
 connection tc2;
-send select * from tctest;
+send select * from tctest /* 3 */;
 
 connection default;
 sleep 0.75;
 --replace_column 1 # 6 #
 show processlist;
+
+connection tc1;
+commit;
+
+connection tc2;
+reap;
+
+sleep 0.5;
+--replace_column 1 # 6 #
+show processlist;
+
+connection tc1;
+begin /* 2 */;
+insert into tctest values (17);
+
+connection tc2;
+set wait_timeout=3;
+--error ER_TRANSACTION_CONTROL_TIMEOUT
+select * from tctest /* 4 */;
 
 connection tc1;
 commit;

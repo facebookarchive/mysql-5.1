@@ -6217,3 +6217,9 @@ ER_QUERY_CACHE_DISABLED
   eng "Query cache is disabled; restart the server with query_cache_type=1 to enable it"
 ER_TMP_TABLE_MAX_FILE_SIZE_EXCEEDED
         eng "Temporary table file is too big"
+
+ER_ADMISSION_CONTROL_TIMEOUT
+  eng "Timeout while waiting for admission control"
+
+ER_TRANSACTION_CONTROL_TIMEOUT
+  eng "Timeout while waiting for transaction control"
