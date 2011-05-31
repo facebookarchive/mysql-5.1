@@ -685,6 +685,107 @@ public:
   }
 };
 
+/*
+  Functions that return values with ASCII repertoire
+*/
+class Item_str_ascii_func :public Item_str_func
+{
+  String ascii_buf;
+public:
+  Item_str_ascii_func() :Item_str_func() {}
+  Item_str_ascii_func(Item *a) :Item_str_func(a) {}
+  Item_str_ascii_func(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_str_ascii_func(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
+  String *val_str(String *str)
+  {
+    return val_str_from_val_str_ascii(str, &ascii_buf);
+  }
+  String *val_str_from_val_str_ascii(String *str, String *str2);
+  virtual String *val_str_ascii(String *)= 0;
+};
+
+static inline uint32
+char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
+{
+   ulonglong tmp= ((ulonglong) char_length_arg) * mbmaxlen_arg;
+   return (tmp > UINT_MAX32) ? (uint32) UINT_MAX32 : (uint32) tmp;
+}
+
+/*************************************************************************
+  Item_func_inet_str_base implements common code for INET6/IP-related
+  functions returning string value.
+*************************************************************************/
+
+class Item_func_inet_str_base : public Item_str_ascii_func
+{
+public:
+  inline Item_func_inet_str_base(Item *arg)
+    : Item_str_ascii_func(arg)
+  { }
+
+public:
+  virtual String *val_str_ascii(String *buffer);
+
+  void fix_length_and_charset(uint32 max_char_length_arg,
+                              CHARSET_INFO *cs)
+  {
+    max_length= char_to_byte_length_safe(max_char_length_arg, cs->mbmaxlen);
+    collation.set(cs);
+  }
+
+protected:
+  virtual bool calc_value(String *arg, String *buffer) = 0;
+};
+
+class Item_func_inet6_aton : public Item_func_inet_str_base
+{
+public:
+  inline Item_func_inet6_aton(Item *ip_addr)
+    : Item_func_inet_str_base(ip_addr)
+  { }
+
+public:
+  virtual const char *func_name() const
+  { return "inet6_aton"; }
+
+  virtual void fix_length_and_dec()
+  {
+    decimals= 0;
+    fix_length_and_charset(16, &my_charset_bin);
+    maybe_null= 1;
+  }
+
+protected:
+  virtual bool calc_value(String *arg, String *buffer);
+};
+
+class Item_func_inet6_ntoa : public Item_func_inet_str_base
+{
+public:
+  inline Item_func_inet6_ntoa(Item *ip_addr)
+    : Item_func_inet_str_base(ip_addr)
+  { }
+
+public:
+  virtual const char *func_name() const
+  { return "inet6_ntoa"; }
+
+  virtual void fix_length_and_dec()
+  {
+    decimals= 0;
+
+    // max length: IPv6-address -- 16 bytes
+    // 16 bytes / 2 bytes per group == 8 groups => 7 delimiter
+    // 4 symbols per group
+    fix_length_and_charset(8 * 4 + 7, default_charset());
+
+    maybe_null= 1;
+  }
+
+protected:
+  virtual bool calc_value(String *arg, String *buffer);
+};
+
 class Item_func_quote :public Item_str_func
 {
   String tmp_value;

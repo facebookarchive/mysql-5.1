@@ -1131,6 +1131,30 @@ protected:
   virtual ~Create_func_inet_aton() {}
 };
 
+class Create_func_inet6_ntoa : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_inet6_ntoa s_singleton;
+
+protected:
+  Create_func_inet6_ntoa() {}
+  virtual ~Create_func_inet6_ntoa() {}
+};
+
+class Create_func_inet6_aton : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_inet6_aton s_singleton;
+
+protected:
+  Create_func_inet6_aton() {}
+  virtual ~Create_func_inet6_aton() {}
+};
+
 
 class Create_func_instr : public Create_func_arg2
 {
@@ -3597,6 +3621,23 @@ Create_func_inet_aton::create(THD *thd, Item *arg1)
   return new (thd->mem_root) Item_func_inet_aton(arg1);
 }
 
+Create_func_inet6_ntoa Create_func_inet6_ntoa::s_singleton;
+
+Item*
+Create_func_inet6_ntoa::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_inet6_ntoa(arg1);
+}
+
+
+Create_func_inet6_aton Create_func_inet6_aton::s_singleton;
+
+Item*
+Create_func_inet6_aton::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_inet6_aton(arg1);
+}
+
 
 Create_func_instr Create_func_instr::s_singleton;
 
@@ -4832,6 +4873,8 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("IFNULL") }, BUILDER(Create_func_ifnull)},
   { { C_STRING_WITH_LEN("INET_ATON") }, BUILDER(Create_func_inet_aton)},
   { { C_STRING_WITH_LEN("INET_NTOA") }, BUILDER(Create_func_inet_ntoa)},
+  { { C_STRING_WITH_LEN("INET6_ATON") }, BUILDER(Create_func_inet6_aton)},
+  { { C_STRING_WITH_LEN("INET6_NTOA") }, BUILDER(Create_func_inet6_ntoa)},
   { { C_STRING_WITH_LEN("INSTR") }, BUILDER(Create_func_instr)},
   { { C_STRING_WITH_LEN("INTERIORRINGN") }, GEOM_BUILDER(Create_func_interiorringn)},
   { { C_STRING_WITH_LEN("INTERSECTS") }, GEOM_BUILDER(Create_func_intersects)},
