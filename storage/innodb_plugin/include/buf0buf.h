@@ -1498,10 +1498,15 @@ struct buf_pool_struct{
 	/** @name Buddy allocator fields
 	The buddy allocator is used for allocating compressed page
 	frames and buf_page_t descriptors of blocks that exist
-	in the buffer pool only in compressed form. */
+	in the buffer pool only in compressed form. zip_clean is debug
+	only because buf_LRU_insert_zip_clean can be O(N) on the LRU
+	length when the buf pool is mostly compressed pages. See
+	MySQL bug 61341. */
 	/* @{ */
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
+#endif
 	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
 					/*!< buddy free lists */
 #if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE

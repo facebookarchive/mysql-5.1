@@ -181,6 +181,8 @@ page has been allocated in the buffer pool.  The control blocks for
 uncompressed pages are accessible via buf_block_t objects that are
 reachable via buf_pool->chunks[].
 
+Note that zip_clean has been made debug only. See the field declaration.
+
 The chains of free memory blocks (buf_pool->zip_free[]) are used by
 the buddy allocator (buf0buddy.c) to keep track of currently unused
 memory blocks of size sizeof(buf_page_t)..UNIV_PAGE_SIZE / 2.  These
@@ -964,6 +966,9 @@ buf_chunk_not_freed(
 	return(NULL);
 }
 
+/* Only used by buf_pool_resize which is now debug only */
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+
 /*********************************************************************//**
 Checks that all blocks in the buffer chunk are in BUF_BLOCK_NOT_USED state.
 @return	TRUE if all freed */
@@ -1029,6 +1034,8 @@ buf_chunk_free(
 
 	os_mem_free_large(chunk->mem, chunk->mem_size);
 }
+
+#endif
 
 /********************************************************************//**
 Creates the buffer pool.
@@ -1300,6 +1307,12 @@ buf_relocate(
 	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, bpage);
 	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, fold, dpage);
 }
+
+/* Made debug only because buf_pool_page_hash_rebuild uses zip_clean
+and buf_pool_resize calls buf_pool_page_hash_rebuild and buf_pool_shrink.
+The field zip_clean is debug only. See zip_clean declaration. */
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 
 /********************************************************************//**
 Shrinks the buffer pool. */
@@ -1627,6 +1640,7 @@ buf_pool_resize(void)
 
 	buf_pool_page_hash_rebuild();
 }
+#endif
 
 /********************************************************************//**
 Moves a page to the start of the buffer pool LRU list. This high-level
@@ -2403,8 +2417,10 @@ wait_until_unfixed:
 
 		if (buf_page_get_state(&block->page)
 		    == BUF_BLOCK_ZIP_PAGE) {
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 			UT_LIST_REMOVE(list, buf_pool->zip_clean,
 				       &block->page);
+#endif
 			ut_ad(!block->page.in_flush_list);
 		} else {
 			/* Relocate buf_pool->flush_list. */
@@ -3139,7 +3155,10 @@ err_exit:
 		mutex_exit(hash_mutex);
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		buf_LRU_insert_zip_clean(bpage);
+#endif
 
 		buf_page_set_io_fix(bpage, BUF_IO_READ);
 

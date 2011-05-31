@@ -435,7 +435,9 @@ buf_flush_remove(
 	case BUF_BLOCK_ZIP_DIRTY:
 		buf_page_set_state(bpage, BUF_BLOCK_ZIP_PAGE);
 		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		buf_LRU_insert_zip_clean(bpage);
+#endif
 		break;
 	case BUF_BLOCK_FILE_PAGE:
 		UT_LIST_REMOVE(list, buf_pool->flush_list, bpage);

@@ -509,6 +509,10 @@ next_page:
 	}
 }
 
+/* zip_clean has been made debug only. See the field declaration. */
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
 UNIV_INTERN
@@ -540,6 +544,8 @@ buf_LRU_insert_zip_clean(
 		UT_LIST_ADD_FIRST(list, buf_pool->zip_clean, bpage);
 	}
 }
+
+#endif
 
 /******************************************************************//**
 Try to free an uncompressed page of a compressed block from the unzip
@@ -1636,7 +1642,9 @@ func_exit:
 			}
 
 			if (b->state == BUF_BLOCK_ZIP_PAGE) {
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 				buf_LRU_insert_zip_clean(b);
+#endif
 			} else {
 				/* Relocate on buf_pool->flush_list. */
 				buf_flush_relocate_on_flush_list(bpage, b);
@@ -1927,7 +1935,9 @@ buf_LRU_block_remove_hashed_page(
 		ut_a(bpage->zip.data);
 		ut_a(buf_page_get_zip_size(bpage));
 
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
+#endif
 
 		ut_ad(buf_page_get_mutex(bpage) == &buf_pool_zip_mutex);
 
