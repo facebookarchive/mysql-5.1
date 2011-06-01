@@ -69,6 +69,31 @@ static const char HEX_DIGITS[]= "0123456789abcdef";
 /**
   Check the function argument, handle errors properly.
 
+  @return The function value.
+*/
+
+longlong Item_func_inet_bool_base::val_int()
+{
+  DBUG_ASSERT(fixed);
+
+  if (args[0]->result_type() != STRING_RESULT ||  // String argument expected
+      args[0]->null_value)                        // Not-NULL argument expected
+    return 0;
+
+  String buffer;
+  String *arg_str= args[0]->val_str(&buffer);
+
+  if (!arg_str) // Out-of memory happened. The error has been reported.
+    return 0;
+
+  return calc_value(arg_str) ? 1 : 0;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Check the function argument, handle errors properly.
+
   @param [out] buffer Buffer for string operations.
 
   @return The function value.
@@ -655,4 +680,82 @@ bool Item_func_inet6_ntoa::calc_value(String *arg, String *buffer)
   DBUG_PRINT("info",
              ("INET6_NTOA(): varbinary(4) or varbinary(16) expected."));
   return false;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Checks if the passed string represents an IPv4-address.
+
+  @param arg The string to check.
+
+  @return Check status.
+  @retval false The passed string does not represent an IPv4-address.
+  @retval true  The passed string represents an IPv4-address.
+*/
+
+bool Item_func_is_ipv4::calc_value(const String *arg)
+{
+  in_addr ipv4_address;
+
+  return str_to_ipv4(arg->ptr(), arg->length(), &ipv4_address);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Checks if the passed string represents an IPv6-address.
+
+  @param arg The string to check.
+
+  @return Check status.
+  @retval false The passed string does not represent an IPv6-address.
+  @retval true  The passed string represents an IPv6-address.
+*/
+
+bool Item_func_is_ipv6::calc_value(const String *arg)
+{
+  in6_addr ipv6_address;
+
+  return str_to_ipv6(arg->ptr(), arg->length(), &ipv6_address);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Checks if the passed IPv6-address is an IPv4-compat IPv6-address.
+
+  @param arg The IPv6-address to check.
+
+  @return Check status.
+  @retval false The passed IPv6-address is not an IPv4-compatible IPv6-address.
+  @retval true  The passed IPv6-address is an IPv4-compatible IPv6-address.
+*/
+
+bool Item_func_is_ipv4_compat::calc_value(const String *arg)
+{
+  if ((int) arg->length() != IN6_ADDR_SIZE || arg->charset() != &my_charset_bin)
+    return false;
+
+  return IN6_IS_ADDR_V4COMPAT((struct in6_addr *) arg->ptr());
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Checks if the passed IPv6-address is an IPv4-mapped IPv6-address.
+
+  @param arg The IPv6-address to check.
+
+  @return Check status.
+  @retval false The passed IPv6-address is not an IPv4-mapped IPv6-address.
+  @retval true  The passed IPv6-address is an IPv4-mapped IPv6-address.
+*/
+
+bool Item_func_is_ipv4_mapped::calc_value(const String *arg)
+{
+  if ((int) arg->length() != IN6_ADDR_SIZE || arg->charset() != &my_charset_bin)
+    return false;
+
+  return IN6_IS_ADDR_V4MAPPED((struct in6_addr *) arg->ptr());
 }

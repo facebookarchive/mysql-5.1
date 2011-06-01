@@ -786,6 +786,87 @@ protected:
   virtual bool calc_value(String *arg, String *buffer);
 };
 
+
+class Item_func_inet_bool_base : public Item_bool_func
+{
+public:
+  inline Item_func_inet_bool_base(Item *ip_addr)
+    : Item_bool_func(ip_addr)
+  {
+    null_value= false;
+  }
+
+public:
+  virtual longlong val_int();
+
+protected:
+  virtual bool calc_value(const String *arg) = 0;
+};
+
+
+class Item_func_is_ipv4 : public Item_func_inet_bool_base
+{
+public:
+  inline Item_func_is_ipv4(Item *ip_addr)
+    : Item_func_inet_bool_base(ip_addr)
+  { }
+
+public:
+  virtual const char *func_name() const
+  { return "is_ipv4"; }
+
+protected:
+  virtual bool calc_value(const String *arg);
+};
+
+
+class Item_func_is_ipv6 : public Item_func_inet_bool_base
+{
+public:
+  inline Item_func_is_ipv6(Item *ip_addr)
+    : Item_func_inet_bool_base(ip_addr)
+  { }
+
+public:
+  virtual const char *func_name() const
+  { return "is_ipv6"; }
+
+protected:
+  virtual bool calc_value(const String *arg);
+};
+
+
+class Item_func_is_ipv4_compat : public Item_func_inet_bool_base
+{
+public:
+  inline Item_func_is_ipv4_compat(Item *ip_addr)
+    : Item_func_inet_bool_base(ip_addr)
+  { }
+
+public:
+  virtual const char *func_name() const
+  { return "is_ipv4_compat"; }
+
+protected:
+  virtual bool calc_value(const String *arg);
+};
+
+
+class Item_func_is_ipv4_mapped : public Item_func_inet_bool_base
+{
+public:
+  inline Item_func_is_ipv4_mapped(Item *ip_addr)
+    : Item_func_inet_bool_base(ip_addr)
+  { }
+
+public:
+  virtual const char *func_name() const
+  { return "is_ipv4_mapped"; }
+
+protected:
+  virtual bool calc_value(const String *arg);
+};
+
 class Item_func_quote :public Item_str_func
 {
   String tmp_value;

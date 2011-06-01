@@ -1,6 +1,18 @@
+# backported from trunk func_misc.test
 
-# echo backported from trunk (mysql 5.6)
+#
+# Bug #57283: inet_ntoa() crashes
+#
+SELECT INET_NTOA(0);
+SELECT '1' IN ('1', INET_NTOA(0));
 
+#
+# Bug #57283: be paranoid, check INET6_NTOA
+#
+SELECT INET6_NTOA(0);
+SELECT '1' IN ('1', INET6_NTOA(0));
+
+--echo
 --echo # --
 --echo # -- WL#5787: IPv6-capable INET_ATON and INET_NTOA functions.
 --echo # --
@@ -203,6 +215,55 @@ SELECT HEX(INET6_ATON('1.2.3.4.5'));
 SELECT HEX(INET6_ATON(INET_NTOA(INET_ATON('1.2.3.4')))) AS x;
 
 --echo
+--echo # -- Checking IS_IPV4() / IS_IPV6()...
+--echo
+
+SELECT IS_IPV4(NULL);
+SELECT IS_IPV4(1);
+SELECT IS_IPV4(1.0);
+SELECT IS_IPV4('1.2.3.4');
+SELECT IS_IPV4('001.02.000.255');
+SELECT IS_IPV4('::1.2.0.255');
+SELECT IS_IPV4('::1');
+SELECT IS_IPV4(BINARY('1.2.3.4'));
+
+SELECT IS_IPV6(NULL);
+SELECT IS_IPV6(1);
+SELECT IS_IPV6(1.0);
+SELECT IS_IPV6('1.2.3.4');
+SELECT IS_IPV6('001.02.000.255');
+SELECT IS_IPV6('::001.02.000.255');
+SELECT IS_IPV6('::1.2.0.255');
+SELECT IS_IPV6('::1');
+SELECT IS_IPV6('0000:0000:0000:0000:0000:0000:0000:0001');
+SELECT IS_IPV6(BINARY('0000:0000:0000:0000:0000:0000:0000:0001'));
+
+--echo
+--echo # -- Checking IS_IPV4_MAPPED() and IS_IPV4_COMPAT()...
+--echo
+
+SELECT IS_IPV4_MAPPED(INET6_ATON('1.2.3.4')),
+       IS_IPV4_COMPAT(INET6_ATON('1.2.3.4'));
+SELECT IS_IPV4_MAPPED(INET6_ATON('::1.2.3.4')),
+       IS_IPV4_COMPAT(INET6_ATON('::1.2.3.4'));
+SELECT IS_IPV4_MAPPED(INET6_ATON('::FFFF:1.2.3.4')),
+       IS_IPV4_COMPAT(INET6_ATON('::FFFF:1.2.3.4'));
+SELECT IS_IPV4_MAPPED(INET6_ATON('::ABCD:1.2.3.4')),
+       IS_IPV4_COMPAT(INET6_ATON('::ABCD:1.2.3.4'));
+SELECT IS_IPV4_MAPPED(INET6_ATON('::1')),
+       IS_IPV4_COMPAT(INET6_ATON('::1'));
+SELECT IS_IPV4_MAPPED(INET6_ATON('::')),
+       IS_IPV4_COMPAT(INET6_ATON('::'));
+
+# NOTE: IS_IPV4_COMPAT() / IS_IPV4_MAPPED() could work with "regular strings in
+# binary collation" too, but there is no way to create a "regular string"
+# starting with \0.
+
+--echo
+--echo # -- Checking IS_IPV4_COMPAT()...
+--echo
+
+--echo
 --echo # -- Working with a table...
 --echo
 
@@ -239,3 +300,11 @@ SELECT INET6_NTOA(ip), HEX(ip), LENGTH(ip) FROM t2;
 
 DROP TABLE t1;
 DROP TABLE t2;
+
+--echo
+--echo # -- Done.
+--echo
+
+--echo #
+--echo # End of tests
+--echo #
