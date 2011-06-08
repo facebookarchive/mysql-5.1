@@ -445,7 +445,7 @@ const char* mysql_fix_privilege_tables={
 "#\n "
 "# Add max_concurrent_transactions resource limit\n "
 "#\n "
-"ALTER TABLE user ADD max_concurrent_transactions int(11) unsigned DEFAULT '0' NOT NULL AFTER max_concurrent_transactions;\n "
+"ALTER TABLE user ADD max_concurrent_transactions int(11) unsigned DEFAULT '0' NOT NULL AFTER max_concurrent_queries;\n "
 "\n "
 "#\n "
 "# user.Create_user_priv\n "
