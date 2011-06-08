@@ -55,6 +55,7 @@ clear_table_stats_counters(TABLE_STATS* table_stats)
   my_io_perf_init(&table_stats->io_perf_read);
   my_io_perf_init(&table_stats->io_perf_write);
   table_stats->index_inserts = 0;
+	memset(&table_stats->comp_stat, 0, sizeof(table_stats->comp_stat));
 }
 
 /*
