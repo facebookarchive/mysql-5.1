@@ -1064,6 +1064,76 @@ static ST_FIELD_INFO	i_s_cmp_fields_info[] =
 		    " in Seconds"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+	{STRUCT_FLD(field_name,		"compress_primary_ops"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Number of Compressions in primary indexes"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"compress_primary_ops_ok"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Number of"
+					" Successful Compressions in primary indexes"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"compress_primary_time"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Duration of Primary Index Compressions,"
+		    " in Seconds"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"compress_primary_ok_time"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Duration of Successful Primary Index "
+		    "Compressions, in Seconds"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"compress_secondary_ops"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Number of Secondary Index Compressions"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"compress_secondary_ops_ok"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Number of"
+					" Successful Secondary Index Compressions"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"compress_secondary_time"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Duration of Secondary Index Compressions,"
+		    " in Seconds"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"compress_secondary_ok_time"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Duration of Successful Secondary Index "
+		    "Compressions, in Seconds"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	{STRUCT_FLD(field_name,		"uncompress_ops"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -1078,6 +1148,40 @@ static ST_FIELD_INFO	i_s_cmp_fields_info[] =
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
 	 STRUCT_FLD(old_name,		"Total Duration of Decompressions,"
+		    " in Seconds"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"uncompress_primary_ops"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Number of Primary Index Decompressions"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"uncompress_primary_time"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Duration of Primary Index Decompressions,"
+		    " in Seconds"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"uncompress_secondary_ops"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Number of Secondary Index Decompressions"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"uncompress_secondary_time"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Duration of Secondary Index Decompressions,"
 		    " in Seconds"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
@@ -1113,8 +1217,8 @@ i_s_cmp_fill_low(
 
 	for (uint i = 0; i < PAGE_ZIP_NUM_SSIZE - 1; i++) {
 		page_zip_stat_t*	zip_stat = &page_zip_stat[i];
-
-		table->field[0]->store(PAGE_ZIP_MIN_SIZE << i);
+		int col = -1;
+		table->field[++col]->store(PAGE_ZIP_MIN_SIZE << i);
 
 		/* The cumulated counts are not protected by any
 		mutex.  Thus, some operation in page0zip.c could
@@ -1122,15 +1226,33 @@ i_s_cmp_fill_low(
 		clear it.  We could introduce mutex protection, but it
 		could cause a measureable performance hit in
 		page0zip.c. */
-		table->field[1]->store(zip_stat->compressed);
-		table->field[2]->store(zip_stat->compressed_ok);
-		table->field[3]->store(
+		table->field[++col]->store(zip_stat->compressed);
+		table->field[++col]->store(zip_stat->compressed_ok);
+		table->field[++col]->store(
 			(ulong) (zip_stat->compressed_usec / 1000000));
-		table->field[4]->store(
+		table->field[++col]->store(
 			(ulong) (zip_stat->compressed_ok_usec / 1000000));
-		table->field[5]->store(zip_stat->decompressed);
-		table->field[6]->store(
+		table->field[++col]->store(zip_stat->compressed_primary);
+		table->field[++col]->store(zip_stat->compressed_primary_ok);
+		table->field[++col]->store(
+			(ulong) (zip_stat->compressed_primary_usec / 1000000));
+		table->field[++col]->store(
+			(ulong) (zip_stat->compressed_primary_ok_usec / 1000000));
+		table->field[++col]->store(zip_stat->compressed_secondary);
+		table->field[++col]->store(zip_stat->compressed_secondary_ok);
+		table->field[++col]->store(
+			(ulong) (zip_stat->compressed_secondary_usec / 1000000));
+		table->field[++col]->store(
+			(ulong) (zip_stat->compressed_secondary_ok_usec / 1000000));
+		table->field[++col]->store(zip_stat->decompressed);
+		table->field[++col]->store(
 			(ulong) (zip_stat->decompressed_usec / 1000000));
+		table->field[++col]->store(zip_stat->decompressed_primary);
+		table->field[++col]->store(
+			(ulong) (zip_stat->decompressed_primary_usec / 1000000));
+		table->field[++col]->store(zip_stat->decompressed_secondary);
+		table->field[++col]->store(
+			(ulong) (zip_stat->decompressed_secondary_usec / 1000000));
 
 		if (reset) {
 			memset(zip_stat, 0, sizeof *zip_stat);

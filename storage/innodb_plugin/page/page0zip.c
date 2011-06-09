@@ -1154,6 +1154,7 @@ page_zip_compress(
 	ulint		n_blobs	= 0;
 	byte*		storage;/* storage of uncompressed columns */
 #ifndef UNIV_HOTBACKUP
+	page_zip_stat_t*	zip_stat;
 	my_fast_timer_t start;
 	ullint udiff;
 	fil_space_t* space;
@@ -1229,7 +1230,13 @@ page_zip_compress(
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
-	page_zip_stat[page_zip->ssize - 1].compressed++;
+	zip_stat = &page_zip_stat[page_zip->ssize - 1];
+	zip_stat->compressed++;
+	if (dict_index_is_clust(index)) {
+		zip_stat->compressed_primary++;
+	} else {
+		zip_stat->compressed_secondary++;
+	}
 	if (space) {
 		os_atomic_increment(&space->comp_stat.compressed, 1);
 		if (space_id)
@@ -1374,8 +1381,12 @@ err_exit:
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
 		udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
-		page_zip_stat[page_zip->ssize - 1].compressed_usec
-			+= udiff;
+		zip_stat->compressed_usec += udiff;
+		if (dict_index_is_clust(index)) {
+			zip_stat->compressed_primary_usec += udiff;
+		} else {
+			zip_stat->compressed_secondary_usec += udiff;
+		}
 		if (space) {
 			my_atomic_add_bigint(&space->comp_stat.compressed_usec, udiff);
 		}
@@ -1440,11 +1451,18 @@ err_exit:
 #ifndef UNIV_HOTBACKUP
 	{
 		udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
-		page_zip_stat_t*	zip_stat
-			= &page_zip_stat[page_zip->ssize - 1];
 		zip_stat->compressed_ok++;
 		zip_stat->compressed_usec += udiff;
 		zip_stat->compressed_ok_usec += udiff;
+		if (dict_index_is_clust(index)) {
+			zip_stat->compressed_primary_ok++;
+			zip_stat->compressed_primary_usec += udiff;
+			zip_stat->compressed_primary_ok_usec += udiff;
+		} else {
+			zip_stat->compressed_secondary_ok++;
+			zip_stat->compressed_secondary_usec += udiff;
+			zip_stat->compressed_secondary_ok_usec += udiff;
+		}
 		if (space) {
 			os_atomic_increment(&space->comp_stat.compressed_ok, 1);
 			my_atomic_add_bigint(&space->comp_stat.compressed_usec, udiff);
@@ -3053,8 +3071,6 @@ err_exit:
 	ut_a(page_is_comp(page));
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 
-	page_zip_fields_free(index);
-	mem_heap_free(heap);
 #ifndef UNIV_HOTBACKUP
 	{
 		udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
@@ -3062,6 +3078,13 @@ err_exit:
 			= &page_zip_stat[page_zip->ssize - 1];
 		zip_stat->decompressed++;
 		zip_stat->decompressed_usec += udiff;
+		if (dict_index_is_clust(index)) {
+			zip_stat->decompressed_primary++;
+			zip_stat->decompressed_primary_usec += udiff;
+		} else {
+			zip_stat->decompressed_secondary++;
+			zip_stat->decompressed_secondary_usec += udiff;
+		}
 		mutex_enter(&fil_system->mutex);
 		space = fil_space_get_by_id(space_id);
 		mutex_exit(&fil_system->mutex);
@@ -3074,6 +3097,8 @@ err_exit:
 	}
 #endif /* !UNIV_HOTBACKUP */
 
+	page_zip_fields_free(index);
+	mem_heap_free(heap);
 	/* Update the stat counter for LRU policy. */
 	buf_LRU_stat_inc_unzip();
 

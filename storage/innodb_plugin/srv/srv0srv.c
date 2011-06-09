@@ -2165,16 +2165,40 @@ export_zip(
 	ulint*			compressed_ok,
 	ib_int64_t*		compressed_usec,
 	ib_int64_t*		compressed_ok_usec,
+	ulint*			compressed_primary,
+	ulint*			compressed_primary_ok,
+	ib_int64_t*		compressed_primary_usec,
+	ib_int64_t*		compressed_primary_ok_usec,
+	ulint*			compressed_secondary,
+	ulint*			compressed_secondary_ok,
+	ib_int64_t*		compressed_secondary_usec,
+	ib_int64_t*		compressed_secondary_ok_usec,
 	ulint*			decompressed,
 	ib_int64_t*		decompressed_usec,
+	ulint*			decompressed_primary,
+	ib_int64_t*		decompressed_primary_usec,
+	ulint*			decompressed_secondary,
+	ib_int64_t*		decompressed_secondary_usec,
 	page_zip_stat_t*	zip_stat)
 {
 	*compressed		= zip_stat->compressed;
 	*compressed_ok		= zip_stat->compressed_ok;
 	*compressed_usec	= zip_stat->compressed_usec;
 	*compressed_ok_usec	= zip_stat->compressed_ok_usec;
-	*decompressed		= zip_stat->decompressed;
-	*decompressed_usec	= zip_stat->decompressed_usec;
+	*compressed_primary	= zip_stat->compressed_primary;
+	*compressed_primary_ok = zip_stat->compressed_primary_ok;
+	*compressed_primary_usec = zip_stat->compressed_primary_usec;
+	*compressed_primary_ok_usec	= zip_stat->compressed_primary_ok_usec;
+	*compressed_secondary	= zip_stat->compressed_secondary;
+	*compressed_secondary_ok = zip_stat->compressed_secondary_ok;
+	*compressed_secondary_usec = zip_stat->compressed_secondary_usec;
+	*compressed_secondary_ok_usec	= zip_stat->compressed_secondary_ok_usec;
+	*decompressed	= zip_stat->decompressed;
+	*decompressed_usec = zip_stat->decompressed_usec;
+	*decompressed_primary	= zip_stat->decompressed_primary;
+	*decompressed_primary_usec = zip_stat->decompressed_primary_usec;
+	*decompressed_secondary	= zip_stat->decompressed_secondary;
+	*decompressed_secondary_usec = zip_stat->decompressed_secondary_usec;
 }
 
 /******************************************************************//**
@@ -2464,16 +2488,41 @@ srv_export_innodb_status(void)
 				&export_vars.zip1024_compressed_ok,
 				&export_vars.zip1024_compressed_usec,
 				&export_vars.zip1024_compressed_ok_usec,
+				&export_vars.zip1024_compressed_primary,
+				&export_vars.zip1024_compressed_primary_ok,
+				&export_vars.zip1024_compressed_primary_usec,
+				&export_vars.zip1024_compressed_primary_ok_usec,
+				&export_vars.zip1024_compressed_secondary,
+				&export_vars.zip1024_compressed_secondary_ok,
+				&export_vars.zip1024_compressed_secondary_usec,
+				&export_vars.zip1024_compressed_secondary_ok_usec,
 				&export_vars.zip1024_decompressed,
 				&export_vars.zip1024_decompressed_usec,
+				&export_vars.zip1024_decompressed_primary,
+				&export_vars.zip1024_decompressed_primary_usec,
+				&export_vars.zip1024_decompressed_secondary,
+				&export_vars.zip1024_decompressed_secondary_usec,
 				zip_stat);
+			break;
 		case 2048:
 			export_zip(&export_vars.zip2048_compressed,
 				&export_vars.zip2048_compressed_ok,
 				&export_vars.zip2048_compressed_usec,
 				&export_vars.zip2048_compressed_ok_usec,
+				&export_vars.zip2048_compressed_primary,
+				&export_vars.zip2048_compressed_primary_ok,
+				&export_vars.zip2048_compressed_primary_usec,
+				&export_vars.zip2048_compressed_primary_ok_usec,
+				&export_vars.zip2048_compressed_secondary,
+				&export_vars.zip2048_compressed_secondary_ok,
+				&export_vars.zip2048_compressed_secondary_usec,
+				&export_vars.zip2048_compressed_secondary_ok_usec,
 				&export_vars.zip2048_decompressed,
 				&export_vars.zip2048_decompressed_usec,
+				&export_vars.zip2048_decompressed_primary,
+				&export_vars.zip2048_decompressed_primary_usec,
+				&export_vars.zip2048_decompressed_secondary,
+				&export_vars.zip2048_decompressed_secondary_usec,
 				zip_stat);
 			break;
 		case 4096:
@@ -2481,24 +2530,62 @@ srv_export_innodb_status(void)
 				&export_vars.zip4096_compressed_ok,
 				&export_vars.zip4096_compressed_usec,
 				&export_vars.zip4096_compressed_ok_usec,
+				&export_vars.zip4096_compressed_primary,
+				&export_vars.zip4096_compressed_primary_ok,
+				&export_vars.zip4096_compressed_primary_usec,
+				&export_vars.zip4096_compressed_primary_ok_usec,
+				&export_vars.zip4096_compressed_secondary,
+				&export_vars.zip4096_compressed_secondary_ok,
+				&export_vars.zip4096_compressed_secondary_usec,
+				&export_vars.zip4096_compressed_secondary_ok_usec,
 				&export_vars.zip4096_decompressed,
 				&export_vars.zip4096_decompressed_usec,
+				&export_vars.zip4096_decompressed_primary,
+				&export_vars.zip4096_decompressed_primary_usec,
+				&export_vars.zip4096_decompressed_secondary,
+				&export_vars.zip4096_decompressed_secondary_usec,
 				zip_stat);
+			break;
 		case 8192:
 			export_zip(&export_vars.zip8192_compressed,
 				&export_vars.zip8192_compressed_ok,
 				&export_vars.zip8192_compressed_usec,
 				&export_vars.zip8192_compressed_ok_usec,
+				&export_vars.zip8192_compressed_primary,
+				&export_vars.zip8192_compressed_primary_ok,
+				&export_vars.zip8192_compressed_primary_usec,
+				&export_vars.zip8192_compressed_primary_ok_usec,
+				&export_vars.zip8192_compressed_secondary,
+				&export_vars.zip8192_compressed_secondary_ok,
+				&export_vars.zip8192_compressed_secondary_usec,
+				&export_vars.zip8192_compressed_secondary_ok_usec,
 				&export_vars.zip8192_decompressed,
 				&export_vars.zip8192_decompressed_usec,
+				&export_vars.zip8192_decompressed_primary,
+				&export_vars.zip8192_decompressed_primary_usec,
+				&export_vars.zip8192_decompressed_secondary,
+				&export_vars.zip8192_decompressed_secondary_usec,
 				zip_stat);
+			break;
 		case 16384:
 			export_zip(&export_vars.zip16384_compressed,
 				&export_vars.zip16384_compressed_ok,
 				&export_vars.zip16384_compressed_usec,
 				&export_vars.zip16384_compressed_ok_usec,
+				&export_vars.zip16384_compressed_primary,
+				&export_vars.zip16384_compressed_primary_ok,
+				&export_vars.zip16384_compressed_primary_usec,
+				&export_vars.zip16384_compressed_primary_ok_usec,
+				&export_vars.zip16384_compressed_secondary,
+				&export_vars.zip16384_compressed_secondary_ok,
+				&export_vars.zip16384_compressed_secondary_usec,
+				&export_vars.zip16384_compressed_secondary_ok_usec,
 				&export_vars.zip16384_decompressed,
 				&export_vars.zip16384_decompressed_usec,
+				&export_vars.zip16384_decompressed_primary,
+				&export_vars.zip16384_decompressed_primary_usec,
+				&export_vars.zip16384_decompressed_secondary,
+				&export_vars.zip16384_decompressed_secondary_usec,
 				zip_stat);
 			break;
 		default:

@@ -84,16 +84,40 @@ struct page_zip_des_struct
 struct page_zip_stat_struct {
 	/** Number of page compressions */
 	ulint		compressed;
+	/** Number of primary index page compressions */
+	ulint		compressed_primary;
+	/** Number of secondary index page compressions */
+	ulint		compressed_secondary;
 	/** Number of successful page compressions */
 	ulint		compressed_ok;
+	/** Number of successful primary index page compressions */
+	ulint		compressed_primary_ok;
+	/** Number of succesful secondary index page compressions */
+	ulint		compressed_secondary_ok;
 	/** Number of page decompressions */
 	ulint		decompressed;
+	/** Number of primary index page decompressions */
+	ulint		decompressed_primary;
+	/** Number of secondary index page decompressions */
+	ulint		decompressed_secondary;
 	/** Duration of page compressions in microseconds */
 	ib_uint64_t	compressed_usec;
+	/** Duration of primary index page compressions in ms */
+	ib_uint64_t	compressed_primary_usec;
+	/** Duration of secondary index page compressions in ms */
+	ib_uint64_t	compressed_secondary_usec;
 	/** Duration of successful page compressions in microseconds */
 	ib_uint64_t	compressed_ok_usec;
+	/** Duration of successful primary index page compressions in ms */
+	ib_uint64_t	compressed_primary_ok_usec;
+	/** Duration of successful secondary index page compressions in ms */
+	ib_uint64_t	compressed_secondary_ok_usec;
 	/** Duration of page decompressions in microseconds */
 	ib_uint64_t	decompressed_usec;
+	/** Duration of primary index page decompressions in ms */
+	ib_uint64_t	decompressed_primary_usec;
+	/** Duration of secondary index page decompressions in ms */
+	ib_uint64_t	decompressed_secondary_usec;
 };
 
 /** Compression statistics */
