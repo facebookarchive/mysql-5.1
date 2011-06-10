@@ -208,6 +208,8 @@ btr_cur_optimistic_insert(
 				be stored externally by the caller, or
 				NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
+	ibool		update_split_stats, /*!< in: if set, page_splits variables will be
+	                              updated */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
 	mtr_t*		mtr);	/*!< in: mtr; if this function returns
 				DB_SUCCESS on a leaf page of a secondary
@@ -757,6 +759,9 @@ extern ulint	btr_cur_n_non_sea_old;
 srv_refresh_innodb_monitor_stats().  Referenced by
 srv_printf_innodb_monitor(). */
 extern ulint	btr_cur_n_sea_old;
+extern ullint btr_cur_page_splits_comp_fail;
+extern ullint btr_cur_page_splits_page_full;
+extern ullint btr_cur_page_splits_total;
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL

@@ -924,6 +924,15 @@ buf_block_get_zip_size(
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 	__attribute__((pure));
 /*********************************************************************//**
+Gets d where the size of the compressed page size is 512*2^d.
+@return	d where compressed page size is 512*2^d, 0 if page is not compressed  */
+UNIV_INLINE
+ulint
+buf_block_get_zip_ssize(
+/*===================*/
+	const buf_block_t*	block)	/*!< in: pointer to the control block */
+	__attribute__((pure));
+/*********************************************************************//**
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 #define buf_block_get_page_zip(block) \

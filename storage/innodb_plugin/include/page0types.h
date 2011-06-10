@@ -118,6 +118,8 @@ struct page_zip_stat_struct {
 	ib_uint64_t	decompressed_primary_usec;
 	/** Duration of secondary index page decompressions in ms */
 	ib_uint64_t	decompressed_secondary_usec;
+	/** Number of page splits caused by compression failures.*/
+	ulint		page_splits_comp_fail;
 };
 
 /** Compression statistics */

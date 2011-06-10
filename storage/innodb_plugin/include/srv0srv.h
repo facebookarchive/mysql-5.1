@@ -954,6 +954,7 @@ struct export_var_struct{
 	ib_int64_t	zip1024_decompressed_primary_usec;
 	ulint		zip1024_decompressed_secondary;
 	ib_int64_t	zip1024_decompressed_secondary_usec;
+	ulint		zip1024_page_splits_comp_fail;
 	ulint		zip2048_compressed;
 	ulint		zip2048_compressed_ok;
 	ib_int64_t	zip2048_compressed_usec;
@@ -972,6 +973,7 @@ struct export_var_struct{
 	ib_int64_t	zip2048_decompressed_primary_usec;
 	ulint		zip2048_decompressed_secondary;
 	ib_int64_t	zip2048_decompressed_secondary_usec;
+	ulint		zip2048_page_splits_comp_fail;
 	ulint		zip4096_compressed;
 	ulint		zip4096_compressed_ok;
 	ib_int64_t	zip4096_compressed_usec;
@@ -990,6 +992,7 @@ struct export_var_struct{
 	ib_int64_t	zip4096_decompressed_primary_usec;
 	ulint		zip4096_decompressed_secondary;
 	ib_int64_t	zip4096_decompressed_secondary_usec;
+	ulint		zip4096_page_splits_comp_fail;
 	ulint		zip8192_compressed;
 	ulint		zip8192_compressed_ok;
 	ib_int64_t	zip8192_compressed_usec;
@@ -1008,6 +1011,7 @@ struct export_var_struct{
 	ib_int64_t	zip8192_decompressed_primary_usec;
 	ulint		zip8192_decompressed_secondary;
 	ib_int64_t	zip8192_decompressed_secondary_usec;
+	ulint		zip8192_page_splits_comp_fail;
 	ulint		zip16384_compressed;
 	ulint		zip16384_compressed_ok;
 	ib_int64_t	zip16384_compressed_usec;
@@ -1026,6 +1030,10 @@ struct export_var_struct{
 	ib_int64_t	zip16384_decompressed_primary_usec;
 	ulint		zip16384_decompressed_secondary;
 	ib_int64_t	zip16384_decompressed_secondary_usec;
+	ulint		zip16384_page_splits_comp_fail;
+	ulint		page_splits_comp_fail;
+	ulint		page_splits_page_full;
+	ulint		page_splits_total;
 };
 
 /** The server system struct */

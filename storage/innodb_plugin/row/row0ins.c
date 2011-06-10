@@ -2101,7 +2101,7 @@ row_ins_index_entry_low(
 		if (mode == BTR_MODIFY_LEAF) {
 			err = btr_cur_optimistic_insert(
 				0, &cursor, entry, &insert_rec, &big_rec,
-				n_ext, thr, &mtr);
+				n_ext, FALSE, thr, &mtr);
 		} else {
 			ut_a(mode == BTR_MODIFY_TREE);
 			if (buf_LRU_buf_pool_running_out()) {

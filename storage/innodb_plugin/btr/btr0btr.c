@@ -1909,6 +1909,7 @@ btr_page_split_and_insert(
 
 	heap = mem_heap_create(1024);
 	n_uniq = dict_index_get_n_unique_in_tree(cursor->index);
+	++btr_cur_page_splits_total;
 func_start:
 	mem_heap_empty(heap);
 	offsets = NULL;
