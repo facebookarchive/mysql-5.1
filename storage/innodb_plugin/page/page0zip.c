@@ -1267,11 +1267,6 @@ page_zip_compress(
 	/* Compress the data payload. */
 	page_zip_set_alloc(&c_stream, heap);
 
-	err = deflateInit2(&c_stream, page_compression_level,
-			   Z_DEFLATED, UNIV_PAGE_SIZE_SHIFT,
-			   MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
-	ut_a(err == Z_OK);
-
 	c_stream.next_out = buf;
 	/* Subtract the space reserved for uncompressed data. */
 	/* Page header and the end marker of the modification log */
@@ -1301,13 +1296,20 @@ page_zip_compress(
 
 	if (UNIV_UNLIKELY(c_stream.avail_out <= n_dense * slot_size
 			  + 6/* sizeof(zlib header and footer) */)) {
-		goto zlib_error;
+		mem_heap_free(heap);
+		goto err_exit;
 	}
 
 	c_stream.avail_out -= n_dense * slot_size;
 	c_stream.avail_in = page_zip_fields_encode(n_fields, index,
 						   trx_id_col, fields);
 	c_stream.next_in = fields;
+
+	err = deflateInit2(&c_stream, page_compression_level,
+			   Z_DEFLATED, UNIV_PAGE_SIZE_SHIFT,
+			   MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
+	ut_a(err == Z_OK);
+
 	if (UNIV_LIKELY(!trx_id_col)) {
 		trx_id_col = ULINT_UNDEFINED;
 	}
@@ -2969,11 +2971,6 @@ zlib_error:
 
 	page_zip_set_alloc(&d_stream, heap);
 
-	if (UNIV_UNLIKELY(inflateInit2(&d_stream, UNIV_PAGE_SIZE_SHIFT)
-			  != Z_OK)) {
-		ut_error;
-	}
-
 	d_stream.next_in = page_zip->data + PAGE_DATA;
 	/* Subtract the space reserved for
 	the page header and the end marker of the modification log. */
@@ -2981,6 +2978,11 @@ zlib_error:
 
 	d_stream.next_out = page + PAGE_ZIP_START;
 	d_stream.avail_out = UNIV_PAGE_SIZE - PAGE_ZIP_START;
+
+	if (UNIV_UNLIKELY(inflateInit2(&d_stream, UNIV_PAGE_SIZE_SHIFT)
+			  != Z_OK)) {
+		ut_error;
+	}
 
 	/* Decode the zlib header and the index information. */
 	if (UNIV_UNLIKELY(inflate(&d_stream, Z_BLOCK) != Z_OK)) {

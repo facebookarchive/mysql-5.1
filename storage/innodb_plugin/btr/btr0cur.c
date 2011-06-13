@@ -3856,8 +3856,6 @@ btr_store_big_rec_extern_fields(
 	ut_a(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		int	err = Z_OK;
-
 		/* Zlib deflate needs 128 kilobytes for the default
 		window size, plus 512 << memLevel, plus a few
 		kilobytes for small objects.  We use reduced memLevel
@@ -3865,10 +3863,6 @@ btr_store_big_rec_extern_fields(
 		heap, hoping to avoid memory fragmentation. */
 		heap = mem_heap_create(250000);
 		page_zip_set_alloc(&c_stream, heap);
-
-		err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION,
-				   Z_DEFLATED, 15, 7, Z_DEFAULT_STRATEGY);
-		ut_a(err == Z_OK);
 	}
 
 	/* We have to create a file segment to the tablespace
@@ -3895,11 +3889,16 @@ btr_store_big_rec_extern_fields(
 		prev_page_no = FIL_NULL;
 
 		if (UNIV_LIKELY_NULL(page_zip)) {
-			int	err = deflateReset(&c_stream);
-			ut_a(err == Z_OK);
-
+			int err = Z_OK;
 			c_stream.next_in = (void*) big_rec_vec->fields[i].data;
 			c_stream.avail_in = extern_len;
+			if (i == 0) {
+				err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION,
+						   Z_DEFLATED, 15, 7, Z_DEFAULT_STRATEGY);
+				ut_a(err == Z_OK);
+			}
+			err = deflateReset(&c_stream);
+			ut_a(err == Z_OK);
 		}
 
 		for (;;) {
@@ -4703,12 +4702,12 @@ btr_copy_externally_stored_field_prefix_low(
 		heap = mem_heap_create(40000);
 		page_zip_set_alloc(&d_stream, heap);
 
-		err = inflateInit(&d_stream);
-		ut_a(err == Z_OK);
-
 		d_stream.next_out = buf;
 		d_stream.avail_out = len;
 		d_stream.avail_in = 0;
+
+		err = inflateInit(&d_stream);
+		ut_a(err == Z_OK);
 
 		btr_copy_zblob_prefix(&d_stream, zip_size,
 				      space_id, page_no, offset);
