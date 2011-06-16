@@ -2752,7 +2752,7 @@ ibuf_insert_low(
 						 | BTR_NO_UNDO_LOG_FLAG,
 						 cursor,
 						 ibuf_entry, &ins_rec,
-						 &dummy_big_rec, 0, thr, &mtr);
+						 &dummy_big_rec, 0, thr, &mtr, FALSE);
 		if (err == DB_SUCCESS) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(btr_cur_get_block(cursor), NULL,

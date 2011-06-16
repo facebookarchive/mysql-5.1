@@ -1328,7 +1328,8 @@ btr_cur_pessimistic_insert(
 				NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
-	mtr_t*		mtr)	/*!< in: mtr */
+	mtr_t*		mtr,	/*!< in: mtr */
+	ibool 		try_optimistic) /*!< in: if set, try optimistic insert first */
 {
 	dict_index_t*	index		= cursor->index;
 	ulint		zip_size	= dict_table_zip_size(index->table);
@@ -1355,11 +1356,13 @@ btr_cur_pessimistic_insert(
 
 	cursor->flag = BTR_CUR_BINARY;
 
-	err = btr_cur_optimistic_insert(flags, cursor, entry, rec,
-	                                big_rec, n_ext, TRUE, thr, mtr);
-	if (err != DB_FAIL) {
+	if (try_optimistic) {
+		err = btr_cur_optimistic_insert(flags, cursor, entry, rec,
+		                                big_rec, n_ext, TRUE, thr, mtr);
+		if (err != DB_FAIL) {
 
-		return(err);
+			return(err);
+		}
 	}
 
 	/* Retry with a pessimistic insert. Check locks and write to undo log,
@@ -2329,13 +2332,14 @@ make_external:
 	was_first = page_cur_is_before_first(page_cursor);
 
 	/* The first parameter means that no lock checking and undo logging
-	is made in the insert */
-
+	is made in the insert.
+	We don't ask btr_cur_pessimistic_insert() to try the optimistic insert
+	because btr_cur_insert_if_possible() already failed above */
 	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG
 					 | BTR_NO_LOCKING_FLAG
 					 | BTR_KEEP_SYS_FLAG,
 					 cursor, new_entry, &rec,
-					 &dummy_big_rec, n_ext, NULL, mtr);
+					 &dummy_big_rec, n_ext, NULL, mtr, FALSE);
 	ut_a(rec);
 	ut_a(err == DB_SUCCESS);
 	ut_a(dummy_big_rec == NULL);

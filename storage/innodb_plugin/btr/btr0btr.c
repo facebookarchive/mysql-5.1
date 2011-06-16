@@ -1692,7 +1692,7 @@ btr_insert_on_non_leaf_level_func(
 					 | BTR_KEEP_SYS_FLAG
 					 | BTR_NO_UNDO_LOG_FLAG,
 					 &cursor, tuple, &rec,
-					 &dummy_big_rec, 0, NULL, mtr);
+					 &dummy_big_rec, 0, NULL, mtr, TRUE);
 	ut_a(err == DB_SUCCESS);
 }
 

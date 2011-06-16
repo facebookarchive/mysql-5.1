@@ -2112,7 +2112,7 @@ row_ins_index_entry_low(
 			}
 			err = btr_cur_pessimistic_insert(
 				0, &cursor, entry, &insert_rec, &big_rec,
-				n_ext, thr, &mtr);
+				n_ext, thr, &mtr, FALSE);
 		}
 	}
 
