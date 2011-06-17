@@ -476,7 +476,7 @@ extern ulong srv_sync_checkpoint_limit;
 /** Number of pages processed by trx_purge */
 extern ulint srv_purged_pages;
 
-extern my_bool srv_expand_import;
+extern ulint srv_expand_import;
 
 
 /** Types of raw partitions in innodb_data_file_path */

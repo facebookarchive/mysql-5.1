@@ -12103,10 +12103,10 @@ static MYSQL_SYSVAR_BOOL(release_locks_early, innobase_release_locks_early,
   "Release row locks in the prepare stage instead of in the commit stage",
   NULL, NULL, FALSE);
 
-static MYSQL_SYSVAR_BOOL(expand_import, srv_expand_import,
-  PLUGIN_VAR_NOCMDARG,
+static MYSQL_SYSVAR_ULONG(expand_import, srv_expand_import,
+  PLUGIN_VAR_RQCMDARG,
   "Enable/Disable converting automatically *.ibd files when import tablespace.",
-  NULL, NULL, FALSE);
+  NULL, NULL, 0, 0, 1, 0);
 
 static MYSQL_SYSVAR_UINT(auto_lru_dump, srv_auto_lru_dump,
   PLUGIN_VAR_RQCMDARG,

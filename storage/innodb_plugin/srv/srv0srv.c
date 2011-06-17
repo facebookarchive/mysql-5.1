@@ -617,7 +617,7 @@ UNIV_INTERN ulint	srv_sync_checkpoint_limit	= 0;
 /** Number of pages processed by trx_purge */
 UNIV_INTERN ulint	srv_purged_pages	= 0;
 
-UNIV_INTERN my_bool     srv_expand_import = FALSE;
+UNIV_INTERN ulint	srv_expand_import = 0;
 
 /* The following count work done by srv_master_thread. */
 
