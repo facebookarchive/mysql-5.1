@@ -412,6 +412,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   int left_events = max_binlog_dump_events;
 #endif
   int old_max_allowed_packet= thd->variables.max_allowed_packet;
+  /* Optimization for bugs.mysql.com 61545 to avoid holding LOCK_log while
+     reading old binlogs */
+  bool is_active = TRUE;
+
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
@@ -470,6 +474,8 @@ impossible position";
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     goto err;
   }
+
+  is_active = mysql_bin_log.is_active(log_file_name);
 
   /*
     We need to start a packet with something other than 255
@@ -535,7 +541,8 @@ impossible position";
        Try to find a Format_description_log_event at the beginning of
        the binlog
      */
-     if (!(error = Log_event::read_log_event(&log, packet, log_lock)))
+     if (!(error = Log_event::read_log_event(&log, packet,
+                                             is_active ? log_lock : NULL)))
      {
        /*
          The packet has offsets equal to the normal offsets in a binlog
@@ -601,7 +608,8 @@ impossible position";
 
   while (!net->error && net->vio != 0 && !thd->killed)
   {
-    while (!(error = Log_event::read_log_event(&log, packet, log_lock)))
+    while (!(error = Log_event::read_log_event(&log, packet,
+                                               is_active ? log_lock: NULL)))
     {
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
@@ -612,6 +620,15 @@ impossible position";
 	goto err;
       }
 #endif
+
+      /* If log_file_name is the current binlog, is_active must be set */
+      DBUG_ASSERT(!(mysql_bin_log.is_active(log_file_name) && !is_active));
+      if (mysql_bin_log.is_active(log_file_name) && !is_active)
+      {
+        errmsg = "bad state in mysql_binlog_send";
+        my_errno= ER_UNKNOWN_ERROR;
+        goto err;
+      }
 
       if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
       {
@@ -845,8 +862,8 @@ impossible position";
                                  &linfo);
 	goto err;
       }
-
       DBUG_PRINT("info", ("Binlog filename: new binlog %s", log_file_name));
+      is_active = mysql_bin_log.is_active(log_file_name);
 
       packet->length(0);
       packet->append('\0');
