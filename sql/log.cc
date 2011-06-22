@@ -4066,8 +4066,11 @@ bool MYSQL_BIN_LOG::append(Log_event* ev)
     goto err;
   }
   bytes_written+= ev->data_written;
+  binlog_bytes_written += ev->data_written;
   if (us)
-    my_atomic_add_bigint(&(us->binlog_bytes_written), ev->data_written);
+  {
+    us->binlog_bytes_written += ev->data_written;
+  }
 
   DBUG_PRINT("info",("max_size: %lu",max_size));
   if ((uint) my_b_append_tell(&log_file) > max_size)
@@ -4099,8 +4102,12 @@ bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
       goto err;
     }
     bytes_written += len;
+    binlog_bytes_written += len;
     if (us)
-      my_atomic_add_bigint(&(us->binlog_bytes_written), len);
+    {
+      us->binlog_bytes_written += len;
+    }
+
   } while ((buf=va_arg(args,const char*)) && (len=va_arg(args,uint)));
   DBUG_PRINT("info",("max_size: %lu",max_size));
   if ((uint) my_b_append_tell(&log_file) > max_size)
@@ -4596,9 +4603,9 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       USER_STATS *us= current_thd ? thd_get_user_stats(current_thd) : NULL;
       if (us)
       {
-        my_atomic_add_bigint(&(us->binlog_bytes_written),
-                             pending->data_written);
+        us->binlog_bytes_written += pending->data_written;
       }
+      binlog_bytes_written += pending->data_written;
     }
 
     delete pending;
@@ -4816,7 +4823,10 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       signal_update();
       rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
       if (us)
-        my_atomic_add_bigint(&(us->binlog_bytes_written), written);
+      {
+        us->binlog_bytes_written += written;
+      }
+      binlog_bytes_written += written;
     }
     error=0;
 
@@ -5133,7 +5143,10 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
   }
   error= ev.write(&log_file);
   if (us)
-    my_atomic_add_bigint(&(us->binlog_bytes_written), ev.data_written);
+  {
+    us->binlog_bytes_written += ev.data_written;
+  }
+  binlog_bytes_written += ev.data_written;
 
   if (lock)
   {
@@ -5209,7 +5222,10 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
       if (qinfo.write(&log_file))
         goto err;
       if (us)
-        my_atomic_add_bigint(&(us->binlog_bytes_written), qinfo.data_written);
+      {
+        us->binlog_bytes_written += qinfo.data_written;
+      }
+      binlog_bytes_written += qinfo.data_written;
 
       DBUG_EXECUTE_IF("crash_before_writing_xid",
                       {
@@ -5224,12 +5240,19 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
       if ((write_error= write_cache(cache, false)))
         goto err;
       if (us)
-        my_atomic_add_bigint(&(us->binlog_bytes_written), my_b_tell(cache));
+      {
+        us->binlog_bytes_written += my_b_tell(cache);
+      }
+      binlog_bytes_written += my_b_tell(cache);
 
       if (commit_event && commit_event->write(&log_file))
         goto err;
-      if (commit_event && us)
-        my_atomic_add_bigint(&(us->binlog_bytes_written), qinfo.data_written);
+      if (commit_event)
+      {
+        binlog_bytes_written += qinfo.data_written;
+        if (us)
+          us->binlog_bytes_written += qinfo.data_written;
+      }
 
       if (incident && write_incident(thd, FALSE))
         goto err;

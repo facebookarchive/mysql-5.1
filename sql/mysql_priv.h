@@ -2164,6 +2164,7 @@ extern int log_datagram_sock;
 extern ulong opt_log_query_sample_rate;
 extern ulong opt_log_error_sample_rate;
 
+extern ulonglong binlog_bytes_written;
 extern ulonglong binlog_fsync_count;
 extern double binlog_fsync_total_time;
 extern ulonglong binlog_fsync_grouped;

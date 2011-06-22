@@ -645,6 +645,7 @@ int log_datagram_sock= -1;
 ulonglong binlog_fsync_count= 0;
 double binlog_fsync_total_time= 0.0;
 ulonglong binlog_fsync_grouped= 0;
+ulonglong binlog_bytes_written= 0;
 
 my_bool opt_log_slow_extra;
 
@@ -8182,6 +8183,7 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 SHOW_VAR status_vars[]= {
   {"Aborted_clients",          (char*) &aborted_threads,        SHOW_LONG},
   {"Aborted_connects",         (char*) &aborted_connects,       SHOW_LONG},
+  {"Binlog_bytes_written",     (char*) &binlog_bytes_written,   SHOW_LONGLONG},
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
   {"Binlog_fsync_avg_time",    (char*) &show_binlog_fsync_avg_time, SHOW_FUNC},
@@ -8518,6 +8520,7 @@ static int mysql_init_variables(void)
   delayed_insert_threads= delayed_insert_writes= delayed_rows_in_use= 0;
   delayed_insert_errors= thread_created= 0;
   specialflag= 0;
+  binlog_bytes_written= 0;
   binlog_cache_use=  binlog_cache_disk_use= 0;
   binlog_fsync_total_time= 0.0;
   binlog_fsync_count= binlog_fsync_grouped= 0;

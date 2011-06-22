@@ -24,12 +24,14 @@ flush statistics;
 --echo At start
 --echo
 --query_vertical select binlog_bytes_written from information_schema.user_statistics where user_name = 'root'
+show global status like "Binlog_bytes_written";
 
 insert into userstats values (1,1);
 --echo
 --echo after insert
 --echo
 --query_vertical select binlog_bytes_written from information_schema.user_statistics where user_name = 'root'
+show global status like "Binlog_bytes_written";
 
 begin;
 insert into userstats values (2,2);
@@ -38,12 +40,14 @@ commit;
 --echo after begin, insert, commit
 --echo
 --query_vertical select binlog_bytes_written from information_schema.user_statistics where user_name = 'root'
+show global status like "Binlog_bytes_written";
 
 select * from userstats;
 --echo
 --echo after select
 --echo
 --query_vertical select binlog_bytes_written from information_schema.user_statistics where user_name = 'root'
+show global status like "Binlog_bytes_written";
 
 # Cleanup
 drop table userstats;
