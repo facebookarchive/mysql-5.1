@@ -1282,7 +1282,7 @@ os_file_create_simple_no_error_handling(
 /****************************************************************//**
 Tries to disable OS caching on an opened file descriptor. */
 UNIV_INTERN
-void
+int
 os_file_set_nocache(
 /*================*/
 	int		fd,		/*!< in: file descriptor to alter */
@@ -1301,6 +1301,7 @@ os_file_set_nocache(
 			"  InnoDB: Failed to set DIRECTIO_ON "
 			"on file %s: %s: %s, continuing anyway\n",
 			file_name, operation_name, strerror(errno_save));
+		return -1;
 	}
 #elif defined(O_DIRECT)
 	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
@@ -1318,8 +1319,10 @@ os_file_set_nocache(
 				"'Invalid argument' on Linux on tmpfs, "
 				"see MySQL Bug#26662\n");
 		}
+		return -1;
 	}
 #endif
+	return 0;
 }
 
 /****************************************************************//**
@@ -1542,10 +1545,21 @@ try_again:
 	*success = TRUE;
 
 	/* We disable OS caching (O_DIRECT) only on data files */
-	if (type != OS_LOG_FILE
-	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
+	if ((type != OS_LOG_FILE
+	    	&& srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) ||
+	    srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
 		
-		os_file_set_nocache(file, name, mode_str);
+		if (os_file_set_nocache(file, name, mode_str)) {
+			/* In the FB patch we changed InnoDB to not fsync after
+			O_DIRECT writes unless file was extended. That is correct
+			on Linux but maybe not on other platforms. If we can't
+			set O_DIRECT then we would have to fsync writes, but
+			code to do that is gone, so we crash here. */	
+
+			fprintf(stderr, "InnoDB: unable to enable O_DIRECT "
+				"for data files\n");
+			ut_a(0);
+		}
 	}
 
 #ifdef USE_FILE_LOCK

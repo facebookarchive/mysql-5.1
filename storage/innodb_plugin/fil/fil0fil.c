@@ -5288,8 +5288,9 @@ fil_flush(
 #endif
 #ifdef UNIV_LINUX
 			if (space->purpose == FIL_TABLESPACE
-			    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT &&
-			    node->flush_size == node->size) {
+			    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT ||
+			        srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT)
+			    && node->flush_size == node->size) {
 				goto skip_flush;
 			}
 #endif
