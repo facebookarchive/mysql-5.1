@@ -116,10 +116,12 @@ trx_free_trx_pool()
 		next = next->next_free_trx;
 	}
 
+	next_free_transaction = NULL;
+
 	while (transaction_blocks) {
-		struct trx_block_struct *next = transaction_blocks->next_block;
+		struct trx_block_struct *next_block = transaction_blocks->next_block;
 		mem_free(transaction_blocks);
-		transaction_blocks = next;
+		transaction_blocks = next_block;
 	}
 }
 
