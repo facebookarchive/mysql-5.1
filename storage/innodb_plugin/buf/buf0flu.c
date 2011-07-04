@@ -1261,7 +1261,7 @@ buf_flush_try_neighbors(
 		count the extra writes by type. */
 		if (flush_type == BUF_FLUSH_LRU) {
 			srv_neighbors_flushed_lru += count - 1;
-		} else if (flush_type == BUF_FLUSH_LIST); {
+		} else if (flush_type == BUF_FLUSH_LIST) {
 			srv_neighbors_flushed_list += count - 1;
 		}
 	}
