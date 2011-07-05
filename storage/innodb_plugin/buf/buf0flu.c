@@ -884,6 +884,7 @@ buf_flush_init_for_writing(
 	ib_uint64_t	newest_lsn)	/*!< in: newest modification lsn
 					to the page */
 {
+	ulint checksum;
 	ut_ad(page);
 
 	if (page_zip_) {
@@ -935,7 +936,6 @@ buf_flush_init_for_writing(
 
 	/* Store the new formula checksum */
 
-	ulint checksum;
 	if (!srv_use_checksums)
 		checksum = BUF_NO_CHECKSUM_MAGIC;
 	else if (srv_use_fast_checksums)
@@ -1584,7 +1584,7 @@ buf_flush_free_margin_fast(
 	my_get_fast_timer(&start_time);
 	n_flushable = buf_flush_LRU_get_pages(npages, spaces, pages);
 
-	if (n_flushable == -1) {
+	if (n_flushable == (ulint) -1) {
 
 		/* Wait for flush in progress to end */
 		buf_flush_wait_batch_end(BUF_FLUSH_LRU);
@@ -1879,9 +1879,9 @@ buf_flush_validate_low(void)
 		ut_a(om > 0);
 
 		if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+			buf_page_t* rpage;
 			ut_a(rnode);
-			buf_page_t* rpage = *rbt_value(buf_page_t*,
-						       rnode);
+			rpage = *rbt_value(buf_page_t*, rnode);
 			ut_a(rpage);
 			ut_a(rpage == bpage);
 			rnode = rbt_next(buf_pool->flush_rbt, rnode);

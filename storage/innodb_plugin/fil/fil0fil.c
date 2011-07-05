@@ -3083,7 +3083,8 @@ Reads index metadata from .exp file
 static
 ibool
 fil_expand_import_expfile(
-			  os_file_t	info_file,/*!< in: expfile descriptor */
+			  os_file_t	info_file __attribute__((unused)),
+						  /*!< in: expfile descriptor */
 			  dict_table_t*	table,    /*!< in: table dictionary */
 			  byte*		page,     /*!< in: header page */
 			  dulint*	old_id,	  /*!< out: old index ids */
@@ -3160,7 +3161,8 @@ ibool
 fil_expand_import_update_sysindexes(
 				    dict_table_t*	table,    /*!< in: table dictionary */
 				    ulint		n_index,  /*!< in: number of indexes */
-				    dulint*		old_id,	  /*!< in: old index ids */
+				    dulint*		old_id __attribute__((unused)),
+								  /*!< in: old index ids */
 				    dulint*		new_id,	  /*!< in: new index ids */
 				    ulint*		root_page)/*!< in: root page ids */
 {
@@ -3187,7 +3189,7 @@ fil_expand_import_update_sysindexes(
 			ulint	error;
 			trx_t*	trx;
 			pars_info_t*	info = NULL;
-			char*	errorfunc = NULL;
+			const char*	errorfunc = NULL;
 
 			trx = trx_allocate_for_mysql();
 			trx->op_info = "extended import";
@@ -3362,10 +3364,11 @@ fil_expand_import_update_pages(
 		}
 
 		if (mach_read_from_4(page + FIL_PAGE_OFFSET) || !offset) {
+			ulint checksum;
 			mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
 
 			for (i = 0; i < n_index; i++) {
-				if (offset / UNIV_PAGE_SIZE == root_page[i]) {
+				if (offset / UNIV_PAGE_SIZE == (ib_int64_t) root_page[i]) {
 					/* this is index root page */
 					mach_write_to_4(page + FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
 							+ FSEG_HDR_SPACE, id);
@@ -3433,7 +3436,6 @@ fil_expand_import_update_pages(
 					       current_lsn);
 			}
 
-			ulint checksum;
 			if (!srv_use_checksums)
 				checksum = BUF_NO_CHECKSUM_MAGIC;
 			else if (srv_use_fast_checksums)
@@ -3459,7 +3461,7 @@ fil_expand_import_update_pages(
 
 	skip_write:
 		if (skip_reason) {
-			char* s = "Tablespace import for %s skipped page %lu due to reason=%d\n";
+			const char* s = "Tablespace import for %s skipped page %lu due to reason=%d\n";
 			fprintf(stderr, s, filepath, offset/UNIV_PAGE_SIZE, skip_reason);
 		}
 
@@ -5104,13 +5106,16 @@ ibool
 fil_area_is_exist(
 /*==============*/
 	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
+	ulint	zip_size __attribute__((unused)),
+				/*!< in: compressed page size in bytes;
 				0 for uncompressed pages */
 	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
+	ulint	byte_offset __attribute__((unused)),
+				/*!< in: remainder of offset in bytes; in
 				aio this must be divisible by the OS block
 				size */
-	ulint	len)		/*!< in: how many bytes to read or write; this
+	ulint	len __attribute__((unused)))
+				/*!< in: how many bytes to read or write; this
 				must not cross a file boundary; in aio this
 				must be a block size multiple */
 {

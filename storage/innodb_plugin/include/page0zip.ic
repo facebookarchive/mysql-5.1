@@ -355,7 +355,8 @@ byte*
 page_zip_parse_compress_no_data(
 /*============================*/
 	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr, /*!< in: buffer end */
+	byte*		end_ptr __attribute__((unused)),
+				/*!< in: buffer end */
 	page_t*		page,	/*!< in: uncompressed page */
 	page_zip_des_t*	page_zip, /*!< out: compressed page */
 	dict_index_t* index)

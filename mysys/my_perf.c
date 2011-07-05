@@ -110,6 +110,8 @@ void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
     longlong requests, longlong svc_usecs, longlong wait_usecs,
     longlong old_ios)
 {
+  my_atomic_bigint old_svc_usecs_max, old_wait_usecs_max;
+
   my_atomic_add_bigint(&sum->bytes, bytes);
   my_atomic_add_bigint(&sum->requests, requests);
 
@@ -122,11 +124,11 @@ void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
   // would rather error on the side of simplicity and avoid looping the
   // compare-and-swap.
 
-  my_atomic_bigint old_svc_usecs_max = sum->svc_usecs_max;
+  old_svc_usecs_max = sum->svc_usecs_max;
   if (svc_usecs > old_svc_usecs_max)
     my_atomic_cas_bigint(&sum->svc_usecs_max, &old_svc_usecs_max, svc_usecs);
 
-  my_atomic_bigint old_wait_usecs_max = sum->wait_usecs_max;
+  old_wait_usecs_max = sum->wait_usecs_max;
   if (wait_usecs > old_wait_usecs_max)
     my_atomic_cas_bigint(&sum->wait_usecs_max, &old_wait_usecs_max, wait_usecs);
 
@@ -155,19 +157,24 @@ void my_init_fast_timer(int seconds)
 
   if (ncpu > 0)
   {
+    cpu_set_t mask;
     usec = 1000000 * seconds / ncpu;
 
-    cpu_set_t mask;
     CPU_ZERO(&mask);
     CPU_SET(0, &mask);
     if (sched_setaffinity(0, sizeof(mask), &mask) == 0)
     {
+      int cpu;
+      ulonglong last;
+
       sched_yield(); // make sure the scheduler is invoked to move to CPU 0
 
-      int cpu;
-      ulonglong last = rdtsc();
+      last = rdtsc();
       for (cpu = 1; cpu <= ncpu; cpu++)
       {
+        ulonglong now;
+        longlong delta;
+
         CPU_CLR(cpu-1, &mask);
         CPU_SET(cpu < ncpu ? cpu : 0, &mask); // wrap cpu == ncpu back to 0
         if (sched_setaffinity(0, sizeof(mask), &mask) == -1)
@@ -177,8 +184,8 @@ void my_init_fast_timer(int seconds)
         }
 
         usleep(usec);
-        ulonglong now = rdtsc();
-        longlong delta = now - last;
+        now = rdtsc();
+        delta = now - last;
         last = now;
 
         if (cpu == 1 || delta < min_delta)

@@ -209,10 +209,12 @@ STATIC_INLINE void my_get_fast_timer(my_fast_timer_t* timer)
 STATIC_INLINE double my_fast_timer_diff(my_fast_timer_t const *start,
                                         my_fast_timer_t const *stop)
 {
+  ulonglong delta;
+
   if (*stop <= *start)
     return 0;
 
-  ulonglong delta = *stop - *start;
+  delta = *stop - *start;
 
   return my_tsc_scale * delta;
 }
@@ -223,10 +225,11 @@ STATIC_INLINE double my_fast_timer_diff(my_fast_timer_t const *start,
 STATIC_INLINE double my_fast_timer_diff_now(my_fast_timer_t const *in,
                                             my_fast_timer_t *out)
 {
+  double diff;
   my_fast_timer_t now;
   my_get_fast_timer(&now);
 
-  double diff = my_fast_timer_diff(in, &now);
+  diff = my_fast_timer_diff(in, &now);
 
   if (out) {
     *out = now;

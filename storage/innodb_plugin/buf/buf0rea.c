@@ -86,6 +86,7 @@ buf_read_page_low(
 {
 	buf_page_t*	bpage;
 	ulint		wake_later;
+	int		diskio_used_for_exit;
 
 	*err = DB_SUCCESS;
 
@@ -142,7 +143,7 @@ buf_read_page_low(
 
 	ut_ad(buf_page_in_file(bpage));
 
-	int diskio_used_for_exit = 0;
+	diskio_used_for_exit = 0;
 	if (sync && trx) {
 		diskio_used_for_exit =
 		  thd_admission_control_diskio_exit(trx->mysql_thd);
@@ -360,6 +361,7 @@ buf_read_ahead_linear(
 			fail_count++;
 
 		} else if (pred_bpage) {
+			int res;
 			my_fast_timer_t pred_bpage_accessed;
 			buf_page_is_accessed(pred_bpage, &pred_bpage_accessed);
 
@@ -371,7 +373,7 @@ buf_read_ahead_linear(
 			the latest access times were linear.  The
 			threshold (srv_read_ahead_factor) should help
 			a little against this. */
-			int res = my_fast_timer_cmp(&bpage_accessed,
+			res = my_fast_timer_cmp(&bpage_accessed,
 						    &pred_bpage_accessed);
 			/* Accesses not in the right order */
 			if (res != 0 && res != asc_or_desc) {

@@ -6776,7 +6776,7 @@ err1:
   @return true if the binlog is open.
 */
 extern "C"
-const my_bool mysql_bin_log_is_open(void)
+my_bool mysql_bin_log_is_open(void)
 {
   return mysql_bin_log.is_open();
 }

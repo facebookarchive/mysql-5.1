@@ -1153,6 +1153,9 @@ page_zip_compress(
 	ulint*		offsets	= NULL;
 	ulint		n_blobs	= 0;
 	byte*		storage;/* storage of uncompressed columns */
+#ifdef PAGE_ZIP_COMPRESS_DBG
+	FILE*		logfile = NULL;
+#endif
 #ifndef UNIV_HOTBACKUP
 	page_zip_stat_t*	zip_stat;
 	my_fast_timer_t start;
@@ -1162,9 +1165,6 @@ page_zip_compress(
 	my_get_fast_timer(&start);
 	ut_ad(fil_system);
 #endif /* !UNIV_HOTBACKUP */
-#ifdef PAGE_ZIP_COMPRESS_DBG
-	FILE*		logfile = NULL;
-#endif
 
 	ut_a(page_is_comp(page));
 	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
@@ -3075,9 +3075,9 @@ err_exit:
 
 #ifndef UNIV_HOTBACKUP
 	{
-		udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
 		page_zip_stat_t*	zip_stat
 			= &page_zip_stat[page_zip->ssize - 1];
+		udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
 		zip_stat->decompressed++;
 		zip_stat->decompressed_usec += udiff;
 		if (dict_index_is_clust(index)) {

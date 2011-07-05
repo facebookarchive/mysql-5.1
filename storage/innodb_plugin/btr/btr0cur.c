@@ -1655,11 +1655,12 @@ btr_cur_update_alloc_zip(
 				FALSE=update-in-place */
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
+	my_bool log_compressed_pages = srv_log_compressed_pages;
+	page_t* page;
+
 	ut_a(page_zip == buf_block_get_page_zip(block));
 	ut_ad(page_zip);
 	ut_ad(!dict_index_is_ibuf(index));
-	my_bool log_compressed_pages = srv_log_compressed_pages;
-	page_t* page;
 
 	if (page_zip_available(page_zip, dict_index_is_clust(index),
 			       length, create)) {

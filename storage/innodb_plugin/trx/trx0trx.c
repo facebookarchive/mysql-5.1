@@ -144,9 +144,9 @@ trx_allocate()
 
 		block_tmp->next_block = transaction_blocks;
 		transaction_blocks = block_tmp;
-		for (i = 0; i < TRX_PER_BLOCK; ++i) {
+		for (i = 0; i < (int) TRX_PER_BLOCK; ++i) {
 			trx_t* next = NULL;
-			if (i < TRX_PER_BLOCK - 1) {
+			if (i < (int) TRX_PER_BLOCK - 1) {
 				next = &(block_tmp->transactions[i + 1]);
 			}
 			block_tmp->transactions[i].next_free_trx = next;

@@ -2582,6 +2582,8 @@ row_merge_build_indexes(
 	ulint			i;
 	ulint			error;
 	int			tmpfd;
+	ulint			merge_sort_block_size;
+	void*			block_mem;
 
 	ut_ad(trx);
 	ut_ad(old_table);
@@ -2591,14 +2593,14 @@ row_merge_build_indexes(
 
 	trx_start_if_not_started(trx);
 
-	ulint merge_sort_block_size = thd_merge_sort_block_size(trx->mysql_thd);
+	merge_sort_block_size = thd_merge_sort_block_size(trx->mysql_thd);
 
 	/* Allocate memory for merge file data structure and initialize
 	fields */
 
 	merge_files = mem_alloc(n_indexes * sizeof *merge_files);
 	block_size = 3 * merge_sort_block_size;
-	void* block_mem = os_mem_alloc_large(&block_size);
+	block_mem = os_mem_alloc_large(&block_size);
 	block[0] = block_mem;
 	for (i = 1; i < sizeof(block)/sizeof(block[0]); ++i) {
 		block[i] = block[i - 1] + merge_sort_block_size;

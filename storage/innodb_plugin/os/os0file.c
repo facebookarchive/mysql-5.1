@@ -266,7 +266,7 @@ os_io_perf_update_wait(
 	my_fast_timer_t*	wait_start)	/* in: timer when IO request submitted */
 {
 	double	wait_secs = my_fast_timer_diff(wait_start, stop_timer);
-	ulonglong wait_usecs = (ulonglong)(1000000 * wait_secs);
+	my_atomic_bigint wait_usecs = (my_atomic_bigint)(1000000.0 * wait_secs);
 	perf->wait_usecs += wait_usecs;
 	perf->wait_usecs_max = max(perf->wait_usecs_max, wait_usecs);
 }
@@ -284,13 +284,14 @@ os_io_perf_update_all(
 	my_fast_timer_t*	stop_timer,	/* in: timer for now */
 	my_fast_timer_t*	wait_start)	/* in: timer when IO request submitted */
 {
+	my_atomic_bigint svc_usecs = (my_atomic_bigint)(1000000 * svc_secs);
+
 	perf->requests++;
 	perf->bytes += bytes;
 
-	ulonglong svc_usecs = (ulonglong)(1000000 * svc_secs);
 	perf->svc_usecs += svc_usecs;
 
-	if (svc_usecs >= os_aio_old_usecs) {
+	if ((ulong)svc_usecs >= os_aio_old_usecs) {
 		perf->old_ios += 1;
 	}
 
@@ -1237,9 +1238,9 @@ os_file_create_simple_no_error_handling(
 #else /* __WIN__ */
 	os_file_t	file;
 	int		create_flag;
+	char real_path[PATH_MAX];
 
 	ut_a(name);
-	char real_path[PATH_MAX];
 	check_symlink(&name, real_path, PATH_MAX);
 
 	if (create_mode == OS_FILE_OPEN) {
@@ -1473,10 +1474,10 @@ try_again:
 	int		create_flag;
 	ibool		retry;
 	const char*	mode_str	= NULL;
+	char real_path[PATH_MAX];
 
 try_again:
 	ut_a(name);
-	char real_path[PATH_MAX];
 	check_symlink(&name, real_path, PATH_MAX);
 
 	if (create_mode == OS_FILE_OPEN || create_mode == OS_FILE_OPEN_RAW
@@ -1666,13 +1667,13 @@ os_file_delete_with_symlink(
 	const char* name) /*!< in: file path as a null-terminated string */
 {
 	char link_name[FN_REFLEN];
+	int result;
 	ulint len = readlink(name, link_name, FN_REFLEN - 1);
-	if (len != -1) {
+	if (len != (ulint) -1) {
 		*(link_name + len) = '\0';
 	}
-	int result;
 	if (!(result=unlink(name))) {
-		if (len != -1) {
+		if (len != (ulint) -1) {
 			result = unlink(link_name);
 		}
 	}
@@ -1756,14 +1757,14 @@ os_file_rename_with_symlink(
 				string */
 	const char*	to)/*!< in: new file path */
 {
+	int result = 0;
+	int name_is_different;
 	char link_name[FN_REFLEN], tmp_name[FN_REFLEN];
 	int len = readlink(from, link_name, FN_REFLEN - 1);
 	if (len == -1) {
 		return rename(from, to);
 	}
 	*(link_name + len) = '\0';
-	int result = 0;
-	int name_is_different;
 
 	/* Change filename that symlink pointed to */
 	strmov(tmp_name, to);
@@ -4174,6 +4175,7 @@ os_aio_simulated_handle(
 
 	double          elapsed_secs;
 	my_fast_timer_t	start_timer, stop_timer, now;
+	ibool old_io;
 
 	/* Fix compiler warning */
 	*consecutive_ios = NULL;
@@ -4280,7 +4282,7 @@ restart:
 		goto wait_for_io;
 	}
 
-	ibool old_io = FALSE;
+	old_io = FALSE;
 	if (oldest_request) {
 		slot = oldest_request;
 		if (biggest_age >= os_aio_old_usecs) {

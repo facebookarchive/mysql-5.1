@@ -335,8 +335,6 @@ rw_lock_validate(
 /*=============*/
 	rw_lock_t*	lock)	/*!< in: rw-lock */
 {
-	ut_a(lock);
-
 	ulint waiters = rw_lock_get_waiters(lock);
 	lint lock_word = lock->lock_word;
 

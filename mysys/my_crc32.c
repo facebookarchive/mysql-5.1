@@ -46,17 +46,17 @@ static my_bool s_fast_crc_sse2_enabled = 0;
 
 void my_fast_crc32_init(my_bool cpuid_has_crc32)
 {
+  // bit-reversed poly 0x1EDC6F41 (from SSE42 crc32 instruction)
+  static const uint32 poly = 0x82f63b78;
+
+  uint32 n, k, c;
+
   s_fast_crc_sse2_enabled = cpuid_has_crc32;
 
 #ifndef SUPPORT_BROKEN_CRC32_SLICE8
   if (cpuid_has_crc32)
     return;
 #endif
-
-  // bit-reversed poly 0x1EDC6F41 (from SSE42 crc32 instruction)
-  static const uint32 poly = 0x82f63b78;
-
-  uint32 n, k, c;
 
   for (n = 0; n < 256; n++) {
       c = n;
@@ -142,9 +142,9 @@ STATIC_INLINE uint32 my_fast_crc32_sse42(const uchar* buf, ulong len)
 
 STATIC_INLINE uint32 my_fast_crc32_slice8(const uchar* buf, ulong len)
 {
-  assert(s_fast_crc_table_initialized);
-
   uint64 crc = (uint32)(-1); // this must only set low 32 bits
+
+  assert(s_fast_crc_table_initialized);
 
   while (len && ((uint64)buf & 7))
   {
@@ -184,9 +184,9 @@ uint32 my_fast_crc32(const uchar* buf, ulong len)
 
 uint32 my_fast_crc32_broken_slice8(const uchar* buf, ulong len)
 {
-  assert(s_fast_crc_table_initialized);
-
   uint64 crc = (uint64)(-1); // this should have been uint32
+
+  assert(s_fast_crc_table_initialized);
 
   while (len && ((uint64)buf & 7))
   {

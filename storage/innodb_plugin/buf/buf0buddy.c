@@ -444,6 +444,7 @@ buf_buddy_relocate(
 	if (size >= PAGE_ZIP_MIN_SIZE) {
 		/* This is a compressed page. */
 		mutex_t*	mutex;
+		ulint		space, page_no;
 
 		/* The src block may be split into smaller blocks,
 		some of which may be free.  Thus, the
@@ -458,9 +459,9 @@ buf_buddy_relocate(
 		UNIV_MEM_VALID((const byte*) src +
                                FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4);
 		UNIV_MEM_VALID((const byte*) src + FIL_PAGE_OFFSET, 4);
-		ulint		space	= mach_read_from_4(
+		space	= mach_read_from_4(
 			(const byte*) src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-		ulint		page_no	= mach_read_from_4(
+		page_no	= mach_read_from_4(
 			(const byte*) src + FIL_PAGE_OFFSET);
 		bpage = buf_page_hash_get(space, page_no, NULL);
 

@@ -1268,7 +1268,7 @@ srv_can_enter_as_lifo(
 
 		trx->trx_lifo = TRUE;
 		(void) os_atomic_increment(&srv_thread_lifo_running, 1);
-		ut_ad(srv_thread_lifo_running <= srv_thread_concurrency);
+		ut_ad((ulong)srv_thread_lifo_running <= srv_thread_concurrency);
 		srv_thread_lifo_scheduled++;
 		return 1;
 	} else {
@@ -1533,7 +1533,7 @@ srv_conc_force_exit_innodb(
 	if (slot != NULL) {
 #if defined(HAVE_ATOMIC_BUILTINS)
 		(void) os_atomic_increment(&srv_thread_fifo_pending, 1);
-		ut_ad(srv_thread_fifo_pending <= srv_thread_concurrency);
+		ut_ad((ulong)srv_thread_fifo_pending <= srv_thread_concurrency);
 #endif
 		os_event_set(event);
 	}
@@ -3298,7 +3298,7 @@ loop:
 
 		{
 			ulint loop_usecs = my_fast_timer_diff_now(&loop_timer, NULL) * 1000000.0;
-			if (loop_usecs >= srv_background_thread_interval_usecs) {
+			if ((long)loop_usecs >= srv_background_thread_interval_usecs) {
 				skip_sleep = TRUE;
 			} else {
 				skip_sleep_usecs = srv_background_thread_interval_usecs - loop_usecs;

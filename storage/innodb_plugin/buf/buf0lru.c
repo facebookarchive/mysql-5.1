@@ -2478,10 +2478,12 @@ buf_LRU_file_restore(void)
 
 			/* do not issue more than srv_io_capacity requests per second */
 			if (req % srv_io_capacity == 0) {
+				ulint loop_usecs;
+
 				os_aio_simulated_wake_handler_threads();
 				buf_flush_free_margin(srv_io_capacity, FALSE);
 
-				ulint loop_usecs = my_fast_timer_diff_now(&loop_timer, NULL) * 1000000.0;
+				loop_usecs = my_fast_timer_diff_now(&loop_timer, NULL) * 1000000.0;
 
 				if (loop_usecs < 1000000) {
 					os_thread_sleep(1000000 - loop_usecs);
