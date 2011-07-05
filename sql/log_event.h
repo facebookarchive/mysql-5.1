@@ -18,7 +18,7 @@
   @{
 
   @file
-
+  
   @brief Binary log event definitions.  This includes generic code
   common to all types of log events, as well as specific code for each
   type of log event.
@@ -256,7 +256,7 @@ struct sql_ex_info
 #define EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN (4 + 4 + 4 + 1)
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 #define INCIDENT_HEADER_LEN    2
-/*
+/* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
   First, an auxiliary log_event status vars estimation:
@@ -279,8 +279,8 @@ struct sql_ex_info
   MAX_SIZE_LOG_EVENT_STATUS + /* status */ \
   NAME_LEN + 1)
 
-/*
-   Event header offsets;
+/* 
+   Event header offsets; 
    these point to places inside the fixed header.
 */
 
@@ -479,7 +479,7 @@ struct sql_ex_info
 
 /**
    @def LOG_EVENT_ARTIFICIAL_F
-
+   
    Artificial events are created arbitarily and not written to binary
    log
 
@@ -490,7 +490,7 @@ struct sql_ex_info
 
 /**
    @def LOG_EVENT_RELAY_LOG_F
-
+   
    Events with this flag set are created by slave IO thread and written
    to relay log
 */
@@ -716,7 +716,7 @@ typedef struct st_print_event_info
   @class Log_event
 
   This is the abstract base class for binary log events.
-
+  
   @section Log_event_binary_format Binary Format
 
   Any @c Log_event saved on disk consists of the following three
@@ -873,7 +873,7 @@ public:
 
 
   /*
-    The following type definition is to be used whenever data is placed
+    The following type definition is to be used whenever data is placed 
     and manipulated in a common buffer. Use this typedef for buffers
     that contain data containing binary and character data.
   */
@@ -1226,7 +1226,7 @@ protected:
 
 /**
   @class Query_log_event
-
+   
   A @c Query_log_event is created for each query that modifies the
   database, unless the query is logged row-based.
 
@@ -1653,7 +1653,7 @@ public:
     thread writes the relay log, it augments the Query_log_event with a
     Q_MASTER_DATA_WRITTEN_CODE status_var that holds the original event
     length. This field is initialized to non-zero in the SQL thread when
-    it reads this augmented event. SQL thread does not write
+    it reads this augmented event. SQL thread does not write 
     Q_MASTER_DATA_WRITTEN_CODE to the slave's server binlog.
   */
   uint32 master_data_written;
@@ -1897,7 +1897,7 @@ private:
     <td>4 byte unsigned integer</td>
     <td>The number n of fields on line (15) above.</td>
   </tr>
-  </table>
+  </table>    
 
   The Body contains the following components.
 
@@ -2363,7 +2363,7 @@ private:
   The state of the random number generation consists of 128 bits,
   which are stored internally as two 64-bit numbers.
 
-  @section Rand_log_event_binary_format Binary Format
+  @section Rand_log_event_binary_format Binary Format  
 
   The Post-Header for this event type is empty.  The Body has two
   components:
@@ -2432,7 +2432,7 @@ private:
   Logs xid of the transaction-to-be-committed in the 2pc protocol.
   Has no meaning in replication, slaves ignore it.
 
-  @section Xid_log_event_binary_format Binary Format
+  @section Xid_log_event_binary_format Binary Format  
 */
 #ifdef MYSQL_CLIENT
 typedef ulonglong my_xid; // this line is the same as in handler.h
@@ -2475,7 +2475,7 @@ private:
   Every time a query uses the value of a user variable, a User_var_log_event is
   written before the Query_log_event, to set the user variable.
 
-  @section User_var_log_event_binary_format Binary Format
+  @section User_var_log_event_binary_format Binary Format  
 */
 
 class User_var_log_event: public Log_event
@@ -3328,7 +3328,7 @@ public:
 
   enum enum_flag
   {
-    /*
+    /* 
        Nothing here right now, but the flags support is there in
        preparation for changes that are coming.  Need to add a
        constant to make it compile under HP-UX: aCC does not like
@@ -3340,7 +3340,7 @@ public:
   typedef uint16 flag_set;
 
   /* Special constants representing sets of flags */
-  enum
+  enum 
   {
     TM_NO_FLAGS = 0U,
     TM_BIT_LEN_EXACT_F = (1U << 0)
@@ -3352,7 +3352,7 @@ public:
   Table_map_log_event(THD *thd, TABLE *tbl, ulong tid, bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
-  Table_map_log_event(const char *buf, uint event_len,
+  Table_map_log_event(const char *buf, uint event_len, 
                       const Format_description_log_event *description_event);
 #endif
 
@@ -3372,7 +3372,7 @@ public:
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
   virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
 
-  virtual int get_data_size() { return (uint) m_data_size; }
+  virtual int get_data_size() { return (uint) m_data_size; } 
 #ifndef MYSQL_CLIENT
   virtual int save_field_metadata();
   virtual bool write_data_header(IO_CACHE *file);
@@ -3416,7 +3416,7 @@ private:
   /*
     The size of field metadata buffer set by calling save_field_metadata()
   */
-  ulong          m_field_metadata_size;
+  ulong          m_field_metadata_size;   
   uchar         *m_null_bits;
   uchar         *m_meta_memory;
 };
@@ -3471,7 +3471,7 @@ public:
     /* Value of the OPTION_RELAXED_UNIQUE_CHECKS flag in thd->options */
     RELAXED_UNIQUE_CHECKS_F = (1U << 2),
 
-    /**
+    /** 
       Indicates that rows in this event are complete, that is contain
       values for all columns of the table.
      */
@@ -3481,7 +3481,7 @@ public:
   typedef uint16 flag_set;
 
   /* Special constants representing sets of flags */
-  enum
+  enum 
   {
       RLE_NO_FLAGS = 0U
   };
@@ -3510,7 +3510,7 @@ public:
 #ifndef MYSQL_CLIENT
   int add_row_data(uchar *data, size_t length)
   {
-    return do_add_row_data(data,length);
+    return do_add_row_data(data,length); 
   }
 #endif
 
@@ -3540,15 +3540,15 @@ public:
   uint     m_row_count;         /* The number of rows added to the event */
 
 protected:
-  /*
+  /* 
      The constructors are protected since you're supposed to inherit
      this class, not create instances of this class.
   */
 #ifndef MYSQL_CLIENT
-  Rows_log_event(THD*, TABLE*, ulong table_id,
+  Rows_log_event(THD*, TABLE*, ulong table_id, 
 		 MY_BITMAP const *cols, bool is_transactional);
 #endif
-  Rows_log_event(const char *row_data, uint event_len,
+  Rows_log_event(const char *row_data, uint event_len, 
 		 Log_event_type event_type,
 		 const Format_description_log_event *description_event);
 
@@ -3600,7 +3600,7 @@ protected:
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,
                          const bool abort_on_warning= TRUE)
-  {
+  { 
     DBUG_ASSERT(m_table);
 
     bool first_row= (m_curr_row == m_rows_buf);
@@ -3638,23 +3638,23 @@ private:
       The member function will return 0 if all went OK, or a non-zero
       error code otherwise.
   */
-  virtual
+  virtual 
   int do_before_row_operations(const Slave_reporting_capability *const log) = 0;
 
   /*
     Primitive to clean up after a sequence of row executions.
 
     DESCRIPTION
-
+    
       After doing a sequence of do_prepare_row() and do_exec_row(),
       this member function should be called to clean up and release
       any allocated buffers.
-
+      
       The error argument, if non-zero, indicates an error which happened during
-      row processing before this function was called. In this case, even if
+      row processing before this function was called. In this case, even if 
       function is successful, it should return the error code given in the argument.
   */
-  virtual
+  virtual 
   int do_after_row_operations(const Slave_reporting_capability *const log,
                               int error) = 0;
 
@@ -3663,13 +3663,13 @@ private:
 
     DESCRIPTION
       The member function will do the actual execution needed to handle a row.
-      The row is located at m_curr_row. When the function returns,
+      The row is located at m_curr_row. When the function returns, 
       m_curr_row_end should point at the next row (one byte after the end
-      of the current row).
+      of the current row).    
 
     RETURN VALUE
       0 if execution succeeded, 1 if execution failed.
-
+      
   */
   virtual int do_exec_row(const Relay_log_info *const rli) = 0;
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
@@ -3689,21 +3689,21 @@ private:
 class Write_rows_log_event : public Rows_log_event
 {
 public:
-  enum
+  enum 
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
     TYPE_CODE = WRITE_ROWS_EVENT
   };
 
 #if !defined(MYSQL_CLIENT)
-  Write_rows_log_event(THD*, TABLE*, ulong table_id,
+  Write_rows_log_event(THD*, TABLE*, ulong table_id, 
 		       MY_BITMAP const *cols, bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
-  Write_rows_log_event(const char *buf, uint event_len,
+  Write_rows_log_event(const char *buf, uint event_len, 
                        const Format_description_log_event *description_event);
 #endif
-#if !defined(MYSQL_CLIENT)
+#if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           MY_BITMAP *cols,
@@ -3747,7 +3747,7 @@ private:
 class Update_rows_log_event : public Rows_log_event
 {
 public:
-  enum
+  enum 
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
     TYPE_CODE = UPDATE_ROWS_EVENT
@@ -3769,11 +3769,11 @@ public:
   virtual ~Update_rows_log_event();
 
 #ifdef HAVE_REPLICATION
-  Update_rows_log_event(const char *buf, uint event_len,
+  Update_rows_log_event(const char *buf, uint event_len, 
 			const Format_description_log_event *description_event);
 #endif
 
-#if !defined(MYSQL_CLIENT)
+#if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           MY_BITMAP *cols,
@@ -3814,7 +3814,7 @@ protected:
   RESPONSIBILITIES
 
     - Act as a container for rows that has been deleted on the master
-      and should be deleted on the slave.
+      and should be deleted on the slave. 
 
   COLLABORATION
 
@@ -3828,21 +3828,21 @@ protected:
 class Delete_rows_log_event : public Rows_log_event
 {
 public:
-  enum
+  enum 
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
     TYPE_CODE = DELETE_ROWS_EVENT
   };
 
 #ifndef MYSQL_CLIENT
-  Delete_rows_log_event(THD*, TABLE*, ulong,
+  Delete_rows_log_event(THD*, TABLE*, ulong, 
 			MY_BITMAP const *cols, bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
-  Delete_rows_log_event(const char *buf, uint event_len,
+  Delete_rows_log_event(const char *buf, uint event_len, 
 			const Format_description_log_event *description_event);
 #endif
-#if !defined(MYSQL_CLIENT)
+#if !defined(MYSQL_CLIENT) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           MY_BITMAP *cols,
@@ -3855,7 +3855,7 @@ public:
                                   cols, fields, before_record);
   }
 #endif
-
+  
 protected:
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
 
@@ -3972,7 +3972,7 @@ private:
 static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
                                                        FILE *file)
 {
-  return
+  return         
     my_b_copy_to_file(cache, file) ||
     reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
 }

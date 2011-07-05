@@ -1086,8 +1086,6 @@ static struct my_option my_long_options[] =
    "prefix for the file names.  Cannot use with --result-dir.",
    (uchar**) &output_file, (uchar**) &output_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"result-file", 'r', "Direct output to a given file.", 0, 0, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-id", OPT_SERVER_ID,
    "Extract only binlog entries created by the server having the given id.",
    &server_id, &server_id, 0, GET_ULONG,

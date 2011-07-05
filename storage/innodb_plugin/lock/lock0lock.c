@@ -3663,7 +3663,7 @@ lock_table_remove_low(
 
 		/* The locks must be freed in the reverse order from
 		the one in which they were acquired. This is to avoid
-		traversing the AUTOINC lock vector unnecessarily.
+		traversing the AUTOINC lock vector unnecessarily. 
 
 		We only store locks that were granted in the
 		trx->autoinc_locks vector (see lock_table_create()
@@ -5544,7 +5544,7 @@ lock_release_autoinc_last_lock(
 }
 
 /*******************************************************************//**
-Check if a transaction holds any autoinc locks.
+Check if a transaction holds any autoinc locks. 
 @return TRUE if the transaction holds any AUTOINC locks. */
 UNIV_INTERN
 ibool

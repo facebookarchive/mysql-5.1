@@ -139,7 +139,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/mman.h>
 #endif
 
-#ifdef __WIN__
+#ifdef __WIN__ 
 #include <crtdbg.h>
 #define SIGNAL_FMT "exception 0x%x"
 #else
@@ -183,7 +183,7 @@ static void registerwithneb();
 static void getvolumename();
 static void getvolumeID(BYTE *volumeName);
 #endif /* __NETWARE__ */
-
+  
 
 #ifdef _AIX41
 int initgroups(const char *,unsigned int);
@@ -356,7 +356,7 @@ TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 
 static const char *optimizer_switch_names[]=
 {
-  "index_merge","index_merge_union","index_merge_sort_union",
+  "index_merge","index_merge_union","index_merge_sort_union", 
   "index_merge_intersection", "default", NullS
 };
 /* Corresponding defines are named OPTIMIZER_SWITCH_XXX */
@@ -420,7 +420,7 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 const char *log_output_names[] = { "NONE", "FILE", "TABLE", NullS};
 static const unsigned int log_output_names_len[]= { 4, 4, 5, 0 };
 TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
-                             log_output_names,
+                             log_output_names, 
                              (unsigned int *) log_output_names_len};
 
 /* static variables */
@@ -447,7 +447,7 @@ static char *default_character_set_name;
 static char *character_set_filesystem_name;
 static char *lc_time_names_name;
 static char *my_bind_addr_str;
-static char *default_collation_name;
+static char *default_collation_name; 
 static char *default_storage_engine_str;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static I_List<THD> thread_cache;
@@ -512,7 +512,7 @@ bool in_bootstrap= FALSE;
    @brief 'grant_option' is used to indicate if privileges needs
    to be checked, in which case the lock, LOCK_grant, is used
    to protect access to the grant table.
-   @note This flag is dropped in 5.1
+   @note This flag is dropped in 5.1 
    @see grant_init()
  */
 bool volatile grant_option;
@@ -1270,18 +1270,18 @@ static void __cdecl kill_server(int sig_ptr)
   else
     sql_print_error(ER(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
-#if defined(HAVE_SMEM) && defined(__WIN__)
-  /*
-   Send event to smem_event_connect_request for aborting
-   */
-  if (!SetEvent(smem_event_connect_request))
-  {
+#if defined(HAVE_SMEM) && defined(__WIN__)    
+  /*    
+   Send event to smem_event_connect_request for aborting    
+   */    
+  if (!SetEvent(smem_event_connect_request))    
+  {      
 	  DBUG_PRINT("error",
 		("Got error: %ld from SetEvent of smem_event_connect_request",
-		 GetLastError()));
+		 GetLastError()));    
   }
-#endif
-
+#endif  
+  
   close_connections();
   if (sig != MYSQL_KILL_SIGNAL &&
       sig != 0)
@@ -2146,7 +2146,7 @@ extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
   callstack.
 */
 
-static BOOL WINAPI console_event_handler( DWORD type )
+static BOOL WINAPI console_event_handler( DWORD type ) 
 {
   DBUG_ENTER("console_event_handler");
 #ifndef EMBEDDED_LIBRARY
@@ -2154,7 +2154,7 @@ static BOOL WINAPI console_event_handler( DWORD type )
   {
      /*
        Do not shutdown before startup is finished and shutdown
-       thread is initialized. Otherwise there is a race condition
+       thread is initialized. Otherwise there is a race condition 
        between main thread doing initialization and CTRL-C thread doing
        cleanup, which can result into crash.
      */
@@ -2175,7 +2175,7 @@ static BOOL WINAPI console_event_handler( DWORD type )
   In Visual Studio 2005 and later, default SIGABRT handler will overwrite
   any unhandled exception filter set by the application  and will try to
   call JIT debugger. This is not what we want, this we calling __debugbreak
-  to stop in debugger, if process is being debugged or to generate
+  to stop in debugger, if process is being debugged or to generate 
   EXCEPTION_BREAKPOINT and then handle_segfault will do its magic.
 */
 
@@ -2241,9 +2241,9 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 #ifdef DEBUG_UNHANDLED_EXCEPTION_FILTER
    /*
     Unfortunately there is no clean way to debug unhandled exception filters,
-    as debugger does not stop there(also documented in MSDN)
+    as debugger does not stop there(also documented in MSDN) 
     To overcome, one could put a MessageBox, but this will not work in service.
-    Better solution is to print error message and sleep some minutes
+    Better solution is to print error message and sleep some minutes 
     until debugger is attached
   */
   wait_for_debugger(DEBUGGER_ATTACH_TIMEOUT);
@@ -2257,7 +2257,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
   {
     DWORD written;
     const char msg[] = "Got exception in exception handler!\n";
-    WriteFile(GetStdHandle(STD_OUTPUT_HANDLE),msg, sizeof(msg)-1,
+    WriteFile(GetStdHandle(STD_OUTPUT_HANDLE),msg, sizeof(msg)-1, 
       &written,NULL);
   }
   /*
@@ -2378,7 +2378,7 @@ static void registerwithneb()
 {
 
   ConsumerRegistrationInfo reg_info;
-
+    
   /* Clear NEB registration structure */
   bzero((char*) &reg_info, sizeof(struct ConsumerRegistrationInfo));
 
@@ -2394,7 +2394,7 @@ static void registerwithneb()
   reg_info.CRIOwnerID= (LoadDefinitionStructure *)getnlmhandle();
   reg_info.CRIConsumerESR= NULL;	    // No consumer ESR required
   reg_info.CRISecurityToken= 0;	            // No security token for the event
-  reg_info.CRIConsumerFlags= 0;             // SMP_ENABLED_BIT;
+  reg_info.CRIConsumerFlags= 0;             // SMP_ENABLED_BIT;	
   reg_info.CRIFilterName= 0;	            // No event filtering
   reg_info.CRIFilterDataLength= 0;          // No filtering data
   reg_info.CRIFilterData= 0;	            // No filtering data
@@ -2419,7 +2419,7 @@ static void registerwithneb()
     Get the NSS volume ID of the MySQL Data volume.
     Volume ID is stored in a global variable
   */
-  getvolumeID((BYTE*) datavolname);
+  getvolumeID((BYTE*) datavolname);	
 }
 
 
@@ -2483,7 +2483,7 @@ static void getvolumeID(BYTE *volumeName)
 
   strxmov(path, (const char *) ADMIN_VOL_PATH, (const char *) volumeName,
           NullS);
-  if ((status= zOpen(rootKey, zNSS_TASK, zNSPACE_LONG|zMODE_UTF8,
+  if ((status= zOpen(rootKey, zNSS_TASK, zNSPACE_LONG|zMODE_UTF8, 
                      (BYTE *) path, zRR_READ_ACCESS, &fileKey)) != zOK)
   {
     consoleprintf("\nGetNSSVolumeProperties - Failed to get file, status: %d\n.", (int) status);
@@ -2491,7 +2491,7 @@ static void getvolumeID(BYTE *volumeName)
   }
 
   getInfoMask= zGET_IDS | zGET_VOLUME_INFO ;
-  if ((status= zGetInfo(fileKey, getInfoMask, sizeof(info),
+  if ((status= zGetInfo(fileKey, getInfoMask, sizeof(info), 
                         zINFO_VERSION_A, &info)) != zOK)
   {
     consoleprintf("\nGetNSSVolumeProperties - Failed in zGetInfo, status: %d\n.", (int) status);
@@ -2688,7 +2688,7 @@ You should either build a dynamically-linked binary, or force LinuxThreads\n\
 to be used with the LD_ASSUME_KERNEL environment variable. Please consult\n\
 the documentation for your distribution on how to do that.\n");
 #endif
-
+  
   if (locked_in_memory)
   {
     fprintf(stderr, "\n\
@@ -3587,7 +3587,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
 
-  if (!(character_set_filesystem=
+  if (!(character_set_filesystem= 
         get_charset_by_csname(character_set_filesystem_name,
                               MY_CS_PRIMARY, MYF(MY_WME))))
     return 1;
@@ -3600,7 +3600,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   }
   global_system_variables.lc_time_names= my_default_lc_time_names;
-
+  
   sys_init_connect.value_length= 0;
   if ((sys_init_connect.value= opt_init_connect))
     sys_init_connect.value_length= strlen(opt_init_connect);
@@ -3738,7 +3738,7 @@ static int init_thread_environment()
   openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
                                                      sizeof(openssl_lock_t));
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
-    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL);
+    (void) my_rwlock_init(&openssl_stdlocks[i].lock, NULL); 
   CRYPTO_set_dynlock_create_callback(openssl_dynlock_create);
   CRYPTO_set_dynlock_destroy_callback(openssl_dynlock_destroy);
   CRYPTO_set_dynlock_lock_callback(openssl_lock);
@@ -3785,20 +3785,20 @@ static int init_thread_environment()
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static unsigned long openssl_id_function()
-{
+{ 
   return (unsigned long) pthread_self();
-}
+} 
 
 
 static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
-{
+{ 
   openssl_lock_t *lock= new openssl_lock_t;
   my_rwlock_init(&lock->lock, NULL);
   return lock;
 }
 
 
-static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
+static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file, 
 				    int line)
 {
   rwlock_destroy(&lock->lock);
@@ -3818,7 +3818,7 @@ static void openssl_lock_function(int mode, int n, const char *file, int line)
 }
 
 
-static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
+static void openssl_lock(int mode, openssl_lock_t *lock, const char *file, 
 			 int line)
 {
   int err;
@@ -3843,7 +3843,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
     sql_print_error("Fatal: OpenSSL interface problem (mode=0x%x)", mode);
     abort();
   }
-  if (err)
+  if (err) 
   {
     sql_print_error("Fatal: can't %s OpenSSL lock", what);
     abort();
@@ -4036,7 +4036,7 @@ with --log-bin instead.");
     if (opt_binlog_format_id == BINLOG_FORMAT_UNSPEC)
       global_system_variables.binlog_format= BINLOG_FORMAT_STMT;
     else
-    {
+    { 
       DBUG_ASSERT(global_system_variables.binlog_format != BINLOG_FORMAT_UNSPEC);
     }
 
@@ -4057,9 +4057,9 @@ server.");
 
   if (opt_bin_log)
   {
-    /* Reports an error and aborts, if the --log-bin's path
+    /* Reports an error and aborts, if the --log-bin's path 
        is a directory.*/
-    if (opt_bin_logname &&
+    if (opt_bin_logname && 
         opt_bin_logname[strlen(opt_bin_logname) - 1] == FN_LIBCHAR)
     {
       sql_print_error("Path '%s' is a directory name, please specify \
@@ -4067,10 +4067,10 @@ a file name for --log-bin option", opt_bin_logname);
       unireg_abort(1);
     }
 
-    /* Reports an error and aborts, if the --log-bin-index's path
+    /* Reports an error and aborts, if the --log-bin-index's path 
        is a directory.*/
-    if (opt_binlog_index_name &&
-        opt_binlog_index_name[strlen(opt_binlog_index_name) - 1]
+    if (opt_binlog_index_name && 
+        opt_binlog_index_name[strlen(opt_binlog_index_name) - 1] 
         == FN_LIBCHAR)
     {
       sql_print_error("Path '%s' is a directory name, please specify \
@@ -4120,7 +4120,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (ha_init_errors())
     DBUG_RETURN(1);
 
-  {
+  { 
     if (plugin_init(&defaults_argc, defaults_argv,
 		    (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
 		    (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
@@ -4224,7 +4224,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                        strlen(default_storage_engine_str) };
     plugin_ref plugin;
     handlerton *hton;
-
+    
     if ((plugin= ha_resolve_by_name(0, &name)))
       hton= plugin_data(plugin, handlerton*);
     else
@@ -4246,7 +4246,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     else
     {
       /*
-        Need to unlock as global_system_variables.table_plugin
+        Need to unlock as global_system_variables.table_plugin 
         was acquired during plugin_init()
       */
       plugin_unlock(0, global_system_variables.table_plugin);
@@ -4417,7 +4417,7 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
-#endif
+#endif 
 
   while (handler_count > 0)
     pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
@@ -4430,7 +4430,7 @@ void decrement_handler_count()
   pthread_mutex_lock(&LOCK_thread_count);
   handler_count--;
   pthread_cond_signal(&COND_handler_count);
-  pthread_mutex_unlock(&LOCK_thread_count);
+  pthread_mutex_unlock(&LOCK_thread_count);  
   my_thread_end();
 }
 #else
@@ -4863,7 +4863,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif /* __NT__ */
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
-
+  
   DBUG_PRINT("quit",("Exiting main thread"));
 
 #ifndef __WIN__
@@ -4971,10 +4971,10 @@ default_service_handling(char **argv,
   pos= add_quoted_string(path_and_service, file_path, end);
   if (*extra_opt)
   {
-    /*
-     Add option after file_path. There will be zero or one extra option.  It's
+    /* 
+     Add option after file_path. There will be zero or one extra option.  It's 
      assumed to be --defaults-file=file but isn't checked.  The variable (not
-     the option name) should be quoted if it contains a string.
+     the option name) should be quoted if it contains a string.  
     */
     *pos++= ' ';
     if (opt_delim= strchr(extra_opt, '='))
@@ -4984,7 +4984,7 @@ default_service_handling(char **argv,
     }
     else
       opt_delim= extra_opt;
-
+    
     pos= add_quoted_string(pos, opt_delim, end);
   }
   /* We must have servicename last */
@@ -5227,7 +5227,7 @@ int profile_pthread_create(pthread_t* thread, pthread_attr_t* attr,
 
      When we enter this function, LOCK_thread_count is hold!
 */
-
+   
 void handle_connection_in_main_thread(THD *thd)
 {
   safe_mutex_assert_owner(&LOCK_thread_count);
@@ -5511,7 +5511,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
       size_socket length=sizeof(struct sockaddr_in);
       new_sock = accept(sock, my_reinterpret_cast(struct sockaddr *) (&cAddr),
 			&length);
-#ifdef __NETWARE__
+#ifdef __NETWARE__ 
       // TODO: temporary fix, waiting for TCP/IP fix - DEFECT000303149
       if ((new_sock == INVALID_SOCKET) && (socket_errno == EINVAL))
       {
@@ -5930,7 +5930,7 @@ errorconn:
 	      NullS);
       sql_perror(buff);
     }
-    if (handle_client_file_map)
+    if (handle_client_file_map) 
       CloseHandle(handle_client_file_map);
     if (handle_client_map)
       UnmapViewOfFile(handle_client_map);
@@ -5978,8 +5978,8 @@ error:
 
 enum options_mysqld
 {
-  OPT_ISAM_LOG=256,            OPT_SKIP_NEW,
-  OPT_SKIP_GRANT,              OPT_SKIP_LOCK,
+  OPT_ISAM_LOG=256,            OPT_SKIP_NEW, 
+  OPT_SKIP_GRANT,              OPT_SKIP_LOCK, 
   OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
   OPT_SOCKET,                  OPT_UPDATE_LOG,
   OPT_BIN_LOG,                 OPT_SKIP_RESOLVE,
@@ -6008,11 +6008,11 @@ enum options_mysqld
 #ifndef DBUG_OFF
   OPT_BINLOG_SHOW_XID,
 #endif
-  OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
+  OPT_BINLOG_ROWS_EVENT_MAX_SIZE, 
   OPT_WANT_CORE,               OPT_CONCURRENT_INSERT,
   OPT_MEMLOCK,                 OPT_MYISAM_RECOVER,
   OPT_REPLICATE_REWRITE_DB,    OPT_SERVER_ID,
-  OPT_SKIP_SLAVE_START,        OPT_SAFE_SHOW_DB,
+  OPT_SKIP_SLAVE_START,        OPT_SAFE_SHOW_DB, 
   OPT_SAFEMALLOC_MEM_LIMIT,    OPT_REPLICATE_DO_TABLE,
   OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE,
   OPT_REPLICATE_WILD_IGNORE_TABLE, OPT_REPLICATE_SAME_SERVER_ID,
@@ -6020,7 +6020,7 @@ enum options_mysqld
   OPT_ABORT_SLAVE_EVENT_COUNT,
   OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
   OPT_LOG_BIN_TRUST_FUNCTION_CREATORS_OLD,
-  OPT_ENGINE_CONDITION_PUSHDOWN, OPT_NDB_CONNECTSTRING,
+  OPT_ENGINE_CONDITION_PUSHDOWN, OPT_NDB_CONNECTSTRING, 
   OPT_NDB_USE_EXACT_COUNT, OPT_NDB_USE_TRANSACTIONS,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
@@ -6192,7 +6192,7 @@ enum options_mysqld
 
 struct my_option my_long_options[] =
 {
-  {"help", '?', "Display this help and exit.",
+  {"help", '?', "Display this help and exit.", 
    &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
 #ifdef HAVE_REPLICATION
@@ -6261,8 +6261,8 @@ struct my_option my_long_options[] =
    "The value has to be a multiple of 256.",
    &opt_binlog_rows_event_max_size, &opt_binlog_rows_event_max_size,
    0, GET_ULONG, REQUIRED_ARG,
-   /* def_value */ 1024, /* min_value */  256, /* max_value */ ULONG_MAX,
-   /* sub_size */     0, /* block_size */ 256,
+   /* def_value */ 1024, /* min_value */  256, /* max_value */ ULONG_MAX, 
+   /* sub_size */     0, /* block_size */ 256, 
    /* app_type */ 0
   },
 #ifndef DISABLE_GRANT_OPTIONS
@@ -6310,7 +6310,7 @@ struct my_option my_long_options[] =
   {"debug", '#', "Debug log.", &default_dbug_option,
    &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"default-character-set", OPT_DEFAULT_CHARACTER_SET_OLD,
+  {"default-character-set", OPT_DEFAULT_CHARACTER_SET_OLD, 
    "Set the default character set (deprecated option, use --character-set-server instead).",
    &default_character_set_name, &default_character_set_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -6430,7 +6430,7 @@ struct my_option my_long_options[] =
   {"ignore-builtin-innodb", OPT_IGNORE_BUILTIN_INNODB ,
    "Disable initialization of builtin InnoDB plugin.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"init-connect", OPT_INIT_CONNECT,
+  {"init-connect", OPT_INIT_CONNECT, 
    "Command(s) that are executed for each new connection.",
    &opt_init_connect, &opt_init_connect, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6781,13 +6781,13 @@ each time the SQL thread starts.",
    "(should only be used if on-line alter table fails).",
    &global_system_variables.ndb_use_copying_alter_table,
    &global_system_variables.ndb_use_copying_alter_table,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},  
   {"new", 'n', "Use very new, possibly 'unsafe', functions.",
    &global_system_variables.new_mode,
    &max_system_variables.new_mode,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef NOT_YET
-  {"no-mix-table-types", OPT_NO_MIX_TYPE,
+  {"no-mix-table-types", OPT_NO_MIX_TYPE, 
    "Don't allow commands that use two different table types.",
    &opt_no_mix_types, &opt_no_mix_types, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
@@ -7481,9 +7481,9 @@ thread is in the relay logs.",
    &global_system_variables.net_write_timeout,
    &max_system_variables.net_write_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WRITE_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
-  { "old", OPT_OLD_MODE, "Use compatible behavior.",
+  { "old", OPT_OLD_MODE, "Use compatible behavior.", 
     &global_system_variables.old_mode,
-    &max_system_variables.old_mode, 0, GET_BOOL, NO_ARG,
+    &max_system_variables.old_mode, 0, GET_BOOL, NO_ARG, 
     0, 0, 0, 0, 0, 0},
   {"open_files_limit", OPT_OPEN_FILES_LIMIT,
    "If this is not 0, then mysqld will use this value to reserve file "
@@ -7862,7 +7862,7 @@ static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
   var->type= SHOW_MY_BOOL;
   pthread_mutex_lock(&LOCK_active_mi);
   var->value= buff;
-  *((my_bool *)buff)= (my_bool) (active_mi &&
+  *((my_bool *)buff)= (my_bool) (active_mi && 
                                  active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
                                  active_mi->rli.slave_running);
   pthread_mutex_unlock(&LOCK_active_mi);
@@ -8081,7 +8081,7 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
 }
 
 /*
-   Functions relying on SSL
+   Functions relying on SSL 
    Note: In the show_ssl_* functions, we need to check if we have a
          valid vio-object since this isn't always true, specifically
          when session_status or global_status is requested from
@@ -8643,7 +8643,7 @@ static int mysql_init_variables(void)
     when collecting index statistics for MyISAM tables.
   */
   global_system_variables.myisam_stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
-
+  
   global_system_variables.optimizer_switch= OPTIMIZER_SWITCH_DEFAULT;
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
@@ -8781,7 +8781,7 @@ mysqld_get_one_option(int optid,
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
     break;
   case OPT_DEFAULT_CHARACTER_SET_OLD: // --default-character-set
-    WARN_DEPRECATED(NULL, VER_CELOSIA,
+    WARN_DEPRECATED(NULL, VER_CELOSIA, 
                     "--default-character-set",
                     "--character-set-server");
     /* Fall through */
@@ -9121,16 +9121,16 @@ mysqld_get_one_option(int optid,
   case OPT_MASTER_PASSWORD:
   case OPT_MASTER_PORT:
   case OPT_MASTER_CONNECT_RETRY:
-  case OPT_MASTER_SSL:
+  case OPT_MASTER_SSL:          
   case OPT_MASTER_SSL_KEY:
-  case OPT_MASTER_SSL_CERT:
+  case OPT_MASTER_SSL_CERT:       
   case OPT_MASTER_SSL_CAPATH:
   case OPT_MASTER_SSL_CIPHER:
   case OPT_MASTER_SSL_CA:
     if (!slave_warning_issued)                 //only show the warning once
     {
-      slave_warning_issued = true;
-      WARN_DEPRECATED(NULL, "6.0", "for replication startup options",
+      slave_warning_issued = true;   
+      WARN_DEPRECATED(NULL, "6.0", "for replication startup options", 
         "'CHANGE MASTER'");
     }
     break;
@@ -9153,7 +9153,7 @@ mysqld_get_one_option(int optid,
     server_id_supplied = 1;
     break;
   case OPT_DELAY_KEY_WRITE_ALL:
-    WARN_DEPRECATED(NULL, VER_CELOSIA,
+    WARN_DEPRECATED(NULL, VER_CELOSIA, 
                     "--delay-key-write-for-all-tables",
                     "--delay-key-write=ALL");
     if (argument != disabled_my_option)
@@ -9303,8 +9303,8 @@ mysqld_get_one_option(int optid,
     uint error_len= 0;
     optimizer_switch_str= argument;
     global_system_variables.optimizer_switch=
-      (ulong)find_set_from_flags(&optimizer_switch_typelib,
-                                 optimizer_switch_typelib.count,
+      (ulong)find_set_from_flags(&optimizer_switch_typelib, 
+                                 optimizer_switch_typelib.count, 
                                  global_system_variables.optimizer_switch,
                                  global_system_variables.optimizer_switch,
                                  argument, strlen(argument), NULL,
@@ -9596,7 +9596,7 @@ fn_format_relative_to_data_home(char * to, const char *name,
 /**
   Test a file path to determine if the path is compatible with the secure file
   path restriction.
-
+ 
   @param path null terminated character string
 
   @return
@@ -9658,7 +9658,7 @@ static int fix_paths(void)
   opt_plugin_dir_ptr= opt_plugin_dir;
 
   my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
-  mysql_unpacked_real_data_home_len=
+  mysql_unpacked_real_data_home_len= 
     (int) strlen(mysql_unpacked_real_data_home);
   if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
     --mysql_unpacked_real_data_home_len;
@@ -9715,7 +9715,7 @@ static int fix_paths(void)
       opt_secure_file_priv= secure_file_real_path;
     }
   }
-
+  
   return 0;
 }
 
@@ -9725,7 +9725,7 @@ static ulong find_bit_type_or_exit(const char *x, TYPELIB *bit_lib,
 {
   ulong result;
   const char **ptr;
-
+  
   *error= 0;
   if ((result= find_bit_type(x, bit_lib)) == ~(ulong) 0)
   {

@@ -251,7 +251,7 @@ public:
   {
     incident= TRUE;
   }
-
+  
   bool has_incident(void)
   {
     return(incident);
@@ -367,7 +367,7 @@ void Log_to_csv_event_handler::cleanup()
   internally (@todo: how?).
   If a write to the table has failed, the function attempts to
   write to a short error message to the file. The failure is also
-  indicated in the return value.
+  indicated in the return value. 
 
   @retval  FALSE   OK
   @retval  TRUE    error occured
@@ -1288,7 +1288,7 @@ int LOGGER::set_handlers(uint error_log_printer,
   return 0;
 }
 
-/**
+/** 
     This function checks if a transactional talbe was updated by the
     current statement.
 
@@ -1755,7 +1755,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
     non-transactional table. Otherwise, truncate the binlog cache starting
     from the SAVEPOINT command.
   */
-  if (unlikely(trans_has_updated_non_trans_table(thd) ||
+  if (unlikely(trans_has_updated_non_trans_table(thd) || 
                (thd->options & OPTION_KEEP_LOG)))
   {
     String log_query;
@@ -1800,7 +1800,7 @@ File open_binlog(IO_CACHE *log, const char *log_file_name, const char **errmsg)
   File file;
   DBUG_ENTER("open_binlog");
 
-  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY | O_SHARE,
+  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY | O_SHARE, 
                       MYF(MY_WME))) < 0)
   {
     sql_print_error("Failed to open log (file '%s', errno %d)",
@@ -1845,7 +1845,7 @@ static void setup_windows_event_source()
 
   // Create the event source registry key
   dwError= RegCreateKey(HKEY_LOCAL_MACHINE,
-                          "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\MySQL",
+                          "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\MySQL", 
                           &hRegKey);
 
   /* Name of the PE module that contains the message resource */
@@ -3200,7 +3200,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool need_lock)
   {
     if ((error= my_delete_allow_opened(linfo.log_file_name, MYF(0))) != 0)
     {
-      if (my_errno == ENOENT)
+      if (my_errno == ENOENT) 
       {
         push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
@@ -3231,7 +3231,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool need_lock)
   close(LOG_CLOSE_INDEX);
   if ((error= my_delete_allow_opened(index_file_name, MYF(0))))	// Reset (open will update)
   {
-    if (my_errno == ENOENT)
+    if (my_errno == ENOENT) 
     {
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
@@ -3327,7 +3327,7 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
     Read the next log file name from the index file and pass it back to
     the caller.
   */
-  if((error=find_log_pos(&rli->linfo, rli->event_relay_log_name, 0)) ||
+  if((error=find_log_pos(&rli->linfo, rli->event_relay_log_name, 0)) || 
      (error=find_next_log(&rli->linfo, 0)))
   {
     char buff[22];
@@ -3379,7 +3379,7 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   pthread_cond_broadcast(&rli->log_space_cond);
 
   /*
-   * Need to update the log pos because purge logs has been called
+   * Need to update the log pos because purge logs has been called 
    * after fetching initially the log pos at the begining of the method.
    */
   if((error=find_log_pos(&rli->linfo, rli->event_relay_log_name, 0)))
@@ -3441,10 +3441,10 @@ int MYSQL_BIN_LOG::update_log_index(LOG_INFO* log_info, bool need_update_threads
                                 my_stat() or my_delete()
 */
 
-int MYSQL_BIN_LOG::purge_logs(const char *to_log,
+int MYSQL_BIN_LOG::purge_logs(const char *to_log, 
                           bool included,
-                          bool need_mutex,
-                          bool need_update_threads,
+                          bool need_mutex, 
+                          bool need_update_threads, 
                           ulonglong *decrease_log_space)
 {
   int error= 0;
@@ -3456,7 +3456,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
 
   if (need_mutex)
     pthread_mutex_lock(&LOCK_index);
-  if ((error=find_log_pos(&log_info, to_log, 0 /*no mutex*/)))
+  if ((error=find_log_pos(&log_info, to_log, 0 /*no mutex*/))) 
   {
     sql_print_error("MYSQL_BIN_LOG::purge_logs was called with file %s not "
                     "listed in the index.", to_log);
@@ -3659,7 +3659,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
 
     if (!my_stat(log_info.log_file_name, &s, MYF(0)))
     {
-      if (my_errno == ENOENT)
+      if (my_errno == ENOENT) 
       {
         /*
           It's not fatal if we can't stat a log file that does not exist;
@@ -3724,7 +3724,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
           }
           goto err;
         }
-
+           
         error= 0;
         if (!need_mutex)
         {
@@ -3819,7 +3819,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
   LOG_INFO log_info;
   MY_STAT stat_area;
   THD *thd= current_thd;
-
+  
   DBUG_ENTER("purge_logs_before_date");
 
   pthread_mutex_lock(&LOCK_index);
@@ -3834,7 +3834,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
   {
     if (!my_stat(log_info.log_file_name, &stat_area, MYF(0)))
     {
-      if (my_errno == ENOENT)
+      if (my_errno == ENOENT) 
       {
         /*
           It's not fatal if we can't stat a log file that does not exist.
@@ -3867,9 +3867,9 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
     }
     else
     {
-      if (stat_area.st_mtime < purge_time)
-        strmake(to_log,
-                log_info.log_file_name,
+      if (stat_area.st_mtime < purge_time) 
+        strmake(to_log, 
+                log_info.log_file_name, 
                 sizeof(log_info.log_file_name) - 1);
       else
         break;
@@ -3898,7 +3898,7 @@ err:
 
 void MYSQL_BIN_LOG::make_log_name(char* buf, const char* log_ident)
 {
-  uint dir_len = dirname_length(log_file_name);
+  uint dir_len = dirname_length(log_file_name); 
   if (dir_len >= FN_REFLEN)
     dir_len=FN_REFLEN-1;
   strnmov(buf, log_file_name, dir_len);
@@ -4293,7 +4293,7 @@ void MYSQL_BIN_LOG::stop_union_events(THD *thd)
 
 bool MYSQL_BIN_LOG::is_query_in_union(THD *thd, query_id_t query_id_param)
 {
-  return (thd->binlog_evt_union.do_union &&
+  return (thd->binlog_evt_union.do_union && 
           query_id_param >= thd->binlog_evt_union.first_query_id);
 }
 
@@ -4309,7 +4309,7 @@ bool MYSQL_BIN_LOG::is_query_in_union(THD *thd, query_id_t query_id_param)
 */
 bool ending_trans(const THD* thd, const bool all)
 {
-  return (all || (!all && !(thd->options &
+  return (all || (!all && !(thd->options & 
                   (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT))));
 }
 
@@ -4692,7 +4692,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     }
 #endif /* HAVE_REPLICATION */
 
-#if defined(USING_TRANSACTIONS)
+#if defined(USING_TRANSACTIONS) 
     /*
       Should we write to the binlog cache or to the binlog on disk?
 
@@ -4703,7 +4703,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       note that the present event could be about a non-transactional table, but
       still we need to write to the binlog cache in that case to handle updates
       to mixed trans/non-trans table types).
-
+      
       Write to the binlog on disk if only a non-transactional engine is
       updated and:
       1 - the binlog cache is empty or;
@@ -4811,7 +4811,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
        Write the SQL command
      */
 
-    if (event_info->write(file) ||
+    if (event_info->write(file) || 
         DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
       goto err;
     written += event_info->data_written;
@@ -5105,7 +5105,7 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log)
 int query_error_code(THD *thd, bool not_killed)
 {
   int error;
-
+  
   if (not_killed || (thd->killed == THD::KILL_BAD_DATA))
   {
     error= thd->is_error() ? thd->main_da.sql_errno() : 0;
@@ -6056,7 +6056,7 @@ int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 #endif /* EMBEDDED_LIBRARY */
 
 
-void sql_print_error(const char *format, ...)
+void sql_print_error(const char *format, ...) 
 {
   va_list args;
   DBUG_ENTER("sql_print_error");
@@ -6069,7 +6069,7 @@ void sql_print_error(const char *format, ...)
 }
 
 
-void sql_print_warning(const char *format, ...)
+void sql_print_warning(const char *format, ...) 
 {
   va_list args;
   DBUG_ENTER("sql_print_warning");
@@ -6082,7 +6082,7 @@ void sql_print_warning(const char *format, ...)
 }
 
 
-void sql_print_information(const char *format, ...)
+void sql_print_information(const char *format, ...) 
 {
   va_list args;
   DBUG_ENTER("sql_print_information");
