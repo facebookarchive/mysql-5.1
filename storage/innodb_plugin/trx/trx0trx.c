@@ -107,8 +107,6 @@ trx_free_trx_pool()
 {
 	trx_t*	next;
 
-	ut_ad(mutex_own(&kernel_mutex));
-
 	/* Confirm that the list looks OK */
 	next = next_free_transaction;
 	while (next) {

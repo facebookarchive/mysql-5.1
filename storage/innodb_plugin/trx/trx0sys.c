@@ -1823,8 +1823,6 @@ trx_sys_close(void)
 
 	mem_free(trx_sys);
 
-	trx_free_trx_pool();
-
 	trx_sys = NULL;
 	mutex_exit(&kernel_mutex);
 }

@@ -2039,6 +2039,10 @@ innobase_shutdown_for_mysql(void)
 	srv_free();
 	fil_close();
 
+	/* Do this after sync_close because some trx_t might not have calls
+	to trx_deallocate */
+	trx_free_trx_pool();
+
 	/* 4. Free the os_conc_mutex and all os_events and os_mutexes */
 
 	os_sync_free();
