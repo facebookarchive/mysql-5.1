@@ -107,9 +107,9 @@ static int		pbxt_end(void *p);
 static int		pbxt_panic(handlerton *hton, enum ha_panic_function flag);
 static void		pbxt_drop_database(handlerton *hton, char *path);
 static int		pbxt_close_connection(handlerton *hton, THD* thd);
-static int		pbxt_commit(handlerton *hton, THD *thd, bool all);
+static int		pbxt_commit(handlerton *hton, THD *thd, bool all, bool async);
 static int		pbxt_rollback(handlerton *hton, THD *thd, bool all);
-static int		pbxt_prepare(handlerton *hton, THD *thd, bool all);
+static int		pbxt_prepare(handlerton *hton, THD *thd, bool all, bool async);
 static int		pbxt_recover(handlerton *hton, XID *xid_list, uint len);
 static int		pbxt_commit_by_xid(handlerton *hton, XID *xid);
 static int		pbxt_rollback_by_xid(handlerton *hton, XID *xid);
@@ -1429,7 +1429,7 @@ int PBXTStorageEngine::commit(Session *thd, bool all)
 {
 	PBXTStorageEngine * const hton = this;
 #else
-static int pbxt_commit(handlerton *hton, THD *thd, bool all)
+static int pbxt_commit(handlerton *hton, THD *thd, bool all, bool async)
 {
 #endif
 	int			err = 0;
@@ -1518,7 +1518,7 @@ static handler *pbxt_create_handler(handlerton *hton, TABLE_SHARE *table, MEM_RO
 
 #ifndef DRIZZLED
 
-static int pbxt_prepare(handlerton *hton, THD *thd, bool all)
+static int pbxt_prepare(handlerton *hton, THD *thd, bool all, bool async)
 {
 	int			err = 0;
 	XTThreadPtr	self;

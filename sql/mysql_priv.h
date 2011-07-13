@@ -755,7 +755,7 @@ extern my_decimal decimal_zero;
 void free_items(Item *item);
 void cleanup_items(Item *item);
 class THD;
-void close_thread_tables(THD *thd);
+void close_thread_tables(THD *thd, bool async_commit=FALSE);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
@@ -818,7 +818,8 @@ enum enum_mysql_completiontype {
 
 bool begin_trans(THD *thd);
 bool end_active_trans(THD *thd);
-int end_trans(THD *thd, enum enum_mysql_completiontype completion);
+int end_trans(THD *thd, enum enum_mysql_completiontype completion,
+              bool async_commit=FALSE);
 
 Item *negate_expression(THD *thd, Item *expr);
 
@@ -1054,7 +1055,8 @@ bool mysql_opt_change_db(THD *thd,
 
 void mysql_parse(THD *thd, char *rawbuf, uint length,
                  const char ** semicolon, my_fast_timer_t *last_timer,
-                 my_bool use_admission_control);
+                 my_bool use_admission_control,
+                 my_bool *async_commit);
 
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);

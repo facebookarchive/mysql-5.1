@@ -208,7 +208,8 @@ UNIV_INTERN
 ulint
 trx_prepare_for_mysql(
 /*==================*/
-	trx_t*	trx);	/*!< in: trx handle */
+	trx_t*	trx,	/*!< in: trx handle */
+	ibool	async);	/*!< in: TRUE - don't sync log */
 /**********************************************************************//**
 This function is used to find number of prepared transactions and
 their transaction objects for a recovery.
@@ -236,7 +237,8 @@ UNIV_INTERN
 ulint
 trx_commit_complete_for_mysql(
 /*==========================*/
-	trx_t*	trx);	/*!< in: trx handle */
+	trx_t*	trx,	/*!< in: trx handle */
+	ibool	async);	/*!< in: TRUE - don't sync log */
 /**********************************************************************//**
 Marks the latest SQL statement ended. */
 UNIV_INTERN

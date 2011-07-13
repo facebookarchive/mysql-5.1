@@ -1719,7 +1719,8 @@ UNIV_INTERN
 ulint
 trx_commit_complete_for_mysql(
 /*==========================*/
-	trx_t*	trx)	/*!< in: trx handle */
+	trx_t*	trx,	/*!< in: trx handle */
+	ibool	async)	/*!< in: TRUE - don't sync log */
 {
 	ib_uint64_t	lsn	= trx->commit_lsn;
 
@@ -1731,6 +1732,12 @@ trx_commit_complete_for_mysql(
 		/* Do nothing */
 	} else if (srv_flush_log_at_trx_commit == 0) {
 		/* Do nothing */
+	} else if (srv_flush_log_at_trx_commit == 2 || async) {
+
+		/* Write the log but do not flush it to disk */
+
+		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE,
+				LOG_WRITE_FROM_COMMIT_ASYNC);
 	} else if (srv_flush_log_at_trx_commit == 1) {
 		if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
 			/* Write the log but do not flush it to disk */
@@ -1744,12 +1751,6 @@ trx_commit_complete_for_mysql(
 			log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE,
 					LOG_WRITE_FROM_COMMIT_SYNC);
 		}
-	} else if (srv_flush_log_at_trx_commit == 2) {
-
-		/* Write the log but do not flush it to disk */
-
-		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE,
-				LOG_WRITE_FROM_COMMIT_ASYNC);
 	} else {
 		ut_error;
 	}
@@ -1948,7 +1949,8 @@ UNIV_INTERN
 void
 trx_prepare_off_kernel(
 /*===================*/
-	trx_t*	trx)	/*!< in: transaction */
+	trx_t*	trx,	/*!< in: transaction */
+	ibool	async)	/*!< in: TRUE - don't sync log */
 {
 	trx_rseg_t*	rseg;
 	ib_uint64_t	lsn		= 0;
@@ -2037,6 +2039,12 @@ trx_prepare_off_kernel(
 
 		if (srv_flush_log_at_trx_commit == 0) {
 			/* Do nothing */
+		} else if (srv_flush_log_at_trx_commit == 2 || async) {
+
+			/* Write the log but do not flush it to disk */
+
+			log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE,
+					LOG_WRITE_FROM_COMMIT_ASYNC);
 		} else if (srv_flush_log_at_trx_commit == 1) {
 			if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
 				/* Write the log but do not flush it to disk */
@@ -2051,12 +2059,6 @@ trx_prepare_off_kernel(
 				log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE,
 						LOG_WRITE_FROM_COMMIT_SYNC);
 			}
-		} else if (srv_flush_log_at_trx_commit == 2) {
-
-			/* Write the log but do not flush it to disk */
-
-			log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE,
-					LOG_WRITE_FROM_COMMIT_ASYNC);
 		} else {
 			ut_error;
 		}
@@ -2072,7 +2074,8 @@ UNIV_INTERN
 ulint
 trx_prepare_for_mysql(
 /*==================*/
-	trx_t*	trx)	/*!< in: trx handle */
+	trx_t*	trx,	/*!< in: trx handle */
+	ibool	async)	/*!< in: TRUE - don't sync log */
 {
 	/* Because we do not do the prepare by sending an Innobase
 	sig to the transaction, we must here make sure that trx has been
@@ -2086,7 +2089,7 @@ trx_prepare_for_mysql(
 
 	mutex_enter(&kernel_mutex);
 
-	trx_prepare_off_kernel(trx);
+	trx_prepare_off_kernel(trx, async);
 
 	mutex_exit(&kernel_mutex);
 

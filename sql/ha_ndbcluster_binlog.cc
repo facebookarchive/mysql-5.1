@@ -264,7 +264,8 @@ static void run_query(THD *thd, char *buf, char *end,
   DBUG_ASSERT(!thd->in_sub_stmt);
   DBUG_ASSERT(!thd->prelocked_mode);
 
-  mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon, FALSE);
+  mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon,
+              FALSE, NULL);
 
   if (no_print_error && thd->is_slave_error)
   {

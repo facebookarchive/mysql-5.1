@@ -40,7 +40,7 @@ class TC_LOG
 
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
-  virtual int log_xid(THD *thd, my_xid xid)=0;
+  virtual int log_xid(THD *thd, my_xid xid, bool async)=0;
   virtual void unlog(ulong cookie, my_xid xid)=0;
 };
 
@@ -50,7 +50,7 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  int log_xid(THD *thd, my_xid xid)         { return 1; }
+  int log_xid(THD *thd, my_xid xid, bool async)         { return 1; }
   void unlog(ulong cookie, my_xid xid)  { }
 };
 
@@ -95,7 +95,7 @@ class TC_LOG_MMAP: public TC_LOG
   TC_LOG_MMAP(): inited(0) {}
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid);
+  int log_xid(THD *thd, my_xid xid, bool async);
   void unlog(ulong cookie, my_xid xid);
   int recover();
 
@@ -409,7 +409,7 @@ public:
 
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid);
+  int log_xid(THD *thd, my_xid xid, bool async);
   void unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
@@ -455,7 +455,8 @@ public:
 
   void reset_gathered_updates(THD *thd);
   bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
+  bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident,
+             bool async=FALSE);
 
   bool write_incident(THD *thd, bool lock);
   int  write_cache(IO_CACHE *cache, bool lock_log);
@@ -480,7 +481,7 @@ public:
   void enqueue_thread(THD* thd);
   void next_thread_broadcast(THD* thd);
   void dequeue_thread_in_order(THD *thd);
-  bool flush_and_sync(THD *thd);
+  bool flush_and_sync(THD *thd, bool async);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);

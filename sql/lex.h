@@ -69,6 +69,7 @@ static SYMBOL symbols[] = {
   { "ASC",		SYM(ASC)},
   { "ASCII",		SYM(ASCII_SYM)},
   { "ASENSITIVE",       SYM(ASENSITIVE_SYM)},
+  { "ASYNC_COMMIT",	SYM(ASYNC_COMMIT_SYM)},
   { "AT",		SYM(AT_SYM)},
   { "AUTHORS",	        SYM(AUTHORS_SYM)},
   { "AUTO_INCREMENT",	SYM(AUTO_INC)},

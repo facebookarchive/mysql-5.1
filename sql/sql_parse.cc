@@ -516,7 +516,8 @@ static void handle_bootstrap_impl(THD *thd)
     */
     thd->query_id=next_query_id();
     thd->set_time();
-    mysql_parse(thd, thd->query(), length, & found_semicolon, NULL, FALSE);
+    mysql_parse(thd, thd->query(), length, & found_semicolon, NULL,
+                FALSE, NULL);
     close_thread_tables(thd);			// Free tables
 
     bootstrap_error= thd->is_error();
@@ -731,7 +732,8 @@ err:
     0   OK
 */
 
-int end_trans(THD *thd, enum enum_mysql_completiontype completion)
+int end_trans(THD *thd, enum enum_mysql_completiontype completion,
+              bool async_commit)
 {
   bool do_release= 0;
   int res= 0;
@@ -756,7 +758,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
      (Which of course should never happen...)
     */
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    res= ha_commit(thd);
+    res= ha_commit_trans(thd, TRUE, async_commit);
     thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
     thd->transaction.all.modified_non_trans_table= FALSE;
     break;
@@ -1046,6 +1048,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   bool error= 0;
   my_fast_timer_t init_timer, last_timer;
   my_io_perf_t start_perf_read;   /* for USER_STATISTICS */
+  my_bool async_commit= FALSE;
 
   /* For per-query performance counters with log_slow_statement */
   struct system_status_var query_start_status;
@@ -1336,7 +1339,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
 
     mysql_parse(thd, thd->query(), thd->query_length(), &end_of_stmt,
-                &last_timer, TRUE);
+                &last_timer, TRUE, &async_commit);
 
     while (!thd->killed && (end_of_stmt != NULL) && ! thd->is_error())
     {
@@ -1347,7 +1350,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /*
         Multiple queries exits, execute them individually
       */
-      close_thread_tables(thd);
+      close_thread_tables(thd, async_commit);
       ulong length= (ulong)(packet_end - beginning_of_next_stmt);
 
       log_slow_statement(thd, query_start_status_ptr);
@@ -1382,7 +1385,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
       mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt,
-                  &last_timer, TRUE);
+                  &last_timer, TRUE, &async_commit);
     }
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1761,7 +1764,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   /* If commit fails, we should be able to reset the OK status. */
   thd->main_da.can_overwrite_status= TRUE;
-  ha_autocommit_or_rollback(thd, thd->is_error());
+  ha_autocommit_or_rollback(thd, thd->is_error(), async_commit);
   thd->main_da.can_overwrite_status= FALSE;
 
   thd->transaction.stmt.reset();
@@ -4510,13 +4513,15 @@ end_with_restore_list:
     break;
   case SQLCOM_COMMIT:
     if (end_trans(thd, lex->tx_release ? COMMIT_RELEASE :
-                              lex->tx_chain ? COMMIT_AND_CHAIN : COMMIT))
+                              lex->tx_chain ? COMMIT_AND_CHAIN : COMMIT,
+                  lex->async_commit))
       goto error;
     my_ok(thd);
     break;
   case SQLCOM_ROLLBACK:
     if (end_trans(thd, lex->tx_release ? ROLLBACK_RELEASE :
-                              lex->tx_chain ? ROLLBACK_AND_CHAIN : ROLLBACK))
+                              lex->tx_chain ? ROLLBACK_AND_CHAIN : ROLLBACK,
+                  FALSE))
       goto error;
     my_ok(thd);
     break;
@@ -5261,7 +5266,7 @@ create_sp_error:
       }
       else
       {
-        if (ha_commit_one_phase(thd, 1))
+        if (ha_commit_one_phase(thd, 1, FALSE))
           my_error(ER_XAER_RMERR, MYF(0));
         else
           my_ok(thd);
@@ -6489,7 +6494,7 @@ void mysql_init_multi_delete(LEX *lex)
 
 void mysql_parse(THD *thd, char *rawbuf, uint length,
                  const char ** found_semicolon, my_fast_timer_t *last_timer,
-                 my_bool use_admission_control)
+                 my_bool use_admission_control, my_bool *async_commit)
 {
   my_fast_timer_t statement_start;
 
@@ -6497,6 +6502,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
+  if (async_commit)
+    *async_commit= FALSE;
 
   if (last_timer)
     statement_start= *last_timer;
@@ -6546,6 +6553,9 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 
     if (!err)
     {
+      if (async_commit)
+        *async_commit= lex->async_commit;
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->user_connect &&
 	  check_mqh(thd, lex->sql_command))

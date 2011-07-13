@@ -1010,7 +1010,7 @@ int ha_prepare(THD *thd)
       status_var_increment(thd->status_var.ha_prepare_count);
       if (ht->prepare)
       {
-        if ((err= ht->prepare(ht, thd, all)))
+        if ((err= ht->prepare(ht, thd, all, FALSE)))
         {
           my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
           ha_rollback_trans(thd, all);
@@ -1105,7 +1105,7 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
     stored functions or triggers. So we simply do nothing now.
     TODO: This should be fixed in later ( >= 5.1) releases.
 */
-int ha_commit_trans(THD *thd, bool all)
+int ha_commit_trans(THD *thd, bool all, bool async)
 {
   int error= 0, cookie= 0;
 
@@ -1211,7 +1211,7 @@ int ha_commit_trans(THD *thd, bool all)
           Sic: we know that prepare() is not NULL since otherwise
           trans->no_2pc would have been set.
         */
-        if ((err= ht->prepare(ht, thd, all)))
+        if ((err= ht->prepare(ht, thd, all, async)))
         {
           my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
           error= 1;
@@ -1221,7 +1221,7 @@ int ha_commit_trans(THD *thd, bool all)
       DBUG_EXECUTE_IF("crash_commit_after_prepare", abort(););
 
       if (error || (is_real_trans && xid &&
-                    (error= !(cookie= tc_log->log_xid(thd, xid)))))
+                    (error= !(cookie= tc_log->log_xid(thd, xid, async)))))
       {
         ha_rollback_trans(thd, all);
         error= 1;
@@ -1230,7 +1230,7 @@ int ha_commit_trans(THD *thd, bool all)
       DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
     }
 
-    error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
+    error=ha_commit_one_phase(thd, all, async) ? (cookie ? 2 : 1) : 0;
     DBUG_EXECUTE_IF("crash_commit_before_unlog", abort(););
 
     if (cookie)
@@ -1252,7 +1252,7 @@ end:
   @note
   This function does not care about global read lock. A caller should.
 */
-int ha_commit_one_phase(THD *thd, bool all)
+int ha_commit_one_phase(THD *thd, bool all, bool async)
 {
   int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
@@ -1273,7 +1273,7 @@ int ha_commit_one_phase(THD *thd, bool all)
     {
       int err;
       handlerton *ht= ha_info->ht();
-      if ((err= ht->commit(ht, thd, all)))
+      if ((err= ht->commit(ht, thd, all, async)))
       {
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
         error=1;
@@ -1409,7 +1409,7 @@ int ha_rollback_trans(THD *thd, bool all)
     the user has used LOCK TABLES then that mechanism does not know to do the
     commit.
 */
-int ha_autocommit_or_rollback(THD *thd, int error)
+int ha_autocommit_or_rollback(THD *thd, int error, bool async)
 {
   DBUG_ENTER("ha_autocommit_or_rollback");
 #ifdef USING_TRANSACTIONS
@@ -1417,7 +1417,7 @@ int ha_autocommit_or_rollback(THD *thd, int error)
   {
     if (!error)
     {
-      if (ha_commit_trans(thd, 0))
+      if (ha_commit_trans(thd, 0, async))
 	error=1;
     }
     else 
@@ -3617,7 +3617,7 @@ int ha_enable_transaction(THD *thd, bool on)
       is an optimization hint that storage engine is free to ignore.
       So, let's commit an open transaction (if any) now.
     */
-    if (!(error= ha_commit_trans(thd, 0)))
+    if (!(error= ha_commit_trans(thd, 0, FALSE)))
       error= end_trans(thd, COMMIT);
   }
   DBUG_RETURN(error);

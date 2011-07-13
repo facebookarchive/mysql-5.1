@@ -666,9 +666,9 @@ struct handlerton
      NOTE 'all' is also false in auto-commit mode where 'end of statement'
      and 'real commit' mean the same event.
    */
-   int  (*commit)(handlerton *hton, THD *thd, bool all);
+   int  (*commit)(handlerton *hton, THD *thd, bool all, bool async);
    int  (*rollback)(handlerton *hton, THD *thd, bool all);
-   int  (*prepare)(handlerton *hton, THD *thd, bool all);
+   int  (*prepare)(handlerton *hton, THD *thd, bool all, bool async);
    int  (*recover)(handlerton *hton, XID *xid_list, uint len);
    int  (*commit_by_xid)(handlerton *hton, XID *xid);
    int  (*rollback_by_xid)(handlerton *hton, XID *xid);
@@ -2051,7 +2051,7 @@ extern TYPELIB myisam_stats_method_typelib;
 extern ulong total_ha, total_ha_2pc;
 
        /* Wrapper functions */
-#define ha_commit(thd) (ha_commit_trans((thd), TRUE))
+#define ha_commit(thd) (ha_commit_trans((thd), TRUE, FALSE))
 #define ha_rollback(thd) (ha_rollback_trans((thd), TRUE))
 
 /* lookups */
@@ -2136,14 +2136,14 @@ int ha_release_temporary_latches(THD *thd);
 int ha_start_consistent_snapshot(THD *thd, char *binlog_file,
                                  ulonglong* binlog_offset);
 int ha_commit_or_rollback_by_xid(XID *xid, bool commit);
-int ha_commit_one_phase(THD *thd, bool all);
+int ha_commit_one_phase(THD *thd, bool all, bool async);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 int ha_recover(HASH *commit_list);
 
 /* transactions: these functions never call handlerton functions directly */
-int ha_commit_trans(THD *thd, bool all);
-int ha_autocommit_or_rollback(THD *thd, int error);
+int ha_commit_trans(THD *thd, bool all, bool async);
+int ha_autocommit_or_rollback(THD *thd, int error, bool async=FALSE);
 int ha_enable_transaction(THD *thd, bool on);
 
 /* savepoints */

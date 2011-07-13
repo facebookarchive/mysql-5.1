@@ -716,6 +716,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ASC                           /* SQL-2003-N */
 %token  ASCII_SYM                     /* MYSQL-FUNC */
 %token  ASENSITIVE_SYM                /* FUTURE-USE */
+%token  ASYNC_COMMIT_SYM
 %token  AT_SYM                        /* SQL-2003-R */
 %token  AUTHORS_SYM
 %token  AUTOEXTEND_SIZE_SYM
@@ -1435,11 +1436,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_limit_clause delete_limit_clause fields opt_values values
         procedure_list procedure_list2 procedure_item
         handler
-        opt_precision opt_ignore opt_no_slave_exec opt_column opt_restrict
+        opt_precision opt_ignore opt_column opt_restrict
         grant revoke set lock unlock string_list field_options field_option
         field_opt_list opt_binary table_lock_list table_lock
         ref_list opt_on_delete opt_on_delete_list opt_on_delete_item use
         opt_delete_options opt_delete_option varchar nchar nvarchar
+        opt_change_options opt_change_option
+        opt_async_commit
         opt_outer table_list table_name table_alias_ref_list table_alias_ref
         opt_option opt_place
         opt_attribute opt_attribute_list attribute column_list column_list_id
@@ -6226,9 +6229,9 @@ opt_ignore:
         | IGNORE_SYM { Lex->ignore= 1;}
         ;
 
-opt_no_slave_exec:
-          /* empty */       { Lex->no_slave_exec= 0;}
-        | NO_SLAVE_EXEC_SYM { Lex->no_slave_exec= 1;}
+opt_async_commit:
+          /* empty */       { Lex->async_commit= 0;}
+        | ASYNC_COMMIT_SYM  { Lex->async_commit= 1;}
         ;
 
 opt_restrict:
@@ -9687,12 +9690,12 @@ insert:
             lex->lock_option= TL_READ_DEFAULT;
           }
           insert_lock_option
-          opt_ignore opt_no_slave_exec insert2
+          opt_ignore insert2
           {
             Select->set_lock_for_tables($3);
             Lex->current_select= &Lex->select_lex;
           }
-          insert_field_spec opt_insert_update
+          insert_field_spec opt_insert_update opt_change_options
           {}
         ;
 
@@ -9704,12 +9707,12 @@ replace:
             lex->duplicates= DUP_REPLACE;
             mysql_init_select(lex);
           }
-          replace_lock_option opt_no_slave_exec insert2
+          replace_lock_option insert2
           {
             Select->set_lock_for_tables($3);
             Lex->current_select= &Lex->select_lex;
           }
-          insert_field_spec
+          insert_field_spec opt_change_options
           {}
         ;
 
@@ -9870,7 +9873,7 @@ update:
             lex->lock_option= TL_UNLOCK; /* Will be set later */
             lex->duplicates= DUP_ERROR; 
           }
-          opt_low_priority opt_ignore opt_no_slave_exec join_table_list
+          opt_low_priority opt_ignore join_table_list
           SET update_list
           {
             LEX *lex= Lex;
@@ -9890,7 +9893,7 @@ update:
             */
             Select->set_lock_for_tables($3);
           }
-          where_clause opt_order_clause delete_limit_clause {}
+          where_clause opt_order_clause delete_limit_clause opt_change_options {}
         ;
 
 update_list:
@@ -9938,7 +9941,7 @@ delete:
             lex->ignore= 0;
             lex->select_lex.init_order();
           }
-          opt_delete_options opt_no_slave_exec single_multi {}
+          opt_delete_options single_multi opt_change_options {}
         ;
 
 single_multi:
@@ -10001,6 +10004,16 @@ table_wild_one:
 opt_wild:
           /* empty */ {}
         | '.' '*' {}
+        ;
+
+opt_change_options:
+          /* empty */ {}
+        | opt_change_option opt_change_options {}
+        ;
+
+opt_change_option:
+          NO_SLAVE_EXEC_SYM { Lex->no_slave_exec= 1; }
+        | ASYNC_COMMIT_SYM  { Lex->async_commit= 1; }
         ;
 
 opt_delete_options:
@@ -13015,7 +13028,7 @@ opt_savepoint:
         ;
 
 commit:
-          COMMIT_SYM opt_work opt_chain opt_release
+          COMMIT_SYM opt_work opt_chain opt_release opt_async_commit
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_COMMIT;

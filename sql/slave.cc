@@ -1386,7 +1386,8 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   DBUG_ASSERT(thd->db != 0);
   thd->db_length= strlen(thd->db);
   /* run create table */
-  mysql_parse(thd, thd->query(), packet_len, &found_semicolon, NULL, FALSE);
+  mysql_parse(thd, thd->query(), packet_len, &found_semicolon, NULL,
+              FALSE, NULL);
   thd->db = save_db;            // leave things the way the were before
   thd->db_length= save_db_length;
   thd->options = save_options;

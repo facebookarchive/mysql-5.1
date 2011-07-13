@@ -1241,7 +1241,7 @@ static void close_open_tables(THD *thd)
     leave prelocked mode if needed.
 */
 
-void close_thread_tables(THD *thd)
+void close_thread_tables(THD *thd, bool async_commit)
 {
   TABLE *table;
   prelocked_mode_type prelocked_mode= thd->prelocked_mode;
@@ -1301,7 +1301,7 @@ void close_thread_tables(THD *thd)
   if (!(thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
   {
     thd->main_da.can_overwrite_status= TRUE;
-    ha_autocommit_or_rollback(thd, thd->is_error());
+    ha_autocommit_or_rollback(thd, thd->is_error(), async_commit);
     thd->main_da.can_overwrite_status= FALSE;
 
     /*
