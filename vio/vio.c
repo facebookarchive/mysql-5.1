@@ -113,6 +113,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_timeout;
     vio->timeout_ms	=vio_timeout_ms;
+    vio->is_connected   =vio_is_connected;
     DBUG_VOID_RETURN;
   }
 #endif /* HAVE_OPENSSL */
@@ -131,6 +132,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
   vio->is_blocking	=vio_is_blocking;
   vio->timeout	=vio_timeout;
   vio->timeout_ms	=vio_timeout_ms;
+  vio->is_connected     =vio_is_connected;
   DBUG_VOID_RETURN;
 }
 

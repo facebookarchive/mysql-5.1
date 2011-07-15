@@ -359,6 +359,41 @@ void vio_in_addr(Vio *vio, struct in_addr *in)
 }
 
 
+/**
+  Retrieve the amount of data that can be read from a socket.
+
+  @param vio          A VIO object.
+  @param bytes[out]   The amount of bytes available.
+
+  @retval FALSE   Success.
+  @retval TRUE    Failure.
+*/
+
+static my_bool socket_peek_read(Vio *vio, uint *bytes)
+{
+#if defined(_WIN32)
+  int len;
+  if (ioctlsocket(vio->sd, FIONREAD, &len))
+    return TRUE;
+  *bytes= len;
+  return FALSE;
+#elif defined(FIONREAD_IN_SYS_IOCTL) || defined(FIONREAD_IN_SYS_FILIO)
+  int len;
+  if (ioctl(vio->sd, FIONREAD, &len) < 0)
+    return TRUE;
+  *bytes= len;
+  return FALSE;
+#else
+  char buf[1024];
+  ssize_t res= recv(vio->sd, &buf, sizeof(buf), MSG_PEEK);
+  if (res < 0)
+    return TRUE;
+  *bytes= res;
+  return FALSE;
+#endif
+}
+
+
 /* Return 0 if there is data to be read */
 
 my_bool vio_poll_read(Vio *vio,uint timeout)
@@ -378,6 +413,52 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
   }
   DBUG_RETURN(fds.revents & POLLIN ? 0 : 1);
 #endif
+}
+
+/**
+  Determine if the endpoint of a connection is still available.
+
+  @remark The socket is assumed to be disconnected if an EOF
+          condition is encountered.
+
+  @param vio      The VIO object.
+
+  @retval TRUE    EOF condition not found.
+  @retval FALSE   EOF condition is signaled.
+*/
+
+my_bool vio_is_connected(Vio *vio)
+{
+  uint bytes= 0;
+  DBUG_ENTER("vio_is_connected");
+
+  /* In the presence of errors the socket is assumed to be connected. */
+
+  /*
+    The first step of detecting a EOF condition is veryfing
+    whether there is data to read. Data in this case would
+    be the EOF.
+  */
+  if (vio_poll_read(vio, 0))
+    DBUG_RETURN(TRUE);
+
+  /*
+    The second step is read() or recv() from the socket returning
+    0 (EOF). Unfortunelly, it's not possible to call read directly
+    as we could inadvertently read meaningful connection data.
+    Simulate a read by retrieving the number of bytes available to
+    read -- 0 meaning EOF.
+  */
+  if (socket_peek_read(vio, &bytes))
+    DBUG_RETURN(TRUE);
+
+#ifdef HAVE_OPENSSL
+  /* There might be buffered data at the SSL layer. */
+  if (!bytes && vio->type == VIO_TYPE_SSL)
+    bytes= SSL_pending((SSL*) vio->ssl_arg);
+#endif
+
+  DBUG_RETURN(bytes ? TRUE : FALSE);
 }
 
 
