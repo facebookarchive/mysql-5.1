@@ -67,6 +67,11 @@ reap;
 --echo confirm transaction control limits concurrent transactions with BEGIN
 --echo " "
 
+connection default;
+
+select variable_value into @fails1 from information_schema.global_status where variable_name = 'Control_transaction_fails';
+select limit_fail_transactions into @user_fails1 from information_schema.user_statistics where user_name = 'adminc';
+
 SET DEBUG_SYNC='RESET';
 connection tc1;
 delete from tctest;
@@ -97,6 +102,14 @@ commit;
 --query_vertical select id from tctest;
 
 --query_vertical select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc'
+
+connection default;
+
+select variable_value into @fails2 from information_schema.global_status where variable_name = 'Control_transaction_fails';
+select limit_fail_transactions into @user_fails2 from information_schema.user_statistics where user_name = 'adminc';
+
+select @fails2 - @fails1;
+select @user_fails2 - @user_fails1;
 
 --echo " "
 --echo cleanup

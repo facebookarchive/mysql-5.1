@@ -45,6 +45,8 @@ LIMIT_FAIL_TRANSACTIONS	1
 " "
 confirm transaction control limits concurrent transactions with BEGIN
 " "
+select variable_value into @fails1 from information_schema.global_status where variable_name = 'Control_transaction_fails';
+select limit_fail_transactions into @user_fails1 from information_schema.user_statistics where user_name = 'adminc';
 SET DEBUG_SYNC='RESET';
 delete from tctest;
 insert into tctest values (1, 0), (2, 0);
@@ -74,6 +76,14 @@ id	2
 select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc';
 TRANSACTIONS_SLOTS_INUSE	1
 LIMIT_FAIL_TRANSACTIONS	2
+select variable_value into @fails2 from information_schema.global_status where variable_name = 'Control_transaction_fails';
+select limit_fail_transactions into @user_fails2 from information_schema.user_statistics where user_name = 'adminc';
+select @fails2 - @fails1;
+@fails2 - @fails1
+1
+select @user_fails2 - @user_fails1;
+@user_fails2 - @user_fails1
+1
 " "
 cleanup
 " "

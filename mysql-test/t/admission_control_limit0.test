@@ -1,5 +1,6 @@
 #
 # test admission_control for max_concurrent_queries = 0
+# 0 means no limit
 #
 #
 show global variables like "admission_control";
@@ -26,6 +27,7 @@ select 1;
 
 echo "Should find select sleep";
 connection default;
+sleep 0.5;
 select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
 select User, State, Info from information_schema.processlist where Info like 'select sleep%';
 select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';

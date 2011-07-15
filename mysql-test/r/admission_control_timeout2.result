@@ -1,0 +1,34 @@
+show global variables like "admission_control";
+Variable_name	Value
+admission_control	ON
+grant all on *.* to 'adminc'@'%' with max_concurrent_queries 1 max_user_connections 3;
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_queries
+adminc	%	3	1
+show grants;
+Grants for adminc@%
+GRANT ALL PRIVILEGES ON *.* TO 'adminc'@'%' WITH MAX_USER_CONNECTIONS 3 MAX_CONCURRENT_QUERIES 1
+select connection_id() into @cid2;
+select connection_id() into @cid3;
+SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
+select sleep(2);
+SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping';
+SET DEBUG_SYNC='admission_control_enter_waiting SIGNAL i_am_waiting';
+SET DEBUG_SYNC='admission_control_exit_killed_or_closed SIGNAL i_am_leaving';
+select sleep(1000);
+SET DEBUG_SYNC='now WAIT_FOR i_am_waiting';
+SET DEBUG_SYNC='now WAIT_FOR i_am_leaving';
+select unix_timestamp() into @start_time;
+select 1;
+1
+1
+select unix_timestamp() into @end_time;
+select (@end_time - @start_time) < 5;
+(@end_time - @start_time) < 5
+1
+sleep(2)
+0
+drop user 'adminc'@'%';
+SET DEBUG_SYNC= 'RESET';
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_queries

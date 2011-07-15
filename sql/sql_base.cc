@@ -2201,7 +2201,7 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   admission_control_exit(thd);
   if (!thd->killed)
     (void) pthread_cond_wait(cond, mutex);
-  admission_control_enter(thd, 0);
+  admission_control_enter(thd, FALSE);
 
   /*
     We must unlock mutex first to avoid deadlock becasue conditions are

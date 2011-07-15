@@ -1011,6 +1011,10 @@ static sys_var_bool_ptr	sys_process_can_disable_bin_log(&vars,
                                                         "process_can_disable_bin_log",
                                                         &process_can_disable_bin_log);
 
+static sys_var_long_ptr
+sys_check_client_interval(&vars, "check_client_interval_milliseconds",
+                          &check_client_interval_msecs);
+
 bool sys_var::check(THD *thd, set_var *var)
 {
   var->save_result.ulonglong_value= var->value->val_int();

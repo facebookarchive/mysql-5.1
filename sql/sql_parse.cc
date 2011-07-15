@@ -36,6 +36,9 @@ double fb_libmcc_usecs = 0;
 int32 log_query_sample_counter= 0;
 int32 log_error_sample_counter= 0;
 
+my_atomic_bigint admission_control_waits= 0;
+my_atomic_bigint transaction_control_fails= 0;
+
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
@@ -822,7 +825,7 @@ bool do_command(THD *thd)
   enum enum_server_command command;
   DBUG_ENTER("do_command");
 
-#ifdef DEBUGGING
+#ifndef DBUG_OFF
   AdmissionControlVerifier admission_control_verifier;
 #endif
 
@@ -1058,13 +1061,30 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   AdmissionControlBarrier ac_barrier(thd);
 
-  if (admission_control_enter(thd, thd->variables.net_wait_timeout))
+#ifndef DBUG_OFF
+  /* admission control ignores SET DEBUG statements mtr tests */
+  if (packet_length >= 9 && !strncmp("SET DEBUG", packet, 9))
+    goto skip_ac;
+#endif
+
+  if (command != COM_CHANGE_USER)
   {
-    my_message(ER_ADMISSION_CONTROL_TIMEOUT, ER(ER_ADMISSION_CONTROL_TIMEOUT),
-               MYF(0));
-    return TRUE;
+    /*
+       It is simpler to not enforce AC for change_user than to adjust counts
+       for the old and new user.
+    */
+    if (admission_control_enter(thd, TRUE))
+    {
+      my_message(ER_ADMISSION_CONTROL_TIMEOUT, ER(ER_ADMISSION_CONTROL_TIMEOUT),
+                 MYF(0));
+      return TRUE;
+    }
+    ac_barrier.Entered();
   }
-  ac_barrier.Entered();
+
+#ifndef DBUG_OFF
+skip_ac:
+#endif
 
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
@@ -8480,7 +8500,7 @@ bool parse_sql(THD *thd,
  * some other metric?  Could still lead to innodb contention but
  * increase throughput in otherwise idle databases.*/
 
-#ifdef DEBUGGING
+#ifndef DBUG_OFF
 /* Store a per-thread variable for our depth in admission control;
  * verify this depth on each enter/exit.  Mark: I think this is okay
  * to leave on in general; the performance impact should be
@@ -8541,28 +8561,32 @@ void AdmissionControlBarrier::Entered() { entered_= TRUE; }
                       Return 1 when the timeout was reached.
 
     @param thd - THD for the caller
-    @param wait_seconds - number of seconds to block. When 0 increment the
-                          count of queries per user without waiting.
+    @param wait - when FALSE enter immediately and possibly exceed the limit,
+                  when TRUE wait until limit will not be exceeded
 
     @return Error status
       @retval 1 when an error or timeout occurred
       @retval 0 otherwise
  */
 
-int admission_control_enter(THD* thd, ulong wait_seconds)
+int admission_control_enter(THD* thd, my_bool wait)
 {
   USER_CONN *uc = thd->user_connect;
+  double check_nsec;
+  long use_nsec;
+  bool first=TRUE;
+  const double one_million= 1000000.0;
 
   DBUG_ENTER("admission_control_enter");
 
   if (thd->uses_admission_control == QUERY_NOT_SCHEDULED)
     DBUG_RETURN(0);
 
-#ifdef DEBUGGING
+#ifndef DBUG_OFF
   ++admission_depth;
 #endif
 
-  if (!wait_seconds || thd->uses_admission_control == QUERY_COUNTED)
+  if (!wait || thd->uses_admission_control == QUERY_COUNTED)
   {
     my_atomic_add32(&(uc->queries_running), 1);
     DBUG_RETURN(0);
@@ -8570,7 +8594,12 @@ int admission_control_enter(THD* thd, ulong wait_seconds)
 
   assert(thd->uses_admission_control == QUERY_SCHEDULED);
 
-  /* TODO(mcallaghan): increment limit_wait_queries */
+  /*
+    Wait for at least 100 milliseconds before checking whether the
+    client has disconnected or the query has been killed.
+  */
+  check_nsec = check_client_interval_msecs * one_million;
+  use_nsec = (long) max(check_nsec, 100.0 * one_million);
 
   while (1)
   {
@@ -8578,6 +8607,7 @@ int admission_control_enter(THD* thd, ulong wait_seconds)
     const char* old_msg;
     struct timespec abstime;
     int timed_out = 0;
+    int err;
 
     if (nr < uc->user_resources.max_concurrent_queries &&
         my_atomic_cas32(&(uc->queries_running), &nr, nr+1))
@@ -8586,7 +8616,7 @@ int admission_control_enter(THD* thd, ulong wait_seconds)
     }
 
     /* Do this before locking uc->query_mutex */
-    set_timespec(abstime, wait_seconds);
+    set_timespec_nsec(abstime, use_nsec);
 
     pthread_mutex_lock(&(uc->query_mutex));
     ++uc->queries_waiting;
@@ -8594,32 +8624,63 @@ int admission_control_enter(THD* thd, ulong wait_seconds)
     // Enforce a memory barrier for the optimization below.
     asm volatile("" ::: "memory");
 
-    old_msg=  thd->enter_cond_noscheduler(&(uc->query_condvar),
-                                          &(uc->query_mutex),
-                                          "wait for max concurrent queries");
+    old_msg=  thd->proc_info;
+    thd->proc_info= "wait for max concurrent queries";
+
+    if (uc->queries_running >= uc->user_resources.max_concurrent_queries)
+    {
+      if (first)
+      {
+        first= FALSE;
+        my_atomic_add_bigint(&admission_control_waits, 1);
+        thd_get_user_stats(thd)->limit_wait_queries += 1;
+        DEBUG_SYNC(thd, "admission_control_enter_waiting");
+      }
+
+      err= pthread_cond_timedwait(&(uc->query_condvar), &(uc->query_mutex),
+                                  &abstime);
+      DBUG_ASSERT(err == 0 || err == EINTR || err == ETIME || err == ETIMEDOUT);
+    }
 
     while (uc->queries_running >= uc->user_resources.max_concurrent_queries)
     {
-      int error = pthread_cond_timedwait(&(uc->query_condvar),
-                                         &(uc->query_mutex),
-                                         &abstime);
+      pthread_mutex_unlock(&(uc->query_mutex));
 
-      if (error == ETIME || error == ETIMEDOUT)
+      /* Don't hold query_mutex while doing syscalls */
+      if (thd->killed || !thd->is_connected())
       {
         timed_out = 1;
+        DEBUG_SYNC(thd, "admission_control_exit_killed_or_closed");
+        pthread_mutex_lock(&(uc->query_mutex));
         break;
       }
 
-      assert(error == 0 || error == EINTR);
+      set_timespec_nsec(abstime, use_nsec);
+
+      pthread_mutex_lock(&(uc->query_mutex));
+
+      if (uc->queries_running >= uc->user_resources.max_concurrent_queries)
+      {
+        err= pthread_cond_timedwait(&(uc->query_condvar), &(uc->query_mutex),
+                                    &abstime);
+        DBUG_ASSERT(err == 0 || err == EINTR || err == ETIME ||
+                    err == ETIMEDOUT);
+      }
     }
 
     --uc->queries_waiting;
     assert(uc->queries_waiting >= 0);
 
-    thd->exit_cond_noscheduler(old_msg); // unlocks mutex
+    pthread_mutex_unlock(&(uc->query_mutex));
+    thd->proc_info= old_msg;
 
     if (timed_out)
+    {
+#ifndef DBUG_OFF
+      --admission_depth;
+#endif
       DBUG_RETURN(1);
+    }
   }
 }
 
@@ -8632,7 +8693,7 @@ void admission_control_exit(THD* thd)
   if (thd->uses_admission_control == QUERY_NOT_SCHEDULED)
     DBUG_VOID_RETURN;
 
-#ifdef DEBUGGING
+#ifndef DBUG_OFF
   --admission_depth;
 #endif
 
@@ -8663,11 +8724,10 @@ void admission_control_exit(THD* thd)
   DBUG_VOID_RETURN;
 }
 
-int admission_control_diskio_enter(THD* thd, bool diskio_used_for_exit,
-                                   ulong wait_seconds)
+int admission_control_diskio_enter(THD* thd, bool diskio_used_for_exit)
 {
   if (diskio_used_for_exit) {
-    return admission_control_enter(thd, wait_seconds);
+    return admission_control_enter(thd, FALSE);
   } else {
     return 0;
   }
@@ -8700,6 +8760,7 @@ static bool transaction_control_enter(THD* thd)
       tx_slots_inuse.
     */
 
+    my_atomic_add_bigint(&transaction_control_fails, 1);
     my_atomic_add_bigint(&(thd_get_user_stats(thd)->limit_fail_transactions), 1);
     DEBUG_SYNC(thd, "transaction_control_limit_reached"); 
     return FALSE;

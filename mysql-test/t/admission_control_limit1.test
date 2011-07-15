@@ -16,16 +16,18 @@ connect (ac1, localhost, adminc,,);
 # This blocks for two seconds without giving up admission_control entry
 connect (ac2, localhost, adminc,,);
 show grants;
+SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
 send select sleep(2);
-
-sleep 0.5;
 
 # This blocks until the previous statement finishes
 connection ac1;
+SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping';
+SET DEBUG_SYNC='admission_control_enter_waiting SIGNAL i_am_waiting';
 send select 1;
 
 echo "Should find one blocked statement";
 connection default;
+SET DEBUG_SYNC='now WAIT_FOR i_am_waiting';
 select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
 select User, State, Info from information_schema.processlist where Info like 'select sleep%';
 select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
@@ -41,22 +43,23 @@ reap;
 
 # This blocks for two seconds without giving up admission_control entry
 connect (ac3, localhost, adminc,,);
+SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
 send select sleep(2);
-
-sleep 0.5;
 
 # This blocks until one of the previous statements finish
 connection ac2;
-send select 1;
+SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping';
+send select sleep(1), 1;
 
 # This blocks until one of the previous statements finish
 connection ac1;
-send select 1;
+SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
+send select sleep(1), 1;
 
 echo "Should find two blocked statements";
 connection default;
+SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping';
 select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
-select User, State, Info from information_schema.processlist where Info like 'select sleep%';
 select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
 
 connection ac3;
@@ -71,5 +74,5 @@ disconnect ac1;
 disconnect ac2;
 disconnect ac3;
 drop user 'adminc'@'%';
-
+SET DEBUG_SYNC= 'RESET';
 select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';

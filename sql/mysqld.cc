@@ -637,8 +637,14 @@ ulong slave_max_allowed_packet= 0;
 my_bool allow_hint_to_missing_index= FALSE;
 ulong reserved_super_connections=0;
 
+ulong check_client_interval_msecs= 1000;
+
 my_bool admission_control= FALSE;
 my_bool admission_control_diskio= FALSE;
+
+/* These are not in mysql_priv.h to reduce header dependencies */
+extern my_atomic_bigint admission_control_waits;
+extern my_atomic_bigint transaction_control_fails;
 
 my_bool log_datagram= 0;
 ulong log_datagram_usecs= 0;
@@ -6180,6 +6186,7 @@ enum options_mysqld
   OPT_ALLOW_HINT_TO_MISSING_INDEX,
   OPT_ADMISSION_CONTROL,
   OPT_ADMISSION_CONTROL_DISKIO,
+  OPT_CHECK_CLIENT_INTERVAL,
   OPT_CONNECTION_RECYCLE,
   OPT_CONNECTION_RECYCLE_PCT_CONNECTIONS_MIN,
   OPT_CONNECTION_RECYCLE_PCT_CONNECTIONS_MAX,
@@ -7793,6 +7800,12 @@ thread is in the relay logs.",
    "Release admission control locks when performing InnoDB reads",
    &admission_control_diskio, &admission_control_diskio,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"check_client_interval_milliseconds", OPT_CHECK_CLIENT_INTERVAL,
+   "Interval at which server checks that client is still connected "
+   "while its thread is blocked (on lock request, admission_control, "
+   "transaction_control, etc)",
+   &check_client_interval_msecs, &check_client_interval_msecs,
+   0, GET_ULONG, REQUIRED_ARG, 1000, 100, ULONG_MAX, 0, 1, 0},
   {"perftools_profile", OPT_PERFTOOLS_PROFILE,
    "Enable profiling using Google Perftools and write output to this file.",
    &opt_perftools_profile_output, &opt_perftools_profile_output,
@@ -8212,6 +8225,8 @@ SHOW_VAR status_vars[]= {
   {"Connections",              (char*) &thread_id,              SHOW_LONG_NOFLUSH},
   {"Connection_recycle_count", (char*) &connection_recycle_count,SHOW_LONG},
   {"Connection_recycle_idle_time_ms",(char*) &connection_recycle_idle_time_ms,SHOW_LONG},
+  {"Control_admission_waits",     (char*) &admission_control_waits,      SHOW_LONGLONG},
+  {"Control_transaction_fails",   (char*) &transaction_control_fails,    SHOW_LONGLONG},
   {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONG_STATUS},
   {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},
   {"Created_tmp_tables",       (char*) offsetof(STATUS_VAR, created_tmp_tables), SHOW_LONG_STATUS},
@@ -8568,6 +8583,8 @@ static int mysql_init_variables(void)
   opt_log_slow_extra= FALSE;
 
   rpl_transaction_enabled= FALSE;
+
+  check_client_interval_msecs= 1000;
 
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;

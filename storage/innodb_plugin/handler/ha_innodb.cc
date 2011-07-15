@@ -1222,7 +1222,7 @@ thd_admission_control_enter(
 			the global innodb_lock_wait_timeout */
 {
 	if (thd) {
-		int r = admission_control_enter((THD*)thd, 0);
+		int r = admission_control_enter((THD*)thd, FALSE);
 		ut_a(r == 0);
 	}
 }
@@ -1239,7 +1239,7 @@ thd_admission_control_diskio_enter(
 {
 	if (thd) {
 		int r = admission_control_diskio_enter((THD*)thd,
-						       diskio_used_for_exit, 0);
+						       diskio_used_for_exit);
 		ut_a(r == 0);
 	}
 }

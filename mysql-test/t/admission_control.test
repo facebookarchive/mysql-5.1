@@ -3,9 +3,12 @@
 #
 #
 show global variables like "admission_control";
+flush statistics;
 
 grant all on *.* to 'adminc'@'%' with max_concurrent_queries 2 max_user_connections 100;
 select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+
+select variable_value into @waits1 from information_schema.global_status where variable_name = 'Control_admission_waits';
 
 #
 # First test with 3 concurrent queries
@@ -31,9 +34,14 @@ send select 1;
 
 echo "Should find one blocked statement";
 connection default;
+sleep 0.5;
 select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
 select User, State, Info from information_schema.processlist where Info like 'select sleep%';
-select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
+select queries_running, queries_waiting, limit_wait_queries from information_schema.user_statistics where user_name = 'adminc';
+
+select variable_value into @waits2 from information_schema.global_status where variable_name = 'Control_admission_waits';
+select @waits2 - @waits1;
+select variable_value into @waits1 from information_schema.global_status where variable_name = 'Control_admission_waits';
 
 connection ac3;
 reap;
@@ -71,7 +79,10 @@ echo "Should find two blocked statements";
 connection default;
 select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
 select User, State, Info from information_schema.processlist where Info like 'select sleep%';
-select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
+select queries_running, queries_waiting, limit_wait_queries from information_schema.user_statistics where user_name = 'adminc';
+
+select variable_value into @waits2 from information_schema.global_status where variable_name = 'Control_admission_waits';
+select @waits2 - @waits1;
 
 connection ac3;
 reap;

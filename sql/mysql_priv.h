@@ -2155,6 +2155,8 @@ extern ulong slave_max_allowed_packet;
 
 extern my_bool allow_hint_to_missing_index;
 
+extern ulong check_client_interval_msecs;
+
 extern my_bool admission_control;
 extern my_bool admission_control_diskio;
 

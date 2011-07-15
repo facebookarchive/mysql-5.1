@@ -55,10 +55,9 @@
  * enforced.
  */
 
-int admission_control_enter(THD* thd, ulong wait_seconds);
+int admission_control_enter(THD* thd, my_bool wait);
 void admission_control_exit(THD* thd);
-int admission_control_diskio_enter(THD* thd, bool diskio_used_for_exit,
-                                   ulong wait_seconds);
+int admission_control_diskio_enter(THD* thd, bool diskio_used_for_exit);
 bool admission_control_diskio_exit(THD* thd);
 
 enum enum_admission_control {
@@ -85,7 +84,7 @@ private:
  * enters have been called as have exits and that the depth of
  * admission control enter/exit is rebalanced back to 0.
  */
-#ifdef DEBUGGING
+#ifndef DBUG_OFF
 class AdmissionControlVerifier {
 public:
   AdmissionControlVerifier();
@@ -2114,16 +2113,10 @@ public:
     By default, when admission control is active, acquiring a
     condition variable marks the current thread as not in a query and
     allows the user to begin a new query.
-
-    enter_cond_noscheduler/exit_cond_noscheduler should be used when
-    it is not desirable for the user to begin a query while waiting on
-    this condvar.  This is rare and generally should not be used
-    except by admission_control's implementation.
   */
-  inline const char* enter_cond_func(pthread_cond_t *cond,
-                                     pthread_mutex_t* mutex,
-                                     const char* msg,
-                                     bool use_admission_control)
+  inline const char* enter_cond(pthread_cond_t *cond,
+                                pthread_mutex_t* mutex,
+                                const char* msg)
   {
     const char* old_msg = proc_info;
     safe_mutex_assert_owner(mutex);
@@ -2131,18 +2124,13 @@ public:
     mysys_var->current_cond = cond;
     proc_info = msg;
 
-    if (use_admission_control)
-    {
-      /* Allow another thread to run.  */
-
-      admission_control_exit(this);
-    }
+    /* Allow another thread to run.  */
+    admission_control_exit(this);
 
     return old_msg;
   }
 
-  inline void exit_cond_func(const char* old_msg,
-                             bool use_admission_control)
+  inline void exit_cond(const char* old_msg)
   {
     /*
       Putting the mutex unlock in exit_cond() ensures that
@@ -2151,12 +2139,8 @@ public:
       does a THD::awake() on you).
     */
 
-    if (use_admission_control)
-    {
-      /* Get the right to run again without waiting.  */
-
-      (void) admission_control_enter(this, 0);
-    }
+    /* Get the right to run again without waiting.  */
+    (void) admission_control_enter(this, FALSE);
 
     pthread_mutex_unlock(mysys_var->current_mutex);
     pthread_mutex_lock(&mysys_var->mutex);
@@ -2164,28 +2148,6 @@ public:
     mysys_var->current_cond = 0;
     proc_info = old_msg;
     pthread_mutex_unlock(&mysys_var->mutex);
-  }
-
-  inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
-			  const char* msg)
-  {
-    return enter_cond_func(cond, mutex, msg, TRUE);
-  }
-
-  inline const char* enter_cond_noscheduler(pthread_cond_t *cond, pthread_mutex_t* mutex,
-			  const char* msg)
-  {
-    return enter_cond_func(cond, mutex, msg, FALSE);
-  }
-
-  inline void exit_cond(const char* old_msg)
-  {
-    exit_cond_func(old_msg, TRUE);
-  }
-
-  inline void exit_cond_noscheduler(const char* old_msg)
-  {
-    exit_cond_func(old_msg, FALSE);
   }
 
   inline time_t query_start() { query_start_used=1; return start_time; }
