@@ -527,7 +527,16 @@ impossible position";
     this larger than the corresponding packet (query) sent 
     from client to master.
   */
-  thd->variables.max_allowed_packet+= MAX_LOG_EVENT_HEADER;
+  if (!slave_max_allowed_packet ||
+      slave_max_allowed_packet <= thd->variables.max_allowed_packet)
+  {
+    thd->variables.max_allowed_packet+= MAX_LOG_EVENT_HEADER;
+  }
+  else
+  {
+    thd->variables.max_allowed_packet=
+      slave_max_allowed_packet + MAX_LOG_EVENT_HEADER;
+  }
 
   /*
     We can set log_lock now, it does not move (it's a member of

@@ -1900,8 +1900,16 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   slave threads, since a replication event can become this much larger
   than the corresponding packet (query) sent from client to master.
 */
-  thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet
-    + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
+  if (!slave_max_allowed_packet)
+  {
+    thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet
+      + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
+  }
+  else
+  {
+    thd->variables.max_allowed_packet=
+      slave_max_allowed_packet + MAX_LOG_EVENT_HEADER;
+  }
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
@@ -2704,7 +2712,16 @@ pthread_handler_t handle_slave_io(void *arg)
     thread, since a replication event can become this much larger than
     the corresponding packet (query) sent from client to master.
   */
-    mysql->net.max_packet_size= thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
+    if (!slave_max_allowed_packet ||
+        slave_max_allowed_packet <= thd->net.max_packet_size)
+    {
+      mysql->net.max_packet_size= thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
+    }
+    else
+    {
+      thd->net.max_packet_size = slave_max_allowed_packet + MAX_LOG_EVENT_HEADER;
+      mysql->net.max_packet_size= thd->net.max_packet_size;
+    }
   }
   else
   {

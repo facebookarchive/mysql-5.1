@@ -632,6 +632,8 @@ int cachedev_fd;
 my_bool cachedev_enabled= FALSE;
 
 /* Added by patches */
+ulong slave_max_allowed_packet= 0;
+
 my_bool allow_hint_to_missing_index= FALSE;
 ulong reserved_super_connections=0;
 
@@ -6056,6 +6058,7 @@ enum options_mysqld
   OPT_KEY_CACHE_DIVISION_LIMIT, OPT_KEY_CACHE_AGE_THRESHOLD,
   OPT_LONG_QUERY_TIME,
   OPT_LOWER_CASE_TABLE_NAMES, OPT_MAX_ALLOWED_PACKET,
+  OPT_SLAVE_MAX_ALLOWED_PACKET,
   OPT_MAX_BINLOG_CACHE_SIZE, OPT_MAX_BINLOG_SIZE,
   OPT_MAX_CONNECTIONS, OPT_MAX_CONNECT_ERRORS,
   OPT_MAX_DELAYED_THREADS, OPT_MAX_HEP_TABLE_SIZE,
@@ -7282,6 +7285,13 @@ thread is in the relay logs.",
    &global_system_variables.max_allowed_packet,
    &max_system_variables.max_allowed_packet, 0, GET_ULONG,
    REQUIRED_ARG, 1024*1024L, 1024, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
+  {"slave_max_allowed_packet", OPT_SLAVE_MAX_ALLOWED_PACKET,
+   "Ignored when 0. Overrides max_allowed_packet for slaves when set. This "
+   "is a kludge to compensate for bug 60926 (there is weak enforcement of the "
+   "max binlog event size and transactions can create events that are 20% "
+   "larger than max_allowed_packet).",
+   &slave_max_allowed_packet, &slave_max_allowed_packet,
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, 2L*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    &max_binlog_cache_size, &max_binlog_cache_size, 0,
@@ -8539,6 +8549,8 @@ static int mysql_init_variables(void)
   key_map_full.set_all();
 
   /* Things added by patches */
+  slave_max_allowed_packet= 0;
+
   reserved_super_connections=0;
   sync_relay_info_period= 0;
   sync_relay_info_events= 0;
