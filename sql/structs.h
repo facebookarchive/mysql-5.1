@@ -234,6 +234,8 @@ typedef struct st_user_stats {
   my_atomic_bigint connections_total;             // total conns created
   my_atomic_bigint errors_access_denied;          // denied access to table or db
   my_atomic_bigint errors_total;
+  my_atomic_bigint limit_wait_queries;
+  my_atomic_bigint limit_fail_transactions;
   my_atomic_bigint microseconds_cpu;
   my_atomic_bigint microseconds_records_in_range;
   my_atomic_bigint microseconds_wall;
@@ -259,6 +261,7 @@ typedef struct st_user_stats {
 
   my_atomic_bigint transactions_commit;
   my_atomic_bigint transactions_rollback;
+
   uint magic;
 
   /* TODO(mcallaghan) -- failed_queries, disk IO, parse and records_in_range
@@ -316,8 +319,7 @@ typedef struct  user_conn {
   pthread_mutex_t   query_mutex;
   pthread_cond_t    query_condvar;
 
-  volatile int      tx_running; /* changed by atomic inc */
-  volatile int      tx_waiting; /* protected by query_mutex */
+  volatile int      tx_slots_inuse; /* changed by atomic inc */
 
   pthread_mutex_t   tx_control_mutex;
   pthread_cond_t    tx_control_condvar;

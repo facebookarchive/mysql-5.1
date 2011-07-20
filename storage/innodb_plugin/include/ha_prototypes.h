@@ -306,4 +306,12 @@ thd_admission_control_diskio_exit(
 /*======================*/
 	void*	thd);	/*!< in: thread handle (THD*), or NULL */
 
+void
+thd_change_transaction_count(
+/*=========================*/
+	void*	thd,	/*!< in: thread handle (THD*) or NULL */
+	int	delta);	/*!< in: value to change transaction count for this user.
+			This is the number of undo slots used so a transaction
+			uses 1 or 2 (one for insert, one for undo). */
+
 #endif

@@ -38,6 +38,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0rec.h"
 #include "trx0purge.h"
+#include "ha_prototypes.h"
 
 /* How should the old versions in the history list be managed?
    ----------------------------------------------------------
@@ -1763,6 +1764,13 @@ trx_undo_assign_undo(
 
 			goto func_exit;
 		}
+	}
+
+	if (trx->mysql_thd) {
+		/* Max undo segments is 1023 and an InnoDB transaction uses
+		1 or 2 undo segments. */
+
+		thd_change_transaction_count(trx->mysql_thd, 1);
 	}
 
 	if (type == TRX_UNDO_INSERT) {

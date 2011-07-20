@@ -6221,5 +6221,5 @@ ER_TMP_TABLE_MAX_FILE_SIZE_EXCEEDED
 ER_ADMISSION_CONTROL_TIMEOUT
   eng "Timeout while waiting for admission control"
 
-ER_TRANSACTION_CONTROL_TIMEOUT
-  eng "Timeout while waiting for transaction control"
+ER_TRANSACTION_CONTROL_LIMIT
+  eng "Too many concurrent transactions for this account"

@@ -1,0 +1,80 @@
+grant all on *.* to 'adminc'@'%' with max_concurrent_transactions 1 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_transactions
+adminc	%	100	1
+drop table if exists tctest, tctest2;
+flush statistics;
+create table tctest(id int, primary key(id)) engine=innodb;
+create table tctest2(id int, primary key(id)) engine=innodb;
+begin;
+insert into tctest2 values (99);
+show grants;
+Grants for adminc@%
+GRANT ALL PRIVILEGES ON *.* TO 'adminc'@'%' WITH MAX_USER_CONNECTIONS 100 MAX_CONCURRENT_TRANSACTIONS 1
+" "
+confirm transaction control limits concurrent transactions with auto-commit
+" "
+SET DEBUG_SYNC='after_write_row_ok SIGNAL sleep_after_write WAIT_FOR wake_up';
+this blocks
+insert into tctest values (3);
+SET DEBUG_SYNC='now WAIT_FOR sleep_after_write';
+select command, state, info from information_schema.processlist where user='adminc' order by command, info;
+command	state	info
+Query	debug sync point: after_write_row_ok	insert into tctest values (3)
+Sleep		NULL
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	2
+this fails on max_concurrent_transactions
+SET DEBUG_SYNC='transaction_control_limit_reached SIGNAL limit_reached';
+insert into tctest values (2);
+SET DEBUG_SYNC='now WAIT_FOR limit_reached';
+Must be empty
+select id from tctest;
+select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	2
+LIMIT_FAIL_TRANSACTIONS	1
+SET DEBUG_SYNC='now SIGNAL wake_up';
+ERROR HY000: Too many concurrent transactions for this account
+select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+LIMIT_FAIL_TRANSACTIONS	1
+" "
+confirm transaction control limits concurrent transactions with BEGIN
+" "
+SET DEBUG_SYNC='RESET';
+delete from tctest;
+this blocks
+begin;
+insert into tctest values (3);
+select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	2
+LIMIT_FAIL_TRANSACTIONS	1
+this fails on max_concurrent_transactions
+SET DEBUG_SYNC='transaction_control_limit_reached SIGNAL limit_reached';
+insert into tctest values (2);
+SET DEBUG_SYNC='now WAIT_FOR limit_reached';
+Must be empty
+select id from tctest;
+select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	2
+LIMIT_FAIL_TRANSACTIONS	2
+ERROR HY000: Too many concurrent transactions for this account
+commit;
+select id from tctest;;
+id	3
+select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+LIMIT_FAIL_TRANSACTIONS	2
+" "
+cleanup
+" "
+rollback;
+SET DEBUG_SYNC='RESET';
+drop user 'adminc'@'%';
+drop table tctest;
+drop table tctest2;
+select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+LIMIT_FAIL_TRANSACTIONS	2
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_transactions

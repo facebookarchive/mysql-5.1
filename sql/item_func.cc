@@ -37,6 +37,7 @@
 #include "sp_head.h"
 #include "sp_rcontext.h"
 #include "sp.h"
+#include "debug_sync.h"
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define sp_restore_security_context(A,B) while (0) {}
@@ -3686,6 +3687,8 @@ longlong Item_func_sleep::val_int()
   thd_proc_info(thd, "User sleep");
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &cond;
+
+  DEBUG_SYNC(thd, "in_sleep_func");
 
   error= 0;
   while (!thd->killed)

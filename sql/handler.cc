@@ -28,6 +28,7 @@
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include <errno.h>
+#include "debug_sync.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -1108,12 +1109,6 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 int ha_commit_trans(THD *thd, bool all, bool async)
 {
   int error= 0, cookie= 0;
-
-  if (all || (thd->transaction.tx_control_state == TX_CONTROL_STATEMENT &&
-              !thd->in_sub_stmt)) {
-    transaction_control_exit(thd);
-  }
-
   /*
     'all' means that this is either an explicit commit issued by
     user, or an implicit commit issued by a DDL.
@@ -1309,8 +1304,6 @@ int ha_commit_one_phase(THD *thd, bool all, bool async)
 int ha_rollback_trans(THD *thd, bool all)
 {
   int error=0;
-
-  transaction_control_exit(thd);
 
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
@@ -4879,6 +4872,7 @@ int handler::ha_write_row(uchar *buf)
     DBUG_RETURN(error);
   if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
     DBUG_RETURN(error); /* purecov: inspected */
+  DEBUG_SYNC(current_thd, "after_write_row_ok");
   DBUG_RETURN(0);
 }
 
@@ -4900,6 +4894,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
     return error;
   if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
     return error;
+  DEBUG_SYNC(current_thd, "after_update_row_ok");
   return 0;
 }
 
@@ -4914,6 +4909,7 @@ int handler::ha_delete_row(const uchar *buf)
     return error;
   if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
     return error;
+  DEBUG_SYNC(current_thd, "after_delete_row_ok");
   return 0;
 }
 

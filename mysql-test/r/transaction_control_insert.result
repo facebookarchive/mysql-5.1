@@ -1,0 +1,149 @@
+grant all on *.* to 'adminc'@'%' with max_concurrent_transactions 1 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_transactions
+adminc	%	100	1
+drop table if exists tctest, tc2, tc3;
+create table tctest(id int, primary key(id)) engine=innodb;
+show grants;
+Grants for adminc@%
+GRANT ALL PRIVILEGES ON *.* TO 'adminc'@'%' WITH MAX_USER_CONNECTIONS 100 MAX_CONCURRENT_TRANSACTIONS 1
+" "
+Confirm that counts are maintained for inserts
+" "
+insert into tctest values (17);
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+begin;
+insert into tctest values (18);
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+commit;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+begin;
+insert into tctest values (19);
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+rollback;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+" "
+Confirm the cases where reinsert of a not yet purged row uses an undo slot
+" "
+uses an undo slot
+insert into tctest values (21);
+delete from tctest;
+begin;
+insert into tctest values (21);
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+commit;
+create table tc2(id int, val int, primary key(id)) engine=innodb;
+insert into tc2 values (1,0), (2,0);
+delete from tc2 where id=1;
+begin;
+update tc2 set val = val + 1 where id=2;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+insert into tc2 values (1,0);
+does not use an undo slot
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+commit;
+create table tc3(id int, val int, primary key(id)) engine=innodb;
+insert into tc3 values (1,0), (2,0);
+delete from tc3;
+begin;
+insert into tc3 values (1,0);
+uses an undo slot
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+commit;
+delete from tctest;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+" "
+Confirm that counts are maintained for insert on duplicate key update
+" "
+delete from tc2;
+delete from tc3;
+insert into tc2 values (7,0);
+insert into tc3 values (7,0), (8,0);
+insert into tc2 select * from tc3 on duplicate key update val = tc2.val + 1;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+delete from tc2;
+delete from tc3;
+insert into tc2 values (9,0);
+insert into tc3 values (9,0), (10,0);
+begin;
+insert into tc2 select * from tc3 on duplicate key update val = tc2.val + 1;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	2
+commit;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+delete from tc2;
+delete from tc3;
+insert into tc2 values (11,0);
+insert into tc3 values (11,0), (12,0);
+begin;
+insert into tc2 select * from tc3 on duplicate key update val = tc2.val + 1;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	2
+rollback;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+" "
+Confirm that counts are maintained for insert select
+" "
+delete from tc2;
+delete from tc3;
+insert into tc2 values (20,0);
+insert into tc3 values (21,0);
+insert into tc2 select * from tc3;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+delete from tc2;
+delete from tc3;
+insert into tc2 values (30,0);
+insert into tc3 values (31,0);
+begin;
+insert into tc2 select * from tc3;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+commit;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+delete from tc2;
+delete from tc3;
+insert into tc2 values (40,0);
+insert into tc3 values (41,0);
+begin;
+insert into tc2 select * from tc3;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+rollback;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+delete from tc2;
+delete from tc3;
+insert into tc2 values (50,0);
+insert into tc3 values (51,0), (50,0);
+begin;
+insert into tc2 select * from tc3;
+ERROR 23000: Duplicate entry '50' for key 'PRIMARY'
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+rollback;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+" "
+cleanup
+" "
+drop user 'adminc'@'%';
+drop table tctest;
+drop table tc2;
+drop table tc3;
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_transactions

@@ -1,0 +1,63 @@
+grant all on *.* to 'adminc'@'%' with max_concurrent_transactions 2 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_transactions
+adminc	%	100	2
+drop table if exists tctest, tctest2;
+show grants;
+Grants for adminc@%
+GRANT ALL PRIVILEGES ON *.* TO 'adminc'@'%' WITH MAX_USER_CONNECTIONS 100 MAX_CONCURRENT_TRANSACTIONS 2
+create table tctest2(id int, val int, primary key(id)) engine=innodb;
+" "
+confirm TRANSACTION_SLOTS_INUSE is correct for autocommit
+" "
+insert into tctest2 values (1, 0);
+replace into tctest2 values (1,0);
+replace into tctest2 values (2,0);
+INUSE should be 0
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+" "
+confirm TRANSACTION_SLOTS_INUSE is correct for BEGIN ... COMMIT
+" "
+delete from tctest2;
+insert into tctest2 values (1, 0);
+begin;
+replace into tctest2 values (1,0);
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+commit;
+begin;
+replace into tctest2 values (2,0);
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+commit;
+INUSE should be 0
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+" "
+confirm TRANSACTION_SLOTS_INUSE is correct for BEGIN ... ROLLBACK
+" "
+delete from tctest2;
+insert into tctest2 values (1, 0);
+begin;
+replace into tctest2 values (1,0);
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+rollback;
+begin;
+replace into tctest2 values (2,0);
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	1
+rollback;
+INUSE should be 0
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+" "
+cleanup
+" "
+drop user 'adminc'@'%';
+drop table tctest2;
+select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc';
+TRANSACTIONS_SLOTS_INUSE	0
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_transactions

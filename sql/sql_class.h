@@ -99,23 +99,6 @@ private:
 };
 #endif
 
-/* A given transaction may be under transaction control at a statement
- * or transaction level.  These states are represented as an enum.
- * Tracking this prevents us from double charging a transaction that
- * affects multiple tables, etc -- in other words, we only check the
- * transaction control limits when we go from TX_CONTROL_NONE to a
- * non-NONE value.
- */
-enum enum_tx_control_state {
-  TX_CONTROL_NONE = 326,  // arbitrary number far from 0 and 1
-  TX_CONTROL_STATEMENT,
-  TX_CONTROL_TRANSACTION
-};
-
-int transaction_control_enter(THD* thd, ulong wait_seconds,
-                              bool explicit_transaction);
-void transaction_control_exit(THD* thd);
-
 /**
   An interface that is used to take an action when
   the locking module notices that a table version has changed
@@ -1639,7 +1622,6 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     bool on;                            // see ha_enable_transaction()
-    enum_tx_control_state tx_control_state;
     XID_STATE xid_state;
     Rows_log_event *m_pending_rows_event;
 
@@ -1664,14 +1646,12 @@ public:
         xid_state.xid.null();
 #ifdef USING_TRANSACTIONS
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
-      tx_control_state = TX_CONTROL_NONE;
 #endif
     }
     st_transactions()
     {
 #ifdef USING_TRANSACTIONS
       bzero((char*)this, sizeof(*this));
-      tx_control_state = TX_CONTROL_NONE;
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
 #else
@@ -2613,18 +2593,23 @@ public:
 */
 inline USER_STATS* thd_get_user_stats(THD* thd)
 {
+  USER_STATS* us;
+
   if (thd->user_connect)
   {
-    return &(thd->user_connect->user_stats);
+    us= &(thd->user_connect->user_stats);
   }
   else if (thd->slave_thread)
   {
-    return &slave_user_stats;
+    us= &slave_user_stats;
   }
   else
   {
-    return &other_user_stats;
+    us= &other_user_stats;
   }
+
+  DBUG_ASSERT(us->magic == USER_STATS_MAGIC);
+  return us;
 }
 
 /** A short cut for thd->main_da.set_ok_status(). */

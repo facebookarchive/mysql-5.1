@@ -857,6 +857,7 @@ trx_commit_off_kernel(
 		srv_n_commit_all++;
 
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
+		int n_undo_segs = 0;
 
 		mutex_exit(&kernel_mutex);
 
@@ -876,6 +877,7 @@ trx_commit_off_kernel(
 		if (trx->insert_undo != NULL) {
 			trx_undo_set_state_at_finish(
 				rseg, trx, trx->insert_undo, &mtr);
+			n_undo_segs++;
 		}
 
 		undo = trx->update_undo;
@@ -899,9 +901,18 @@ trx_commit_off_kernel(
 			the trx number. */
 
 			trx_undo_update_cleanup(trx, update_hdr_page, &mtr);
+			n_undo_segs++;
 		}
 
 		mutex_exit(&(rseg->mutex));
+
+		if (trx->mysql_thd) {
+			/* This commit makes free n_undo_segs undo segments for
+			another transaction. */
+
+			ut_ad(n_undo_segs);
+			thd_change_transaction_count(trx->mysql_thd, -n_undo_segs);
+		}
 
 		/* Update the latest MySQL binlog name and offset info
 		in trx sys header if MySQL binlogging is on or the database

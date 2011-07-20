@@ -1,0 +1,86 @@
+#
+# confirm that TRANSACTION_SLOTS_INUSE is correct for replace statements
+#
+#
+--source include/have_innodb_plugin.inc
+
+grant all on *.* to 'adminc'@'%' with max_concurrent_transactions 2 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+
+--disable_warnings
+drop table if exists tctest, tctest2;
+--enable_warnings
+
+connect (tc1, localhost, adminc,,);
+show grants;
+create table tctest2(id int, val int, primary key(id)) engine=innodb;
+
+--echo " "
+--echo confirm TRANSACTION_SLOTS_INUSE is correct for autocommit
+--echo " "
+
+insert into tctest2 values (1, 0);
+
+# this replaces a row
+replace into tctest2 values (1,0);
+# this does not update a row
+replace into tctest2 values (2,0);
+
+--echo INUSE should be 0
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+--echo " "
+--echo confirm TRANSACTION_SLOTS_INUSE is correct for BEGIN ... COMMIT
+--echo " "
+
+delete from tctest2;
+insert into tctest2 values (1, 0);
+
+begin;
+# this replaces a row
+replace into tctest2 values (1,0);
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+commit;
+
+begin;
+# this does not update a row
+replace into tctest2 values (2,0);
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+commit;
+
+--echo INUSE should be 0
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+--echo " "
+--echo confirm TRANSACTION_SLOTS_INUSE is correct for BEGIN ... ROLLBACK
+--echo " "
+
+delete from tctest2;
+insert into tctest2 values (1, 0);
+
+begin;
+# this replaces a row
+replace into tctest2 values (1,0);
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+rollback;
+
+begin;
+# this does not update a row
+replace into tctest2 values (2,0);
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+rollback;
+
+--echo INUSE should be 0
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+--echo " "
+--echo cleanup
+--echo " "
+
+connection default;
+disconnect tc1;
+drop user 'adminc'@'%';
+drop table tctest2;
+
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';

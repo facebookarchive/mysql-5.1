@@ -22,6 +22,7 @@
 #include <myisam.h>
 #include <my_dir.h>
 #include "my_atomic.h"
+#include "debug_sync.h"
 
 #ifdef LIBMEMCACHE
 #include <mcc/mcc.h>
@@ -95,6 +96,8 @@ const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Daemon") },
   { C_STRING_WITH_LEN("Error") }  // Last command number
 };
+
+static bool transaction_control_enter(THD* thd);
 
 const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
@@ -2508,10 +2511,10 @@ mysql_execute_command(THD *thd,
 
   DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
 
-  if (use_admission_control)
   {
-    int admission_results = 0;
-    int transaction_results = 0;
+    my_bool try_ac= FALSE;
+    my_bool try_tc= FALSE;
+
     switch (lex->sql_command) {
       case SQLCOM_SELECT:
       case SQLCOM_EXECUTE:
@@ -2520,6 +2523,13 @@ mysql_execute_command(THD *thd,
       case SQLCOM_DROP_TABLE:
       case SQLCOM_DROP_INDEX:
       case SQLCOM_ALTER_TABLE:
+      case SQLCOM_HA_OPEN:
+      case SQLCOM_HA_READ:
+      case SQLCOM_HA_CLOSE:
+      case SQLCOM_HA_OPEN_READ_CLOSE:
+      case SQLCOM_CALL:
+        try_ac= use_admission_control;
+        break;
       case SQLCOM_UPDATE:
       case SQLCOM_UPDATE_MULTI:
       case SQLCOM_REPLACE:
@@ -2528,33 +2538,42 @@ mysql_execute_command(THD *thd,
       case SQLCOM_INSERT_SELECT:
       case SQLCOM_DELETE:
       case SQLCOM_DELETE_MULTI:
-      case SQLCOM_HA_OPEN:
-      case SQLCOM_HA_READ:
-      case SQLCOM_HA_CLOSE:
-      case SQLCOM_HA_OPEN_READ_CLOSE:
-      case SQLCOM_CALL:
-        admission_results = admission_control_enter(
-          thd, thd->variables.net_wait_timeout);
-        transaction_results = transaction_control_enter(
-          thd, thd->variables.net_wait_timeout, FALSE);
-        setup_ac = TRUE;
-        break;
-      case SQLCOM_BEGIN:
-        transaction_results = transaction_control_enter(
-          thd, thd->variables.net_wait_timeout, TRUE);
+        try_tc= TRUE;
+        try_ac= use_admission_control;
         break;
       default:
         ac_barier.Bypass();
         // pass
         break;
     }
-    if (admission_results > 0 || transaction_results > 0) {
-      if (admission_results > 0) {
-        my_error(ER_ADMISSION_CONTROL_TIMEOUT, MYF(0), "--use-admission-control");
-      } else {
-        my_error(ER_TRANSACTION_CONTROL_TIMEOUT, MYF(0), "--use-admission-control");
-      }
 
+    /*
+      admission_control_enter must be called before transaction_control_enter
+      because it might block and on return the number of concurrent transactions
+      running for this account might have changed. Note that enforcement of
+      max concurrent transactions is fuzzy because the count of slots in use
+      per account is done long after the transactions is allowed to start.
+    */
+
+    if (try_ac)
+    {
+      int admission_results= admission_control_enter(
+              thd, thd->variables.net_wait_timeout);
+      setup_ac = TRUE;
+
+      if (admission_results)
+      {
+        my_error(ER_ADMISSION_CONTROL_TIMEOUT, MYF(0));
+        DBUG_RETURN(-1);
+      }
+    }
+
+    if (try_tc && !transaction_control_enter(thd))
+    {
+      if (setup_ac)
+        admission_control_exit(thd);
+
+      my_error(ER_TRANSACTION_CONTROL_LIMIT, MYF(0));
       DBUG_RETURN(-1);
     }
   }
@@ -8599,6 +8618,8 @@ int admission_control_enter(THD* thd, ulong wait_seconds)
 
   assert(thd->uses_admission_control == QUERY_SCHEDULED);
 
+  /* TODO(mcallaghan): increment limit_wait_queries */
+
   while (1)
   {
     int nr = uc->queries_running;
@@ -8709,119 +8730,33 @@ bool admission_control_diskio_exit(THD* thd) {
   }
 }
 
-int transaction_control_enter(THD* thd, ulong wait_seconds,
-                              bool explicit_transaction)
+static bool transaction_control_enter(THD* thd)
 {
   USER_CONN *uc = thd->user_connect;
-  if (!uc) return 0;
 
-  DBUG_ENTER("transaction_control_enter");
-  DBUG_ASSERT(thd->transaction.tx_control_state >= TX_CONTROL_NONE &&
-              thd->transaction.tx_control_state <= TX_CONTROL_TRANSACTION);
+  if (!uc)
+    return TRUE;
 
-  // If we're in a transaction, promote if necessary and simply
-  // return.  Otherwise we need to check transaction counts (possibly
-  // blocking wait_seconds).
-  if (thd->transaction.tx_control_state != TX_CONTROL_NONE) {
-    if (explicit_transaction) {
-      thd->transaction.tx_control_state = TX_CONTROL_TRANSACTION;
-    }
-    DBUG_RETURN(0);
-  }
+  int nr= uc->tx_slots_inuse;
+  int max_transactions=  uc->user_resources.max_concurrent_transactions;
 
-  while (1)
+  if (max_transactions && nr > max_transactions)
   {
-    int nr = uc->tx_running;
-    int max_transactions;
-    if (uc->user_resources.max_concurrent_transactions) {
-      max_transactions =
-        uc->user_resources.max_concurrent_transactions;
-    } else {
-      max_transactions = INT_MAX;
-    }
+    /*
+      Use "nr > max_transactions" rather than ">=" to avoid raising an error when
+      this is a statement in a transaction that has already incremented the value of
+      tx_slots_inuse.
+    */
 
-    const char* old_msg;
-    struct timespec abstime;
-    int timed_out = 0;
-
-    if (nr < max_transactions && my_atomic_cas32(&(uc->tx_running), &nr, nr+1))
-    {
-      thd->transaction.tx_control_state =
-        explicit_transaction ? TX_CONTROL_TRANSACTION : TX_CONTROL_STATEMENT;
-      DBUG_RETURN(0);
-    }
-
-    /* Do this before locking uc->tx_control_mutex */
-    set_timespec(abstime, wait_seconds);
-
-    pthread_mutex_lock(&(uc->tx_control_mutex));
-    ++uc->tx_waiting;
-
-    // Enforce a memory barrier for the optimization below.
-    asm volatile("" ::: "memory");
-
-    old_msg=  thd->enter_cond_noscheduler(&(uc->tx_control_condvar),
-                                          &(uc->tx_control_mutex),
-                                          "wait for max concurrent transactions");
-
-    while (uc->tx_running >= max_transactions)
-    {
-      int error = pthread_cond_timedwait(&(uc->tx_control_condvar),
-                                         &(uc->tx_control_mutex),
-                                         &abstime);
-
-      if (error == ETIME || error == ETIMEDOUT)
-      {
-        timed_out = 1;
-        break;
-      }
-
-      assert(error == 0 || error == EINTR);
-    }
-
-    --uc->tx_waiting;
-    assert(uc->tx_waiting >= 0);
-
-    thd->exit_cond_noscheduler(old_msg); // unlocks mutex
-
-    if (timed_out)
-      DBUG_RETURN(1);
+    DEBUG_SYNC(thd, "transaction_control_too_many");
+    my_atomic_add_bigint(&(thd_get_user_stats(thd)->limit_fail_transactions), 1);
+    DEBUG_SYNC(thd, "transaction_control_limit_reached"); 
+    return FALSE;
   }
-}
-
-void transaction_control_exit(THD* thd)
-{
-  USER_CONN *uc = thd->user_connect;
-  if (!uc) return;
-  if (thd->transaction.tx_control_state == TX_CONTROL_NONE) return;
-
-  DBUG_ENTER("transaction_control_exit");
-  DBUG_ASSERT(thd->transaction.tx_control_state >= TX_CONTROL_NONE &&
-              thd->transaction.tx_control_state <= TX_CONTROL_TRANSACTION);
-
-  int qr = my_atomic_add32(&(uc->tx_running), -1);
-  assert(qr >= 0);
-
-  if (uc->user_resources.max_concurrent_transactions == 0) {
-    thd->transaction.tx_control_state = TX_CONTROL_NONE;
-    DBUG_VOID_RETURN;
-  }
-
-  // Memory barrier.  Mark has a remarkable proof this is safe, but it
-  // will not fit in these margins.
-  asm volatile("" ::: "memory");
-
-  if (qr <= (uc->user_resources.max_concurrent_transactions + 1) &&
-      uc->tx_waiting)
+  else
   {
-    // No attempt is made to be fair to who gets to wake from blocking
-    // on the condvar.
-    pthread_cond_signal(&(uc->tx_control_condvar));
+    return TRUE;
   }
-
-  thd->transaction.tx_control_state = TX_CONTROL_NONE;
-
-  DBUG_VOID_RETURN;
 }
 
 /**

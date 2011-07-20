@@ -1,0 +1,163 @@
+# # test transaction_control for max_concurrent_transactions with a transaction that does
+# insert and update
+#
+
+--source include/have_innodb_plugin.inc
+--source include/have_debug_sync.inc
+
+flush statistics;
+
+--disable_warnings
+drop table if exists tctest, tctest2, tctest3;
+--enable_warnings
+
+grant all on *.* to 'adminc'@'%' with max_concurrent_transactions 2 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+
+#
+# create extra transaction because code can allow N+1 transactions when limit is N
+#
+connect (tc3, localhost, adminc,,);
+create table tctest3(id int primary key) engine=innodb;
+begin;
+insert into tctest3 values (99);
+
+--echo " "
+--echo First confirm transaction control limits concurrent transactions with auto-commit
+--echo " "
+
+connect (tc1, localhost, adminc,,);
+show grants;
+create table tctest(id int, val int, primary key(id)) engine=innodb;
+create table tctest2(id int, val int, primary key(id)) engine=innodb;
+
+insert into tctest values (1,0);
+insert into tctest2 values (1,0), (2, 0);
+
+SET DEBUG_SYNC='after_write_row_ok SIGNAL sleep_after_write WAIT_FOR wake_up';
+--echo this blocks
+send insert into tctest select id, val from tctest2 on duplicate key update val = tctest.val + 1;
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR sleep_after_write';
+select command, state, info from information_schema.processlist where user='adminc' order by command, info;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+connect (tc2, localhost, adminc,,);
+--echo this fails on max_concurrent_transactions
+SET DEBUG_SYNC='transaction_control_limit_reached SIGNAL limit_reached';
+send insert into tctest values (3,0);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR limit_reached';
+--query_vertical select id, val from tctest
+--query_vertical select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc'
+SET DEBUG_SYNC='now SIGNAL wake_up';
+
+connection tc2;
+--error ER_TRANSACTION_CONTROL_LIMIT
+reap;
+connection tc1;
+reap;
+
+--query_vertical select id, val from tctest
+--query_vertical select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc'
+
+--echo " "
+--echo Then confirm transaction control limits concurrent transactions with BEGIN
+--echo and INSERT, UPDATE statements
+--echo " "
+
+SET DEBUG_SYNC='RESET';
+connection tc1;
+delete from tctest;
+insert into tctest values (11,0);
+
+begin;
+update tctest set val = val + 1 where id = 11;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc'
+insert into tctest values (12,0);
+--query_vertical select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc'
+
+connection tc2;
+select id, val from tctest;
+
+--echo this fails on max_concurrent_transactions
+SET DEBUG_SYNC='transaction_control_limit_reached SIGNAL limit_reached';
+send insert into tctest values (13,0);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR limit_reached';
+--query_vertical select id, val from tctest
+--query_vertical select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc'
+
+connection tc2;
+--error ER_TRANSACTION_CONTROL_LIMIT
+reap;
+
+connection tc1;
+commit;
+--query_vertical select id, val from tctest
+
+--query_vertical select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc'
+
+--echo " "
+--echo Then confirm transaction control limits concurrent transactions with BEGIN
+--echo and INSERT ON DUPLICATE KEY UPDATE
+--echo " "
+
+connection default;
+#
+# A statement can use two undo slots (one for insert, one for undo).
+#
+
+SET DEBUG_SYNC='RESET';
+connection tc1;
+delete from tctest;
+delete from tctest2;
+insert into tctest values (21,0);
+insert into tctest2 values (21,0), (22,0);
+
+begin;
+insert into tctest select id, val from tctest2 order by tctest2.id DESC on duplicate key update val = tctest.val + 1;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc'
+--query_vertical select id, val from tctest
+
+connection tc2;
+--echo this fails on max_concurrent_transactions
+SET DEBUG_SYNC='transaction_control_limit_reached SIGNAL limit_reached';
+send insert into tctest values (23,0);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR limit_reached';
+--query_vertical select id, val from tctest
+--query_vertical select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc'
+
+connection tc2;
+--error ER_TRANSACTION_CONTROL_LIMIT
+reap;
+
+connection tc1;
+commit;
+--query_vertical select id, val from tctest
+
+connection tc3;
+rollback;
+
+--query_vertical select TRANSACTIONS_SLOTS_INUSE, LIMIT_FAIL_TRANSACTIONS from information_schema.user_statistics where user_name='adminc'
+
+--echo " "
+--echo cleanup
+--echo " "
+
+SET DEBUG_SYNC='RESET';
+connection default;
+disconnect tc1;
+disconnect tc2;
+disconnect tc3;
+drop user 'adminc'@'%';
+drop table tctest;
+drop table tctest2;
+drop table tctest3;
+
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';

@@ -1,0 +1,156 @@
+#
+# Confirm the cases where reinsert of a not yet purged row uses an undo slot
+#
+--source include/have_innodb_plugin.inc
+
+grant all on *.* to 'adminc'@'%' with max_concurrent_transactions 1 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+
+--disable_warnings
+drop table if exists tctest, tc2, tc3;
+
+create table tctest(id int, primary key(id)) engine=innodb;
+connect (c1, localhost, adminc,,);
+show grants;
+
+--echo " "
+--echo Confirm that counts are maintained for inserts
+--echo " "
+
+insert into tctest values (17);
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+begin;
+insert into tctest values (18);
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+commit;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+begin;
+insert into tctest values (19);
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+rollback;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+--echo " "
+--echo Confirm the cases where reinsert of a not yet purged row uses an undo slot
+--echo " "
+
+--echo uses an undo slot
+insert into tctest values (21);
+delete from tctest;
+begin;
+insert into tctest values (21);
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+commit;
+
+create table tc2(id int, val int, primary key(id)) engine=innodb;
+insert into tc2 values (1,0), (2,0);
+delete from tc2 where id=1;
+begin;
+update tc2 set val = val + 1 where id=2;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+insert into tc2 values (1,0);
+--echo does not use an undo slot
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+commit;
+
+create table tc3(id int, val int, primary key(id)) engine=innodb;
+insert into tc3 values (1,0), (2,0);
+delete from tc3;
+begin;
+insert into tc3 values (1,0);
+--echo uses an undo slot
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+commit;
+
+delete from tctest;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+--echo " "
+--echo Confirm that counts are maintained for insert on duplicate key update
+--echo " "
+
+delete from tc2;
+delete from tc3;
+insert into tc2 values (7,0);
+insert into tc3 values (7,0), (8,0);
+
+insert into tc2 select * from tc3 on duplicate key update val = tc2.val + 1;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+delete from tc2;
+delete from tc3;
+insert into tc2 values (9,0);
+insert into tc3 values (9,0), (10,0);
+begin;
+insert into tc2 select * from tc3 on duplicate key update val = tc2.val + 1;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+commit;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+delete from tc2;
+delete from tc3;
+insert into tc2 values (11,0);
+insert into tc3 values (11,0), (12,0);
+begin;
+insert into tc2 select * from tc3 on duplicate key update val = tc2.val + 1;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+rollback;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+--echo " "
+--echo Confirm that counts are maintained for insert select
+--echo " "
+
+delete from tc2;
+delete from tc3;
+insert into tc2 values (20,0);
+insert into tc3 values (21,0);
+
+insert into tc2 select * from tc3;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+delete from tc2;
+delete from tc3;
+insert into tc2 values (30,0);
+insert into tc3 values (31,0);
+begin;
+insert into tc2 select * from tc3;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+commit;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+delete from tc2;
+delete from tc3;
+insert into tc2 values (40,0);
+insert into tc3 values (41,0);
+begin;
+insert into tc2 select * from tc3;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+rollback;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+delete from tc2;
+delete from tc3;
+insert into tc2 values (50,0);
+insert into tc3 values (51,0), (50,0);
+begin;
+--error ER_DUP_ENTRY
+insert into tc2 select * from tc3;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+rollback;
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+--echo " "
+--echo cleanup
+--echo " "
+
+connection default;
+disconnect c1;
+drop user 'adminc'@'%';
+drop table tctest;
+drop table tc2;
+drop table tc3;
+
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';

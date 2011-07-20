@@ -337,6 +337,23 @@ int thd_tx_isolation(const THD *thd)
 }
 
 extern "C"
+void thd_change_transaction_count(THD *thd, int delta)
+{
+  if (!thd)
+    return;
+
+  USER_CONN *uc= thd->user_connect;
+
+  if (!uc)
+    return;
+
+  /* This is redundant with assert in thd_get_user_stats */
+  DBUG_ASSERT(thd_get_user_stats(thd)->magic == USER_STATS_MAGIC);
+  
+  my_atomic_add32(&(uc->tx_slots_inuse), delta);
+}
+
+extern "C"
 void thd_inc_row_count(THD *thd)
 {
   thd->row_count++;
