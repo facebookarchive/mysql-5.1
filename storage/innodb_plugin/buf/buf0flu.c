@@ -1501,8 +1501,8 @@ buf_flush_LRU_get_pages(
 
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
-	while ((bpage != NULL)
-	       && (distance < (BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN))) {
+	while (bpage != NULL &&
+		(n_replaceable + n_flushable) < n_needed) {
 
 		mutex_t* block_mutex = buf_page_get_mutex(bpage);
 
