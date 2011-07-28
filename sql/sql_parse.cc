@@ -8686,7 +8686,7 @@ static bool transaction_control_enter(THD* thd)
 {
   USER_CONN *uc = thd->user_connect;
 
-  if (!uc)
+  if (!admission_control || !uc)
     return TRUE;
 
   int nr= uc->tx_slots_inuse;
@@ -8700,7 +8700,6 @@ static bool transaction_control_enter(THD* thd)
       tx_slots_inuse.
     */
 
-    DEBUG_SYNC(thd, "transaction_control_too_many");
     my_atomic_add_bigint(&(thd_get_user_stats(thd)->limit_fail_transactions), 1);
     DEBUG_SYNC(thd, "transaction_control_limit_reached"); 
     return FALSE;
