@@ -3628,7 +3628,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       my_get_fast_timer(&start);
       last= start;
 
-      error= mysql_execute_command(thd, &start, &last, FALSE);
+      error= mysql_execute_command(thd, &start, &last);
     }
   }
 

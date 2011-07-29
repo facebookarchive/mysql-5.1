@@ -519,8 +519,7 @@ static void handle_bootstrap_impl(THD *thd)
     */
     thd->query_id=next_query_id();
     thd->set_time();
-    mysql_parse(thd, thd->query(), length, & found_semicolon, NULL,
-                FALSE, NULL);
+    mysql_parse(thd, thd->query(), length, & found_semicolon, NULL, NULL);
     close_thread_tables(thd);			// Free tables
 
     bootstrap_error= thd->is_error();
@@ -1057,6 +1056,16 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   struct system_status_var query_start_status;
   struct system_status_var *query_start_status_ptr= NULL;
 
+  AdmissionControlBarrier ac_barrier(thd);
+
+  if (admission_control_enter(thd, thd->variables.net_wait_timeout))
+  {
+    my_message(ER_ADMISSION_CONTROL_TIMEOUT, ER(ER_ADMISSION_CONTROL_TIMEOUT),
+               MYF(0));
+    return TRUE;
+  }
+  ac_barrier.Entered();
+
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
@@ -1342,7 +1351,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
 
     mysql_parse(thd, thd->query(), thd->query_length(), &end_of_stmt,
-                &last_timer, TRUE, &async_commit);
+                &last_timer, &async_commit);
 
     while (!thd->killed && (end_of_stmt != NULL) && ! thd->is_error())
     {
@@ -1388,7 +1397,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
       mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt,
-                  &last_timer, TRUE, &async_commit);
+                  &last_timer, &async_commit);
     }
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -2316,8 +2325,7 @@ bool sp_process_definer(THD *thd)
 int
 mysql_execute_command(THD *thd,
                       my_fast_timer_t *statement_start,
-                      my_fast_timer_t *post_parse,
-                      my_bool use_admission_control)
+                      my_fast_timer_t *post_parse)
 {
   int res= FALSE;
   bool need_start_waiting= FALSE; // have protection against global read lock
@@ -2331,7 +2339,6 @@ mysql_execute_command(THD *thd,
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *unit= &lex->unit;
-  my_bool setup_ac= FALSE;
 #ifdef HAVE_REPLICATION
   /* have table map for update for multi-update statement (BUG#37051) */
   bool have_table_map_for_update= FALSE;
@@ -2341,8 +2348,6 @@ mysql_execute_command(THD *thd,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
 #endif
-
-  AdmissionControlBarrier ac_barier(thd);
 
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
@@ -2511,71 +2516,24 @@ mysql_execute_command(THD *thd,
 
   DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
 
-  {
-    my_bool try_ac= FALSE;
-    my_bool try_tc= FALSE;
-
-    switch (lex->sql_command) {
-      case SQLCOM_SELECT:
-      case SQLCOM_EXECUTE:
-      case SQLCOM_CREATE_TABLE:
-      case SQLCOM_CREATE_INDEX:
-      case SQLCOM_DROP_TABLE:
-      case SQLCOM_DROP_INDEX:
-      case SQLCOM_ALTER_TABLE:
-      case SQLCOM_HA_OPEN:
-      case SQLCOM_HA_READ:
-      case SQLCOM_HA_CLOSE:
-      case SQLCOM_HA_OPEN_READ_CLOSE:
-      case SQLCOM_CALL:
-        try_ac= use_admission_control;
-        break;
-      case SQLCOM_UPDATE:
-      case SQLCOM_UPDATE_MULTI:
-      case SQLCOM_REPLACE:
-      case SQLCOM_INSERT:
-      case SQLCOM_REPLACE_SELECT:
-      case SQLCOM_INSERT_SELECT:
-      case SQLCOM_DELETE:
-      case SQLCOM_DELETE_MULTI:
-        try_tc= TRUE;
-        try_ac= use_admission_control;
-        break;
-      default:
-        ac_barier.Bypass();
-        // pass
-        break;
-    }
-
-    /*
-      admission_control_enter must be called before transaction_control_enter
-      because it might block and on return the number of concurrent transactions
-      running for this account might have changed. Note that enforcement of
-      max concurrent transactions is fuzzy because the count of slots in use
-      per account is done long after the transactions is allowed to start.
-    */
-
-    if (try_ac)
-    {
-      int admission_results= admission_control_enter(
-              thd, thd->variables.net_wait_timeout);
-      setup_ac = TRUE;
-
-      if (admission_results)
+  switch (lex->sql_command) {
+    case SQLCOM_UPDATE:
+    case SQLCOM_UPDATE_MULTI:
+    case SQLCOM_REPLACE:
+    case SQLCOM_INSERT:
+    case SQLCOM_REPLACE_SELECT:
+    case SQLCOM_INSERT_SELECT:
+    case SQLCOM_DELETE:
+    case SQLCOM_DELETE_MULTI:
+      if (!transaction_control_enter(thd))
       {
-        my_error(ER_ADMISSION_CONTROL_TIMEOUT, MYF(0));
+        my_error(ER_TRANSACTION_CONTROL_LIMIT, MYF(0));
         DBUG_RETURN(-1);
       }
-    }
-
-    if (try_tc && !transaction_control_enter(thd))
-    {
-      if (setup_ac)
-        admission_control_exit(thd);
-
-      my_error(ER_TRANSACTION_CONTROL_LIMIT, MYF(0));
-      DBUG_RETURN(-1);
-    }
+      break;
+    default:
+      // pass
+      break;
   }
 
   switch (lex->sql_command) {
@@ -5527,11 +5485,6 @@ finish:
     }
   }
 
-  if (setup_ac)
-  {
-    admission_control_exit(thd);
-  }
-
   if (post_parse && lex->sql_command != SQLCOM_SELECT)
   {
     thd->status_var.exec_seconds += my_fast_timer_diff_now(post_parse, post_parse);
@@ -6513,7 +6466,7 @@ void mysql_init_multi_delete(LEX *lex)
 
 void mysql_parse(THD *thd, char *rawbuf, uint length,
                  const char ** found_semicolon, my_fast_timer_t *last_timer,
-                 my_bool use_admission_control, my_bool *async_commit)
+                 my_bool *async_commit)
 {
   my_fast_timer_t statement_start;
 
@@ -6607,8 +6560,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
             thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           }
           lex->set_trg_event_type_for_tables();
-          mysql_execute_command(thd, &statement_start, last_timer,
-                                use_admission_control);
+          mysql_execute_command(thd, &statement_start, last_timer);
 	}
       }
     }
@@ -8550,9 +8502,7 @@ AdmissionControlVerifier::~AdmissionControlVerifier() {
 }
 #endif
 
-AdmissionControlBarrier::AdmissionControlBarrier(THD* thd) : thd_(thd) {
-  previous_control_ = thd->uses_admission_control;
-
+AdmissionControlBarrier::AdmissionControlBarrier(THD* thd) : thd_(thd), entered_(FALSE) {
   USER_CONN *uc = thd->user_connect;
 
   if (!uc)
@@ -8561,6 +8511,8 @@ AdmissionControlBarrier::AdmissionControlBarrier(THD* thd) : thd_(thd) {
   }
   else
   {
+    DBUG_ASSERT(thd->uses_admission_control == QUERY_NOT_SCHEDULED);
+
     thd->uses_admission_control =
         (admission_control && uc->user_resources.max_concurrent_queries)
         ? QUERY_SCHEDULED : QUERY_COUNTED;
@@ -8568,13 +8520,13 @@ AdmissionControlBarrier::AdmissionControlBarrier(THD* thd) : thd_(thd) {
 }
 
 AdmissionControlBarrier::~AdmissionControlBarrier() {
-  thd_->uses_admission_control = previous_control_;
+  if (entered_)
+    admission_control_exit(thd_);
+
+  thd_->uses_admission_control= QUERY_NOT_SCHEDULED;
 }
 
-void AdmissionControlBarrier::Bypass()
-{
-  thd_->uses_admission_control = QUERY_NOT_SCHEDULED;
-}
+void AdmissionControlBarrier::Entered() { entered_= TRUE; }
 
 /**
   Possibly block until this user can run a query.

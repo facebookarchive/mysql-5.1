@@ -67,21 +67,17 @@ enum enum_admission_control {
   QUERY_NOT_SCHEDULED   /* Do not count concurrent queries */
 };
 
-/* This class provides a "barrier" for admission control -- it is
- * intended to be a re-entrant, state-preserving indication that
- * admission control is to be used by this function and all of its
- * callees.  The Bypass() method indicates no accounting should be
- * done while under this barrier and is intended for cases where
- * admission control is not desired (faster codepaths, etc).
+/* This guarantees that admission_control_exit is called by the
+ * destructor when entered_ is TRUE.
  */
 class AdmissionControlBarrier {
 public:
   AdmissionControlBarrier(THD* thd);
   ~AdmissionControlBarrier();
-  void Bypass();
+  void Entered();
 private:
   THD* thd_;
-  enum enum_admission_control previous_control_;
+  bool entered_;
 };
 
 /* This class performs sanity checks on the state of admission

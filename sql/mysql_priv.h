@@ -1055,7 +1055,6 @@ bool mysql_opt_change_db(THD *thd,
 
 void mysql_parse(THD *thd, char *rawbuf, uint length,
                  const char ** semicolon, my_fast_timer_t *last_timer,
-                 my_bool use_admission_control,
                  my_bool *async_commit);
 
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
@@ -1073,8 +1072,7 @@ void init_update_queries(void);
 void free_max_user_conn(void);
 pthread_handler_t handle_bootstrap(void *arg);
 int mysql_execute_command(THD *thd, my_fast_timer_t *statement_start,
-                          my_fast_timer_t *post_parse,
-                          my_bool use_admission_control);
+                          my_fast_timer_t *post_parse);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);

@@ -13,7 +13,7 @@ select 1;
 "Should find one blocked statement"
 select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
 User	State	Info
-adminc	wait for max concurrent queries	select 1
+adminc	wait for max concurrent queries	NULL
 select User, State, Info from information_schema.processlist where Info like 'select sleep%';
 User	State	Info
 adminc	User sleep	select sleep(2)
@@ -30,8 +30,8 @@ select 1;
 "Should find two blocked statements"
 select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
 User	State	Info
-adminc	wait for max concurrent queries	select 1
-adminc	wait for max concurrent queries	select 1
+adminc	wait for max concurrent queries	NULL
+adminc	wait for max concurrent queries	NULL
 select User, State, Info from information_schema.processlist where Info like 'select sleep%';
 User	State	Info
 adminc	User sleep	select sleep(2)

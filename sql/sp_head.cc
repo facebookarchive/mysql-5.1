@@ -2955,7 +2955,7 @@ sp_instr_stmt::exec_core(THD *thd, uint *nextp)
   my_get_fast_timer(&start);
   last= start;
 
-  int res= mysql_execute_command(thd, &start, &last, FALSE);
+  int res= mysql_execute_command(thd, &start, &last);
   *nextp= m_ip+1;
   return res;
 }
