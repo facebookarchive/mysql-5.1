@@ -12029,6 +12029,11 @@ static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
   "Use OS memory allocator instead of InnoDB's internal memory allocator",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(b62037, srv_b62037,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Use workaround for mysql bug 62037",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   PLUGIN_VAR_RQCMDARG,
   "Buffer changes to reduce random access: "
@@ -12203,6 +12208,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(use_sys_malloc),
+  MYSQL_SYSVAR(b62037),
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),

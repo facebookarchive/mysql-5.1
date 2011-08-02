@@ -123,6 +123,8 @@ extern ulint*	srv_data_file_is_raw_partition;
 
 extern ulint	srv_use_purge_thread;
 
+extern my_bool	srv_b62037;
+
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
 extern char**	srv_log_group_home_dirs;
