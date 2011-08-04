@@ -1,2 +1,0 @@
---binlog-do-db=test
---innodb-file-per-table
