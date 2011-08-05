@@ -351,7 +351,6 @@ buf_buddy_relocate_block(
 	buf_page_t*	bpage,	/*!< in: block to relocate */
 	buf_page_t*	dpage)	/*!< in: free block to relocate to */
 {
-	mutex_t*	hash_mutex;
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	buf_page_t*	b;
 #endif
@@ -374,14 +373,9 @@ buf_buddy_relocate_block(
 		break;
 	}
 
-	buf_page_hash_get(bpage->space,
-			  bpage->offset,
-			  &hash_mutex);
-
 	mutex_enter(&buf_pool_zip_mutex);
 
 	if (!buf_page_can_relocate(bpage)) {
-		buf_page_hash_mutex_exit(hash_mutex);
 		mutex_exit(&buf_pool_zip_mutex);
 		return(FALSE);
 	}
@@ -403,7 +397,6 @@ buf_buddy_relocate_block(
 
 	UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
-	buf_page_hash_mutex_exit(hash_mutex);
 	mutex_exit(&buf_pool_zip_mutex);
 	return(TRUE);
 }
@@ -444,7 +437,6 @@ buf_buddy_relocate(
 	if (size >= PAGE_ZIP_MIN_SIZE) {
 		/* This is a compressed page. */
 		mutex_t*	mutex;
-		ulint		space, page_no;
 
 		/* The src block may be split into smaller blocks,
 		some of which may be free.  Thus, the
@@ -454,16 +446,17 @@ buf_buddy_relocate(
 		pool), so there is nothing wrong about this.  The
 		mach_read_from_4() calls here will only trigger bogus
 		Valgrind memcheck warnings in UNIV_DEBUG_VALGRIND builds. */
+
 		/* Suppress Valgrind warnings about conditional jump
 		on uninitialized value. */
 		UNIV_MEM_VALID((const byte*) src +
                                FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4);
 		UNIV_MEM_VALID((const byte*) src + FIL_PAGE_OFFSET, 4);
-		space	= mach_read_from_4(
-			(const byte*) src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-		page_no	= mach_read_from_4(
-			(const byte*) src + FIL_PAGE_OFFSET);
-		bpage = buf_page_hash_get(space, page_no, NULL);
+		bpage = buf_page_hash_get(
+			mach_read_from_4((const byte*) src
+					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
+			mach_read_from_4((const byte*) src
+					 + FIL_PAGE_OFFSET));
 
 		if (!bpage || bpage->zip.data != src) {
 			/* The block has probably been freshly

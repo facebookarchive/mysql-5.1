@@ -921,28 +921,20 @@ Returns the control block of a file page, NULL if not found.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_page_t*
-buf_page_hash_get_low(
-/*==================*/
+buf_page_hash_get(
+/*==============*/
 	ulint	space,	/*!< in: space id */
-	ulint	offset,	/*!< in: offset of the page within space */
-	ulint	fold)	/*!< in: buf_page_address_fold(space, offset) */
+	ulint	offset)	/*!< in: offset of the page within space */
 {
 	buf_page_t*	bpage;
-
-#ifdef UNIV_DEBUG
-	ulint		hash_fold;
-	mutex_t*	hash_mutex;
+	ulint		fold;
 
 	ut_ad(buf_pool);
-
-	hash_fold = buf_page_address_fold(space, offset);
-	ut_ad(hash_fold == fold);
-
-	hash_mutex = hash_get_mutex(buf_pool->page_hash, fold);
-	ut_ad(mutex_own(hash_mutex));
-#endif /* UNIV_DEBUG */
+	ut_ad(buf_pool_mutex_own());
 
 	/* Look for the page in the hash table */
+
+	fold = buf_page_address_fold(space, offset);
 
 	HASH_SEARCH(hash, buf_pool->page_hash, fold, buf_page_t*, bpage,
 		    ut_ad(bpage->in_page_hash && !bpage->in_zip_hash
@@ -964,105 +956,17 @@ buf_page_hash_get_low(
 }
 
 /******************************************************************//**
-Returns the control block of a file page, NULL if not found.
-If the block is found and mutex is not NULL then the appropriate
-page_hash mutex is acquired. It is up to the caller to release the
-mutex. If the block is found and the mutex is NULL then the page_hash
-mutex is released by this function.
-@return	block, NULL if not found */
-UNIV_INLINE
-buf_page_t*
-buf_page_hash_get(
-/*==============*/
-					/*!< out: pointer to the bpage,
-					or NULL; if NULL, hash_mutex
-					is also NULL. */
-	ulint		space,		/*!< in: space id */
-	ulint		offset,		/*!< in: page number */
-	mutex_t**	mutex)		/*!< in/out: mutex of the page
-					hash acquired if bpage is
-					found. NULL otherwise. If NULL
-					is passed then the hash_mutex
-					is released by this function */
-{
-	buf_page_t*	bpage;
-	ulint		fold;
-	mutex_t*	hash_mutex;
-
-	if (mutex != NULL) {
-		*mutex = NULL;
-	}
-
-	fold = buf_page_address_fold(space, offset);
-	hash_mutex = hash_get_mutex(buf_pool->page_hash, fold);
-
-	mutex_enter(hash_mutex);
-	bpage = buf_page_hash_get_low(space, offset, fold);
-
-	if (!bpage) {
-		mutex_exit(hash_mutex);
-		return(NULL);
-	}
-
-	ut_ad(buf_page_in_file(bpage));
-	ut_ad(offset == bpage->offset);
-	ut_ad(space == bpage->space);
-
-	if (mutex == NULL) {
-		/* The caller wants us to release the page_hash mutex */
-		mutex_exit(hash_mutex);
-	} else {
-		/* To be released by the caller */
-		*mutex = hash_mutex;
-	}
-
-	return(bpage);
-}
-
-/******************************************************************//**
-Returns the control block of a file page, NULL if not found or an
-uncompressed page frame does not exist.
-If the block is found and mutex is not NULL then the appropriate
-page_hash mutex is acquired. It is upto the caller to release the
-mutex. If the block is found and the mutex is NULL then the page_hash
-mutex is released by this function.
+Returns the control block of a file page, NULL if not found
+or an uncompressed page frame does not exist.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_block_t*
 buf_block_hash_get(
 /*===============*/
-					/*!< out: pointer to the bpage,
-					or NULL; if NULL, hash_mutex
-					is also NULL. */
-	ulint		space,		/*!< in: space id */
-	ulint		offset,		/*!< in: page number */
-	mutex_t**	mutex)		/*!< in/out: mutex of the page
-					hash acquired if bpage is
-					found. NULL otherwise. If NULL
-					is passed then the hash_mutex
-					is released by this function */
+	ulint	space,	/*!< in: space id */
+	ulint	offset)	/*!< in: offset of the page within space */
 {
-	buf_page_t*	bpage = buf_page_hash_get(space, offset, mutex);
-	buf_block_t*	block = buf_page_get_block(bpage);
-
-	if (block) {
-		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-		ut_ad(!mutex || mutex_own(*mutex));
-		return(block);
-	} else if (bpage) {
-		/* It is not a block. Just a bpage */
-		ut_ad(buf_page_in_file(bpage));
-
-		if (mutex) {
-			mutex_exit(*mutex);
-		}
-		*mutex = NULL;
-		return(NULL);
-	}
-
-	ut_ad(!bpage);
-	ut_ad(mutex == NULL ||*mutex == NULL);
-	return(NULL);
+	return(buf_page_get_block(buf_page_hash_get(space, offset)));
 }
 
 /********************************************************************//**
@@ -1079,7 +983,15 @@ buf_page_peek(
 	ulint	space,	/*!< in: space id */
 	ulint	offset)	/*!< in: page number */
 {
-	return(buf_page_hash_get(space, offset, NULL) != NULL);
+	const buf_page_t*	bpage;
+
+	buf_pool_mutex_enter();
+
+	bpage = buf_page_hash_get(space, offset);
+
+	buf_pool_mutex_exit();
+
+	return(bpage != NULL);
 }
 
 /********************************************************************//**

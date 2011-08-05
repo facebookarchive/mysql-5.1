@@ -348,7 +348,7 @@ buf_read_ahead_linear(
 	for (i = low; i < high; i++) {
 		my_fast_timer_t bpage_accessed;
 
-		bpage = buf_page_hash_get(space, i, NULL);
+		bpage = buf_page_hash_get(space, i);
 
 		if (bpage) {
 			buf_page_is_accessed(bpage, &bpage_accessed);
@@ -395,7 +395,7 @@ buf_read_ahead_linear(
 	/* If we got this far, we know that enough pages in the area have
 	been accessed in the right order: linear read-ahead can be sensible */
 
-	bpage = buf_page_hash_get(space, offset, NULL);
+	bpage = buf_page_hash_get(space, offset);
 
 	if (bpage == NULL) {
 		buf_pool_mutex_exit();

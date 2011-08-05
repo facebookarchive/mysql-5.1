@@ -1214,7 +1214,7 @@ buf_flush_try_neighbors(
 
 	for (i = low; i < high; i++) {
 
-		bpage = buf_page_hash_get(space, i, NULL);
+		bpage = buf_page_hash_get(space, i);
 
 		if (!bpage) {
 
