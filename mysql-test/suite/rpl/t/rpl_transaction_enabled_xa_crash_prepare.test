@@ -55,3 +55,4 @@ select * from t1;
 
 connection master;
 DROP TABLE t1;
+sync_slave_with_master;
