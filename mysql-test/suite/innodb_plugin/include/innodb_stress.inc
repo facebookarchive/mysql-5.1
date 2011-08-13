@@ -28,6 +28,7 @@ call mtr.add_suppression(".*");
 --let $master_host = 127.0.0.1
 --let $table = test
 --let $user = root
+--let $max_rows = 4096
 
 while ($num_crashes)
 {
@@ -43,14 +44,14 @@ while ($num_crashes)
     let $exec =
 python suite/innodb_plugin/t/load_generator.py $pid_file $kill_db_after
 $num_records  $num_workers $num_transactions $user $master_host $MASTER_MYPORT
-$table 1;
+$table 1 $max_rows;
   }
   if (!$use_blob)
   {
     let $exec =
 python suite/innodb_plugin/t/load_generator.py $pid_file $kill_db_after
 $num_records  $num_workers $num_transactions $user $master_host $MASTER_MYPORT
-$table 0;
+$table 0 $max_rows;
   }
 
   exec $exec;
@@ -66,6 +67,12 @@ $table 0;
 
   --echo Checksum master
   let $master_checksum = query_get_value(CHECKSUM TABLE t1, Checksum, 1);
+
+  connection slave;
+  stop slave;
+  start slave;
+
+  connection master;
   sync_slave_with_master;
   connection slave;
   --echo Checksum slave

@@ -15,17 +15,17 @@ def sha1(x):
   return hashlib.sha1(str(x)).hexdigest()
 
 
-def populate_table(con, num_records_before, do_blob):
+def populate_table(con, num_records_before, do_blob, log):
   cur = con.cursor()
 
   if not do_blob:
     for i in xrange(num_records_before):
-      cur.execute("INSERT INTO t1(id,msg) VALUES (%d, '%s')" % (i, sha1(i) * 6))
+      cur.execute("INSERT INTO t1(id,msg) VALUES (NULL, '%s')" % (sha1(i) * 6))
   else:
     for i in xrange(num_records_before):
       cur.execute("""
-INSERT INTO t1(id,x1,x2,x3,msg) VALUES (%d, 'x1', 'x2', LPAD('z', %d, 'x'), '%s')
-""" % (i, random.randint(1, 9000), sha1(i) * 6))
+INSERT INTO t1(id,x1,x2,x3,msg) VALUES (NULL, 'x1', 'x2', LPAD('z', %d, 'x'), '%s')
+""" % (random.randint(1, 9000), sha1(i) * 6))
 
   con.commit()
 
@@ -33,7 +33,7 @@ INSERT INTO t1(id,x1,x2,x3,msg) VALUES (%d, 'x1', 'x2', LPAD('z', %d, 'x'), '%s'
 class Worker(threading.Thread):
   global LG_TMP_DIR
 
-  def __init__(self, num_xactions, xid, con, server_pid, do_blob):
+  def __init__(self, num_xactions, xid, con, server_pid, do_blob, max_id):
     threading.Thread.__init__(self)
     self.do_blob = do_blob
     self.xid = xid
@@ -44,7 +44,7 @@ class Worker(threading.Thread):
     self.rand = random.Random()
     self.rand.seed(xid * server_pid)
     self.loop_num = 0
-    self.max_id = 1 << 12
+    self.max_id = max_id
     self.num_inserts = 0
     self.num_deletes = 0
     self.num_updates = 0
@@ -80,12 +80,12 @@ class Worker(threading.Thread):
 
     while not self.num_xactions or (self.loop_num < self.num_xactions):
       idx = self.rand.randint(0, self.max_id)
-      random_number = self.rand.randint(0, self.max_id) % 3
-      msg = (random_number + 4) * sha1("%d%d" % (idx, random_number))
+      insert_or_update = self.rand.randint(0, 3)
+      msg = sha1("%d%d" % (idx, self.loop_num))
       self.loop_num += 1
       try:
         stmt = None
-        if random_number:
+        if insert_or_update:
           cur.execute("SELECT * FROM t1 WHERE id=%d" % idx)
           res = cur.fetchone()
           if res:
@@ -95,14 +95,18 @@ class Worker(threading.Thread):
               stmt = "INSERT INTO t1 (msg,id) VALUES ('%s', %d) ON DUPLICATE KEY UPDATE msg=VALUES(msg), id=VALUES(id)" % (msg, idx)
             self.num_updates += 1
           else:
-            if self.rand.randint(0, 1):
+            r = self.rand.randint(0, 2)
+            if r == 0:
               stmt = "INSERT INTO t1(id,msg) VALUES (%d,'%s')" % (idx, msg)
-            else:
+            elif r == 1:
               stmt = "INSERT INTO t1 (msg,id) VALUES ('%s', %d) ON DUPLICATE KEY UPDATE msg=VALUES(msg), id=VALUES(id)" % (msg, idx)
+            else:
+              stmt = "INSERT INTO t1 (msg,id) VALUES ('%s', NULL)" % msg
             self.num_inserts += 1
         else:
           stmt = "DELETE FROM t1 WHERE id=%d" % idx
           self.num_deletes += 1
+
         query_result = cur.execute(stmt)
         if (self.loop_num % 100) == 0:
           print >> self.log, "Thread %d loop_num %d: result %d: %s" % (self.xid,
@@ -133,12 +137,12 @@ class Worker(threading.Thread):
     cur = self.con.cursor()
     while not self.num_xactions or (self.loop_num < self.num_xactions):
       idx = self.rand.randint(0, self.max_id)
-      random_number = self.rand.randint(0, self.max_id) % 3
-      msg = (random_number + 4) * sha1("%d%d" % (idx, random_number))
+      insert_or_update = self.rand.randint(0, 3)
+      msg = sha1("%d%d" % (idx, self.loop_num))
       self.loop_num += 1
       try:
         stmt = None
-        if random_number:
+        if insert_or_update:
           cur.execute("SELECT * FROM t1 WHERE id=%d" % idx)
           res = cur.fetchone()
           if res:
@@ -161,9 +165,21 @@ ON DUPLICATE KEY UPDATE msg=VALUES(msg), id=VALUES(id), x2=VALUES(x2)""" % (
 msg, idx, self.rand.randint(1, 9000))
             self.num_updates += 1
           else:
-            stmt = """
+            r = self.rand.randint(0,2)
+            if r == 0:
+              stmt = """
 INSERT INTO t1(id,x1,x2,x3,msg) VALUES (%d, LPAD('1',%d,'2'), LPAD('2',%d,'3'), LPAD('3',%d,'4'), '%s')
 """ % (idx, self.rand.randint(1, 9000), self.rand.randint(1, 9000), self.rand.randint(1, 9000), msg)
+            elif r == 1:
+              stmt = """
+INSERT INTO t1(id,x1,x2,x3,msg) VALUES (%d, LPAD('1',%d,'2'), LPAD('2',%d,'3'), LPAD('3',%d,'4'), '%s')
+ON DUPLICATE KEY UPDATE msg=VALUES(msg), id=VALUES(id), x1=VALUES(x1), x2=VALUES(x2), x3=VALUES(x3)
+""" % (idx, self.rand.randint(1, 9000), self.rand.randint(1, 9000), self.rand.randint(1, 9000), msg)
+            else:
+              stmt = """
+INSERT INTO t1(id,x1,x2,x3,msg) VALUES (NULL, LPAD('1',%d,'2'), LPAD('2',%d,'3'), LPAD('3',%d,'4'), '%s')
+""" % (self.rand.randint(1, 9000), self.rand.randint(1, 9000), self.rand.randint(1, 9000), msg)
+
             self.num_inserts += 1
         else:
           stmt = "DELETE FROM t1 WHERE id=%d" % idx
@@ -206,6 +222,7 @@ if  __name__ == '__main__':
   port = int(sys.argv[8])
   db = sys.argv[9]
   do_blob = int(sys.argv[10])
+  max_id = int(sys.argv[11])
   workers = []
   server_pid = int(open(pid_file).read())
   log = open('/%s/main.log' % LG_TMP_DIR, 'a')
@@ -218,13 +235,14 @@ if  __name__ == '__main__':
   if num_records_before:
     print >> log, "populate table do_blob is %d" % do_blob
     con = MySQLdb.connect(user=user, host=host, port=port, db=db)
-    populate_table(con, num_records_before, do_blob)
+    populate_table(con, num_records_before, do_blob, log)
     con.close()
 
   print >> log, "start %d threads" % num_workers
   for i in xrange(num_workers):
-    con = MySQLdb.connect(user=user, host=host, port=port, db=db)
-    worker = Worker(num_xactions_per_worker, i, con, server_pid, do_blob)
+    worker = Worker(num_xactions_per_worker, i,
+                    MySQLdb.connect(user=user, host=host, port=port, db=db),
+                    server_pid, do_blob, max_id)
     workers.append(worker)
 
   if kill_db_after:
