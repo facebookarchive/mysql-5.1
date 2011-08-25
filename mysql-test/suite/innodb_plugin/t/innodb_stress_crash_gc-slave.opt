@@ -1,0 +1,3 @@
+--innodb_file_format='Barracuda'
+--innodb_log_compressed_pages=1
+--innodb_flush_log_at_trx_commit=2

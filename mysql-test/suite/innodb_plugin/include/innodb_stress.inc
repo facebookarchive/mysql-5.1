@@ -118,5 +118,4 @@ connection master;
 # Wish we did not have to waste time on this -- http://bugs.mysql.com/bug.php?id=62075
 SET GLOBAL innodb_file_format_check = "Antelope";
 
-# --exec rm -rf /tmp/load_generator
---exit
+--exec rm -rf /tmp/load_generator
