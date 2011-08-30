@@ -328,6 +328,8 @@ buf_buddy_relocate(
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
 	ullint		usec	= ut_time_us(NULL);
+	my_fast_timer_t fast_timer;
+
 	mutex_t*	mutex;
 	ulint		space;
 	ulint		page_no;
@@ -338,6 +340,8 @@ buf_buddy_relocate(
 	ut_ad(!ut_align_offset(dst, size));
 	ut_ad(i >= buf_buddy_get_slot(PAGE_ZIP_MIN_SIZE));
 	UNIV_MEM_ASSERT_W(dst, size);
+
+	my_get_fast_timer(&fast_timer);
 
 	/* We assume that all memory from buf_buddy_alloc()
 	is used for compressed page frames. */
@@ -406,8 +410,8 @@ buf_buddy_relocate(
 			buf_buddy_stat_t*	buddy_stat
 				= &buf_buddy_stat[i];
 			buddy_stat->relocated++;
-			buddy_stat->relocated_usec
-				+= ut_time_us(NULL) - usec;
+			buddy_stat->relocated_sec
+				+= my_fast_timer_diff_now(&fast_timer, NULL);
 		}
 		return(TRUE);
 	}

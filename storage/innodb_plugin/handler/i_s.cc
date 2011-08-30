@@ -1524,13 +1524,12 @@ i_s_cmpmem_fill_low(
 				       ? UT_LIST_GET_LEN(buf_pool->zip_free[x])
 				       : 0);
 		table->field[3]->store((longlong) buddy_stat->relocated, true);
-		table->field[4]->store(
-			(ulong) (buddy_stat->relocated_usec / 1000000));
+		table->field[4]->store((ulong) (buddy_stat->relocated_sec));
 
 		if (reset) {
 			/* This is protected by buf_pool_mutex. */
 			buddy_stat->relocated = 0;
-			buddy_stat->relocated_usec = 0;
+			buddy_stat->relocated_sec = 0;
 		}
 
 		if (schema_table_store_record(thd, table)) {
