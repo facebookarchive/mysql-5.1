@@ -310,8 +310,8 @@ typedef struct  user_conn {
 
   /* Tracking variables for admission control.  Tracks the number of
    * running and waiting queries.  */
-  volatile int    queries_running; /* changed by atomic inc */
-  volatile int    queries_waiting; /* protected by query_mutex */
+  volatile int32    queries_running; /* changed by atomic inc */
+  volatile int32    queries_waiting; /* protected by query_mutex */
 
   /* Condvar used to block when waiting for the user to be able to
    * start a new query, and signal when a new query can begin.

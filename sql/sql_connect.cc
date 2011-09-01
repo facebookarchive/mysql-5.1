@@ -1368,7 +1368,7 @@ update_user_stats_after_statement(USER_STATS *us,
 static void
 fill_one_user_stats(TABLE *table, USER_CONN *uc, USER_STATS* us,
                     const char* username, uint connections,
-                    int queries_running, int queries_waiting)
+                    int32 queries_running, int32 queries_waiting)
 {
   DBUG_ENTER("fill_one_user_stats");
   int f= 0; /* field offset */
@@ -1424,8 +1424,8 @@ fill_one_user_stats(TABLE *table, USER_CONN *uc, USER_STATS* us,
   table->field[f++]->store(us->rows_index_next, TRUE);
   table->field[f++]->store(us->transactions_commit, TRUE);
   table->field[f++]->store(us->transactions_rollback, TRUE);
-  table->field[f++]->store(queries_running, TRUE);
-  table->field[f++]->store(queries_waiting, TRUE);
+  table->field[f++]->store(queries_running, FALSE);
+  table->field[f++]->store(queries_waiting, FALSE);
   if (uc) {
     table->field[f++]->store(uc->tx_slots_inuse, FALSE);
   } else {

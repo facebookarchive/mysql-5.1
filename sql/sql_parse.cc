@@ -8508,11 +8508,16 @@ bool parse_sql(THD *thd,
 static __thread int admission_depth = 0;
 
 AdmissionControlVerifier::AdmissionControlVerifier() {
-  assert(admission_depth == 0);
+  if (!admission_control_disabled)
+    assert(admission_depth == 0);
+
   initial_depth_ = admission_depth;
 }
 
 AdmissionControlVerifier::~AdmissionControlVerifier() {
+  if (admission_control_disabled)
+    return;
+
   if (admission_depth != initial_depth_) {
     fprintf(stderr, "Admission control teardown should be %d, is %d\n",
             initial_depth_, admission_depth);
@@ -8525,7 +8530,13 @@ AdmissionControlVerifier::~AdmissionControlVerifier() {
 AdmissionControlBarrier::AdmissionControlBarrier(THD* thd) : thd_(thd), entered_(FALSE) {
   USER_CONN *uc = thd->user_connect;
 
-  if (!uc)
+  DBUG_EXECUTE_IF("enable_admission_control", {
+                  fprintf(stderr, "reset ac: r %d\n", (int)uc->queries_running);
+                  admission_control_disabled= FALSE;
+                  uc->queries_running= 0;
+                  uc->queries_waiting= 0; });
+
+  if (!uc || admission_control_disabled)
   {
      thd->uses_admission_control = QUERY_NOT_SCHEDULED;
   }
@@ -8576,11 +8587,15 @@ int admission_control_enter(THD* thd, my_bool wait)
   long use_nsec;
   bool first=TRUE;
   const double one_million= 1000000.0;
+  const char* old_msg;
 
   DBUG_ENTER("admission_control_enter");
 
-  if (thd->uses_admission_control == QUERY_NOT_SCHEDULED)
+  if (thd->uses_admission_control == QUERY_NOT_SCHEDULED ||
+      admission_control_disabled)
+  {
     DBUG_RETURN(0);
+  }
 
 #ifndef DBUG_OFF
   ++admission_depth;
@@ -8592,26 +8607,55 @@ int admission_control_enter(THD* thd, my_bool wait)
     DBUG_RETURN(0);
   }
 
-  assert(thd->uses_admission_control == QUERY_SCHEDULED);
+  DBUG_ASSERT(thd->uses_admission_control == QUERY_SCHEDULED);
+  DBUG_EXECUTE_IF("ac_enter_bad_state",
+                  thd->uses_admission_control= (enum_admission_control)99999;);
+
+  if (thd->uses_admission_control != QUERY_SCHEDULED)
+  {
+    admission_control_disabled= TRUE;
+    sql_print_error("admission_control disabled on entry because "
+                    "THD::uses_admission_control is %d",
+                    thd->uses_admission_control);
+    DBUG_RETURN(0);
+  }
 
   /*
     Wait for at least 100 milliseconds before checking whether the
     client has disconnected or the query has been killed.
   */
-  check_nsec = check_client_interval_msecs * one_million;
-  use_nsec = (long) max(check_nsec, 100.0 * one_million);
+  check_nsec= check_client_interval_msecs * one_million;
+  use_nsec= (long) max(check_nsec, 100.0 * one_million);
+
+  old_msg= thd->proc_info;
+  thd->proc_info= "wait for max concurrent queries";
 
   while (1)
   {
-    int nr = uc->queries_running;
-    const char* old_msg;
+    int32 nr= uc->queries_running;
     struct timespec abstime;
-    int timed_out = 0;
-    int err;
+
+    if (admission_control_disabled)
+    {
+      thd->proc_info= old_msg;
+      DBUG_RETURN(0);
+    }
+
+    /* Don't do this while holding query_mutex */
+    if (!first && (thd->killed || !thd->is_connected()))
+    {
+      DEBUG_SYNC(thd, "admission_control_exit_killed_or_closed");
+#ifndef DBUG_OFF
+      --admission_depth;
+#endif
+      thd->proc_info= old_msg;
+      DBUG_RETURN(1);
+    }
 
     if (nr < uc->user_resources.max_concurrent_queries &&
         my_atomic_cas32(&(uc->queries_running), &nr, nr+1))
     {
+      thd->proc_info= old_msg;
       DBUG_RETURN(0);
     }
 
@@ -8621,11 +8665,9 @@ int admission_control_enter(THD* thd, my_bool wait)
     pthread_mutex_lock(&(uc->query_mutex));
     ++uc->queries_waiting;
 
-    // Enforce a memory barrier for the optimization below.
+    /* Enforce a memory barrier so that admission_control_exit can
+       avoid locking query_mutex */
     asm volatile("" ::: "memory");
-
-    old_msg=  thd->proc_info;
-    thd->proc_info= "wait for max concurrent queries";
 
     if (uc->queries_running >= uc->user_resources.max_concurrent_queries)
     {
@@ -8637,87 +8679,85 @@ int admission_control_enter(THD* thd, my_bool wait)
         DEBUG_SYNC(thd, "admission_control_enter_waiting");
       }
 
-      err= pthread_cond_timedwait(&(uc->query_condvar), &(uc->query_mutex),
-                                  &abstime);
+      int err= pthread_cond_timedwait(&(uc->query_condvar), &(uc->query_mutex),
+                                      &abstime);
       DBUG_ASSERT(err == 0 || err == EINTR || err == ETIME || err == ETIMEDOUT);
     }
 
-    while (uc->queries_running >= uc->user_resources.max_concurrent_queries)
-    {
-      pthread_mutex_unlock(&(uc->query_mutex));
-
-      /* Don't hold query_mutex while doing syscalls */
-      if (thd->killed || !thd->is_connected())
-      {
-        timed_out = 1;
-        DEBUG_SYNC(thd, "admission_control_exit_killed_or_closed");
-        pthread_mutex_lock(&(uc->query_mutex));
-        break;
-      }
-
-      set_timespec_nsec(abstime, use_nsec);
-
-      pthread_mutex_lock(&(uc->query_mutex));
-
-      if (uc->queries_running >= uc->user_resources.max_concurrent_queries)
-      {
-        err= pthread_cond_timedwait(&(uc->query_condvar), &(uc->query_mutex),
-                                    &abstime);
-        DBUG_ASSERT(err == 0 || err == EINTR || err == ETIME ||
-                    err == ETIMEDOUT);
-      }
-    }
-
     --uc->queries_waiting;
-    assert(uc->queries_waiting >= 0);
+
+    DBUG_ASSERT(admission_control_disabled || uc->queries_waiting >= 0);
+    DBUG_EXECUTE_IF("ac_enter_bad_waiting", uc->queries_waiting= -9999; );
+
+    if (uc->queries_waiting < 0)
+    {
+      admission_control_disabled= TRUE;
+      sql_print_error("admission_control disabled on entry because "
+                      "queries_waiting is %d", uc->queries_waiting);
+    }
 
     pthread_mutex_unlock(&(uc->query_mutex));
-    thd->proc_info= old_msg;
-
-    if (timed_out)
-    {
-#ifndef DBUG_OFF
-      --admission_depth;
-#endif
-      DBUG_RETURN(1);
-    }
   }
 }
 
 void admission_control_exit(THD* thd)
 {
-  USER_CONN *uc = thd->user_connect;
+  USER_CONN *uc= thd->user_connect;
 
   DBUG_ENTER("admission_control_exit");
 
-  if (thd->uses_admission_control == QUERY_NOT_SCHEDULED)
+  if (thd->uses_admission_control == QUERY_NOT_SCHEDULED ||
+      admission_control_disabled)
+  {
     DBUG_VOID_RETURN;
+  }
 
 #ifndef DBUG_OFF
   --admission_depth;
 #endif
 
-  if (thd->uses_admission_control == QUERY_COUNTED)
+  /* This returns the value of queries_running before the decrement and
+     'qrp1' stands for "queries_running + 1".
+  */
+  int32 qrp1 = my_atomic_add32(&(uc->queries_running), -1);
+
+  DBUG_ASSERT(qrp1 > 0);
+  DBUG_EXECUTE_IF("ac_exit_bad_running", {
+    qrp1 -= 9999; uc->queries_running -= 9999; });
+
+  if (qrp1 < 1)
   {
-    int val = my_atomic_add32(&(uc->queries_running), -1);
-    assert(val >= 0);
+    admission_control_disabled= TRUE;
+    sql_print_error("admission_control disabled on exit because "
+                    "queries_running is %d", qrp1 - 1);
     DBUG_VOID_RETURN;
   }
 
-  assert(thd->uses_admission_control == QUERY_SCHEDULED);
+  if (thd->uses_admission_control == QUERY_COUNTED)
+    DBUG_VOID_RETURN;
 
-  int qr = my_atomic_add32(&(uc->queries_running), -1);
-  assert(qr >= 0);
+  DBUG_ASSERT(thd->uses_admission_control == QUERY_SCHEDULED);
+  DBUG_EXECUTE_IF("ac_exit_bad_state", 
+                  thd->uses_admission_control= (enum_admission_control) 9999;);
 
-  // Memory barrier.  Mark has a remarkable proof this is safe, but it
-  // will not fit in these margins.
+  if (thd->uses_admission_control != QUERY_SCHEDULED)
+  {
+    admission_control_disabled= TRUE;
+    sql_print_error("admission_control disabled on exit because "
+                    "THD::uses_admission_control is %d",
+                    thd->uses_admission_control);
+    DBUG_VOID_RETURN;
+  }
+
+  /* Memory barrier.  We have proven this to be correct on paper via
+     SPIN and think it is correct in practice.
+  */
   asm volatile("" ::: "memory");
 
-  if (qr <= (uc->user_resources.max_concurrent_queries + 1) &&
+  if (qrp1 <= uc->user_resources.max_concurrent_queries &&
       uc->queries_waiting)
   {
-    // No attempt is made to be fair to who gets to wake from blocking
-    // on the condvar.
+    /* Don't try to be fair about waking waiters in order */
     pthread_cond_signal(&(uc->query_condvar));
   }
 
