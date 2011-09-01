@@ -1,0 +1,77 @@
+#
+# Confirm that transaction_control_disabled error handling is correct
+#
+--source include/have_innodb_plugin.inc
+--source include/have_debug.inc
+
+call mtr.add_suppression("Transaction slots in use counter has bad value.*");
+
+SHOW GLOBAL STATUS LIKE "Control_transaction_disabled";
+SHOW GLOBAL STATUS LIKE "Control_transaction_max_slots";
+
+grant all on *.* to 'adminc'@'%' with max_concurrent_transactions 1 max_user_connections 100;
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+
+--disable_warnings
+drop table if exists tctest;
+
+create table tctest(id int, primary key(id)) engine=innodb;
+
+--echo " "
+--echo Set debug option to make slots in use count invalid
+--echo " "
+connect (c1, localhost, adminc,,);
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+begin;
+SET debug='d,bad_innodb_max_slots_allowed';
+insert into tctest values (17);
+SET debug='reset';
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+--echo This must be disabled
+SHOW GLOBAL STATUS LIKE "Control_transaction_disabled";
+
+--echo " "
+--echo Confirm another transaction can start 
+--echo " "
+connect (c2, localhost, adminc,,);
+begin;
+insert into tctest values (18);
+
+--echo " "
+--echo Confirm another transaction can start 
+--echo " "
+connect (c3, localhost, adminc,,);
+begin;
+insert into tctest values (19);
+commit;
+
+connection c2;
+commit;
+
+connection c1;
+commit;
+
+connection default;
+select * from tctest order by id;
+
+--echo " "
+--echo Cleanup
+--echo " "
+
+connection c1;
+--echo enable admission control
+SHOW GLOBAL STATUS LIKE "Control_transaction_disabled";
+SET debug='d,enable_transaction_control';
+insert into tctest values (20);
+SET debug='reset';
+SHOW GLOBAL STATUS LIKE "Control_transaction_disabled";
+--query_vertical select TRANSACTIONS_SLOTS_INUSE from information_schema.user_statistics where user_name='adminc'
+
+connection default;
+disconnect c1;
+disconnect c2;
+disconnect c3;
+drop user 'adminc'@'%';
+select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
+
+drop table tctest;

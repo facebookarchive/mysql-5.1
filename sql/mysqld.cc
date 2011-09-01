@@ -645,6 +645,7 @@ my_bool admission_control_diskio= FALSE;
 /* These are not in mysql_priv.h to reduce header dependencies */
 extern my_atomic_bigint admission_control_waits;
 extern my_atomic_bigint transaction_control_fails;
+my_bool transaction_control_disabled= FALSE;
 
 my_bool log_datagram= 0;
 ulong log_datagram_usecs= 0;
@@ -7861,6 +7862,32 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 }
 #endif
 
+/*
+   Use a SHOW function to prevent transaction_control_disabled from
+   being set to 0 by FLUSH STATUS
+*/
+static int
+show_transaction_control_disabled(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_BOOL;
+  var->value= buff;
+  *((my_bool *)buff)= transaction_control_disabled;
+  return 0;
+}
+
+/*
+   Use a SHOW function to prevent innodb_max_slots_allowed from
+   being set to 0 by FLUSH STATUS
+*/
+static int
+show_innodb_max_slots_allowed(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_LONG;
+  var->value= buff;
+  *((long *)buff)= innodb_max_slots_allowed;
+  return 0;
+}
+
 static int show_binlog_fsync_avg_time(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_DOUBLE;
@@ -8227,6 +8254,8 @@ SHOW_VAR status_vars[]= {
   {"Connection_recycle_idle_time_ms",(char*) &connection_recycle_idle_time_ms,SHOW_LONG},
   {"Control_admission_waits",     (char*) &admission_control_waits,      SHOW_LONGLONG},
   {"Control_transaction_fails",   (char*) &transaction_control_fails,    SHOW_LONGLONG},
+  {"Control_transaction_disabled",(char*) &show_transaction_control_disabled, SHOW_FUNC},
+  {"Control_transaction_max_slots",(char*) &show_innodb_max_slots_allowed,    SHOW_FUNC},
   {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONG_STATUS},
   {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},
   {"Created_tmp_tables",       (char*) offsetof(STATUS_VAR, created_tmp_tables), SHOW_LONG_STATUS},
@@ -8579,6 +8608,8 @@ static int mysql_init_variables(void)
   allow_hint_to_missing_index= FALSE;
 
   admission_control= FALSE;
+
+  transaction_control_disabled= FALSE;
 
   opt_log_slow_extra= FALSE;
 

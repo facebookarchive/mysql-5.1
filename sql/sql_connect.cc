@@ -1427,7 +1427,7 @@ fill_one_user_stats(TABLE *table, USER_CONN *uc, USER_STATS* us,
   table->field[f++]->store(queries_running, TRUE);
   table->field[f++]->store(queries_waiting, TRUE);
   if (uc) {
-    table->field[f++]->store(uc->tx_slots_inuse, TRUE);
+    table->field[f++]->store(uc->tx_slots_inuse, FALSE);
   } else {
     table->field[f++]->store(0, TRUE);
   }

@@ -344,13 +344,25 @@ void thd_change_transaction_count(THD *thd, int delta)
 
   USER_CONN *uc= thd->user_connect;
 
-  if (!uc)
+  if (!uc || transaction_control_disabled)
     return;
 
   /* This is redundant with assert in thd_get_user_stats */
   DBUG_ASSERT(thd_get_user_stats(thd)->magic == USER_STATS_MAGIC);
   
-  my_atomic_add32(&(uc->tx_slots_inuse), delta);
+  int32 v= my_atomic_add32(&(uc->tx_slots_inuse), delta);
+
+  DBUG_ASSERT(uc->tx_slots_inuse >= 0 &&
+              uc->tx_slots_inuse <= innodb_max_slots_allowed);
+  DBUG_EXECUTE_IF("bad_innodb_max_slots_allowed", {
+      v= -1; uc->tx_slots_inuse= -1; });
+
+  if (v < 0 || v > innodb_max_slots_allowed)
+  {
+    sql_print_error("Transaction slots in use counter has bad value %d "
+                    "and maximum value is %ld", v, innodb_max_slots_allowed);
+    transaction_control_disabled= TRUE;
+  }
 }
 
 extern "C"

@@ -34,6 +34,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0purge.h"
 
+/* Kludge to export the max number of undo slots that can be used. This is
+   used by admission & transaction control done at a higher level. */
+long	innodb_max_slots_allowed	= 0;
+
 /******************************************************************//**
 Looks for a rollback segment, based on the rollback segment id.
 @return	rollback segment */
@@ -208,6 +212,7 @@ trx_rseg_mem_create(
 	rseg->page_no = page_no;
 
 	mutex_create(&rseg->mutex, SYNC_RSEG);
+	innodb_max_slots_allowed += TRX_RSEG_N_SLOTS;
 
 	UT_LIST_ADD_LAST(rseg_list, trx_sys->rseg_list, rseg);
 

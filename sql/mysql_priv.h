@@ -2159,6 +2159,14 @@ extern ulong check_client_interval_msecs;
 
 extern my_bool admission_control;
 extern my_bool admission_control_diskio;
+extern my_bool transaction_control_disabled;
+
+/*
+  Excuse me for doing this. This is a global variable exported by the
+  InnoDB plugin. It is the maximum number of transaction slots that
+  can be used.
+*/
+extern long innodb_max_slots_allowed;
 
 extern my_bool log_datagram;
 extern ulong log_datagram_usecs;

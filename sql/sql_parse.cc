@@ -8744,12 +8744,16 @@ bool admission_control_diskio_exit(THD* thd) {
 
 static bool transaction_control_enter(THD* thd)
 {
-  USER_CONN *uc = thd->user_connect;
+  USER_CONN *uc= thd->user_connect;
 
-  if (!admission_control || !uc)
+  DBUG_EXECUTE_IF("enable_transaction_control", {
+    uc->tx_slots_inuse= 0;
+    transaction_control_disabled= FALSE;});
+
+  if (!admission_control || !uc || transaction_control_disabled)
     return TRUE;
 
-  int nr= uc->tx_slots_inuse;
+  int32 nr= uc->tx_slots_inuse;
   int max_transactions=  uc->user_resources.max_concurrent_transactions;
 
   if (max_transactions && nr > max_transactions)
