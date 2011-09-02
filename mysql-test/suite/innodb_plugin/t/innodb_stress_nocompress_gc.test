@@ -23,5 +23,7 @@ let $do_compress=0;
 --let $num_workers = 2
 --let $num_transactions = 10
 --let $kill_db_after = 0
+--let $num_records = 1000
+--let $max_rows = 4096
 
 --source suite/innodb_plugin/include/innodb_stress.inc

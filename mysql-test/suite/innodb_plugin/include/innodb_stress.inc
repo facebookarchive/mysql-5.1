@@ -22,13 +22,11 @@ call mtr.add_suppression(".*");
 --sync_slave_with_master
 
 --connection master
---let $num_records = 1000
 --let $pid_file = `SELECT @@pid_file`
 --let $crash_num = 0
 --let $master_host = 127.0.0.1
 --let $table = test
 --let $user = root
---let $max_rows = 4096
 
 while ($num_crashes)
 {
