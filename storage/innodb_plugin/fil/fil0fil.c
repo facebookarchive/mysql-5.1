@@ -297,9 +297,9 @@ fil_update_table_stats_one_cell(
 			write_arr[found] = space->io_perf2.write;
 			comp_stat_arr[found] = space->comp_stat;
 
-			strcpy(&(db_name_buf[found * (FN_REFLEN/2)]),
+			strcpy(&(db_name_buf[found * (FN_LEN+1)]),
 				space->db_name);
-			strcpy(&(table_name_buf[found * (FN_REFLEN/2)]),
+			strcpy(&(table_name_buf[found * (FN_LEN+1)]),
 				space->table_name);
 
 			found++;
@@ -313,8 +313,8 @@ fil_update_table_stats_one_cell(
 	/* Invoke callback after releasing mutex */
 
 	for (; report < found; ++report) {
-		cb(&(db_name_buf[report * (FN_REFLEN/2)]),
-		   &(table_name_buf[report * (FN_REFLEN/2)]),
+		cb(&(db_name_buf[report * (FN_LEN+1)]),
+		   &(table_name_buf[report * (FN_LEN+1)]),
 		   &(read_arr[report]),
 		   &(write_arr[report]),
 		   &(comp_stat_arr[report]),
@@ -403,8 +403,8 @@ fil_update_table_stats(
 	write_arr = (my_io_perf_t*) ut_malloc(sizeof(my_io_perf_t) * max_per_cell);
 	comp_stat_arr = (comp_stat_t*) ut_malloc(
 	                                    sizeof(comp_stat_t) * max_per_cell);
-	db_name_buf = (char*) ut_malloc((FN_REFLEN/2) * max_per_cell);
-	table_name_buf = (char*) ut_malloc((FN_REFLEN/2) * max_per_cell);
+	db_name_buf = (char*) ut_malloc((FN_LEN+1) * max_per_cell);
+	table_name_buf = (char*) ut_malloc((FN_LEN+1) * max_per_cell);
 
 	if (!read_arr || !write_arr || !comp_stat_arr || !table_name_buf ||
 	    !db_name_buf) {
@@ -1187,7 +1187,7 @@ parse_db_and_table(
 
 		if (table_start &&
 		    (table_start + 1) < dot_start &&
-		    (dot_start - (table_start + 1)) < (FN_REFLEN / 2)) {
+		    (dot_start - (table_start + 1)) < (FN_LEN+1)) {
 			const char*	db_start;
 
 			db_start = search_str_backwards(table_start - 1, name, '/');
@@ -1198,7 +1198,7 @@ parse_db_and_table(
 
 			if (db_start &&
 			   (db_start + 1) < table_start &&
-			   (table_start - (db_start + 1)) < (FN_REFLEN / 2)) {
+			   (table_start - (db_start + 1)) < (FN_LEN+1)) {
 
 				/* Success! */
 				parsed = TRUE;
@@ -1222,8 +1222,8 @@ parse_db_and_table(
 			"db name from ::%s::\n", name);
 	}
 
-	ut_a(strlen(db_name) < ((FN_REFLEN / 2)));
-	ut_a(strlen(table_name) < ((FN_REFLEN / 2)));
+	ut_a(strlen(db_name) < ((FN_LEN+1)));
+	ut_a(strlen(table_name) < ((FN_LEN+1)));
 }
 
 /*******************************************************************//**
@@ -1241,8 +1241,8 @@ fil_space_create(
 	ulint		purpose)/*!< in: FIL_TABLESPACE, or FIL_LOG if log */
 {
 	fil_space_t*	space;
-	char		db_name[FN_REFLEN / 2];
-	char		table_name[FN_REFLEN / 2];
+	char		db_name[FN_LEN+1];
+	char		table_name[FN_LEN+1];
 
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
 	ROW_FORMAT=COMPACT
@@ -2695,6 +2695,14 @@ retry:
 
 			ut_a(fil_rename_tablespace_in_mem(space, node,
 							  old_path));
+		} else {
+			char	db_name[FN_LEN+1];
+			char	table_name[FN_LEN+1];
+
+			parse_db_and_table(path, db_name, table_name, FIL_TABLESPACE, id);
+
+			strcpy(space->db_name, db_name);
+			strcpy(space->table_name, table_name);
 		}
 	}
 

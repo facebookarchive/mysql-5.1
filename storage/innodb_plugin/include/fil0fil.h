@@ -263,9 +263,11 @@ struct fil_space_struct {
 				/*!< list of all spaces */
 	os_io_perf2_t	io_perf2;/*!< per tablespace IO perf counters */
 	comp_stat_t	comp_stat; /*!< per tablespace compression counters */
-	char		db_name[FN_REFLEN / 2];
+	/* If NAME_LEN were visible to InnoDB source, it would be used instead
+	of FN_LEN+1. */
+	char		db_name[FN_LEN + 1];
 				/*!< name from first or only table */
-	char		table_name[FN_REFLEN / 2];
+	char		table_name[FN_LEN + 1];
 				/*!< name from first or only table */
 	ibool		used;	/*!< cleared by fil_update_table_stats
 				and set by fil_io */
