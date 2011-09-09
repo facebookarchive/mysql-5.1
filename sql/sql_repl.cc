@@ -28,6 +28,53 @@ my_bool opt_sporadic_binlog_dump_fail = 0;
 static int binlog_dump_count = 0;
 #endif
 
+/* Show processlist command dump the binlog state.
+ 
+  Input:
+   output_info   -  (OUT) the output proc_info
+   output_len    -  (IN)  output proc_info's length
+   thd           -  (IN)  the thread
+   input_msg     -  (IN)  the input proc_info
+   log_file_name -  (IN)  binlog file name
+   log_pos       -  (IN)  binlog position
+   skip_slave_update - (IN/OUT) determines whether update is skipped
+ */
+static void processlist_slave_offset(char *output_info,
+                                     int   output_len,
+                                     THD  *thd,
+                                     const char *log_file_name,
+                                     my_off_t log_pos,
+                                     int  *skip_state_update)
+{
+  int len;
+
+  DBUG_ENTER("processlist_show_binlog_state");
+  DBUG_ASSERT(*skip_state_update >= 0);
+
+  if (skip_state_update)
+  {
+    if (*skip_state_update)
+    {
+      --(*skip_state_update);
+      DBUG_VOID_RETURN;
+    }
+    else
+    {
+      *skip_state_update= 10;
+    }
+  }
+
+  len= snprintf(output_info, output_len, "slave offset: %s %lld",
+                log_file_name + dirname_length(log_file_name),
+                (long long int)log_pos);
+
+  if (len > 0)
+    thd->set_query(output_info, len);
+
+  DBUG_VOID_RETURN;
+}
+
+
 static const char* map_log_read_error(int log_read_error)
 {
   switch (log_read_error)
@@ -416,6 +463,18 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
      reading old binlogs */
   bool is_active = TRUE;
 
+  /* This buffer should be enough for "slave offset: file_name file_pos".
+     set_query(state_msg, ...) might be called so set_query("", 0) must be
+     called at function end to avoid bogus memory references.
+  */
+  char state_msg[FN_REFLEN + 100];
+  int  state_msg_len = FN_REFLEN + 100;
+  char* orig_query= thd->query();
+  uint32 orig_query_length= thd->query_length();
+
+  /* The number of times to skip calls to processlist_slave_offset */
+  int skip_state_update;
+
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
@@ -615,6 +674,7 @@ impossible position";
   /* seek to the requested position, to start the requested dump */
   my_b_seek(&log, pos);			// Seek will done on next read
 
+  skip_state_update= 0;
   while (!net->error && net->vio != 0 && !thd->killed)
   {
     while (!(error = Log_event::read_log_event(&log, packet,
@@ -629,6 +689,10 @@ impossible position";
 	goto err;
       }
 #endif
+
+      processlist_slave_offset(state_msg, state_msg_len, thd,
+                               log_file_name, my_b_tell(&log),
+                               &skip_state_update);
 
       /* If log_file_name is the current binlog, is_active must be set */
       DBUG_ASSERT(!(mysql_bin_log.is_active(log_file_name) && !is_active));
@@ -778,6 +842,10 @@ impossible position";
 	if (read_packet)
 	{
 	  thd_proc_info(thd, "Sending binlog event to slave");
+          processlist_slave_offset(state_msg, state_msg_len, thd,
+                                   log_file_name, my_b_tell(&log),
+                                   &skip_state_update);
+
 	  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) )
 	  {
             // TODO(mcallaghan): when should this be enabled?
@@ -818,6 +886,8 @@ impossible position";
       strmake(old_log_file_name, log_file_name, FN_REFLEN);
 
       thd_proc_info(thd, "Finished reading one binlog; switching to next binlog");
+      skip_state_update= 0;
+
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case 0:
 	break;
@@ -889,6 +959,8 @@ end:
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
   thd->variables.max_allowed_packet= old_max_allowed_packet;
+  /* Undo any calls done by processlist_slave_offset */
+  thd->set_query(orig_query, orig_query_length);
   DBUG_VOID_RETURN;
 
 err:
@@ -913,6 +985,8 @@ err:
   thd->variables.max_allowed_packet= old_max_allowed_packet;
 
   my_message(my_errno, errmsg, MYF(0));
+  /* Undo any calls done by processlist_slave_offset */
+  thd->set_query(orig_query, orig_query_length);
   DBUG_VOID_RETURN;
 }
 

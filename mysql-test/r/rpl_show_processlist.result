@@ -1,0 +1,13 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (data LONGBLOB) ENGINE=MYISAM;
+INSERT INTO t1 (data) VALUES (repeat('a',1024*1024));
+INSERT INTO t1 (data) VALUES (repeat('a',1024*1024));
+SELECT info FROM information_schema.processlist where Command like 'Binlog%';
+info
+slave offset: master-bin.000001 106
+drop table t1;
