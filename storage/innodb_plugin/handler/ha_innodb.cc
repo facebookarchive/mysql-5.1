@@ -8481,6 +8481,7 @@ ha_innobase::info(
 	ib_int64_t	n_rows;
 	char		path[FN_REFLEN];
 	os_file_stat_t	stat_info;
+	ulint page_size;
 
 	DBUG_ENTER("info");
 
@@ -8502,6 +8503,11 @@ ha_innobase::info(
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
 	ib_table = prebuilt->table;
+
+	page_size = dict_table_zip_size(ib_table);
+	if (!page_size) {
+		page_size = UNIV_PAGE_SIZE;
+	}
 
 	if (flag & HA_STATUS_TIME) {
 		if (innobase_stats_on_metadata) {
@@ -8573,10 +8579,10 @@ ha_innobase::info(
 		stats.deleted = 0;
 		stats.data_file_length = ((ulonglong)
 				ib_table->stat_clustered_index_size)
-					* UNIV_PAGE_SIZE;
+					* page_size;
 		stats.index_file_length = ((ulonglong)
 				ib_table->stat_sum_of_other_index_sizes)
-					* UNIV_PAGE_SIZE;
+					* page_size;
 
 		/* Since fsp_get_available_space_in_free_extents() is
 		acquiring latches inside InnoDB, we do not call it if we
