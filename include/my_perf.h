@@ -92,17 +92,17 @@ struct comp_stat_struct {
   /** Size of the compressed data on the page */
   int page_size;
   /** Number of page compressions */
-  volatile my_atomic_bigint compressed;
+  ulonglong compressed;
   /** Number of successful page compressions */
-  volatile my_atomic_bigint compressed_ok;
+  ulonglong compressed_ok;
   /** Number of page decompressions */
-  volatile my_atomic_bigint decompressed;
+  ulonglong decompressed;
   /** Duration of page compressions in microseconds */
-  volatile my_atomic_bigint compressed_usec;
-	/** Duration of succesful page compressions in microseconds */
-	volatile my_atomic_bigint compressed_ok_usec;
+  ulonglong compressed_usec;
+  /** Duration of succesful page compressions in microseconds */
+  ulonglong compressed_ok_usec;
   /** Duration of page decompressions in microseconds */
-  volatile my_atomic_bigint decompressed_usec;
+  ulonglong decompressed_usec;
 };
 
 /** Compression statistics */

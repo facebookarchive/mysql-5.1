@@ -1160,8 +1160,9 @@ page_zip_compress(
 	page_zip_stat_t*	zip_stat;
 	my_fast_timer_t start;
 	ullint udiff;
-	fil_space_t* space;
+	int comp_stat_page_size = 0;
 	ulint	space_id = page_get_space_id(page);
+	fil_space_t* space;
 	my_get_fast_timer(&start);
 	ut_ad(fil_system);
 #endif /* !UNIV_HOTBACKUP */
@@ -1190,10 +1191,6 @@ page_zip_compress(
 		ut_a(rec_get_next_offs(page + PAGE_NEW_INFIMUM, TRUE)
 		     == PAGE_NEW_SUPREMUM);
 	}
-
-	mutex_enter(&fil_system->mutex);
-	space = fil_space_get_by_id(space_id);
-	mutex_exit(&fil_system->mutex);
 
 	if (page_is_leaf(page)) {
 		n_fields = dict_index_get_n_fields(index);
@@ -1237,11 +1234,9 @@ page_zip_compress(
 	} else {
 		zip_stat->compressed_secondary++;
 	}
-	if (space) {
-		os_atomic_increment(&space->comp_stat.compressed, 1);
-		if (space_id)
-			space->comp_stat.page_size = PAGE_ZIP_MIN_SIZE << (page_zip->ssize - 1);
-	}
+
+	comp_stat_page_size = PAGE_ZIP_MIN_SIZE << (page_zip->ssize - 1);
+
 #endif /* !UNIV_HOTBACKUP */
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
@@ -1389,9 +1384,19 @@ err_exit:
 		} else {
 			zip_stat->compressed_secondary_usec += udiff;
 		}
+
+		mutex_enter(&fil_system->mutex);
+		space = fil_space_get_by_id(space_id);
+
 		if (space) {
-			my_atomic_add_bigint(&space->comp_stat.compressed_usec, udiff);
+			++space->comp_stat.compressed;
+			if (space_id)
+				space->comp_stat.page_size = comp_stat_page_size;
+
+		 	space->comp_stat.compressed_usec += udiff;
 		}
+		mutex_exit(&fil_system->mutex);
+
 #endif /* !UNIV_HOTBACKUP */
 		return(FALSE);
 	}
@@ -1451,26 +1456,35 @@ err_exit:
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
-	{
-		udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
-		zip_stat->compressed_ok++;
-		zip_stat->compressed_usec += udiff;
-		zip_stat->compressed_ok_usec += udiff;
-		if (dict_index_is_clust(index)) {
-			zip_stat->compressed_primary_ok++;
-			zip_stat->compressed_primary_usec += udiff;
-			zip_stat->compressed_primary_ok_usec += udiff;
-		} else {
-			zip_stat->compressed_secondary_ok++;
-			zip_stat->compressed_secondary_usec += udiff;
-			zip_stat->compressed_secondary_ok_usec += udiff;
-		}
-		if (space) {
-			os_atomic_increment(&space->comp_stat.compressed_ok, 1);
-			my_atomic_add_bigint(&space->comp_stat.compressed_usec, udiff);
-			my_atomic_add_bigint(&space->comp_stat.compressed_ok_usec, udiff);
-		}
+
+	udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
+	zip_stat->compressed_ok++;
+	zip_stat->compressed_usec += udiff;
+	zip_stat->compressed_ok_usec += udiff;
+	if (dict_index_is_clust(index)) {
+		zip_stat->compressed_primary_ok++;
+		zip_stat->compressed_primary_usec += udiff;
+		zip_stat->compressed_primary_ok_usec += udiff;
+	} else {
+		zip_stat->compressed_secondary_ok++;
+		zip_stat->compressed_secondary_usec += udiff;
+		zip_stat->compressed_secondary_ok_usec += udiff;
 	}
+
+	mutex_enter(&fil_system->mutex);
+	space = fil_space_get_by_id(space_id);
+
+	if (space) {
+		++space->comp_stat.compressed;
+		if (space_id)
+			space->comp_stat.page_size = comp_stat_page_size;
+
+		++space->comp_stat.compressed_ok;
+		space->comp_stat.compressed_usec += udiff;
+		space->comp_stat.compressed_ok_usec += udiff;
+	}
+	mutex_exit(&fil_system->mutex);
+
 #endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);
@@ -2894,6 +2908,9 @@ page_zip_decompress(
 	my_fast_timer_t start;
 	ullint udiff;
 	fil_space_t* space;
+	int comp_stat_page_size;
+	page_zip_stat_t*	zip_stat = &page_zip_stat[page_zip->ssize - 1];
+
 	my_get_fast_timer(&start);
 	ut_ad(fil_system);
 #endif /* !UNIV_HOTBACKUP */
@@ -3074,29 +3091,29 @@ err_exit:
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 
 #ifndef UNIV_HOTBACKUP
-	{
-		page_zip_stat_t*	zip_stat
-			= &page_zip_stat[page_zip->ssize - 1];
-		udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
-		zip_stat->decompressed++;
-		zip_stat->decompressed_usec += udiff;
-		if (dict_index_is_clust(index)) {
-			zip_stat->decompressed_primary++;
-			zip_stat->decompressed_primary_usec += udiff;
-		} else {
-			zip_stat->decompressed_secondary++;
-			zip_stat->decompressed_secondary_usec += udiff;
-		}
-		mutex_enter(&fil_system->mutex);
-		space = fil_space_get_by_id(space_id);
-		mutex_exit(&fil_system->mutex);
-		if (space) {
-			os_atomic_increment(&space->comp_stat.decompressed, 1);
-			my_atomic_add_bigint(&space->comp_stat.decompressed_usec, udiff);
-			if (space_id)
-				space->comp_stat.page_size = PAGE_ZIP_MIN_SIZE << (page_zip->ssize - 1);
-		}
+	udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
+	zip_stat->decompressed++;
+	zip_stat->decompressed_usec += udiff;
+	if (dict_index_is_clust(index)) {
+		zip_stat->decompressed_primary++;
+		zip_stat->decompressed_primary_usec += udiff;
+	} else {
+		zip_stat->decompressed_secondary++;
+		zip_stat->decompressed_secondary_usec += udiff;
 	}
+
+	comp_stat_page_size = PAGE_ZIP_MIN_SIZE << (page_zip->ssize - 1);
+
+	mutex_enter(&fil_system->mutex);
+	space = fil_space_get_by_id(space_id);
+	if (space) {
+		++space->comp_stat.decompressed;
+		space->comp_stat.decompressed_usec += udiff;
+		if (space_id)
+			space->comp_stat.page_size = comp_stat_page_size;
+	}
+	mutex_exit(&fil_system->mutex);
+
 #endif /* !UNIV_HOTBACKUP */
 
 	page_zip_fields_free(index);
