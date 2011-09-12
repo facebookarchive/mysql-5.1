@@ -86,6 +86,11 @@ connect (master,localhost,root,,foobar);
 connection slave;
 --let $slave_timeout=3
 --source include/start_slave.inc
+
+connection master;
+sync_slave_with_master;
+
+connection slave;
 --echo Confirm slave is running and has 1 row
 SHOW STATUS LIKE 'Slave_running';
 select length(f1) from t1;

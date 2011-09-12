@@ -48,7 +48,7 @@ SET GLOBAL innodb_release_locks_early=1;
 connection c1
 BEGIN;
 UPDATE t1 SET a=11 WHERE k=1;
-SET DEBUG_SYNC='before_commit_fast SIGNAL c1_ready WAIT_FOR c2_rollback TIMEOUT 30';
+SET DEBUG_SYNC='before_commit_fast SIGNAL c1_ready WAIT_FOR c2_rollback TIMEOUT 4';
 COMMIT;
 connection c2
 SET DEBUG_SYNC='now WAIT_FOR c1_ready TIMEOUT 3';
