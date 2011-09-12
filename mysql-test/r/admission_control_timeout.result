@@ -11,7 +11,8 @@ GRANT ALL PRIVILEGES ON *.* TO 'adminc'@'%' WITH MAX_USER_CONNECTIONS 3 MAX_CONC
 select connection_id() into @cid2;
 select connection_id() into @cid3;
 SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
-select sleep(2);
+SET DEBUG='d,ac_sleep_stall';
+select sleep(1);
 SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping';
 SET DEBUG_SYNC='admission_control_enter_waiting SIGNAL i_am_waiting';
 SET DEBUG_SYNC='admission_control_exit_killed_or_closed SIGNAL i_am_leaving';
@@ -28,7 +29,7 @@ select (@end_time - @start_time) < 5;
 1
 SET DEBUG_SYNC='now WAIT_FOR i_am_leaving';
 ERROR HY000: Lost connection to MySQL server during query
-sleep(2)
+sleep(1)
 0
 drop user 'adminc'@'%';
 SET DEBUG_SYNC= 'RESET';

@@ -15,6 +15,7 @@ begin;
 select * from ti where i=1 for update;
 i
 1
+SET DEBUG='d,ac_sleep_stall';
 select sleep(2);
 begin;
 select * from ti where i=1 for update;
@@ -35,6 +36,7 @@ queries_running	queries_waiting
 1
 sleep(2)
 0
+SET DEBUG='RESET';
 rollback;
 i
 1

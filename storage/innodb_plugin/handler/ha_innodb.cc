@@ -10724,6 +10724,32 @@ innobase_have_innodb()
 		innodb_hton_ptr->state == SHOW_OPTION_YES);
 }
 
+UNIV_INTERN
+int
+innobase_uses_undo_slots(
+/*=======================*/
+	THD*	thd)	/*!< in: MySQL thread */
+{
+	trx_t** trxp;
+	trx_t* trx;
+
+	if (!innodb_hton_ptr ||
+	    innodb_hton_ptr->state != SHOW_OPTION_YES) {
+		return 0;
+	}
+
+	trxp = (trx_t**) thd_ha_data(thd, innodb_hton_ptr);
+	if (!trxp)
+		return 0;
+
+	trx = *trxp;
+	if (!trx)
+		return 0;
+
+	ut_ad(trx->magic_n == TRX_MAGIC_N);
+	return (trx->update_undo || trx->insert_undo);
+}
+
 static
 void
 innobase_read_mysql_slave_state(

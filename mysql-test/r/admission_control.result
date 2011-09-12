@@ -1,3 +1,4 @@
+set global check_client_interval_milliseconds=10000;
 show global variables like "admission_control";
 Variable_name	Value
 admission_control	ON
@@ -10,8 +11,10 @@ select variable_value into @waits1 from information_schema.global_status where v
 show grants;
 Grants for adminc@%
 GRANT ALL PRIVILEGES ON *.* TO 'adminc'@'%' WITH MAX_USER_CONNECTIONS 100 MAX_CONCURRENT_QUERIES 2
-select sleep(2);
-select sleep(2);
+set DEBUG="d,ac_sleep_stall";
+select sleep(1);
+set DEBUG="d,ac_sleep_stall";
+select sleep(1);
 select 1;
 "Should find one blocked statement"
 select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
@@ -19,8 +22,8 @@ User	State	Info
 adminc	wait for max concurrent queries	NULL
 select User, State, Info from information_schema.processlist where Info like 'select sleep%';
 User	State	Info
-adminc	User sleep	select sleep(2)
-adminc	User sleep	select sleep(2)
+adminc	User sleep	select sleep(1)
+adminc	executing	select sleep(1)
 select queries_running, queries_waiting, limit_wait_queries from information_schema.user_statistics where user_name = 'adminc';
 queries_running	queries_waiting	limit_wait_queries
 2	1	1
@@ -29,14 +32,14 @@ select @waits2 - @waits1;
 @waits2 - @waits1
 1
 select variable_value into @waits1 from information_schema.global_status where variable_name = 'Control_admission_waits';
-sleep(2)
+sleep(1)
 0
-sleep(2)
+sleep(1)
 0
 1
 1
-select sleep(2);
-select sleep(2);
+select sleep(1);
+select sleep(1);
 select 1;
 select 1;
 "Should find two blocked statements"
@@ -46,23 +49,24 @@ adminc	wait for max concurrent queries	NULL
 adminc	wait for max concurrent queries	NULL
 select User, State, Info from information_schema.processlist where Info like 'select sleep%';
 User	State	Info
-adminc	User sleep	select sleep(2)
-adminc	User sleep	select sleep(2)
+adminc	User sleep	select sleep(1)
+adminc	executing	select sleep(1)
 select queries_running, queries_waiting, limit_wait_queries from information_schema.user_statistics where user_name = 'adminc';
 queries_running	queries_waiting	limit_wait_queries
-2	2	3
+2	2	4
 select variable_value into @waits2 from information_schema.global_status where variable_name = 'Control_admission_waits';
 select @waits2 - @waits1;
 @waits2 - @waits1
-2
-sleep(2)
+3
+sleep(1)
 0
-sleep(2)
+sleep(1)
 0
 1
 1
 1
 1
 drop user 'adminc'@'%';
+set global check_client_interval_milliseconds=1000;
 select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
 User	Host	max_user_connections	max_concurrent_queries

@@ -28,7 +28,8 @@ let $id3=`select @cid3`;
 # This blocks for two seconds without giving up admission_control entry
 connection ac1;
 SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
-send select sleep(2);
+SET DEBUG='d,ac_sleep_stall';
+send select sleep(1);
 
 # This should timeout waiting to run
 connection ac2;

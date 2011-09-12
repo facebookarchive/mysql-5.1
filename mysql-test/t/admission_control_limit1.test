@@ -18,7 +18,8 @@ connect (ac1, localhost, adminc,,);
 connect (ac2, localhost, adminc,,);
 show grants;
 SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
-send select sleep(2);
+SET DEBUG='d,ac_sleep_stall';
+send select sleep(1);
 
 # This blocks until the previous statement finishes
 connection ac1;
@@ -35,6 +36,7 @@ select queries_running, queries_waiting from information_schema.user_statistics 
 
 connection ac2;
 reap;
+SET DEBUG='RESET';
 connection ac1;
 reap;
 
@@ -45,7 +47,8 @@ reap;
 # This blocks for two seconds without giving up admission_control entry
 connect (ac3, localhost, adminc,,);
 SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
-send select sleep(2);
+SET DEBUG='d,ac_sleep_stall';
+send select sleep(1);
 
 # This blocks until one of the previous statements finish
 connection ac2;
@@ -76,4 +79,5 @@ disconnect ac2;
 disconnect ac3;
 drop user 'adminc'@'%';
 SET DEBUG_SYNC= 'RESET';
+SET DEBUG='RESET';
 select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';

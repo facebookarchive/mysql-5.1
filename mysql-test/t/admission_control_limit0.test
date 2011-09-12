@@ -3,6 +3,7 @@
 # 0 means no limit
 #
 #
+--source include/have_debug.inc
 show global variables like "admission_control";
 
 grant all on *.* to 'adminc'@'%' with max_concurrent_queries 0 max_user_connections 100;
@@ -17,6 +18,7 @@ connect (ac1, localhost, adminc,,);
 # This blocks for two seconds without giving up admission_control entry
 connect (ac2, localhost, adminc,,);
 show grants;
+SET DEBUG='d,ac_sleep_stall';
 send select sleep(2);
 
 sleep 0.5;

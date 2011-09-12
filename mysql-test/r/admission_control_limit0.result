@@ -8,6 +8,7 @@ adminc	%	100	0
 show grants;
 Grants for adminc@%
 GRANT ALL PRIVILEGES ON *.* TO 'adminc'@'%' WITH MAX_USER_CONNECTIONS 100
+SET DEBUG='d,ac_sleep_stall';
 select sleep(2);
 select 1;
 1

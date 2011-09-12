@@ -50,6 +50,7 @@ select 1;
 --echo connection two does select that sleeps
 connect (c2, localhost, adminc2,,);
 SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
+SET DEBUG='d,ac_sleep_stall';
 send select sleep(2);
 
 # This blocks until the previous statement finishes
@@ -61,6 +62,7 @@ select 1;
 
 connection c2;
 reap;
+SET DEBUG='RESET';
 
 connection default;
 --echo admission_control should be disabled
@@ -133,6 +135,7 @@ where variable_name = 'Control_admission_waits';
 # This blocks for two seconds without giving up admission_control entry
 --echo connection two does select that sleeps
 SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
+SET DEBUG='d,ac_sleep_stall';
 send select sleep(2);
 
 # This blocks until the previous statement finishes
@@ -150,6 +153,7 @@ select (@t2 - @t1) < 1;
 
 connection c2;
 reap;
+SET DEBUG='RESET';
 select variable_value into @waits2 from information_schema.global_status
 where variable_name = 'Control_admission_waits';
 --echo should be 0 waits

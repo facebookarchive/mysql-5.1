@@ -1784,7 +1784,7 @@ bool select_send::send_data(List<Item> &items)
   if (thd->vio_ok()) {
     admission_control_exit(thd);
     bool ret = protocol->write();
-    admission_control_enter(thd, FALSE);
+    admission_control_enter(thd, admission_control_wait_reentry);
     DBUG_RETURN(ret);
   }
 
@@ -1811,7 +1811,7 @@ bool select_send::send_eof()
     Don't send EOF if we're in error condition (which implies we've already
     sent or are sending an error)
   */
-  admission_control_enter(thd, FALSE);
+  admission_control_enter(thd, admission_control_wait_reentry);
   if (thd->is_error())
     return TRUE;
   ::my_eof(thd);

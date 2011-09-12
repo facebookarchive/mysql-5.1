@@ -1,6 +1,7 @@
 # test admission_control
 
 --source include/have_innodb_plugin.inc
+--source include/have_debug.inc
 
 --disable_warnings
 drop table if exists ti;
@@ -23,6 +24,7 @@ connect (ac2, localhost, adminc,,);
 connect (ac3, localhost, adminc,,);
 begin;
 select * from ti where i=1 for update;
+SET DEBUG='d,ac_sleep_stall';
 send select sleep(2);
 
 # this one sleeps while trying to lock i=1 in t1
@@ -51,6 +53,7 @@ reap;
 
 connection ac3;
 reap;
+SET DEBUG='RESET';
 rollback;
 
 connection ac2;

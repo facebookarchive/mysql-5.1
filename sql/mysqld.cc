@@ -641,6 +641,7 @@ ulong check_client_interval_msecs= 1000;
 
 my_bool admission_control= FALSE;
 my_bool admission_control_diskio= FALSE;
+my_bool admission_control_wait_reentry= TRUE;
 /* Set to true when bug in admission control state encountered to avoid
    a crash from asserts */
 my_bool admission_control_disabled= FALSE;
@@ -6204,6 +6205,7 @@ enum options_mysqld
   OPT_ALLOW_HINT_TO_MISSING_INDEX,
   OPT_ADMISSION_CONTROL,
   OPT_ADMISSION_CONTROL_DISKIO,
+  OPT_ADMISSION_CONTROL_WAIT_REENTRY,
   OPT_CHECK_CLIENT_INTERVAL,
   OPT_CONNECTION_RECYCLE,
   OPT_CONNECTION_RECYCLE_PCT_CONNECTIONS_MIN,
@@ -7829,6 +7831,11 @@ thread is in the relay logs.",
    "Release admission control locks when performing InnoDB reads",
    &admission_control_diskio, &admission_control_diskio,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"admission_control_wait_reentry", OPT_ADMISSION_CONTROL_WAIT_REENTRY,
+   "Wait in admission control queue to re-enter after IO (disk, network), "
+   "or sleep() function. ",
+   &admission_control_wait_reentry, &admission_control_wait_reentry,
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"check_client_interval_milliseconds", OPT_CHECK_CLIENT_INTERVAL,
    "Interval at which server checks that client is still connected "
    "while its thread is blocked (on lock request, admission_control, "
@@ -8732,6 +8739,7 @@ static int mysql_init_variables(void)
 
   admission_control= FALSE;
   admission_control_diskio= FALSE;
+  admission_control_wait_reentry= FALSE;
   admission_control_disabled= FALSE;
 
   transaction_control_disabled= FALSE;

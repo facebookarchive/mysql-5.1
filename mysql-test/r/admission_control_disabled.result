@@ -41,6 +41,7 @@ select 1;
 1
 connection two does select that sleeps
 SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
+SET DEBUG='d,ac_sleep_stall';
 select sleep(2);
 connection one waits for two seconds
 SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping';
@@ -50,6 +51,7 @@ select 1;
 1
 sleep(2)
 0
+SET DEBUG='RESET';
 admission_control should be disabled
 show global variables like "admission_control";
 Variable_name	Value
@@ -115,6 +117,7 @@ select variable_value into @waits1 from information_schema.global_status
 where variable_name = 'Control_admission_waits';
 connection two does select that sleeps
 SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
+SET DEBUG='d,ac_sleep_stall';
 select sleep(2);
 select now() into @t1;
 connection does not wait
@@ -128,6 +131,7 @@ select (@t2 - @t1) < 1;
 1
 sleep(2)
 0
+SET DEBUG='RESET';
 select variable_value into @waits2 from information_schema.global_status
 where variable_name = 'Control_admission_waits';
 should be 0 waits

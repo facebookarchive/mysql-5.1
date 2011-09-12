@@ -2,6 +2,10 @@
 # test admission_control for max_concurrent_queries = 2
 #
 #
+--source include/have_debug.inc
+
+set global check_client_interval_milliseconds=10000;
+
 show global variables like "admission_control";
 flush statistics;
 
@@ -21,11 +25,13 @@ connect (ac2, localhost, adminc,,);
 
 # This blocks for two seconds without giving up admission_control entry
 connect (ac3, localhost, adminc,,);
-send select sleep(2);
+set DEBUG="d,ac_sleep_stall";
+send select sleep(1);
 
 # This blocks for two seconds without giving up admission_control entry
 connection ac2;
-send select sleep(2);
+set DEBUG="d,ac_sleep_stall";
+send select sleep(1);
 sleep 0.5;
 
 # This blocks until one of the previous statements finish
@@ -58,11 +64,11 @@ connect (ac4, localhost, adminc,,);
 
 # This blocks for two seconds without giving up admission_control entry
 connection ac3;
-send select sleep(2);
+send select sleep(1);
 
 # This blocks for two seconds without giving up admission_control entry
 connection ac2;
-send select sleep(2);
+send select sleep(1);
 sleep 0.5;
 
 # This blocks until one of the previous statements finish
@@ -100,4 +106,5 @@ disconnect ac3;
 disconnect ac4;
 drop user 'adminc'@'%';
 
+set global check_client_interval_milliseconds=1000;
 select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';

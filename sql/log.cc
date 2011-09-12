@@ -4287,6 +4287,8 @@ void MYSQL_BIN_LOG::wait_for_group_commit_order(THD *thd)
     return;
   }
 
+  thd_proc_info(thd, "wait for group commit order");
+
   DEBUG_SYNC(thd, "on_group_commit_dequeue");
 
   set_timespec(cond_wake_time, GROUP_COMMIT_HANG_ERROR_SECONDS);
@@ -4390,6 +4392,8 @@ int MYSQL_BIN_LOG::flush_and_sync(THD *thd, bool async, handlerton *ht, int32 pe
   if (flush_io_cache(&log_file))
     return 1;
 
+  thd_proc_info(thd, "flush and sync binlog");
+
   if (!async && (++sync_binlog_counter >= sync_period && sync_period))
   {
     /*
@@ -4448,6 +4452,7 @@ int MYSQL_BIN_LOG::flush_and_sync(THD *thd, bool async, handlerton *ht, int32 pe
 
       set_timespec_nsec(cond_wake_time, timeout_usecs * 1000);
 
+      thd_proc_info(thd, "flush and sync binlog : wait for gc");
       my_get_fast_timer(&wait_start);
       ++waiting;
       err = pthread_cond_timedwait(&binlog_cond, &LOCK_log, &cond_wake_time);
@@ -4470,6 +4475,7 @@ int MYSQL_BIN_LOG::flush_and_sync(THD *thd, bool async, handlerton *ht, int32 pe
       {
         int fd = log_file.file;
         sync_binlog_counter= 0;
+        thd_proc_info(thd, "flush and sync binlog : fsync");
         my_get_fast_timer(&fsync_start);
         err= my_sync(fd, MYF(MY_WME));
         fsync_time = my_fast_timer_diff_now(&fsync_start, NULL);
@@ -4491,6 +4497,7 @@ int MYSQL_BIN_LOG::flush_and_sync(THD *thd, bool async, handlerton *ht, int32 pe
       int fd = log_file.file;
       waiting= 0;
       sync_binlog_counter= 0;
+      thd_proc_info(thd, "flush and sync binlog : fsync");
       my_get_fast_timer(&fsync_start);
       err= my_sync(fd, MYF(MY_WME));
       fsync_time= my_fast_timer_diff_now(&fsync_start, NULL);

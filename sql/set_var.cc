@@ -1004,6 +1004,12 @@ static sys_var_readonly         sys_myisam_mmap_size(&vars, "myisam_mmap_size",
 static sys_var_bool_ptr sys_admission_control(&vars, "admission_control",
                                               &admission_control);
 static sys_var_bool_ptr
+sys_admission_control_diskio(&vars, "admission_control_diskio",
+                             &admission_control_diskio);
+static sys_var_bool_ptr
+sys_admission_control_wait_reentry(&vars, "admission_control_wait_reentry",
+                                   &admission_control_wait_reentry);
+static sys_var_bool_ptr
 sys_allow_hint_to_missing_index(&vars, "allow_hint_to_missing_index",
                                 &allow_hint_to_missing_index);
 

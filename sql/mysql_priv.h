@@ -2160,6 +2160,7 @@ extern ulong check_client_interval_msecs;
 
 extern my_bool admission_control;
 extern my_bool admission_control_diskio;
+extern my_bool admission_control_wait_reentry;
 extern my_bool admission_control_disabled;
 extern my_bool transaction_control_disabled;
 
@@ -2222,6 +2223,10 @@ ulonglong innobase_get_mysql_master_log_pos();
 
 /** Returns != 0 when the InnoDB plugin has been initialized. */
 SHOW_COMP_OPTION innobase_have_innodb();
+
+/* A kludge for transaction control. Returns 0 when connection
+   does not use InnoDB undo slots, else returns != 0. */
+int innobase_uses_undo_slots(THD*);
 
 #endif /* HAVE_INNODB_BINLOG */
 

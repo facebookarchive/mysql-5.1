@@ -1189,6 +1189,8 @@ int ha_commit_trans(THD *thd, bool all, bool async)
     bool rw_trans;
     handlerton *group_commit_ht= NULL;
 
+    thd_proc_info(thd, "process commit");
+
     DBUG_ASSERT(thd->ticket == 0);
     thd->ticket= 0;
 
@@ -1206,6 +1208,7 @@ int ha_commit_trans(THD *thd, bool all, bool async)
         wait_if_global_read_lock(thd, 0, 0))
     {
       ha_rollback_trans(thd, all);
+      thd_proc_info(thd, "after commit");
       DBUG_RETURN(1);
     }
 
@@ -1247,6 +1250,7 @@ int ha_commit_trans(THD *thd, bool all, bool async)
           Sic: we know that prepare() is not NULL since otherwise
           trans->no_2pc would have been set.
         */
+        thd_proc_info(thd, "process commit: prepare");
         if ((err= ht->prepare(ht, thd, all, async)))
         {
           my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
@@ -1277,6 +1281,7 @@ int ha_commit_trans(THD *thd, bool all, bool async)
       DBUG_EXECUTE_IF("crash_commit_after_prepare", abort(););
       DBUG_EXECUTE_IF("error_on_prepare", error = 1; );
 
+      thd_proc_info(thd, "process commit: binlog");
       if (error || (is_real_trans && xid &&
                     (error= !(cookie= tc_log->log_xid(thd, xid, async,
                                                       group_commit_ht,
@@ -1301,6 +1306,7 @@ int ha_commit_trans(THD *thd, bool all, bool async)
       DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
     }
 
+    thd_proc_info(thd, "process commit: commit");
     error=ha_commit_one_phase(thd, all, async) ? (cookie ? 2 : 1) : 0;
     DBUG_EXECUTE_IF("crash_commit_before_unlog", abort(););
 
@@ -1314,6 +1320,8 @@ end:
 
     if (rw_trans)
       start_waiting_global_read_lock(thd);
+
+    thd_proc_info(thd, "after commit");
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   else if (is_real_trans)

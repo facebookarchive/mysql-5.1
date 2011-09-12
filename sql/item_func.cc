@@ -3460,6 +3460,7 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
 
+  admission_control_exit(thd);
   set_timespec(abstime,timeout);
   error= 0;
   while (ull->locked && !thd->killed)
@@ -3503,6 +3504,9 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
+
+  /* Don't wait to reenter as you now hold a lock that others might block on */
+  admission_control_enter(thd, FALSE);
 
   DBUG_RETURN(!error ? 1 : 0);
 }
@@ -3689,7 +3693,9 @@ longlong Item_func_sleep::val_int()
   thd->mysys_var->current_cond=  &cond;
 
   DEBUG_SYNC(thd, "in_sleep_func");
+  DBUG_EXECUTE_IF("ac_sleep_stall", sleep(2););
 
+  admission_control_exit(thd);
   error= 0;
   while (!thd->killed)
   {
@@ -3706,6 +3712,8 @@ longlong Item_func_sleep::val_int()
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
   pthread_cond_destroy(&cond);
+
+  admission_control_enter(thd, admission_control_wait_reentry);
 
   return test(!error); 		// Return 1 killed
 }
