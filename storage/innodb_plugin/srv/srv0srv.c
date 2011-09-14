@@ -2182,7 +2182,6 @@ export_zip(
 	ib_int64_t*		decompressed_primary_usec,
 	ulint*			decompressed_secondary,
 	ib_int64_t*		decompressed_secondary_usec,
-	ulint*			page_splits_comp_fail,
 	page_zip_stat_t*	zip_stat)
 {
 	*compressed		= zip_stat->compressed;
@@ -2203,7 +2202,6 @@ export_zip(
 	*decompressed_primary_usec = zip_stat->decompressed_primary_usec;
 	*decompressed_secondary	= zip_stat->decompressed_secondary;
 	*decompressed_secondary_usec = zip_stat->decompressed_secondary_usec;
-	*page_splits_comp_fail = zip_stat->page_splits_comp_fail;
 }
 
 /******************************************************************//**
@@ -2507,7 +2505,6 @@ srv_export_innodb_status(void)
 				&export_vars.zip1024_decompressed_primary_usec,
 				&export_vars.zip1024_decompressed_secondary,
 				&export_vars.zip1024_decompressed_secondary_usec,
-				&export_vars.zip1024_page_splits_comp_fail,
 				zip_stat);
 			break;
 		case 2048:
@@ -2529,7 +2526,6 @@ srv_export_innodb_status(void)
 				&export_vars.zip2048_decompressed_primary_usec,
 				&export_vars.zip2048_decompressed_secondary,
 				&export_vars.zip2048_decompressed_secondary_usec,
-				&export_vars.zip2048_page_splits_comp_fail,
 				zip_stat);
 			break;
 		case 4096:
@@ -2551,7 +2547,6 @@ srv_export_innodb_status(void)
 				&export_vars.zip4096_decompressed_primary_usec,
 				&export_vars.zip4096_decompressed_secondary,
 				&export_vars.zip4096_decompressed_secondary_usec,
-				&export_vars.zip4096_page_splits_comp_fail,
 				zip_stat);
 			break;
 		case 8192:
@@ -2573,7 +2568,6 @@ srv_export_innodb_status(void)
 				&export_vars.zip8192_decompressed_primary_usec,
 				&export_vars.zip8192_decompressed_secondary,
 				&export_vars.zip8192_decompressed_secondary_usec,
-				&export_vars.zip8192_page_splits_comp_fail,
 				zip_stat);
 			break;
 		case 16384:
@@ -2595,16 +2589,12 @@ srv_export_innodb_status(void)
 				&export_vars.zip16384_decompressed_primary_usec,
 				&export_vars.zip16384_decompressed_secondary,
 				&export_vars.zip16384_decompressed_secondary_usec,
-				&export_vars.zip16384_page_splits_comp_fail,
 				zip_stat);
 			break;
 		default:
 			break;
 		}
 	}
-	export_vars.page_splits_comp_fail = btr_cur_page_splits_comp_fail;
-	export_vars.page_splits_page_full = btr_cur_page_splits_page_full;
-	export_vars.page_splits_total = btr_cur_page_splits_total;
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 

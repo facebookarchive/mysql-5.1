@@ -1185,15 +1185,6 @@ static ST_FIELD_INFO	i_s_cmp_fields_info[] =
 		    " in Seconds"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		"page_splits_comp_fail"),
-	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"Total Number of Page Splits Caused by Compression"
-	      " Failures"),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
 	END_OF_ST_FIELD_INFO
 };
 
@@ -1262,7 +1253,6 @@ i_s_cmp_fill_low(
 		table->field[++col]->store(zip_stat->decompressed_secondary);
 		table->field[++col]->store(
 			(ulong) (zip_stat->decompressed_secondary_usec / 1000000));
-		table->field[++col]->store(zip_stat->page_splits_comp_fail);
 
 		if (reset) {
 			memset(zip_stat, 0, sizeof *zip_stat);

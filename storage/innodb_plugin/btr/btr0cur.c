@@ -86,10 +86,6 @@ srv_refresh_innodb_monitor_stats().  Referenced by
 srv_printf_innodb_monitor(). */
 UNIV_INTERN ulint	btr_cur_n_sea_old	= 0;
 
-UNIV_INTERN ullint btr_cur_page_splits_comp_fail = 0;
-UNIV_INTERN ullint btr_cur_page_splits_page_full = 0;
-UNIV_INTERN ullint btr_cur_page_splits_total = 0;
-
 /** In the optimistic insert, if the insert does not fit, but this much space
 can be released by page reorganize, then it is reorganized */
 #define BTR_CUR_PAGE_REORGANIZE_LIMIT	(UNIV_PAGE_SIZE / 32)
@@ -1049,8 +1045,6 @@ btr_cur_optimistic_insert(
 				be stored externally by the caller, or
 				NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	ibool		update_split_stats, /*!< in: if set, page_splits variables will be
-	                              updated */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
 	mtr_t*		mtr)	/*!< in: mtr; if this function returns
 				DB_SUCCESS on a leaf page of a secondary
@@ -1165,8 +1159,6 @@ btr_cur_optimistic_insert(
 	    && (dict_index_get_space_reserve() + rec_size > max_size)
 	    && (btr_page_get_split_rec_to_right(cursor, &dummy_rec)
 		|| btr_page_get_split_rec_to_left(cursor, &dummy_rec))) {
-		if (update_split_stats)
-			++btr_cur_page_splits_page_full;
 fail:
 		err = DB_FAIL;
 fail_err:
@@ -1182,8 +1174,6 @@ fail_err:
 			  || max_size < rec_size)
 	    && UNIV_LIKELY(page_get_n_recs(page) > 1)
 	    && page_get_max_insert_size(page, 1) < rec_size) {
-		if (update_split_stats)
-			++btr_cur_page_splits_page_full;
 		goto fail;
 	}
 
@@ -1216,10 +1206,6 @@ fail_err:
 		/* If the record did not fit, reorganize */
 		if (UNIV_UNLIKELY(!btr_page_reorganize(block, index, mtr))) {
 			ut_a(zip_size);
-			if (update_split_stats) {
-				++btr_cur_page_splits_comp_fail;
-				++page_zip_stat[zip_ssize - 1].page_splits_comp_fail;
-			}
 			goto fail;
 		}
 
@@ -1235,10 +1221,6 @@ fail_err:
 
 		if (UNIV_UNLIKELY(!*rec)) {
 			if (UNIV_LIKELY(zip_size != 0)) {
-				if (update_split_stats) {
-					++btr_cur_page_splits_comp_fail;
-					++page_zip_stat[zip_ssize - 1].page_splits_comp_fail;
-				}
 				goto fail;
 			}
 
@@ -1358,7 +1340,7 @@ btr_cur_pessimistic_insert(
 
 	if (try_optimistic) {
 		err = btr_cur_optimistic_insert(flags, cursor, entry, rec,
-		                                big_rec, n_ext, TRUE, thr, mtr);
+		                                big_rec, n_ext, thr, mtr);
 		if (err != DB_FAIL) {
 
 			return(err);
