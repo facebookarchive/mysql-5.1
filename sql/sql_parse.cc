@@ -1054,7 +1054,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   my_fast_timer_t init_timer, last_timer;
   my_io_perf_t start_perf_read;   /* for USER_STATISTICS */
   my_bool async_commit= FALSE;
-  int has_undo_slots= 0;
 
   /* For per-query performance counters with log_slow_statement */
   struct system_status_var query_start_status;
@@ -1068,26 +1067,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     goto skip_ac;
 #endif
 
-#ifdef HAVE_INNODB_BINLOG
-  /* Determine if this connection might be subject to transaction control
-     and already has undo slots for a current transaction. In that case
-     it should not wait in admission_control_entry.
-  */
-  if (!transaction_control_disabled &&
-      thd->user_connect &&
-      thd->user_connect->user_resources.max_concurrent_transactions)
-  {
-    has_undo_slots= innobase_uses_undo_slots(thd);
-  }
-#endif
-
   if (command != COM_CHANGE_USER)
   {
     /*
        It is simpler to not enforce AC for change_user than to adjust counts
        for the old and new user.
     */
-    if (admission_control_enter(thd, !has_undo_slots))
+    if (admission_control_enter(thd, TRUE))
     {
       my_message(ER_ADMISSION_CONTROL_TIMEOUT, ER(ER_ADMISSION_CONTROL_TIMEOUT),
                  MYF(0));
@@ -8613,6 +8599,19 @@ int admission_control_enter(THD* thd, my_bool wait)
 
 #ifndef DBUG_OFF
   ++admission_depth;
+#endif
+
+#ifdef HAVE_INNODB_BINLOG
+  /* Determine if this connection might be subject to transaction control
+     and already has undo slots for a current transaction. In that case
+     it should not wait in admission_control_entry.
+  */
+  if (!transaction_control_disabled &&
+      uc->user_resources.max_concurrent_transactions &&
+      innobase_uses_undo_slots(thd))
+  {
+    wait= FALSE;
+  }
 #endif
 
   if (!wait || thd->uses_admission_control == QUERY_COUNTED)
