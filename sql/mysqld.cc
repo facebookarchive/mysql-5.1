@@ -640,7 +640,7 @@ ulong reserved_super_connections=0;
 ulong check_client_interval_msecs= 1000;
 
 my_bool admission_control= FALSE;
-my_bool admission_control_diskio= FALSE;
+my_bool admission_control_diskio= TRUE;
 my_bool admission_control_wait_reentry= TRUE;
 /* Set to true when bug in admission control state encountered to avoid
    a crash from asserts */
@@ -7830,7 +7830,7 @@ thread is in the relay logs.",
   {"admission_control_diskio", OPT_ADMISSION_CONTROL_DISKIO,
    "Release admission control locks when performing InnoDB reads",
    &admission_control_diskio, &admission_control_diskio,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"admission_control_wait_reentry", OPT_ADMISSION_CONTROL_WAIT_REENTRY,
    "Wait in admission control queue to re-enter after IO (disk, network), "
    "or sleep() function. ",
@@ -8738,7 +8738,7 @@ static int mysql_init_variables(void)
   allow_hint_to_missing_index= FALSE;
 
   admission_control= FALSE;
-  admission_control_diskio= FALSE;
+  admission_control_diskio= TRUE;
   admission_control_wait_reentry= FALSE;
   admission_control_disabled= FALSE;
 
