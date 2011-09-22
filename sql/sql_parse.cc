@@ -8645,7 +8645,7 @@ int admission_control_enter(THD* thd, my_bool wait)
 
   while (1)
   {
-    int32 nr= uc->queries_running;
+    int32 nr;
     struct timespec abstime;
 
     if (admission_control_disabled)
@@ -8665,6 +8665,7 @@ int admission_control_enter(THD* thd, my_bool wait)
       DBUG_RETURN(1);
     }
 
+    nr= uc->queries_running;
     if (nr < uc->user_resources.max_concurrent_queries &&
         my_atomic_cas32(&(uc->queries_running), &nr, nr+1))
     {
