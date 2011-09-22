@@ -12266,6 +12266,12 @@ static MYSQL_SYSVAR_BOOL(drop_table_phase1, srv_drop_table_phase1,
   "counters Innodb_drop_table_phase[12]_seconds to determine the costs.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_ULONG(uncache_table_batch, srv_uncache_table_batch,
+  PLUGIN_VAR_RQCMDARG,
+  "Release and relock the buffer pool mutex after this number of pages "
+  "are checked while processing FLUSH TABLES foobar WITH MEMORY CACHE.",
+  NULL, NULL, 1000, 100, 2000000000, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -12351,6 +12357,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(sync_checkpoint_limit),
   MYSQL_SYSVAR(use_purge_thread),
   MYSQL_SYSVAR(drop_table_phase1),
+  MYSQL_SYSVAR(uncache_table_batch),
   NULL
 };
 

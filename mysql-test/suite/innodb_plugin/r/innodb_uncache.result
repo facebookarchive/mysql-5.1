@@ -1,0 +1,35 @@
+drop table if exists t, tc, s, sc;
+""
+Confirm SHOW options work
+""
+show global variables like "innodb_uncache_table_batch";
+Variable_name	Value
+innodb_uncache_table_batch	1000
+set global innodb_uncache_table_batch=150;
+show global variables like "innodb_uncache_table_batch";
+Variable_name	Value
+innodb_uncache_table_batch	150
+create table s(i int primary key auto_increment, c char(100) default '') engine=innodb;
+insert into s (i) values (null), (null), (null), (null);
+insert into s select null, c from s;
+insert into s select null, c from s;
+insert into s select null, c from s;
+insert into s select null, c from s;
+insert into s select null, c from s;
+insert into s select null, c from s;
+insert into s select null, c from s;
+insert into s select null, c from s;
+insert into s select null, c from s;
+create table sc(i int primary key auto_increment, c char(100) default '') engine=innodb key_block_size = 8;
+insert into sc select * from s;
+create table t(i int primary key auto_increment, c char(100) default '') engine=innodb;
+insert into t select * from s;
+flush tables t with memory cache;
+drop table t;
+create table tc(i int primary key auto_increment, c char(100) default '') engine=innodb key_block_size = 8;
+insert into tc select * from s;
+flush tables tc with memory cache;
+drop table tc;
+set global innodb_uncache_table_batch=1000;
+drop table s;
+drop table sc;

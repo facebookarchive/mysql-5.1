@@ -282,6 +282,24 @@ struct buf_chunk_struct{
 };
 #endif /* !UNIV_HOTBACKUP */
 
+/*********************************************************************//**
+Get the nth chunk's buffer block in the specified buffer pool.
+@return the nth chunk's buffer block. */
+UNIV_INTERN
+buf_block_t*
+buf_get_nth_chunk_block(
+/*====================*/
+	const buf_pool_t* buf_pool,	/*!< in: buffer pool instance */
+	ulint		n,		/*!< in: nth chunk in the buffer pool */
+	ulint*		chunk_size)	/*!< in: chunk size */
+{
+	const buf_chunk_t*      chunk;
+
+	chunk = buf_pool->chunks + n;
+	*chunk_size = chunk->size;
+	return(chunk->blocks);
+}
+
 /********************************************************************//**
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value on

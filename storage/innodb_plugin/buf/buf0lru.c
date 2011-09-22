@@ -631,66 +631,6 @@ buf_LRU_free_from_common_LRU_list(
 }
 
 /******************************************************************//**
-Free all clean pages for a given tablespace.
-*/
-UNIV_INTERN
-void
-buf_LRU_free_tablespace(
-/*==============================*/
-	ulint	id)	/*!< in: space id */
-{
-	buf_page_t*	bpage;
-
-	buf_pool_mutex_enter();
-
-	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
-
-	while (bpage != NULL) {
-		buf_page_t*	next_bpage;
-
-		ut_ad(buf_page_in_file(bpage));
-		ut_ad(bpage->in_LRU_list);
-
-		next_bpage = UT_LIST_GET_NEXT(LRU, bpage);
-
-		/* bpage->space and bpage->io_fix are protected by
-		buf_pool_mutex and block_mutex.  It is safe to check
-		them while holding buf_pool_mutex only. */
-
-		if (buf_page_get_space(bpage) != id) {
-			/* Skip this block, as it does not belong to
-			the space that is being invalidated. */
-		} else if (buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
-			/* We cannot remove this page during this scan
-			yet; maybe the system is currently reading it
-			in, or flushing the modifications to the file */
-		} else {
-			mutex_t* next_block_mutex;
-
-			if (next_bpage) {
-				next_block_mutex = buf_page_get_mutex(next_bpage);
-
-				mutex_enter(next_block_mutex);
-				next_bpage->buf_fix_count++;
-				mutex_exit(next_block_mutex);
-			}
-
-			buf_LRU_free_block(bpage, TRUE);
-
-			if (next_bpage) {
-				mutex_enter(next_block_mutex);
-				next_bpage->buf_fix_count--;
-				mutex_exit(next_block_mutex);
-			}
-		}
-
-		bpage = next_bpage;
-	}
-
-	buf_pool_mutex_exit();
-}
-
-/******************************************************************//**
 Try to free a replaceable block.
 @return	TRUE if found and freed */
 UNIV_INTERN

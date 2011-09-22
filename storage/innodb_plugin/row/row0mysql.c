@@ -2363,7 +2363,7 @@ row_flush_memory_cache_for_mysql(
 		return DB_ERROR;
 	}
 
-	buf_LRU_free_tablespace(table->space);
+	buf_uncache_tablespace(table->space);
 
 	return DB_SUCCESS;
 }

@@ -1848,6 +1848,103 @@ buf_flush_get_desired_flush_rate(void)
 	return(rate > 0 ? (ulint) rate : 0);
 }
 
+/******************************************************************//**
+This is a best effort attempt to flush a tablespace from InnoDB. It can
+be used to reduce the work that must be done during DROP TABLE or for
+performance testing. This releases the buffer pool mutex every
+srv_uncache_table_batch pages so some pages might be missed. That is
+done to avoid stalls on the buffer pool mutex. Writes are scheduled
+for dirty pages so they are only moved to the end of the LRU when the
+write finishes. Only clean pages can be uncached.
+*/
+UNIV_INTERN
+void
+buf_uncache_tablespace(
+/*==============================*/
+	ulint	id)	/*!< in: space id */
+{
+	ulint	chunk_num;
+	ulint	n_flushed = 0;
+
+	buf_pool_mutex_enter();
+
+	while ((buf_pool->n_flush[BUF_FLUSH_LRU] > 0) ||
+	       (buf_pool->init_flush[BUF_FLUSH_LRU] == TRUE)) {
+
+		buf_pool_mutex_exit();
+		buf_flush_wait_batch_end(BUF_FLUSH_LRU);
+		buf_pool_mutex_enter();
+	}
+	buf_pool->init_flush[BUF_FLUSH_LRU] = TRUE;
+
+        for (chunk_num = 0; chunk_num < buf_pool->n_chunks; ++chunk_num) {
+		ulint		chunk_size;
+                ulint           block_num;
+                buf_block_t*    block   = buf_get_nth_chunk_block(buf_pool,
+							chunk_num, &chunk_size);
+                int             n_checked = 0;
+
+                for (block_num = 0; block_num < chunk_size; ++block_num, ++block) {
+                        mutex_t*        block_mutex;
+			buf_page_t*	bpage;
+
+			++n_checked;		
+                        if (n_checked >= srv_uncache_table_batch) {
+                                buf_pool_mutex_exit();
+				os_thread_yield();
+                                buf_pool_mutex_enter();
+                                n_checked = 0;
+                        }
+
+                        bpage = &block->page;
+                        if (!bpage)
+                                continue;
+
+			if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE ||
+			    buf_page_get_space(bpage) != id) {
+				/* Nothing can be done with this page. Per comments and
+ 				usage elsewhere, these can be read without locking
+				block_mutex. */
+				continue;
+			}
+
+			block_mutex = buf_page_get_mutex(bpage);
+			mutex_enter(block_mutex);
+
+			ut_ad(bpage->in_LRU_list);
+
+			if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_LRU)) {
+				/* Schedule the dirty page to be written. When the write
+				is done it will be moved to the end of the LRU.
+				buf_flush_page releases the buffer pool and block mutex. */
+
+				buf_flush_page(bpage, BUF_FLUSH_LRU);
+				ut_ad(!mutex_own(block_mutex));
+				++n_flushed;
+				buf_pool_mutex_enter();
+				continue;
+			}
+
+			/* This might release & relock the buffer pool and block mutex */
+			buf_LRU_free_block(bpage, TRUE);
+
+			mutex_exit(block_mutex);
+		}
+	}
+
+	ut_ad(buf_pool->init_flush[BUF_FLUSH_LRU] == TRUE);
+	buf_pool->init_flush[BUF_FLUSH_LRU] = FALSE;
+	if (buf_pool->n_flush[BUF_FLUSH_LRU] == 0) {
+		/* The running flush batch has ended */
+		os_event_set(buf_pool->no_flush[BUF_FLUSH_LRU]);
+	}
+
+	buf_pool_mutex_exit();
+
+	if (n_flushed)
+		buf_flush_buffered_writes();
+}
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**
 Validates the flush list.

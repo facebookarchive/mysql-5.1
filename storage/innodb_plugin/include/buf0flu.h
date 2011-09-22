@@ -32,6 +32,14 @@ Created 11/5/1995 Heikki Tuuri
 #include "mtr0types.h"
 #include "buf0types.h"
 
+/******************************************************************//**
+Try to uncache a tablespace by removing pages from the LRU and adaptive
+hash index and scheduling writes for dirty pages on the flush_list.  */
+UNIV_INTERN
+void
+buf_uncache_tablespace(
+/*==============================*/
+        ulint   id);    /*!< in: space id */
 /********************************************************************//**
 Remove a block from the flush list of modified blocks. */
 UNIV_INTERN

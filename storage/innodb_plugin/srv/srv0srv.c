@@ -162,6 +162,10 @@ UNIV_INTERN double	srv_drop_table_phase1_secs	= 0;
 /** Time in buf_LRU_invalidate_tablespace during drop table */
 UNIV_INTERN double	srv_drop_table_phase2_secs	= 0;
 
+/** Release & relock the buffer pool mutex after this number of pages
+have been checked in buf_LRU_free_tablespace */
+UNIV_INTERN ulint	srv_uncache_table_batch	= 1000;
+
 /** Workaround to avoid assert from bugs.mysql.com/62037 */
 UNIV_INTERN my_bool	srv_b62037	= TRUE;
 

@@ -127,6 +127,8 @@ extern my_bool     srv_drop_table_phase1;
 extern double      srv_drop_table_phase1_secs;
 extern double      srv_drop_table_phase2_secs;
 
+extern ulint	srv_uncache_table_batch;
+
 extern my_bool	srv_b62037;
 
 extern ibool	srv_auto_extend_last_data_file;

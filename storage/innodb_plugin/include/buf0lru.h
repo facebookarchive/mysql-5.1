@@ -121,14 +121,6 @@ buf_LRU_search_and_free_block(
 				n_iterations < 5, then we will also search
 				n_iterations / 5 of the unzip_LRU list. */
 /******************************************************************//**
-Free all clean pages for a given tablespace.
-*/
-UNIV_INTERN
-void
-buf_LRU_free_tablespace(
-/*==============================*/
-	ulint	id);	/*!< in: space id */
-/******************************************************************//**
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL.
 @return	a free control block, or NULL if the buf_block->free list is empty */

@@ -1,0 +1,31 @@
+# confirm that FLUSH TABLES foobar WITH MEMORY CACHE works
+
+-- source include/have_innodb_plugin.inc
+
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+
+--echo ""
+--echo Confirm SHOW options work
+--echo ""
+
+show global variables like "innodb_uncache_table_batch";
+set global innodb_uncache_table_batch=150;
+show global variables like "innodb_uncache_table_batch";
+
+create table t(i int primary key auto_increment) engine=innodb;
+insert into t values (null), (null), (null), (null);
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+
+flush tables t with memory cache;
+drop table t;
+
+set global innodb_uncache_table_batch=1000;

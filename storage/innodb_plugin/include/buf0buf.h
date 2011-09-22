@@ -103,6 +103,16 @@ enum buf_page_state {
 };
 
 #ifndef UNIV_HOTBACKUP
+/*********************************************************************//**
+Get the nth chunk's buffer block in the specified buffer pool.
+@return the nth chunk's buffer block. */
+UNIV_INTERN
+buf_block_t*
+buf_get_nth_chunk_block(
+/*====================*/
+        const buf_pool_t* buf_pool,     /*!< in: buffer pool instance */
+        ulint           n,              /*!< in: nth chunk in the buffer pool */
+        ulint*          chunk_size);    /*!< in: chunk size */
 /********************************************************************//**
 Creates the buffer pool.
 @return	own: buf_pool object, NULL if not enough memory or error */
