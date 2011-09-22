@@ -229,12 +229,15 @@ static
 void
 buf_LRU_drop_page_hash_for_tablespace(
 /*==================================*/
-	ulint	id)	/*!< in: space id */
+	ulint	id,	/*!< in: space id */
+	int*	rescan)	/*!< out: number of times LRU was rescanned */
 {
 	buf_page_t*	bpage;
 	ulint*		page_arr;
 	ulint		num_entries;
 	ulint		zip_size;
+
+	*rescan = 0;
 
 	zip_size = fil_space_get_zip_size(id);
 
@@ -312,6 +315,7 @@ next_page:
 		bpage->state is protected by buf_pool mutex. */
 		if (bpage && !buf_page_in_file(bpage)) {
 			ut_a(num_entries == 0);
+			++(*rescan);
 			goto scan_again;
 		}
 	}
@@ -334,14 +338,27 @@ buf_LRU_invalidate_tablespace(
 {
 	buf_page_t*	bpage;
 	ibool		all_freed;
+	my_fast_timer_t	fast_timer;
+	double		phase1_secs, phase2_secs;
+	int		rescan_phase1		= 0;
+	int		rescan_all_freed	= 0;
+	int		rescan_drop_hash	= 0;
+	ulint		n_pages			= 0;
+
+	my_get_fast_timer(&fast_timer);
 
 	/* Before we attempt to drop pages one by one we first
 	attempt to drop page hash index entries in batches to make
 	it more efficient. The batching attempt is a best effort
 	attempt and does not guarantee that all pages hash entries
 	will be dropped. We get rid of remaining page hash entries
-	one by one below. */
-	buf_LRU_drop_page_hash_for_tablespace(id);
+	one by one below. Note that this call isn't required. It attempts
+	to reduce the overhead from removing pages in the hash index but
+	it has a big cost as it locks the buffer pool mutex. */
+	if (srv_drop_table_phase1)
+		buf_LRU_drop_page_hash_for_tablespace(id, &rescan_phase1);
+
+	phase1_secs = my_fast_timer_diff_now(&fast_timer, &fast_timer);
 
 scan_again:
 	buf_pool_mutex_enter();
@@ -420,8 +437,10 @@ scan_again:
 
 			btr_search_drop_page_hash_when_freed(
 				id, zip_size, page_no);
+			++rescan_drop_hash;
 			goto scan_again;
 		}
+		++n_pages;
 
 		if (bpage->oldest_modification != 0) {
 
@@ -448,10 +467,21 @@ next_page:
 	buf_pool_mutex_exit();
 
 	if (!all_freed) {
+		++rescan_all_freed;
 		os_thread_sleep(20000);
 
 		goto scan_again;
 	}
+
+	phase2_secs = my_fast_timer_diff_now(&fast_timer, &fast_timer);
+	fprintf(stderr, "InnoDB: buf_LRU_invalidate_tablespace found %lu pages "
+		"with rescan: (%d,%d,%d) (phase1,all_freed,drop_hash) and "
+		"locked seconds: (%.6f,%.6f) (phase1,phase2).\n",
+		n_pages,
+		rescan_phase1, rescan_all_freed, rescan_drop_hash,
+		phase1_secs, phase2_secs);
+	srv_drop_table_phase1_secs += phase1_secs;
+	srv_drop_table_phase2_secs += phase2_secs;
 }
 
 /* zip_clean has been made debug only. See the field declaration. */

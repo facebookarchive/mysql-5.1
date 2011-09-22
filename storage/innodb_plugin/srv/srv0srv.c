@@ -151,6 +151,17 @@ UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 
 UNIV_INTERN ulint	srv_use_purge_thread = 0;
 
+/** Call buf_LRU_drop_page_hash_for_tablespace during drop table. The
+original behavior is to call it but that increases buffer pool
+mutex stalls during drop table. The call is not required. */
+UNIV_INTERN my_bool	srv_drop_table_phase1	= TRUE;
+
+/** Time in buf_LRU_drop_page_hash_for_tablespace during drop table */
+UNIV_INTERN double	srv_drop_table_phase1_secs	= 0;
+
+/** Time in buf_LRU_invalidate_tablespace during drop table */
+UNIV_INTERN double	srv_drop_table_phase2_secs	= 0;
+
 /** Workaround to avoid assert from bugs.mysql.com/62037 */
 UNIV_INTERN my_bool	srv_b62037	= TRUE;
 
@@ -2476,6 +2487,9 @@ srv_export_innodb_status(void)
 	export_vars.innodb_lsn_current = lsn_current;
 	export_vars.innodb_lsn_oldest = lsn_oldest;
 	export_vars.innodb_lsn_diff = lsn_gap;
+
+	export_vars.drop_table_phase1_secs = srv_drop_table_phase1_secs;
+	export_vars.drop_table_phase2_secs = srv_drop_table_phase2_secs;
 
 	export_vars.innodb_trx_doublewrite_page_no =
 		trx_doublewrite ? trx_doublewrite->block1 : 0;

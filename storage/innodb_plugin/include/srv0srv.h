@@ -123,6 +123,10 @@ extern ulint*	srv_data_file_is_raw_partition;
 
 extern ulint	srv_use_purge_thread;
 
+extern my_bool     srv_drop_table_phase1;
+extern double      srv_drop_table_phase1_secs;
+extern double      srv_drop_table_phase2_secs;
+
 extern my_bool	srv_b62037;
 
 extern ibool	srv_auto_extend_last_data_file;
@@ -1029,6 +1033,8 @@ struct export_var_struct{
 	ib_int64_t	zip16384_decompressed_primary_usec;
 	ulint		zip16384_decompressed_secondary;
 	ib_int64_t	zip16384_decompressed_secondary_usec;
+	double		drop_table_phase1_secs;
+	double		drop_table_phase2_secs;
 };
 
 /** The server system struct */

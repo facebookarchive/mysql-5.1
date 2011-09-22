@@ -675,6 +675,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
   {"dblwr_writes",
   (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
+  {"drop_table_phase1_seconds",
+  (char*) &export_vars.drop_table_phase1_secs,            SHOW_DOUBLE},
+  {"drop_table_phase2_seconds",
+  (char*) &export_vars.drop_table_phase2_secs,            SHOW_DOUBLE},
   {"have_atomic_builtins",
   (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
   {"ibuf_merged_records",
@@ -12248,6 +12252,15 @@ static MYSQL_SYSVAR_ULONG(use_purge_thread, srv_use_purge_thread,
   "Number of purge devoted threads. #### over 1 is EXPERIMENTAL ####",
   NULL, NULL, 0, 0, UNIV_MAX_PARALLELISM, 0);
 
+static MYSQL_SYSVAR_BOOL(drop_table_phase1, srv_drop_table_phase1,
+  PLUGIN_VAR_NOCMDARG,
+  "If enabled this calls buf_LRU_drop_page_hash_for_tablespace to "
+  "optimize one part of drop table processing while creating more dogpiles "
+  "on the buffer pool mutex. The call is not required and is not done "
+  "when this is false. Unmodified MySQL always calls it. See SHOW STATUS "
+  "counters Innodb_drop_table_phase[12]_seconds to determine the costs.",
+  NULL, NULL, TRUE);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -12332,6 +12345,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(merge_sort_block_size),
   MYSQL_SYSVAR(sync_checkpoint_limit),
   MYSQL_SYSVAR(use_purge_thread),
+  MYSQL_SYSVAR(drop_table_phase1),
   NULL
 };
 

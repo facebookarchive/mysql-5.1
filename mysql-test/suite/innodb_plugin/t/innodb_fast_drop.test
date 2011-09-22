@@ -1,0 +1,71 @@
+# confirm that DROP TABLE works with innodb_background_drop_table
+
+-- source include/have_innodb_plugin.inc
+
+--disable_warnings
+drop table if exists t;
+drop table if exists s;
+--enable_warnings
+
+--echo ""
+--echo Confirm SHOW options work
+--echo ""
+
+show global variables like "innodb_drop_table_phase1";
+set global innodb_drop_table_phase1=OFF;
+show global variables like "innodb_drop_table_phase1";
+
+select variable_name from information_schema.global_status
+where variable_name like "Innodb_drop_table_phase%" order by variable_name;
+
+create table t(i int primary key auto_increment) engine=innodb;
+insert into t values (null), (null), (null), (null);
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+create table s engine=innodb as select * from t;
+
+--echo ""
+--echo Confirm timers don't go backwards with option off
+--echo ""
+select variable_name into @a_p1secs from information_schema.global_status
+where variable_name = "Innodb_drop_table_phase1_seconds";
+select variable_name into @a_p2secs from information_schema.global_status
+where variable_name = "Innodb_drop_table_phase2_seconds";
+
+drop table t;
+
+select variable_name into @b_p1secs from information_schema.global_status
+where variable_name = "Innodb_drop_table_phase1_seconds";
+select variable_name into @b_p2secs from information_schema.global_status
+where variable_name = "Innodb_drop_table_phase2_seconds";
+
+eval select (@b_p1secs - @a_p1secs) >= 0;
+eval select (@b_p2secs - @a_p2secs) >= 0;
+
+set global innodb_drop_table_phase1=ON;
+show global variables like "innodb_drop_table_phase1";
+
+--echo ""
+--echo Confirm timers don't go backwards with option on
+--echo ""
+select variable_name into @a_p1secs from information_schema.global_status
+where variable_name = "Innodb_drop_table_phase1_seconds";
+select variable_name into @a_p2secs from information_schema.global_status
+where variable_name = "Innodb_drop_table_phase2_seconds";
+
+drop table s;
+
+select variable_name into @b_p1secs from information_schema.global_status
+where variable_name = "Innodb_drop_table_phase1_seconds";
+select variable_name into @b_p2secs from information_schema.global_status
+where variable_name = "Innodb_drop_table_phase2_seconds";
+
+eval select (@b_p1secs - @a_p1secs) >= 0;
+eval select (@b_p2secs - @a_p2secs) >= 0;
+
