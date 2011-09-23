@@ -1,0 +1,61 @@
+# BUG#59338 Inconsistency in binlog for statements that don't change any rows STATEMENT SBR
+# In SBR, if a statement does not fail, it is always written to the binary log,
+# regardless if rows are changed or not. If there is a failure, a statement is
+# only written to the binary log if a non-transactional (.e.g. MyIsam) engine
+# is updated. INSERT ON DUPLICATE KEY UPDATE was not following the rule above
+# and was not written to the binary log, if then engine was Innodb.
+#
+# In this test case, we check if INSERT ON DUPLICATE KEY UPDATE that does not
+# change anything is still written to the binary log.
+
+-- source include/master-slave.inc
+-- source include/have_innodb.inc
+
+# Prepare environment
+--connection master
+
+eval CREATE TABLE t1 (
+ a INT UNSIGNED NOT NULL PRIMARY KEY
+) ENGINE=innodb;
+
+eval CREATE TABLE t2 (
+ a INT UNSIGNED
+) ENGINE=innodb;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+# An insert duplicate that does not update anything must be written to the binary
+# log in SBR and MIXED modes. We check this property by summing a before and after
+# the update and comparing the binlog positions. The sum should be the same at both
+# points and the statement should be in the binary log.
+
+--let $m_pos1= query_get_value("SHOW MASTER STATUS", Position, 1)
+INSERT INTO t1 SELECT t2.a FROM t2 ORDER BY t2.a ON DUPLICATE KEY UPDATE t1.a= t1.a;
+--let $m_pos2= query_get_value("SHOW MASTER STATUS", Position, 1)
+
+--echo The binlog does not advance for ROW and advances otherwise
+
+if (`SELECT @@BINLOG_FORMAT = 'ROW'`)
+{
+--disable_query_log
+eval select $m_pos2 - $m_pos1 = 0 as result;
+--enable_query_log
+}
+
+if (`SELECT @@BINLOG_FORMAT != 'ROW'`)
+{
+--disable_query_log
+eval select $m_pos2 - $m_pos1 > 0 as result;
+--enable_query_log
+}
+
+select * from t1 order by a;
+
+--sync_slave_with_master
+select * from t1 order by a;
+
+# Clean up
+--connection master
+drop table t1, t2;
+--sync_slave_with_master

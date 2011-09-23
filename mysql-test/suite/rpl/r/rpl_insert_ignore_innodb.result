@@ -1,0 +1,49 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (
+a int unsigned not null auto_increment primary key,
+b int unsigned,
+unique (b)
+) ENGINE=innodb;
+CREATE TABLE t2 (
+a int unsigned, # to force INSERT SELECT to have a certain order
+b int unsigned
+) ENGINE=innodb;
+INSERT INTO t1 VALUES (NULL, 1);
+INSERT INTO t1 VALUES (NULL, 2);
+INSERT INTO t1 VALUES (NULL, 3);
+INSERT INTO t1 VALUES (NULL, 4);
+INSERT INTO t2 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+INSERT INTO t2 VALUES (3, 3);
+INSERT INTO t2 VALUES (4, 4);
+Should return 4
+select count(*) from t1;
+count(*)
+4
+INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
+In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
+The binlog position must not have advanced for row and must advance otherwise
+result
+1
+Should return 4
+select count(*) from t1;
+count(*)
+4
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+drop table t1, t2;

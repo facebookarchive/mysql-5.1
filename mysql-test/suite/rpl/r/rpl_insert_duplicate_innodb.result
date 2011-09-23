@@ -1,0 +1,25 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (
+a INT UNSIGNED NOT NULL PRIMARY KEY
+) ENGINE=innodb;
+CREATE TABLE t2 (
+a INT UNSIGNED
+) ENGINE=innodb;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t1 SELECT t2.a FROM t2 ORDER BY t2.a ON DUPLICATE KEY UPDATE t1.a= t1.a;
+The binlog does not advance for ROW and advances otherwise
+result
+1
+select * from t1 order by a;
+a
+1
+select * from t1 order by a;
+a
+1
+drop table t1, t2;
