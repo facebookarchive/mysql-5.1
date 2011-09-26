@@ -1,7 +1,7 @@
 drop table if exists p1,p2,s1,src;
-create table p1 (a int not null primary key, b int not null) engine=myisam;
-create table p2 (a int not null primary key, b int not null) engine=myisam;
-create table s1 (a int not null primary key, b int not null, index bx(b)) engine=myisam;
+create table p1 (a int not null primary key, b int not null) engine=heap;
+create table p2 (a int not null primary key, b int not null) engine=heap;
+create table s1 (a int not null primary key, b int not null, index bx using btree (b)) engine=heap;
 create table src(a int, b int);
 show create table p1;
 Table	Create Table
@@ -9,15 +9,15 @@ p1	CREATE TABLE `p1` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 show create table s1;
 Table	Create Table
 s1	CREATE TABLE `s1` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`),
-  KEY `bx` (`b`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  KEY `bx` (`b`) USING BTREE
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
 insert into src values 
 (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),
 (10,10),(11,11),(12,12),(13,13),(14,14),(15,15),(16,16),(17,17),(18,18),(19,19),
@@ -30,21 +30,21 @@ insert into p1 values (1,1), (2,2);
 select TABLE_SCHEMA,TABLE_NAME,TABLE_ENGINE,ROWS_INSERTED,ROWS_UPDATED,ROWS_DELETED,ROWS_READ,ROWS_REQUESTED,ROWS_INDEX_FIRST,ROWS_INDEX_NEXT,IO_INDEX_INSERTS
 from information_schema.table_statistics order by table_schema, table_name;
 TABLE_SCHEMA	TABLE_NAME	TABLE_ENGINE	ROWS_INSERTED	ROWS_UPDATED	ROWS_DELETED	ROWS_READ	ROWS_REQUESTED	ROWS_INDEX_FIRST	ROWS_INDEX_NEXT	IO_INDEX_INSERTS
-test	p1	ENGINE	2	0	0	0	0	0	0	0
+test	p1	MEMORY	2	0	0	0	0	0	0	0
 select TABLE_SCHEMA,TABLE_NAME,TABLE_ENGINE,ROWS_INSERTED,ROWS_UPDATED,ROWS_DELETED,ROWS_READ,ROWS_REQUESTED,ROWS_INDEX_FIRST,ROWS_INDEX_NEXT,IO_INDEX_INSERTS
 from information_schema.table_statistics where table_name = 'p1';
 TABLE_SCHEMA	TABLE_NAME	TABLE_ENGINE	ROWS_INSERTED	ROWS_UPDATED	ROWS_DELETED	ROWS_READ	ROWS_REQUESTED	ROWS_INDEX_FIRST	ROWS_INDEX_NEXT	IO_INDEX_INSERTS
-test	p1	ENGINE	2	0	0	0	0	0	0	0
+test	p1	MEMORY	2	0	0	0	0	0	0	0
 select TABLE_SCHEMA,TABLE_NAME,TABLE_ENGINE,ROWS_INSERTED,ROWS_UPDATED,ROWS_DELETED,ROWS_READ,ROWS_REQUESTED,ROWS_INDEX_FIRST,ROWS_INDEX_NEXT,IO_INDEX_INSERTS
 from information_schema.table_statistics where table_name like 'p%';
 TABLE_SCHEMA	TABLE_NAME	TABLE_ENGINE	ROWS_INSERTED	ROWS_UPDATED	ROWS_DELETED	ROWS_READ	ROWS_REQUESTED	ROWS_INDEX_FIRST	ROWS_INDEX_NEXT	IO_INDEX_INSERTS
-test	p1	ENGINE	2	0	0	0	0	0	0	0
+test	p1	MEMORY	2	0	0	0	0	0	0	0
 select 'should be 0,2,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
 should be 0,2,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
 should be 0,2,0,0	0	2	0	0
 select Table_Engine from information_schema.table_statistics where table_name = 'p1';
 Table_Engine
-ENGINE
+MEMORY
 ""
 Test delete
 ""
@@ -147,7 +147,7 @@ count(*)
 0
 select 'should be 1,0,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
 should be 1,0,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
-should be 1,0,0,0	1	0	0	0
+should be 1,0,0,0	29	0	0	0
 flush statistics;
 select a from p1 where a < 32 order by a desc;
 a
@@ -182,7 +182,7 @@ a
 1
 select 'should be 29,0,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
 should be 29,0,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
-should be 29,0,0,0	29	0	0	0
+should be 29,0,0,0	58	0	0	0
 flush statistics;
 select a from p1 where a > 0 order by a;
 a
@@ -217,7 +217,7 @@ a
 29
 select 'should be 29,0,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
 should be 29,0,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
-should be 29,0,0,0	29	0	0	0
+should be 29,0,0,0	58	0	0	0
 ""
 Test select with secondary scans
 ""
@@ -227,7 +227,7 @@ a	b
 1	1
 select 'should be 1,0,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 's1';
 should be 1,0,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
-should be 1,0,0,0	1	0	0	0
+should be 1,0,0,0	2	0	0	0
 flush statistics;
 select b from s1 where b < 0;
 b

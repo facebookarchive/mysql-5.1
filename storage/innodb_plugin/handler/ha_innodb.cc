@@ -7801,6 +7801,7 @@ ha_innobase::delete_all_rows(void)
 /*==============================*/
 {
 	int		error;
+	ib_int64_t	n_rows;
 
 	DBUG_ENTER("ha_innobase::delete_all_rows");
 
@@ -7816,6 +7817,7 @@ ha_innobase::delete_all_rows(void)
 		because DELETE is transactional while TRUNCATE is not. */
 		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
 	}
+	n_rows = prebuilt->table->stat_n_rows;
 
 	/* Truncate the table in InnoDB */
 
@@ -7827,6 +7829,9 @@ ha_innobase::delete_all_rows(void)
 
 	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
 					    NULL);
+
+	if (!error)
+		stats.rows_deleted += n_rows;
 
 	DBUG_RETURN(error);
 }

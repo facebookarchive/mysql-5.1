@@ -1,11 +1,3 @@
---disable_warnings
-drop table if exists p1,p2,s1,src;
---enable_warnings
-
-create table p1 (a int not null primary key, b int not null);
-create table p2 (a int not null primary key, b int not null);
-create table s1 (a int not null primary key, b int not null, index bx(b));
-create table src(a int, b int);
 
 let $se= `select @@GLOBAL.storage_engine`;
 
@@ -241,6 +233,13 @@ flush statistics;
 select b from s1 where b > 27 order by b;
 
 select 'should be 2,0,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 's1';
+
+# truncate
+select count(*) from s1;
+flush statistics;
+delete from s1;
+
+select 'should be 29,0,0,29', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 's1';
 
 # Cleanup
 connection default;

@@ -231,6 +231,7 @@ int ha_heap::write_row(uchar * buf)
     */
     file->s->key_stat_version++;
   }
+  stats.rows_inserted += (res == 0);
   return res;
 }
 
@@ -250,6 +251,7 @@ int ha_heap::update_row(const uchar * old_data, uchar * new_data)
     */
     file->s->key_stat_version++;
   }
+  stats.rows_updated += (res == 0);
   return res;
 }
 
@@ -267,6 +269,7 @@ int ha_heap::delete_row(const uchar * buf)
     */
     file->s->key_stat_version++;
   }
+  stats.rows_deleted += (res == 0);
   return res;
 }
 
@@ -278,6 +281,9 @@ int ha_heap::index_read_map(uchar *buf, const uchar *key,
   ha_statistic_increment(&SSV::ha_read_key_count);
   int error = heap_rkey(file,buf,active_index, key, keypart_map, find_flag);
   table->status = error ? STATUS_NOT_FOUND : 0;
+  stats.rows_requested++;
+  stats.rows_read += (error == 0);
+  stats.rows_index_first += (error == 0);
   return error;
 }
 
@@ -289,6 +295,9 @@ int ha_heap::index_read_last_map(uchar *buf, const uchar *key,
   int error= heap_rkey(file, buf, active_index, key, keypart_map,
 		       HA_READ_PREFIX_LAST);
   table->status= error ? STATUS_NOT_FOUND : 0;
+  stats.rows_requested++;
+  stats.rows_read += (error == 0);
+  stats.rows_index_first += (error == 0);
   return error;
 }
 
@@ -299,6 +308,9 @@ int ha_heap::index_read_idx_map(uchar *buf, uint index, const uchar *key,
   ha_statistic_increment(&SSV::ha_read_key_count);
   int error = heap_rkey(file, buf, index, key, keypart_map, find_flag);
   table->status = error ? STATUS_NOT_FOUND : 0;
+  stats.rows_requested++;
+  stats.rows_read += (error == 0);
+  stats.rows_index_first += (error == 0);
   return error;
 }
 
@@ -308,6 +320,9 @@ int ha_heap::index_next(uchar * buf)
   ha_statistic_increment(&SSV::ha_read_next_count);
   int error=heap_rnext(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
+  stats.rows_requested++;
+  stats.rows_read += (error == 0);
+  stats.rows_index_next += (error == 0);
   return error;
 }
 
@@ -317,6 +332,9 @@ int ha_heap::index_prev(uchar * buf)
   ha_statistic_increment(&SSV::ha_read_prev_count);
   int error=heap_rprev(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
+  stats.rows_requested++;
+  stats.rows_read += (error == 0);
+  stats.rows_index_next += (error == 0);
   return error;
 }
 
@@ -326,6 +344,9 @@ int ha_heap::index_first(uchar * buf)
   ha_statistic_increment(&SSV::ha_read_first_count);
   int error=heap_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
+  stats.rows_requested++;
+  stats.rows_read += (error == 0);
+  stats.rows_index_first += (error == 0);
   return error;
 }
 
@@ -335,6 +356,9 @@ int ha_heap::index_last(uchar * buf)
   ha_statistic_increment(&SSV::ha_read_last_count);
   int error=heap_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
+  stats.rows_requested++;
+  stats.rows_read += (error == 0);
+  stats.rows_index_first += (error == 0);
   return error;
 }
 
@@ -348,6 +372,8 @@ int ha_heap::rnd_next(uchar *buf)
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   int error=heap_scan(file, buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
+  stats.rows_requested++;
+  stats.rows_read += (error == 0);
   return error;
 }
 
@@ -359,6 +385,8 @@ int ha_heap::rnd_pos(uchar * buf, uchar *pos)
   memcpy_fixed((char*) &heap_position, pos, sizeof(HEAP_PTR));
   error=heap_rrnd(file, buf, heap_position);
   table->status=error ? STATUS_NOT_FOUND: 0;
+  stats.rows_requested++;
+  stats.rows_read += (error == 0);
   return error;
 }
 
@@ -407,6 +435,10 @@ int ha_heap::reset()
 
 int ha_heap::delete_all_rows()
 {
+  HEAPINFO hp_info;
+  (void) heap_info(file,&hp_info,0);
+  stats.rows_deleted += hp_info.records;
+
   heap_clear(file);
   if (table->s->tmp_table == NO_TMP_TABLE)
   {

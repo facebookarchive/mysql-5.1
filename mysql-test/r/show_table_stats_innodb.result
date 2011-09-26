@@ -1,7 +1,7 @@
 drop table if exists p1,p2,s1,src;
-create table p1 (a int not null primary key, b int not null);
-create table p2 (a int not null primary key, b int not null);
-create table s1 (a int not null primary key, b int not null, index bx(b));
+create table p1 (a int not null primary key, b int not null) engine=innodb;
+create table p2 (a int not null primary key, b int not null) engine=innodb;
+create table s1 (a int not null primary key, b int not null, index bx(b)) engine=innodb;
 create table src(a int, b int);
 show create table p1;
 Table	Create Table
@@ -306,6 +306,14 @@ b
 select 'should be 2,0,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 's1';
 should be 2,0,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
 should be 2,0,0,0	2	0	0	0
+select count(*) from s1;
+count(*)
+29
+flush statistics;
+delete from s1;
+select 'should be 29,0,0,29', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 's1';
+should be 29,0,0,29	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
+should be 29,0,0,29	29	0	0	29
 drop table p1;
 drop table p2;
 drop table s1;
