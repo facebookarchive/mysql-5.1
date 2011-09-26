@@ -1,0 +1,38 @@
+#
+# Confirm innodb_max_dirty_pages_pct parses floating-point values
+#
+
+-- source include/have_innodb_plugin.inc
+
+show global variables like "innodb_max_dirty_pages_pct";
+
+set global innodb_max_dirty_pages_pct = 0.0;
+show global variables like "innodb_max_dirty_pages_pct";
+
+set global innodb_max_dirty_pages_pct = 1;
+show global variables like "innodb_max_dirty_pages_pct";
+
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_max_dirty_pages_pct = "1";
+
+set global innodb_max_dirty_pages_pct = 99.9;
+show global variables like "innodb_max_dirty_pages_pct";
+
+set global innodb_max_dirty_pages_pct = 1.0;
+show global variables like "innodb_max_dirty_pages_pct";
+
+set global innodb_max_dirty_pages_pct = 0.1;
+show global variables like "innodb_max_dirty_pages_pct";
+
+set global innodb_max_dirty_pages_pct = 11;
+show global variables like "innodb_max_dirty_pages_pct";
+
+set global innodb_max_dirty_pages_pct = 100;
+show global variables like "innodb_max_dirty_pages_pct";
+
+set global innodb_max_dirty_pages_pct = -0.1;
+show global variables like "innodb_max_dirty_pages_pct";
+
+set global innodb_max_dirty_pages_pct = 75;
+show global variables like "innodb_max_dirty_pages_pct";
+

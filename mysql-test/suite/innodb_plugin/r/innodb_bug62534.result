@@ -1,0 +1,47 @@
+show global variables like "innodb_max_dirty_pages_pct";
+Variable_name	Value
+innodb_max_dirty_pages_pct	75.000000
+set global innodb_max_dirty_pages_pct = 0.0;
+Warnings:
+Warning	1292	Truncated incorrect max_dirty_pages_pct value: '0.000000'
+show global variables like "innodb_max_dirty_pages_pct";
+Variable_name	Value
+innodb_max_dirty_pages_pct	0.001000
+set global innodb_max_dirty_pages_pct = 1;
+show global variables like "innodb_max_dirty_pages_pct";
+Variable_name	Value
+innodb_max_dirty_pages_pct	1.000000
+set global innodb_max_dirty_pages_pct = "1";
+ERROR 42000: Incorrect argument type to variable 'innodb_max_dirty_pages_pct'
+set global innodb_max_dirty_pages_pct = 99.9;
+show global variables like "innodb_max_dirty_pages_pct";
+Variable_name	Value
+innodb_max_dirty_pages_pct	99.900000
+set global innodb_max_dirty_pages_pct = 1.0;
+show global variables like "innodb_max_dirty_pages_pct";
+Variable_name	Value
+innodb_max_dirty_pages_pct	1.000000
+set global innodb_max_dirty_pages_pct = 0.1;
+show global variables like "innodb_max_dirty_pages_pct";
+Variable_name	Value
+innodb_max_dirty_pages_pct	0.100000
+set global innodb_max_dirty_pages_pct = 11;
+show global variables like "innodb_max_dirty_pages_pct";
+Variable_name	Value
+innodb_max_dirty_pages_pct	11.000000
+set global innodb_max_dirty_pages_pct = 100;
+Warnings:
+Warning	1292	Truncated incorrect max_dirty_pages_pct value: '100.000000'
+show global variables like "innodb_max_dirty_pages_pct";
+Variable_name	Value
+innodb_max_dirty_pages_pct	99.999000
+set global innodb_max_dirty_pages_pct = -0.1;
+Warnings:
+Warning	1292	Truncated incorrect max_dirty_pages_pct value: '-0.100000'
+show global variables like "innodb_max_dirty_pages_pct";
+Variable_name	Value
+innodb_max_dirty_pages_pct	0.001000
+set global innodb_max_dirty_pages_pct = 75;
+show global variables like "innodb_max_dirty_pages_pct";
+Variable_name	Value
+innodb_max_dirty_pages_pct	75.000000

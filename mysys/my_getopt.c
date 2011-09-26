@@ -986,6 +986,30 @@ static double getopt_double(char *arg, const struct my_option *optp, int *err)
   return max(num, (double) optp->min_value);
 }
 
+double getopt_double_limit_value(double num, double max_val, double min_val,
+                                 double def_val, const char *name, my_bool *fix)
+{
+  my_bool adjusted= FALSE;
+  double old= num;
+  if (max_val && num > max_val)
+  {
+    num= max_val;
+    adjusted= TRUE;
+  }
+  if (num < min_val)
+  {
+    num= min_val;
+    adjusted= TRUE;
+  }
+  if (fix)
+    *fix= adjusted;
+  else if (adjusted)
+    my_getopt_error_reporter(WARNING_LEVEL,
+                             "option '%s': value %g adjusted to %g",
+                             name, old, num);
+  return num;
+}
+
 /*
   Init one value to it's default values
 

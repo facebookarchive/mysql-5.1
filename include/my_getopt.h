@@ -85,6 +85,8 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
                                  my_bool *fix);
 longlong getopt_ll_limit_value(longlong, const struct my_option *,
                                my_bool *fix);
+double getopt_double_limit_value(double num, double max_val, double min_val,
+                                 double def_val, const char *name, my_bool *fix);
 my_bool getopt_compare_strings(const char *s, const char *t, uint length);
 
 C_MODE_END

@@ -3959,23 +3959,22 @@ Returns the ratio in percents of modified pages in the buffer pool /
 database pages in the buffer pool.
 @return	modified page percentage ratio */
 UNIV_INTERN
-ulint
+double
 buf_get_modified_ratio_pct(void)
 /*============================*/
 {
-	ulint	ratio;
+	double	flush_len, lru_len, free_len;
 
 	buf_pool_mutex_enter();
 
-	ratio = (100 * UT_LIST_GET_LEN(buf_pool->flush_list))
-		/ (1 + UT_LIST_GET_LEN(buf_pool->LRU)
-		   + UT_LIST_GET_LEN(buf_pool->free));
-
-	/* 1 + is there to avoid division by zero */
+	flush_len = UT_LIST_GET_LEN(buf_pool->flush_list);
+	lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
+	free_len = UT_LIST_GET_LEN(buf_pool->free);
 
 	buf_pool_mutex_exit();
 
-	return(ratio);
+	/* 1 + is there to avoid division by zero */
+	return (100 * flush_len) / (1 + lru_len + free_len);
 }
 
 /*********************************************************************//**
@@ -4002,7 +4001,9 @@ buf_print_io(
 		"Modified db pages  %lu\n"
 		"Read ahead: %lu\n"
 		"Evicted after read ahead without access: %lu\n"
-		"Percent pages dirty: %.2f\n"
+		"Percent pages dirty: %.3f\n"
+		"Percent of dirty pages(LRU & free pages): %.3f\n"
+		"Max dirty pages percent: %.3f\n"
 		"Pending reads %lu\n"
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n"
 		"Total writes: %lu LRU, %lu flush list, %lu single page\n"
@@ -4018,6 +4019,10 @@ buf_print_io(
 		(ulong) buf_pool->stat.n_ra_pages_evicted,
 		(((double) UT_LIST_GET_LEN(buf_pool->flush_list)) /
 			(UT_LIST_GET_LEN(buf_pool->LRU) + 1.0)) * 100.0,
+		(((double) UT_LIST_GET_LEN(buf_pool->flush_list)) /
+			(UT_LIST_GET_LEN(buf_pool->LRU) +
+			 UT_LIST_GET_LEN(buf_pool->free) + 1.0)) * 100.0,
+		srv_max_buf_pool_modified_pct,
 		(ulong) buf_pool->n_pend_reads,
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LRU]
 		+ buf_pool->init_flush[BUF_FLUSH_LRU],
