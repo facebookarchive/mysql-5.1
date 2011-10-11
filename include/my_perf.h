@@ -95,6 +95,10 @@ struct comp_stat_struct {
   ulonglong compressed;
   /** Number of successful page compressions */
   ulonglong compressed_ok;
+  /** Number of compressions in primary index */
+  ulonglong compressed_primary;
+  /** Number of successful compressions in primary index */
+  ulonglong compressed_primary_ok;
   /** Number of page decompressions */
   ulonglong decompressed;
   /** Duration of page compressions in microseconds */
@@ -103,6 +107,10 @@ struct comp_stat_struct {
   ulonglong compressed_ok_usec;
   /** Duration of page decompressions in microseconds */
   ulonglong decompressed_usec;
+  /** Duration of primary index page compressions in microseconds */
+  ulonglong compressed_primary_usec;
+  /** Duration of successful primary index page compressions in microseconds */
+  ulonglong compressed_primary_ok_usec;
 };
 
 /** Compression statistics */

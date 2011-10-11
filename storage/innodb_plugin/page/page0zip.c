@@ -1394,6 +1394,10 @@ err_exit:
 				space->comp_stat.page_size = comp_stat_page_size;
 
 		 	space->comp_stat.compressed_usec += udiff;
+			if (dict_index_is_clust(index)) {
+				++space->comp_stat.compressed_primary;
+				space->comp_stat.compressed_primary_usec += udiff;
+			}
 		}
 		mutex_exit(&fil_system->mutex);
 
@@ -1458,15 +1462,15 @@ err_exit:
 #ifndef UNIV_HOTBACKUP
 
 	udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
-	zip_stat->compressed_ok++;
+	++zip_stat->compressed_ok;
 	zip_stat->compressed_usec += udiff;
 	zip_stat->compressed_ok_usec += udiff;
 	if (dict_index_is_clust(index)) {
-		zip_stat->compressed_primary_ok++;
+		++zip_stat->compressed_primary_ok;
 		zip_stat->compressed_primary_usec += udiff;
 		zip_stat->compressed_primary_ok_usec += udiff;
 	} else {
-		zip_stat->compressed_secondary_ok++;
+		++zip_stat->compressed_secondary_ok;
 		zip_stat->compressed_secondary_usec += udiff;
 		zip_stat->compressed_secondary_ok_usec += udiff;
 	}
@@ -1482,6 +1486,12 @@ err_exit:
 		++space->comp_stat.compressed_ok;
 		space->comp_stat.compressed_usec += udiff;
 		space->comp_stat.compressed_ok_usec += udiff;
+		if (dict_index_is_clust(index)) {
+			++space->comp_stat.compressed_primary;
+			++space->comp_stat.compressed_primary_ok;
+			space->comp_stat.compressed_primary_usec += udiff;
+			space->comp_stat.compressed_primary_ok_usec += udiff;
+		}
 	}
 	mutex_exit(&fil_system->mutex);
 
