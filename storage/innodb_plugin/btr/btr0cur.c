@@ -49,6 +49,7 @@ Created 10/16/1994 Heikki Tuuri
 
 #include "row0upd.h"
 #ifndef UNIV_HOTBACKUP
+#include "log0recv.h"
 #include "mtr0log.h"
 #include "page0page.h"
 #include "page0zip.h"
@@ -1177,6 +1178,22 @@ fail_err:
 		goto fail;
 	}
 
+#ifndef UNIV_HOTBACKUP
+	/* We subtract rec_size from the return value of
+	   dict_index_comp_fail_max_page_size() to make sure that the page
+	   size we obtain is well below the threshold for failing to compress */
+	if (!recv_recovery_is_on()
+	    && zip_size
+	    && leaf
+	    && ((rec_size + page_get_data_size(page))
+	        >= dict_index_comp_fail_max_page_size(index))) {
+		mutex_enter(&fil_system->mutex);
+		++fil_space_get_by_id(index->space)->comp_stat.padding_savings;
+		mutex_exit(&fil_system->mutex);
+		goto fail;
+	}
+#endif
+
 	/* Check locks and write to the undo log, if specified */
 	err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
 					thr, mtr, &inherit);
@@ -1659,6 +1676,22 @@ btr_cur_update_alloc_zip(
 	}
 
 	page = buf_block_get_frame(block);
+#ifndef UNIV_HOTBACKUP
+	/* We subtract length from the return value of
+	   dict_index_comp_fail_max_page_size() to make sure that the page
+	   size we obtain is well below the threshold for failing to compress */
+	if (create
+	    && !recv_recovery_is_on()
+	    && page_is_leaf(page)
+	    && ((length + page_get_data_size(page))
+	        >= dict_index_comp_fail_max_page_size(index))) {
+		mutex_enter(&fil_system->mutex);
+		++fil_space_get_by_id(index->space)->comp_stat.padding_savings;
+		mutex_exit(&fil_system->mutex);
+		return(FALSE);
+	}
+#endif
+
 	/* we can safely pass a null pointer here because btr_cur_update_alloc_zip()
 		 is called before any modification to page is made. This makes sure that the
 		 compressed page image is not needed in the redo log.*/

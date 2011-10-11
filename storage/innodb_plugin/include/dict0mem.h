@@ -36,6 +36,7 @@ Created 1/8/1996 Heikki Tuuri
 # include "lock0types.h"
 # include "que0types.h"
 # include "sync0rw.h"
+# include "ut0rbt.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "ut0mem.h"
 #include "ut0lst.h"
@@ -271,6 +272,11 @@ struct dict_field_struct{
 					DICT_MAX_INDEX_COL_LEN */
 };
 
+typedef struct comp_fail_node_st {
+	ulint	page_size;	/* size of the page failed to compress */
+	ulint	ind;	/* the rank at which it was inserted into comp_fail_tree */
+} comp_fail_node_t;
+
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_struct{
@@ -327,6 +333,12 @@ struct dict_index_struct{
 	ulint		stat_n_leaf_pages;
 				/*!< approximate number of leaf pages in the
 				index tree */
+	ib_rbt_t		*comp_fail_tree;
+	os_fast_mutex_t	comp_fail_tree_mutex;
+	ulint		num_compressed;
+	ulint		num_compressed_fail;
+	ulint		comp_fail_max_page_size;
+	ulint		comp_fail_max_page_size_final;
 	/* @} */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */

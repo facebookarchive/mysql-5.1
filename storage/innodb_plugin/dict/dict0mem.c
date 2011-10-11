@@ -35,6 +35,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0dict.h"
 #ifndef UNIV_HOTBACKUP
 # include "lock0lock.h"
+# include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
@@ -224,6 +225,21 @@ dict_mem_table_add_col(
 #endif /* !UNIV_HOTBACKUP */
 }
 
+static
+int
+comp_fail_tree_cmp(
+	const void*	p1,
+	const void*	p2)
+{
+	const comp_fail_node_t* n1;
+	const comp_fail_node_t* n2;
+	n1 = p1;
+	n2 = p2;
+	if (n1->page_size == n2->page_size)
+		return n1->ind - n2->ind;
+
+	return n1->page_size - n2->page_size;
+}
 /**********************************************************************//**
 Creates an index memory object.
 @return	own: index object */
@@ -253,6 +269,15 @@ dict_mem_index_create(
 	index->type = type;
 #ifndef UNIV_HOTBACKUP
 	index->space = (unsigned int) space;
+	os_fast_mutex_init(&index->comp_fail_tree_mutex);
+	os_fast_mutex_lock(&index->comp_fail_tree_mutex);
+	index->comp_fail_tree =
+		rbt_create(sizeof(comp_fail_node_t), comp_fail_tree_cmp);
+	os_fast_mutex_unlock(&index->comp_fail_tree_mutex);
+	index->num_compressed = 0;
+	index->num_compressed_fail = 0;
+	index->comp_fail_max_page_size = UNIV_PAGE_SIZE;
+	index->comp_fail_max_page_size_final = 0;
 #endif /* !UNIV_HOTBACKUP */
 	index->name = mem_heap_strdup(heap, index_name);
 	index->table_name = table_name;
@@ -325,5 +350,9 @@ dict_mem_index_free(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
+	os_fast_mutex_lock(&index->comp_fail_tree_mutex);
+	if (index->comp_fail_tree)
+		rbt_free(index->comp_fail_tree);
+	os_fast_mutex_unlock(&index->comp_fail_tree_mutex);
 	mem_heap_free(index->heap);
 }

@@ -307,6 +307,132 @@ dict_table_decrement_handle_count(
 		mutex_exit(&dict_sys->mutex);
 	}
 }
+
+/**********************************************************************//**
+Return the maximum page size for which there will likely be no compression
+failure.
+
+We require empty space on the uncompressed pages of compressed tables in order
+to prevent compression failures. The amount of data placed on a page is
+determined by considering the N smallest pages that fail to compress and taking
+the median of those page sizes. The optimal amount of data to be placed on a
+page is determined when mysql starts.
+
+There are two phases: gathering statistics and using gathered statistics to
+restrict the amount of data on a page.
+
+The data that's placed on a page is not restricted until the comp_fail_tree is
+full. After the comp_fail_tree is full and until comp_fail_num_samples
+failed-to-compress page sizes are collected, the max data size on a page is
+restricted to be the median of the values in comp_fail_tree. This value may
+change as more pages fail to compress. First phase ends when
+comp_fail_num_samples pages fail. After this, the limit on the amount of data
+placed on a page is set to be the current median value of comp_fail_tree, and is
+not changed later.
+
+There are three variables: innodb_comp_fail_tree_size, innodb_comp_fail_samples,
+and innodb_comp_fail_threshold.
+The first determines the number of samples collected during the first phase.The
+second determines the size of the comp_fail_tree. The tables for which the
+failure rate is less than the value determined by the third are not padded.
+
+@return: the maximum page size for which there will likely be no compression
+failure. */
+UNIV_INTERN
+ulint
+dict_index_comp_fail_max_page_size(dict_index_t* index) {
+	ulint ret;
+	if (index->comp_fail_max_page_size_final) {
+		return index->comp_fail_max_page_size_final;
+	}
+	os_fast_mutex_lock(&index->comp_fail_tree_mutex);
+	ret = index->comp_fail_max_page_size;
+	os_fast_mutex_unlock(&index->comp_fail_tree_mutex);
+	return ret;
+}
+
+UNIV_INTERN
+void
+dict_index_increment_num_compressed(dict_index_t* index)
+{
+	if (!index->comp_fail_max_page_size_final) {
+		os_fast_mutex_lock(&index->comp_fail_tree_mutex);
+		++index->num_compressed;
+		os_fast_mutex_unlock(&index->comp_fail_tree_mutex);
+	}
+}
+
+static
+void
+comp_fail_print_node(const ib_rbt_node_t* node) {
+	const comp_fail_node_t* fail_node_ptr;
+	fail_node_ptr = rbt_value(comp_fail_node_t, node);
+	fprintf(stderr, "%lu(%lu) ", fail_node_ptr->page_size, fail_node_ptr->ind);
+}
+
+/**********************************************************************//**
+This function should be called whenever there is a compression failure. The
+page_size s are stored in a binary search tree to determine the optimum amount
+of data that can be placed on a page without too many compression failures. */
+UNIV_INTERN
+void
+dict_index_comp_fail_store(
+/*=======================*/
+	dict_index_t* index,
+	ulint page_size)
+{
+	comp_fail_node_t fail_node, *n;
+	ulint old_tree_size;
+	/* do not continue storing page sizes if final max page size is set */
+	if (index->comp_fail_max_page_size_final)
+		return;
+	os_fast_mutex_lock(&index->comp_fail_tree_mutex);
+	fail_node.page_size = page_size;
+	fail_node.ind = index->num_compressed_fail++;
+	old_tree_size = rbt_size(index->comp_fail_tree);
+	if (old_tree_size >= srv_comp_fail_tree_size) {
+		rbt_remove_last_and_insert(index->comp_fail_tree, &fail_node, &fail_node);
+		/* uncomment this to print the page sizes in comp_fail_tree in order */
+		/* rbt_print_in_order(index->comp_fail_tree, comp_fail_print_node); */
+		/* Make sure that the size of the tree did not change */
+		ut_ad(rbt_size(index->comp_fail_tree) == old_tree_size);
+		while (rbt_size(index->comp_fail_tree) > srv_comp_fail_tree_size) {
+			ut_free(rbt_remove_node(index->comp_fail_tree,
+			                        rbt_last(index->comp_fail_tree)));
+		}
+	} else {
+		rbt_insert(index->comp_fail_tree, &fail_node, &fail_node);
+	}
+	if (rbt_size(index->comp_fail_tree) < srv_comp_fail_tree_size) {
+		index->comp_fail_max_page_size = UNIV_PAGE_SIZE;
+	} else {
+		/* because comp_fail_tree is a balanced  binary search tree, the root has
+		   the median value for the page sizes stored in the tree */
+		n = rbt_value(comp_fail_node_t, rbt_root(index->comp_fail_tree));
+		/* Do not return a value less than UNIV_PAGE_SIZE/2 because that means
+		   the table's disk space will be inflated instead of being compressed.
+		   UNIV_PAGE_SIZE>>6 is a fudge number that we subtract to make sure
+		   the obtained number prevents a compression failure.*/
+		index->comp_fail_max_page_size
+		  = ut_max(n->page_size - (UNIV_PAGE_SIZE >> 6), UNIV_PAGE_SIZE/2);
+	}
+	if (index->num_compressed_fail >= srv_comp_fail_samples
+	    && !index->comp_fail_max_page_size_final) {
+		if ((double)index->num_compressed_fail/(double)index->num_compressed
+		      < srv_comp_fail_threshold) {
+			/* if the ratio of failed compressions is less than the ratio specified by
+			   comp_fail_threshold then do not restrict the amount of data placed on a
+			   page */
+			index->comp_fail_max_page_size_final = UNIV_PAGE_SIZE;
+		} else {
+			index->comp_fail_max_page_size_final = index->comp_fail_max_page_size;
+		}
+		/* we no longer need the comp_fail_tree */
+		rbt_free(index->comp_fail_tree);
+		index->comp_fail_tree = NULL;
+	}
+	os_fast_mutex_unlock(&index->comp_fail_tree_mutex);
+}
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**

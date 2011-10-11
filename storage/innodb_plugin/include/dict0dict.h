@@ -109,6 +109,18 @@ dict_col_copy_type(
 /*===============*/
 	const dict_col_t*	col,	/*!< in: column */
 	dtype_t*		type);	/*!< out: data type */
+UNIV_INTERN
+ulint
+dict_index_comp_fail_max_page_size(dict_index_t* index);
+UNIV_INTERN
+void
+dict_index_comp_fail_store(
+/*=======================*/
+	dict_index_t* index,
+	ulint page_size);
+UNIV_INTERN
+void
+dict_index_increment_num_compressed(dict_index_t* index);
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 /*********************************************************************//**

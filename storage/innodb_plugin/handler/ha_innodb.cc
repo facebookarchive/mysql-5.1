@@ -11915,12 +11915,30 @@ static MYSQL_SYSVAR_BOOL(log_archive, innobase_log_archive,
 #endif /* UNIV_LOG_ARCHIVE */
 
 static MYSQL_SYSVAR_BOOL(log_compressed_pages, srv_log_compressed_pages,
-	PLUGIN_VAR_OPCMDARG,
+  PLUGIN_VAR_OPCMDARG,
   "Enables/disables the logging of entire compressed page images. InnoDB"
   " logs the compressed pages to prevent against corruption because of a change"
   " in the algorithm to compress the pages. When turned OFF, this variable"
   " makes InnoDB assume that the compression algorithm doesn't change.",
   NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_UINT(comp_fail_samples,
+  srv_comp_fail_samples, PLUGIN_VAR_OPCMDARG,
+  "Number of page size samples collected from pages that fail to compress to"
+  " determine the ideal page size that won't fail to compress.",
+  NULL, NULL, 200, 0, 1000, 0);
+
+static MYSQL_SYSVAR_UINT(comp_fail_tree_size,
+  srv_comp_fail_tree_size, PLUGIN_VAR_OPCMDARG,
+  "Size of the red black tree for computing the average page size"
+  " for pages that fail to compress.",
+  NULL, NULL, 10, 0, 1000, 0);
+
+static MYSQL_SYSVAR_DOUBLE(comp_fail_threshold,
+  srv_comp_fail_threshold, PLUGIN_VAR_OPCMDARG,
+  "If the compression failure rate of a table is less than this number"
+  " then the table will not be padded.",
+  NULL, NULL, 0.10, 0.01, 0.99, 0);
 
 static MYSQL_SYSVAR_STR(log_group_home_dir, innobase_log_group_home_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -12304,6 +12322,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif /* UNIV_LOG_ARCHIVE */
   MYSQL_SYSVAR(log_buffer_size),
   MYSQL_SYSVAR(log_compressed_pages),
+  MYSQL_SYSVAR(comp_fail_samples),
+  MYSQL_SYSVAR(comp_fail_tree_size),
+  MYSQL_SYSVAR(comp_fail_threshold),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),
   MYSQL_SYSVAR(log_group_home_dir),

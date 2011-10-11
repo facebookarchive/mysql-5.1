@@ -43,7 +43,6 @@ Created June 2005 by Marko Makela
 # include "btr0sea.h"
 # include "dict0boot.h"
 # include "lock0lock.h"
-# include "my_atomic.h"
 #else /* !UNIV_HOTBACKUP */
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
@@ -1194,6 +1193,7 @@ page_zip_compress(
 
 	if (page_is_leaf(page)) {
 		n_fields = dict_index_get_n_fields(index);
+		dict_index_increment_num_compressed(index);
 	} else {
 		n_fields = dict_index_get_n_unique_in_tree(index);
 	}
@@ -1398,6 +1398,13 @@ err_exit:
 				++space->comp_stat.compressed_primary;
 				space->comp_stat.compressed_primary_usec += udiff;
 			}
+		}
+		if (page_is_leaf(page)) {
+			dict_index_comp_fail_store(index, page_get_data_size(page));
+			/* only update the padding for table if this is the primary index */
+			if (dict_index_is_clust(index))
+				space->comp_stat.padding =
+				  UNIV_PAGE_SIZE - dict_index_comp_fail_max_page_size(index);
 		}
 		mutex_exit(&fil_system->mutex);
 

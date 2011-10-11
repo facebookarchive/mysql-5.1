@@ -105,6 +105,16 @@ extern my_bool	srv_background_drop_table;
 recompressed */
 extern my_bool srv_log_compressed_pages;
 
+/** Number of page size samples collected from pages that fail to compress to
+determine the ideal page size that won't fail to compress. */
+extern uint srv_comp_fail_samples;
+/** Size of the red black tree for computing the average page size
+for pages that fail to compress. */
+extern uint srv_comp_fail_tree_size;
+/** If the compression failure rate of a table is less than this number
+ then the table will not be padded. */
+extern double srv_comp_fail_threshold;
+
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
 /** Whether to check file format during startup.  A value of

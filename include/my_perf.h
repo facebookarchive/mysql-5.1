@@ -91,6 +91,10 @@ C_MODE_START
 struct comp_stat_struct {
   /** Size of the compressed data on the page */
   int page_size;
+  /** Current padding for compression */
+  int padding;
+  /** Number of times a page is prevented from failing to compress */
+  ulonglong padding_savings;
   /** Number of page compressions */
   ulonglong compressed;
   /** Number of successful page compressions */
