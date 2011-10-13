@@ -625,6 +625,31 @@ static bool shall_skip_database(const char *log_dbname)
 
 
 /**
+   Print "SET skip_replication=..." statement when needed.
+
+   Not all servers support this (only MariaDB from some version on). So we
+   mark the SET to only execute from the version of MariaDB that supports it,
+   and also only output it if we actually see events with the flag set, to not
+   get spurious errors on MySQL@Oracle servers of higher version that do not
+   support the flag.
+
+   So we start out assuming @@skip_replication is 0, and only output a SET
+   statement when it changes.
+*/
+static void
+print_skip_replication_statement(PRINT_EVENT_INFO *pinfo, const Log_event *ev)
+{
+  int cur_val;
+
+  cur_val= (ev->flags & LOG_EVENT_SKIP_REPLICATION_F) != 0;
+  if (cur_val == pinfo->skip_replication)
+    return;                                     /* Not changed. */
+  fprintf(result_file, "/*!50153 SET skip_replication=%d*/%s\n",
+          cur_val, pinfo->delimiter);
+  pinfo->skip_replication= cur_val;
+}
+
+/**
   Prints the given event in base64 format.
 
   The header is printed to the head cache and the body is printed to
@@ -746,7 +771,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           goto end;
       }
       else
+      {
+        print_skip_replication_statement(print_event_info, ev);
         ev->print(result_file, print_event_info);
+      }
       break;
 
     case CREATE_FILE_EVENT:
@@ -775,7 +803,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           goto end;
       }
       else
+      {
+        print_skip_replication_statement(print_event_info, ev);
         ce->print(result_file, print_event_info, TRUE);
+      }
 
       // If this binlog is not 3.23 ; why this test??
       if (glob_description_event->binlog_version >= 3)
@@ -872,6 +903,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         if (fname)
         {
           convert_path_to_forward_slashes(fname);
+          print_skip_replication_statement(print_event_info, ev);
           exlq->print(result_file, print_event_info, fname);
         }
         else
@@ -966,6 +998,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       /* FALL THROUGH */
     }
     default:
+      print_skip_replication_statement(print_event_info, ev);
       ev->print(result_file, print_event_info);
     }
   }

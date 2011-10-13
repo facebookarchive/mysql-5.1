@@ -118,6 +118,7 @@ static bool set_option_autocommit(THD *thd, set_var *var);
 static int  check_log_update(THD *thd, set_var *var);
 static int  check_sql_log_bin(THD *thd, set_var *var);
 static bool set_log_update(THD *thd, set_var *var);
+static int check_skip_replication(THD *thd, set_var *var);
 static int  check_pseudo_thread_id(THD *thd, set_var *var);
 void fix_binlog_format_after_update(THD *thd, enum_var_type type);
 static void fix_low_priority_updates(THD *thd, enum_var_type type);
@@ -839,6 +840,20 @@ static sys_var_thd_bit  sys_profiling(&vars, "profiling", NULL,
 static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_size",
 					      &SV::profiling_history_size);
 #endif
+/*
+  When this is set by a connection, binlogged events will be marked with a
+  corresponding flag. The slave can be configured to not replicate events
+  so marked.
+  In the binlog dump thread on the master, this variable is re-used for a
+  related purpose: The slave sets this flag when connecting to the master to
+  request that the master filter out (ie. not send) any events with the flag
+  set, thus saving network traffic on events that would be ignored by the
+  slave anyway.
+*/
+static sys_var_thd_bit  sys_skip_replication(&vars, "skip_replication",
+                                             check_skip_replication,
+                                             set_option_bit,
+                                             OPTION_SKIP_REPLICATION);
 
 /* Local state variables */
 
@@ -901,6 +916,15 @@ sys_var_thd_ulong               sys_group_concat_max_len(&vars, "group_concat_ma
 
 sys_var_thd_time_zone sys_time_zone(&vars, "time_zone",
                                     sys_var::SESSION_VARIABLE_IN_BINLOG);
+
+#ifdef HAVE_REPLICATION
+static sys_var_replicate_events_marked_for_skip
+  sys_replicate_events_marked_for_skip(&vars,
+                                       "replicate_events_marked_for_skip",
+                                       &opt_replicate_events_marked_for_skip,
+                                       &replicate_events_marked_for_skip_typelib,
+                                       NULL);
+#endif
 
 /* Global read-only variable containing hostname */
 static sys_var_const_str        sys_hostname(&vars, "hostname", glob_hostname);
@@ -3448,6 +3472,25 @@ static bool set_log_update(THD *thd, set_var *var)
 }
 
 
+static int check_skip_replication(THD *thd, set_var *var)
+{
+  /*
+    We must not change @@skip_replication in the middle of a transaction or
+    statement, as that could result in only part of the transaction / statement
+    being replicated.
+    (This would be particularly serious if we were to replicate eg.
+    Rows_log_event without Table_map_log_event or transactional updates without
+    the COMMIT).
+  */
+  if (thd->locked_tables || thd->active_transaction())
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    return 1;
+  }
+  return 0;
+}
+
+
 static int check_pseudo_thread_id(THD *thd, set_var *var)
 {
   var->save_result.ulonglong_value= var->value->val_int();
@@ -4620,6 +4663,32 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
 
   DBUG_RETURN((bool) res);
 }
+
+
+#ifdef HAVE_REPLICATION
+bool sys_var_replicate_events_marked_for_skip::update(THD *thd, set_var *var)
+{
+  bool result;
+  int thread_mask;
+  DBUG_ENTER("sys_var_replicate_events_marked_for_skip::update");
+
+  /* Slave threads must be stopped to change the variable. */
+  pthread_mutex_lock(&LOCK_active_mi);
+  lock_slave_threads(active_mi);
+  init_thread_mask(&thread_mask, active_mi, 0 /*not inverse*/);
+  if (thread_mask) // We refuse if any slave thread is running
+  {
+    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+    result= TRUE;
+  }
+  else
+    result= sys_var_enum::update(thd, var);
+
+  unlock_slave_threads(active_mi);
+  pthread_mutex_unlock(&LOCK_active_mi);
+  DBUG_RETURN(result);
+}
+#endif
 
 
 uchar *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,

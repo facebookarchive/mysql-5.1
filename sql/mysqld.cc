@@ -395,6 +395,16 @@ TYPELIB thread_handling_typelib=
   thread_handling_names, NULL
 };
 
+/* These names must match RPL_SKIP_XXX #defines in slave.h. */
+static const char *replicate_events_marked_for_skip_names[]=
+{ "replicate", "filter_on_slave", "filter_on_master", 0 };
+
+TYPELIB replicate_events_marked_for_skip_typelib=
+{
+  array_elements(replicate_events_marked_for_skip_names) - 1, "",
+  replicate_events_marked_for_skip_names, 0
+};
+
 const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost", *delayed_user= "DELAYED";
 #if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
@@ -569,6 +579,8 @@ uint    opt_large_page_size= 0;
 uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
+uint opt_replicate_events_marked_for_skip;
+
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -6046,6 +6058,7 @@ enum options_mysqld
   OPT_SAFEMALLOC_MEM_LIMIT,    OPT_REPLICATE_DO_TABLE,
   OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE,
   OPT_REPLICATE_WILD_IGNORE_TABLE, OPT_REPLICATE_SAME_SERVER_ID,
+  OPT_REPLICATE_EVENTS_MARKED_FOR_SKIP,
   OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_TC_HEURISTIC_RECOVER,
   OPT_ABORT_SLAVE_EVENT_COUNT,
   OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
@@ -6918,6 +6931,16 @@ thread is in the relay logs.",
    "Can't be set to 1 if --log-slave-updates is used.",
    &replicate_same_server_id, &replicate_same_server_id,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"replicate-events-marked-for-skip", OPT_REPLICATE_EVENTS_MARKED_FOR_SKIP,
+   "Whether the slave should replicate events that were created with "
+   "@@skip_replication=1 on the master. Default REPLICATE (no events are "
+   "skipped). Other values are FILTER_ON_SLAVE (events will be sent by the "
+   "master but ignored by the slave) and FILTER_ON_MASTER (events marked with "
+    "@@skip_replication=1 will be filtered on the master and never be sent to "
+   "the slave).", &opt_replicate_events_marked_for_skip,
+   &opt_replicate_events_marked_for_skip,
+   &replicate_events_marked_for_skip_typelib, GET_ENUM, REQUIRED_ARG,
+   RPL_SKIP_REPLICATE, 0, 0 ,0, 0, 0},
 #endif
   {"replicate-wild-do-table", OPT_REPLICATE_WILD_DO_TABLE,
    "Tells the slave thread to restrict replication to the tables that match "

@@ -1,0 +1,342 @@
+#
+# test master filtering for transactions
+# test slave filter for transactions
+#   test INSERT, UPDATE, DELETE, REPLACE
+#
+
+--source include/master-slave.inc
+--source include/have_innodb.inc
+
+connection slave;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
+SELECT @@global.replicate_events_marked_for_skip;
+START SLAVE;
+
+connection master;
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=innodb;
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=innodb;
+INSERT INTO t1(a) VALUES (1);
+INSERT INTO t2(a) VALUES (1);
+
+
+# Test that master-side filtering works.
+SET skip_replication=1;
+
+CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=innodb;
+BEGIN;
+INSERT INTO t1(a) VALUES (2);
+INSERT INTO t2(a) VALUES (2);
+INSERT INTO t2(a) VALUES (8);
+INSERT INTO t2(a) VALUES (9);
+UPDATE t1 SET b=7 WHERE a=2;
+REPLACE INTO t2 (a,b) VALUES (2,7);
+COMMIT;
+BEGIN;
+DELETE FROM t2 WHERE a=8;
+DELETE FROM t2 WHERE a=9;
+COMMIT;
+
+# Inject a rotate event in the binlog stream sent to slave (otherwise we will
+# fail sync_slave_with_master as the last event on the master is not present
+# on the slave).
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+
+sync_slave_with_master;
+connection slave;
+--echo Should not include t3
+SHOW TABLES;
+--echo Should have one row per table
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+connection master;
+DROP TABLE t3;
+
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+sync_slave_with_master;
+
+
+# Test that slave-side filtering works.
+connection slave;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
+START SLAVE;
+
+connection master;
+SET skip_replication=1;
+CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=innodb;
+BEGIN;
+INSERT INTO t1(a) VALUES (3);
+INSERT INTO t2(a) VALUES (3);
+INSERT INTO t2(a) VALUES (4);
+COMMIT;
+BEGIN;
+UPDATE t1 set b=3 WHERE a=3;
+UPDATE t2 set b=3 WHERE a=3;
+DELETE FROM t2 where a=4;
+REPLACE INTO t2 (a,b) VALUES (3,4);
+COMMIT;
+
+# Inject a rotate event in the binlog stream sent to slave (otherwise we will
+# fail sync_slave_with_master as the last event on the master is not present
+# on the slave).
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+
+sync_slave_with_master;
+connection slave;
+--echo Should not include t3
+SHOW TABLES;
+--echo Should have one row per table
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+connection master;
+DROP TABLE t3;
+
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+sync_slave_with_master;
+connection slave;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+
+
+# Test that events with @@skip_replication=1 are not filtered when filtering is
+# not set on slave.
+connection master;
+SET skip_replication=1;
+CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=innodb;
+BEGIN;
+INSERT INTO t3(a) VALUES(2);
+UPDATE t3 set b=2 WHERE a=2;
+INSERT INTO t3(a) VALUES(3);
+COMMIT;
+BEGIN;
+DELETE FROM t3 where a=3;
+REPLACE INTO t3 VALUES (2,3);
+COMMIT;
+sync_slave_with_master;
+connection slave;
+--echo Should have one row (2,3)
+SELECT * FROM t3;
+connection master;
+DROP TABLE t3;
+
+#
+# Test that the slave will preserve the @@skip_replication flag in its
+# own binlog.
+#
+
+TRUNCATE t1;
+sync_slave_with_master;
+connection slave;
+RESET MASTER;
+
+connection master;
+SET skip_replication=0;
+BEGIN;
+INSERT INTO t1 VALUES (1,0);
+UPDATE t1 SET b=1 where a=1;
+INSERT INTO t1 VALUES (7,0);
+COMMIT;
+SET skip_replication=1;
+BEGIN;
+INSERT INTO t1 VALUES (2,0);
+REPLACE INTO t1 VALUES (1,2);
+DELETE FROM t1 WHERE a=7;
+COMMIT;
+SET skip_replication=0;
+BEGIN;
+INSERT INTO t1 VALUES (3,0);
+UPDATE t1 SET b=3 WHERE a=3;
+INSERT INTO t1 VALUES (4,0);
+COMMIT;
+BEGIN;
+DELETE FROM t1 WHERE a=4;
+REPLACE INTO t1 VALUES (3,4);
+COMMIT;
+sync_slave_with_master;
+connection slave;
+# Since slave has @@replicate_events_marked_for_skip=REPLICATE, it should have
+# applied all events.
+--echo Should have 3 rows
+SELECT * FROM t1 ORDER by a;
+
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
+let $SLAVE_DATADIR= `select @@datadir`;
+
+connection master;
+TRUNCATE t1;
+
+# Now apply the slave binlog to the master, to check that both the slave
+# and mysqlbinlog will preserve the @@skip_replication flag.
+--exec $MYSQL_BINLOG $SLAVE_DATADIR/slave-bin.000001 > $MYSQLTEST_VARDIR/tmp/rpl_skip_replication.binlog
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/rpl_skip_replication.binlog
+
+--echo Should have 3 rows (1,2), (2,0), (3,4)
+SELECT * FROM t1 ORDER by a;
+
+# The slave should be missing event 2 and delete for 7, which is marked with the
+# @@skip_replication flag.
+
+connection slave;
+START SLAVE;
+
+connection master;
+sync_slave_with_master;
+
+connection slave;
+--echo Should have three rows (1,1), (3,4), (7,0)
+SELECT * FROM t1 ORDER by a;
+
+# Test that master-side filtering happens on the master side, and that
+# slave-side filtering happens on the slave.
+
+# First test that events do not reach the slave when master-side filtering
+# is configured. Do this by replicating first with only the IO thread running
+# and master-side filtering; then change to no filtering and start the SQL
+# thread. This should still skip the events, as master-side filtering
+# means the events never reached the slave.
+connection master;
+SET skip_replication= 0;
+TRUNCATE t1;
+sync_slave_with_master;
+connection slave;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
+START SLAVE IO_THREAD;
+connection master;
+SET skip_replication= 1;
+BEGIN;
+INSERT INTO t1(a) VALUES (1);
+UPDATE t1 SET b=1 WHERE a=1;
+COMMIT;
+SET skip_replication= 0;
+BEGIN;
+INSERT INTO t1(a) VALUES (2);
+UPDATE t1 SET b=2 WHERE a=2;
+COMMIT;
+
+# Wait for the IO thread to catch up.
+let $master_file= query_get_value("SHOW MASTER STATUS", File, 1);
+let $master_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+connection slave;
+let $slave_param= Master_Log_File;
+let $slave_param_value= $master_file;
+source include/wait_for_slave_param.inc;
+let $slave_param= Read_Master_Log_Pos;
+let $slave_param_value= $master_pos;
+source include/wait_for_slave_param.inc;
+
+STOP SLAVE IO_THREAD;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+connection master;
+sync_slave_with_master;
+connection slave;
+# Now only the second insert of (2) should be visible, as the first was
+# filtered on the master, so even though the SQL thread ran without skipping
+# events, it will never see the event in the first place.
+--echo This should display one row with (2)
+SELECT * FROM t1;
+
+# Now tests that when slave-side filtering is configured, events _do_ reach
+# the slave.
+connection master;
+SET skip_replication= 0;
+TRUNCATE t1;
+sync_slave_with_master;
+connection slave;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
+START SLAVE IO_THREAD;
+connection master;
+SET skip_replication= 1;
+BEGIN;
+INSERT INTO t1(a) VALUES (1);
+UPDATE t1 SET b=1 WHERE a=1;
+COMMIT;
+SET skip_replication= 0;
+BEGIN;
+INSERT INTO t1(a) VALUES (2);
+UPDATE t1 SET b=2 WHERE a=2;
+COMMIT;
+
+# Wait for the IO thread to catch up.
+let $master_file= query_get_value("SHOW MASTER STATUS", File, 1);
+let $master_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+connection slave;
+let $slave_param= Master_Log_File;
+let $slave_param_value= $master_file;
+source include/wait_for_slave_param.inc;
+let $slave_param= Read_Master_Log_Pos;
+let $slave_param_value= $master_pos;
+source include/wait_for_slave_param.inc;
+
+STOP SLAVE IO_THREAD;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+connection master;
+sync_slave_with_master;
+connection slave;
+# Now both inserts should be visible. Since filtering was configured to be
+# slave-side, the event is in the relay log, and when the SQL thread ran we
+# had disabled filtering again.
+--echo This should display two rows (1) and (2)
+SELECT * FROM t1 ORDER BY a;
+
+# Now tests that when master-slide filter is configured after the events
+# reach the slave that the slave still filters them
+connection master;
+SET skip_replication= 0;
+TRUNCATE t1;
+sync_slave_with_master;
+connection slave;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE IO_THREAD;
+connection master;
+SET skip_replication= 1;
+BEGIN;
+INSERT INTO t1(a) VALUES (1);
+UPDATE t1 SET b=1 WHERE a=1;
+COMMIT;
+SET skip_replication= 0;
+BEGIN;
+INSERT INTO t1(a) VALUES (2);
+UPDATE t1 SET b=2 WHERE a=2;
+COMMIT;
+
+# Wait for the IO thread to catch up.
+let $master_file= query_get_value("SHOW MASTER STATUS", File, 1);
+let $master_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+connection slave;
+let $slave_param= Master_Log_File;
+let $slave_param_value= $master_file;
+source include/wait_for_slave_param.inc;
+let $slave_param= Read_Master_Log_Pos;
+let $slave_param_value= $master_pos;
+source include/wait_for_slave_param.inc;
+
+STOP SLAVE IO_THREAD;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
+START SLAVE;
+connection master;
+sync_slave_with_master;
+connection slave;
+--echo This should display one row (2,2)
+SELECT * FROM t1 ORDER BY a;
+
+
+# Clean up.
+connection master;
+SET skip_replication=0;
+DROP TABLE t1,t2;
+sync_slave_with_master;
+connection slave;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
