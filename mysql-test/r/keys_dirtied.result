@@ -1,0 +1,45 @@
+drop table if exists t1;
+create table t1 (i int primary key, j int);
+flush statistics;
+insert into t1 values (0,0) MEMCACHE_DIRTY 'a';
+insert into t1 values (1,0) MEMCACHE_DIRTY 'b', 'c';
+select keys_dirtied from information_schema.user_statistics where user_name='root';
+keys_dirtied
+3
+select keys_dirtied from information_schema.table_statistics where table_name='t1' and table_schema='test';
+keys_dirtied
+3
+update t1 set j=j+1 where i=0 MEMCACHE_DIRTY 'a';
+update t1 set j=j+1 where i=1 MEMCACHE_DIRTY 'b', 'c';
+select keys_dirtied from information_schema.user_statistics where user_name='root';
+keys_dirtied
+6
+select keys_dirtied from information_schema.table_statistics where table_name='t1' and table_schema='test';
+keys_dirtied
+6
+insert into t1 values (0,0) on duplicate key update j=j+1 MEMCACHE_DIRTY 'a';
+insert into t1 values (2,0) on duplicate key update j=j+1 MEMCACHE_DIRTY 'a', 'b';
+select keys_dirtied from information_schema.user_statistics where user_name='root';
+keys_dirtied
+9
+select keys_dirtied from information_schema.table_statistics where table_name='t1' and table_schema='test';
+keys_dirtied
+9
+replace into t1 values (0,3) MEMCACHE_DIRTY 'a';
+replace into t1 values (3,3) MEMCACHE_DIRTY 'a', 'b';
+select keys_dirtied from information_schema.user_statistics where user_name='root';
+keys_dirtied
+12
+select keys_dirtied from information_schema.table_statistics where table_name='t1' and table_schema='test';
+keys_dirtied
+12
+delete from t1 where i=0 MEMCACHE_DIRTY 'a';
+delete from t1 where i=1 MEMCACHE_DIRTY 'b', 'c';
+delete from t1 where i=7 MEMCACHE_DIRTY 'b', 'c';
+select keys_dirtied from information_schema.user_statistics where user_name='root';
+keys_dirtied
+17
+select keys_dirtied from information_schema.table_statistics where table_name='t1' and table_schema='test';
+keys_dirtied
+17
+drop table t1;

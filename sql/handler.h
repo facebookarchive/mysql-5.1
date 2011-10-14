@@ -1840,7 +1840,7 @@ public:
   /* Update global per-table counters for work done by this handler. Should be
      called at the end of a statement.
   */
-  void update_global_table_stats(THD *thd);
+  void update_global_table_stats(THD *thd, uint keys_dirtied);
 
   /* The LOCK_open fan club */
 

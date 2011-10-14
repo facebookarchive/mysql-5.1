@@ -15,12 +15,13 @@ static pthread_mutex_t LOCK_global_table_stats;
       follow_next - when TRUE, update global stats for tables linked
                     via TABLE::next
  */
-void update_table_stats(THD *thd, TABLE *tablep, bool follow_next)
+void update_table_stats(THD *thd, TABLE *tablep, bool follow_next,
+                        uint keys_dirtied)
 {
   for (; tablep; tablep= tablep->next)
   {
     if (tablep->file)
-      tablep->file->update_global_table_stats(thd);
+      tablep->file->update_global_table_stats(thd, keys_dirtied);
 
     if (!follow_next)
       return;
@@ -44,6 +45,7 @@ clear_table_stats_counters(TABLE_STATS* table_stats)
     my_io_perf_init(&(table_stats->indexes[x].io_perf_read));
   }
 
+  table_stats->keys_dirtied= 0;
   table_stats->rows_inserted= 0;
   table_stats->rows_updated= 0;
   table_stats->rows_deleted= 0;
@@ -339,6 +341,7 @@ ST_FIELD_INFO table_stats_fields_info[]=
   {"IO_WRITE_OLD_IOS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
 
   {"IO_INDEX_INSERTS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"KEYS_DIRTIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
@@ -441,6 +444,7 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[f++]->store(table_stats->io_perf_write.old_ios, TRUE);
 
     table->field[f++]->store(table_stats->index_inserts, TRUE);
+    table->field[f++]->store(table_stats->keys_dirtied, TRUE);
 
     if (schema_table_store_record(thd, table))
     {
@@ -575,6 +579,7 @@ ST_FIELD_INFO user_stats_fields_info[]=
   {"DISK_READ_WAIT_USECS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"ERRORS_ACCESS_DENIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"ERRORS_TOTAL", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"KEYS_DIRTIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"LIMIT_WAIT_QUERIES", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"LIMIT_FAIL_TRANSACTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"MICROSECONDS_CPU", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},

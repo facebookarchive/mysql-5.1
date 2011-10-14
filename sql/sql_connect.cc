@@ -1294,6 +1294,7 @@ void init_user_stats(USER_STATS *user_stats)
   user_stats->connections_total= 0;
   user_stats->errors_access_denied= 0;
   user_stats->errors_total= 0;
+  user_stats->keys_dirtied= 0;
   user_stats->limit_wait_queries= 0;
   user_stats->limit_fail_transactions= 0;
   user_stats->microseconds_cpu= 0;
@@ -1400,6 +1401,7 @@ fill_one_user_stats(TABLE *table, USER_CONN *uc, USER_STATS* us,
   table->field[f++]->store(us->io_perf_read.wait_usecs, TRUE);
   table->field[f++]->store(us->errors_access_denied, TRUE);
   table->field[f++]->store(us->errors_total, TRUE);
+  table->field[f++]->store(us->keys_dirtied, TRUE);
   table->field[f++]->store(us->limit_wait_queries, TRUE);
   table->field[f++]->store(us->limit_fail_transactions, TRUE);
   table->field[f++]->store(us->microseconds_cpu, TRUE);

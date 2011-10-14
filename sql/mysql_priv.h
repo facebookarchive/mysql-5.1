@@ -1592,7 +1592,8 @@ void remove_db_from_cache(const char *db);
 void flush_tables();
 
 /* for SHOW GLOBAL TABLE STATUS */
-void update_table_stats(THD* thd, TABLE *table_ptr, bool follow_next);
+void update_table_stats(THD* thd, TABLE *table_ptr, bool follow_next,
+                        uint keys_dirtied);
 extern HASH global_table_stats;
 void init_global_table_stats(void);
 void free_global_table_stats(void);

@@ -234,6 +234,7 @@ typedef struct st_user_stats {
   my_atomic_bigint connections_total;             // total conns created
   my_atomic_bigint errors_access_denied;          // denied access to table or db
   my_atomic_bigint errors_total;
+  my_atomic_bigint keys_dirtied;                  // number of memcache keys dirtied
   my_atomic_bigint limit_wait_queries;
   my_atomic_bigint limit_fail_transactions;
   my_atomic_bigint microseconds_cpu;
@@ -366,6 +367,8 @@ typedef struct st_table_stats {
 
   INDEX_STATS indexes[MAX_INDEX_STATS];
   uint num_indexes;           /* min(#indexes on table, MAX_INDEX_STATS) */
+
+  volatile my_atomic_bigint keys_dirtied;    /* number of memcache keys dirtied */
 
   /* TODO(mcallaghan): why are these volatile? */
   volatile my_atomic_bigint rows_inserted;   /* Number of rows inserted */

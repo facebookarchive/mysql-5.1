@@ -1188,7 +1188,7 @@ static void mark_used_tables_as_free_for_reuse(THD *thd, TABLE *table)
   @remark It should not ordinarily be called directly.
 */
 
-static void close_open_tables(THD *thd)
+static void close_open_tables(THD *thd, uint keys_dirtied)
 {
   bool found_old_table= 0;
 
@@ -1199,7 +1199,7 @@ static void close_open_tables(THD *thd)
      This is done for performance so it is OK when LOCK_open has been
      locked by the caller.
   */
-  update_table_stats(thd, thd->open_tables, true);
+  update_table_stats(thd, thd->open_tables, true, keys_dirtied);
 
   VOID(pthread_mutex_lock(&LOCK_open));
 
@@ -1364,7 +1364,7 @@ void close_thread_tables(THD *thd, bool async_commit)
     other thread tries to abort the MERGE lock in between.
   */
   if (thd->open_tables)
-    close_open_tables(thd);
+    close_open_tables(thd, thd->lex->mc_key_list.elements);
 
   if (prelocked_mode == PRELOCKED)
   {
@@ -1397,7 +1397,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr, bool update_stats)
   */
   if (update_stats && table->file)
   {
-    table->file->update_global_table_stats(thd);
+    table->file->update_global_table_stats(thd, 0);
   }
 
   *table_ptr=table->next;
@@ -1940,7 +1940,7 @@ void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table)
   DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'",
                           table->s->db.str, table->s->table_name.str));
 
-  table->file->update_global_table_stats(thd);
+  table->file->update_global_table_stats(thd, 0);
   free_io_cache(table);
   closefrm(table, 0);
   if (delete_table)
@@ -9237,7 +9237,7 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
   mysql_unlock_tables(thd, thd->lock);
   thd->lock= 0;
 
-  update_table_stats(thd, thd->open_tables, true); // Do this before LOCK_open is locked
+  update_table_stats(thd, thd->open_tables, true, 0); // Do this before LOCK_open is locked
 
   pthread_mutex_lock(&LOCK_open);
 
