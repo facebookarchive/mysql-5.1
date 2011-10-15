@@ -18,7 +18,7 @@ select User, State, Info from information_schema.processlist where State like '%
 User	State	Info
 select User, State, Info from information_schema.processlist where Info like 'select sleep%';
 User	State	Info
-adminc	User sleep	select sleep(2)
+adminc	executing	select sleep(2)
 select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
 queries_running	queries_waiting
 1	0

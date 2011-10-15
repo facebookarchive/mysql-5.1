@@ -1784,6 +1784,7 @@ bool select_send::send_data(List<Item> &items)
   if (thd->vio_ok()) {
     admission_control_exit(thd);
     bool ret = protocol->write();
+    DEBUG_SYNC(thd, "post_network_write");
     admission_control_enter(thd, admission_control_wait_reentry);
     DBUG_RETURN(ret);
   }

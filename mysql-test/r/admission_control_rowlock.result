@@ -28,7 +28,7 @@ User	State	Info
 select User, State, Info from information_schema.processlist where Info like 'select%' and User='adminc' order by Info;
 User	State	Info
 adminc	statistics	select * from ti where i=1 for update
-adminc	User sleep	select sleep(2)
+adminc	executing	select sleep(2)
 select queries_running, queries_waiting from information_schema.user_statistics where user_name = 'adminc';
 queries_running	queries_waiting
 1	0

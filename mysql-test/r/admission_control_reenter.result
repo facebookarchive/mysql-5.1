@@ -1,0 +1,52 @@
+show global variables like "admission_control";
+Variable_name	Value
+admission_control	ON
+show global status like "Control_admission_disabled";
+Variable_name	Value
+Control_admission_disabled	OFF
+grant all on *.* to 'adminc'@'%' with max_concurrent_queries 2 max_user_connections 4;
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_queries
+adminc	%	4	2
+show grants;
+Grants for adminc@%
+GRANT ALL PRIVILEGES ON *.* TO 'adminc'@'%' WITH MAX_USER_CONNECTIONS 4 MAX_CONCURRENT_QUERIES 2
+select connection_id() into @cid2;
+SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
+SET DEBUG='d,ac_sleep_stall';
+select sleep(1);
+wait for i_am_sleeping
+SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping';
+SET DEBUG_SYNC='post_network_write SIGNAL post_write_sleep WAIT_FOR post_write_wake';
+select 1;
+wait for post_write_sleep
+SET DEBUG_SYNC='now WAIT_FOR post_write_sleep';
+SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping2';
+SET DEBUG='d,ac_sleep_stall';
+select sleep(1);
+select queries_running, queries_waiting from information_schema.user_statistics where user_name='adminc';
+queries_running	queries_waiting
+2	0
+SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping2';
+kill 4;
+SET DEBUG_SYNC='now SIGNAL post_write_wake';
+select unix_timestamp() into @start_time;
+select 1;
+1
+1
+select unix_timestamp() into @end_time;
+select (@end_time - @start_time) < 5;
+(@end_time - @start_time) < 5
+1
+ERROR HY000: Lost connection to MySQL server during query
+sleep(1)
+0
+sleep(1)
+0
+show global status like "Control_admission_disabled";
+Variable_name	Value
+Control_admission_disabled	OFF
+drop user 'adminc'@'%';
+SET DEBUG_SYNC= 'RESET';
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+User	Host	max_user_connections	max_concurrent_queries

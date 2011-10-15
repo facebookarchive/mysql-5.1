@@ -3682,6 +3682,11 @@ longlong Item_func_sleep::val_int()
   */
   if (time < 0.00001)
     return 0;
+
+  DEBUG_SYNC(thd, "in_sleep_func");
+  DBUG_EXECUTE_IF("ac_sleep_stall", sleep(2););
+
+  admission_control_exit(thd);
     
   set_timespec_nsec(abstime, (ulonglong)(time * ULL(1000000000)));
 
@@ -3692,10 +3697,6 @@ longlong Item_func_sleep::val_int()
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &cond;
 
-  DEBUG_SYNC(thd, "in_sleep_func");
-  DBUG_EXECUTE_IF("ac_sleep_stall", sleep(2););
-
-  admission_control_exit(thd);
   error= 0;
   while (!thd->killed)
   {

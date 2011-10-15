@@ -1,0 +1,89 @@
+#
+# test handling of failures in admission_control_enter for nested calls
+# done during network and disk IO. Without a the code change this causes
+# a DBUG_ASSERT crash and in non-debug mode AC would be disabled because
+# the queries_running count went negative.
+#
+
+--source include/have_debug_sync.inc
+
+show global variables like "admission_control";
+show global status like "Control_admission_disabled";
+
+grant all on *.* to 'adminc'@'%' with max_concurrent_queries 2 max_user_connections 4;
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
+
+#
+# test with 2 concurrent queries
+#
+
+connect (ac1, localhost, adminc,,);
+show grants;
+
+connect (ac2, localhost, adminc,,);
+select connection_id() into @cid2;
+let $id2=`select @cid2`;
+
+connect (ac3, localhost, adminc,,);
+
+connect (ac4, localhost, adminc,,);
+
+# This blocks for two seconds without giving up admission_control entry
+connection ac1;
+SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping';
+SET DEBUG='d,ac_sleep_stall';
+send select sleep(1);
+
+# First this waits for the select sleep above to start running and then
+# this blocks on admission_control_enter after writing to socket
+connection ac2;
+-- echo wait for i_am_sleeping
+SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping';
+SET DEBUG_SYNC='post_network_write SIGNAL post_write_sleep WAIT_FOR post_write_wake';
+send select 1;
+
+# Wait for the select 1 above to block
+connection default;
+--echo wait for post_write_sleep
+SET DEBUG_SYNC='now WAIT_FOR post_write_sleep';
+
+# This blocks for two seconds without giving up admission_control entry.
+# It keeps ac2 from running immediately
+connection ac4;
+SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping2';
+SET DEBUG='d,ac_sleep_stall';
+send select sleep(1);
+
+# Kill ac2. It will loop in admission_control_enter because ac1 and ac4 are running
+connection default;
+select queries_running, queries_waiting from information_schema.user_statistics where user_name='adminc';
+SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping2';
+eval kill $id2;
+SET DEBUG_SYNC='now SIGNAL post_write_wake';
+
+# confirm this doesn't wait too long
+connection ac3;
+select unix_timestamp() into @start_time;
+select 1;
+select unix_timestamp() into @end_time;
+select (@end_time - @start_time) < 5;
+
+connection ac2;
+# CR_SERVER_LOST
+--error 2013
+reap;
+
+connection ac1;
+reap;
+connection ac4;
+reap;
+
+connection default;
+show global status like "Control_admission_disabled";
+disconnect ac1;
+disconnect ac3;
+disconnect ac4;
+drop user 'adminc'@'%';
+SET DEBUG_SYNC= 'RESET';
+
+select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';

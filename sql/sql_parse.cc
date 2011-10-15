@@ -8654,6 +8654,19 @@ int admission_control_enter(THD* thd, my_bool wait)
       DBUG_RETURN(0);
     }
 
+    if (!admission_control)
+    {
+      /* Entered when admission_control is disabled after queries entered
+         the queue. This guarantees that admission_control_exit does not
+         decrement the count of running queries for this user.
+      */
+#ifndef DBUG_OFF
+      --admission_depth;
+#endif
+      thd->uses_admission_control= QUERY_NOT_SCHEDULED;
+      DBUG_RETURN(0);
+    }
+
     /* Don't do this while holding query_mutex */
     if (!first && (thd->killed || !thd->is_connected()))
     {
@@ -8662,6 +8675,12 @@ int admission_control_enter(THD* thd, my_bool wait)
       --admission_depth;
 #endif
       thd->proc_info= old_msg;
+
+      /* This guarantees that admission_control_exit does not decrement
+         the count of running queries for this user.
+      */
+      thd->uses_admission_control= QUERY_NOT_SCHEDULED;
+
       DBUG_RETURN(1);
     }
 

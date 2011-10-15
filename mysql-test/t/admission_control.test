@@ -47,7 +47,6 @@ select queries_running, queries_waiting, limit_wait_queries from information_sch
 
 select variable_value into @waits2 from information_schema.global_status where variable_name = 'Control_admission_waits';
 select @waits2 - @waits1;
-select variable_value into @waits1 from information_schema.global_status where variable_name = 'Control_admission_waits';
 
 connection ac3;
 reap;
@@ -60,29 +59,40 @@ reap;
 # Next test with 4 concurrent queries
 #
 
+connection default;
+select variable_value into @waits1 from information_schema.global_status where variable_name = 'Control_admission_waits';
 connect (ac4, localhost, adminc,,);
 
 # This blocks for two seconds without giving up admission_control entry
 connection ac3;
+SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping3';
+SET DEBUG='d,ac_sleep_stall';
 send select sleep(1);
 
 # This blocks for two seconds without giving up admission_control entry
 connection ac2;
+SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping3';
+SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping2';
+SET DEBUG='d,ac_sleep_stall';
 send select sleep(1);
-sleep 0.5;
 
 # This blocks until one of the previous statements finish
 connection ac4;
+SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping2';
 send select 1;
 
 # This blocks until one of the previous statements finish
 connection ac1;
 send select 1;
 
-sleep 0.5;
-
 echo "Should find two blocked statements";
 connection default;
+
+echo "first wait for last two statements to wait in AC";
+let $wait_condition=
+  SELECT queries_waiting = 2 FROM information_schema.user_statistics where user_name = 'adminc';
+--source include/wait_condition.inc
+
 select User, State, Info from information_schema.processlist where State like '%max concurrent queries%';
 select User, State, Info from information_schema.processlist where Info like 'select sleep%';
 select queries_running, queries_waiting, limit_wait_queries from information_schema.user_statistics where user_name = 'adminc';
@@ -100,6 +110,7 @@ connection ac4;
 reap;
 
 connection default;
+SET DEBUG_SYNC='reset';
 disconnect ac1;
 disconnect ac2;
 disconnect ac3;
