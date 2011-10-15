@@ -1,0 +1,48 @@
+# confirm that DROP DATABASE works with innodb_background_drop_table
+
+-- source include/have_innodb_plugin.inc
+
+--disable_warnings
+drop database if exists bg_drop_table;
+--enable_warnings
+
+show global variables like "innodb_background_drop_table";
+set global innodb_background_drop_table=OFF;
+show global variables like "innodb_background_drop_table";
+set global innodb_background_drop_table=ON;
+show global variables like "innodb_background_drop_table";
+
+create database bg_drop_table;
+use bg_drop_table;
+
+create table t(i int primary key auto_increment) engine=innodb;
+insert into t values (null), (null), (null), (null);
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+
+create table s engine=innodb as select * from t;
+create table r engine=innodb as select * from t;
+
+use test;
+show global status like "innodb_background_drop_table_queue";
+drop database bg_drop_table;
+show global status like "innodb_background_drop_table_queue";
+
+create database bg_drop_table;
+use bg_drop_table;
+create table t(i int primary key auto_increment) engine=innodb;
+insert into t values (null), (null), (null), (null);
+insert into t select null from t;
+
+use test;
+drop database bg_drop_table;

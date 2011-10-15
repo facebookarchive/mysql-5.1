@@ -1,0 +1,45 @@
+drop database if exists bg_drop_table;
+show global variables like "innodb_background_drop_table";
+Variable_name	Value
+innodb_background_drop_table	ON
+set global innodb_background_drop_table=OFF;
+show global variables like "innodb_background_drop_table";
+Variable_name	Value
+innodb_background_drop_table	OFF
+set global innodb_background_drop_table=ON;
+show global variables like "innodb_background_drop_table";
+Variable_name	Value
+innodb_background_drop_table	ON
+create database bg_drop_table;
+use bg_drop_table;
+create table t(i int primary key auto_increment) engine=innodb;
+insert into t values (null), (null), (null), (null);
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+insert into t select null from t;
+create table s engine=innodb as select * from t;
+create table r engine=innodb as select * from t;
+use test;
+show global status like "innodb_background_drop_table_queue";
+Variable_name	Value
+Innodb_background_drop_table_queue	0
+drop database bg_drop_table;
+show global status like "innodb_background_drop_table_queue";
+Variable_name	Value
+Innodb_background_drop_table_queue	0
+create database bg_drop_table;
+use bg_drop_table;
+create table t(i int primary key auto_increment) engine=innodb;
+insert into t values (null), (null), (null), (null);
+insert into t select null from t;
+use test;
+drop database bg_drop_table;
