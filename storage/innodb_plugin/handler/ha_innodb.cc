@@ -1227,9 +1227,8 @@ thd_admission_control_diskio_enter(
 	int diskio_used_for_exit)
 {
 	if (thd) {
-		int r = admission_control_diskio_enter((THD*)thd,
-						       diskio_used_for_exit);
-		ut_a(r == 0);
+		admission_control_diskio_enter((THD*)thd,
+					       diskio_used_for_exit);
 	}
 }
 
