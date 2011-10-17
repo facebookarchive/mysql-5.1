@@ -52,6 +52,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
 #include "buf0lru.h"
+#include "buf0flu.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
