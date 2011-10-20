@@ -1001,6 +1001,8 @@ static sys_var_readonly         sys_myisam_mmap_size(&vars, "myisam_mmap_size",
                                                      OPT_GLOBAL,
                                                      SHOW_LONGLONG,
                                                      get_myisam_mmap_size);
+static sys_var_bool_ptr sys_reset_sbm(&vars, "reset_seconds_behind_master",
+                                      &reset_seconds_behind_master);
 static sys_var_bool_ptr sys_admission_control(&vars, "admission_control",
                                               &admission_control);
 static sys_var_bool_ptr

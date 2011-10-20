@@ -122,6 +122,9 @@ ulonglong relay_sql_bytes= 0;
 /* Number of seconds the SQL thread waits for events from the IO thread */
 double relay_sql_wait_secs= 0;
 
+/* Number of times the IO thread connected to the master */
+ulong relay_io_connected= 0;
+
 /*
   When slave thread exits, we need to remember the temporary tables so we
   can re-use them on slave start.
@@ -2731,6 +2734,7 @@ pthread_handler_t handle_slave_io(void *arg)
 
 connected:
 
+    ++relay_io_connected;
     DBUG_EXECUTE_IF("dbug.before_get_running_status_yes",
                     {
                       const char act[]=
@@ -4415,7 +4419,9 @@ static Log_event* next_event(Relay_log_info* rli)
           reached.
         */
         time_t save_timestamp= rli->last_master_timestamp;
-        rli->last_master_timestamp= 0;
+
+	if (reset_seconds_behind_master)
+       	  rli->last_master_timestamp= 0;
 
         DBUG_ASSERT(rli->relay_log.get_open_count() ==
                     rli->cur_log_old_open_count);

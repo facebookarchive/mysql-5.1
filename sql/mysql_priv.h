@@ -2154,6 +2154,7 @@ extern ulonglong long_slave_query_time_usecs;
 extern int xa_recovery_did_rollback;
 extern ulong sync_relay_info_period, sync_relay_info_events;
 extern ulong slave_max_allowed_packet;
+extern my_bool reset_seconds_behind_master;
 
 extern my_bool allow_hint_to_missing_index;
 
@@ -2205,6 +2206,7 @@ extern ulonglong opened_fast, opened_not_fast;
 extern ulong relay_io_events, relay_sql_events;
 extern ulonglong relay_io_bytes, relay_sql_bytes;
 extern double relay_sql_wait_secs;
+extern ulong relay_io_connected;
 
 #ifdef HAVE_INNODB_BINLOG
 /*

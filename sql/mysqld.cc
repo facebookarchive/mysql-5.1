@@ -634,6 +634,8 @@ my_bool cachedev_enabled= FALSE;
 /* Added by patches */
 ulong slave_max_allowed_packet= 0;
 
+my_bool reset_seconds_behind_master= FALSE;
+
 my_bool allow_hint_to_missing_index= FALSE;
 ulong reserved_super_connections=0;
 
@@ -6195,6 +6197,7 @@ enum options_mysqld
   OPT_FB_ALWAYS_DIRTY,
 #endif
   OPT_RESERVED_SUPER_CONNECTIONS,
+  OPT_RESET_SECONDS_BEHIND_MASTER,
   OPT_PERFTOOLS_PROFILE,
   OPT_LOG_DATAGRAM,
   OPT_LOG_DATAGRAM_USECS,
@@ -7813,6 +7816,13 @@ thread is in the relay logs.",
    "The number of reserved connections for users with SUPER privileges.",
    &reserved_super_connections, &reserved_super_connections,
    0, GET_ULONG, REQUIRED_ARG, 10, 0, 50, 0, 1, 0},
+  {"reset_seconds_behind_master", OPT_RESET_SECONDS_BEHIND_MASTER,
+   "When TRUE reset Seconds_Behind_Master to 0 when SQL thread catches up "
+   "to the IO thread. This is the original behavior but also causes reported "
+   "lag to flip-flop between 0 and the real lag when the IO thread is the "
+   "bottleneck.",
+   &reset_seconds_behind_master, &reset_seconds_behind_master,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"sync_relay_info", OPT_SYNC_RELAY_INFO,
    "Synchronously flush relay-log.info writes to disk after every nth write. "
    "Use 0 (default) to disable synchronous flushing.",
@@ -8446,6 +8456,7 @@ SHOW_VAR status_vars[]= {
   {"Questions",                (char*) offsetof(STATUS_VAR, questions), SHOW_LONG_STATUS},
   {"Read_requests",            (char*) offsetof(STATUS_VAR, read_requests), SHOW_LONG_STATUS},
   {"Read_seconds",             (char*) offsetof(STATUS_VAR, read_seconds), SHOW_DOUBLE_STATUS},
+  {"Relay_log_io_connected",   (char*) &relay_io_connected, SHOW_LONG},
   {"Relay_log_io_events",      (char*) &relay_io_events, SHOW_LONG},
   {"Relay_log_io_bytes",       (char*) &relay_io_bytes, SHOW_LONGLONG},
   {"Relay_log_sql_events",     (char*) &relay_sql_events, SHOW_LONG},
@@ -8730,6 +8741,8 @@ static int mysql_init_variables(void)
   reserved_super_connections=0;
   sync_relay_info_period= 0;
   sync_relay_info_events= 0;
+
+  reset_seconds_behind_master= FALSE;
 
   log_datagram= 0;
   log_datagram_usecs= 0;
