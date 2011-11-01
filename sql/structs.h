@@ -220,6 +220,7 @@ typedef struct st_user_stats {
   my_atomic_bigint bytes_received;
   my_atomic_bigint bytes_sent;
   my_atomic_bigint binlog_bytes_written;
+  my_atomic_bigint binlog_events_skip_set;
   my_atomic_bigint commands_ddl;
   my_atomic_bigint commands_delete;
   my_atomic_bigint commands_handler;

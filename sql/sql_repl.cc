@@ -21,12 +21,15 @@
 #include "log_event.h"
 #include "rpl_filter.h"
 #include <my_dir.h>
+#include "my_atomic.h"
 
 int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
 #ifndef DBUG_OFF
 static int binlog_dump_count = 0;
 #endif
+
+my_atomic_bigint binlog_events_skip_master= 0;
 
 /* Show processlist command dump the binlog state.
  
@@ -460,7 +463,10 @@ send_event_to_slave(THD *thd, NET *net, String* const packet)
     */
     uint16 flags= uint2korr(&((*packet)[FLAGS_OFFSET+1]));
     if (flags & LOG_EVENT_SKIP_REPLICATION_F)
+    {
+      my_atomic_add_bigint(&binlog_events_skip_master, 1);
       return NULL;
+    }
   }
 
   if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))

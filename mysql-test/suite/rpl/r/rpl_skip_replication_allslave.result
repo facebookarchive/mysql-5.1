@@ -1,0 +1,71 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
+SELECT @@global.replicate_events_marked_for_skip;
+@@global.replicate_events_marked_for_skip
+filter_on_slave
+START SLAVE IO_THREAD;
+SELECT variable_value into @skip1 from information_schema.global_status where variable_name='Binlog_events_skip_set';
+SELECT variable_value into @master_skip1 from information_schema.global_status where variable_name='Binlog_events_skip_master';
+SELECT variable_value into @master_set1 from information_schema.global_status where variable_name='Binlog_events_skip_set';
+SELECT binlog_events_skip_set INTO @user_set1 FROM information_schema.user_statistics WHERE user_name = 'root';
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT, b INT) ENGINE=innodb;
+INSERT INTO t1(a) VALUES (1);
+SELECT variable_value into @skip2 from information_schema.global_status where variable_name='Binlog_events_skip_set';
+select @skip2 - @skip1 as skip_diff_should_be_0;
+skip_diff_should_be_0
+0
+SET skip_replication=1;
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+SELECT variable_value into @skip1 from information_schema.global_status where variable_name='Binlog_events_skip_set';
+INSERT INTO t1(a) SELECT NULL FROM t1;
+INSERT INTO t1(a) SELECT NULL FROM t1;
+SELECT variable_value into @skip2 from information_schema.global_status where variable_name='Binlog_events_skip_set';
+select @skip2 - @skip1 as skip_diff_should_be_8;
+skip_diff_should_be_8
+8
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+INSERT INTO t1(a) SELECT NULL FROM t1;
+INSERT INTO t1(a) SELECT NULL FROM t1;
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+INSERT INTO t1(a) SELECT NULL FROM t1;
+INSERT INTO t1(a) SELECT NULL FROM t1;
+SELECT variable_value into @slave_skip1 from information_schema.global_status where variable_name='Binlog_events_skip_slave';
+START SLAVE SQL_THREAD;
+SELECT variable_value into @slave_skip2 from information_schema.global_status where variable_name='Binlog_events_skip_slave';
+SHOW TABLES;
+Tables_in_test
+t1
+Should have one row
+SELECT * from t1;
+a	b
+1	NULL
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+select @slave_skip2 - @slave_skip1 as skip_diff_should_be_24;
+skip_diff_should_be_24
+24
+SELECT variable_value into @master_set2 from information_schema.global_status where variable_name='Binlog_events_skip_set';
+select @master_set2 - @master_set1 as skip_diff_should_be_24;
+skip_diff_should_be_24
+24
+SELECT binlog_events_skip_set INTO @user_set2 FROM information_schema.user_statistics WHERE user_name = 'root';
+select @user_set2 - @user_set1 as skip_diff_should_be_24;
+skip_diff_should_be_24
+24
+SELECT variable_value into @master_skip2 from information_schema.global_status where variable_name='Binlog_events_skip_master';
+select @master_skip2 - @master_skip1 as skip_diff_should_be_0;
+skip_diff_should_be_0
+0
+Should have many rows
+SELECT count(*), max(a) FROM t1;
+count(*)	max(a)
+64	90
+SET skip_replication=0;
+DROP TABLE t1;

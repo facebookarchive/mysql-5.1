@@ -1,0 +1,68 @@
+#
+# test master filtering for LOAD DATA
+#
+
+--source include/master-slave.inc
+--source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+sync_slave_with_master;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
+SELECT @@global.replicate_events_marked_for_skip;
+SELECT variable_value into @slave_skip1 from information_schema.global_status where variable_name='Binlog_events_skip_slave';
+START SLAVE;
+
+connection master;
+
+create table t1 (a int, b int) engine=innodb;
+
+SET skip_replication=1;
+load data infile '../../std_data/loadrpl1.dat' into table t1 fields terminated by ',';
+
+SELECT count(*) from t1;
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+
+sync_slave_with_master;
+
+connection slave;
+SELECT variable_value into @slave_skip2 from information_schema.global_status where variable_name='Binlog_events_skip_slave';
+SHOW TABLES;
+--echo Should have no rows
+SELECT * from t1;
+
+SELECT @slave_skip2 - @slave_skip1 as skip_diff_should_be_0;
+
+connection master;
+--echo Should have many rows
+SELECT count(*), max(a) FROM t1;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1lm' from t1;
+SET skip_replication=0;
+TRUNCATE TABLE t1;
+SET skip_replication=1;
+sync_slave_with_master;
+
+connection master;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval load data local infile '$MYSQLTEST_VARDIR/tmp/t1lm' into table t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1lm
+SELECT count(*), max(a) FROM t1;
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+sync_slave_with_master;
+
+--echo Should have no rows
+SELECT * from t1;
+
+connection master;
+SET skip_replication=0;
+DROP TABLE t1;
+sync_slave_with_master;
+
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;

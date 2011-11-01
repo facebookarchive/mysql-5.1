@@ -1,0 +1,114 @@
+#
+# test master filtering for transactions when master filters all events from
+# several binlog files
+#
+
+--source include/master-slave.inc
+--source include/have_innodb.inc
+
+connection slave;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
+SELECT @@global.replicate_events_marked_for_skip;
+START SLAVE IO_THREAD;
+
+connection master;
+
+SELECT variable_value into @skip1 from information_schema.global_status where variable_name='Binlog_events_skip_set';
+SELECT variable_value into @master_skip1 from information_schema.global_status where variable_name='Binlog_events_skip_master';
+SELECT variable_value into @master_set1 from information_schema.global_status where variable_name='Binlog_events_skip_set';
+SELECT binlog_events_skip_set INTO @user_set1 FROM information_schema.user_statistics WHERE user_name = 'root';
+
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT, b INT) ENGINE=innodb;
+INSERT INTO t1(a) VALUES (1);
+SELECT variable_value into @skip2 from information_schema.global_status where variable_name='Binlog_events_skip_set';
+select @skip2 - @skip1 as skip_diff_should_be_0;
+
+SET skip_replication=1;
+
+# Inject a rotate event in the binlog stream sent to slave (otherwise we will
+# fail sync_slave_with_master as the last event on the master is not present
+# on the slave).
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+SELECT variable_value into @skip1 from information_schema.global_status where variable_name='Binlog_events_skip_set';
+INSERT INTO t1(a) SELECT NULL FROM t1;
+INSERT INTO t1(a) SELECT NULL FROM t1;
+SELECT variable_value into @skip2 from information_schema.global_status where variable_name='Binlog_events_skip_set';
+
+select @skip2 - @skip1 as skip_diff_should_be_8;
+
+# Wait for the IO thread to catch up.
+let $master_file= query_get_value("SHOW MASTER STATUS", File, 1);
+let $master_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+connection slave;
+let $slave_param= Master_Log_File;
+let $slave_param_value= $master_file;
+source include/wait_for_slave_param.inc;
+let $slave_param= Read_Master_Log_Pos;
+let $slave_param_value= $master_pos;
+source include/wait_for_slave_param.inc;
+
+connection master;
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+INSERT INTO t1(a) SELECT NULL FROM t1;
+INSERT INTO t1(a) SELECT NULL FROM t1;
+
+# Wait for the IO thread to catch up.
+let $master_file= query_get_value("SHOW MASTER STATUS", File, 1);
+let $master_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+connection slave;
+let $slave_param= Master_Log_File;
+let $slave_param_value= $master_file;
+source include/wait_for_slave_param.inc;
+let $slave_param= Read_Master_Log_Pos;
+let $slave_param_value= $master_pos;
+source include/wait_for_slave_param.inc;
+
+connection master;
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+INSERT INTO t1(a) SELECT NULL FROM t1;
+INSERT INTO t1(a) SELECT NULL FROM t1;
+
+# Wait for the IO thread to catch up.
+let $master_file= query_get_value("SHOW MASTER STATUS", File, 1);
+let $master_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+connection slave;
+let $slave_param= Master_Log_File;
+let $slave_param_value= $master_file;
+source include/wait_for_slave_param.inc;
+let $slave_param= Read_Master_Log_Pos;
+let $slave_param_value= $master_pos;
+source include/wait_for_slave_param.inc;
+
+SELECT variable_value into @slave_skip1 from information_schema.global_status where variable_name='Binlog_events_skip_slave';
+START SLAVE SQL_THREAD;
+
+connection master;
+sync_slave_with_master;
+
+SELECT variable_value into @slave_skip2 from information_schema.global_status where variable_name='Binlog_events_skip_slave';
+SHOW TABLES;
+--echo Should have one row
+SELECT * from t1;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+# This diff for slave_skip should match the diff for master_set and user_set (24 today)
+select @slave_skip2 - @slave_skip1 as skip_diff_should_be_24;
+
+connection master;
+SELECT variable_value into @master_set2 from information_schema.global_status where variable_name='Binlog_events_skip_set';
+select @master_set2 - @master_set1 as skip_diff_should_be_24;
+
+SELECT binlog_events_skip_set INTO @user_set2 FROM information_schema.user_statistics WHERE user_name = 'root';
+select @user_set2 - @user_set1 as skip_diff_should_be_24;
+
+SELECT variable_value into @master_skip2 from information_schema.global_status where variable_name='Binlog_events_skip_master';
+select @master_skip2 - @master_skip1 as skip_diff_should_be_0;
+
+--echo Should have many rows
+SELECT count(*), max(a) FROM t1;
+SET skip_replication=0;
+DROP TABLE t1;
+
+sync_slave_with_master;

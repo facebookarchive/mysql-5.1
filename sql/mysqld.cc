@@ -664,6 +664,9 @@ my_bool admission_control_disabled= FALSE;
 extern my_atomic_bigint admission_control_waits;
 extern my_atomic_bigint transaction_control_fails;
 my_bool transaction_control_disabled= FALSE;
+extern my_atomic_bigint binlog_events_skip_set;
+extern my_atomic_bigint binlog_events_skip_master;
+extern my_atomic_bigint binlog_events_skip_slave;
 
 my_bool log_datagram= 0;
 ulong log_datagram_usecs= 0;
@@ -8375,6 +8378,9 @@ SHOW_VAR status_vars[]= {
   {"Binlog_bytes_written",     (char*) &binlog_bytes_written,   SHOW_LONGLONG},
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
+  {"Binlog_events_skip_master", (char*) &binlog_events_skip_master, SHOW_LONGLONG},
+  {"Binlog_events_skip_slave", (char*) &binlog_events_skip_slave, SHOW_LONGLONG},
+  {"Binlog_events_skip_set",   (char*) &binlog_events_skip_set,  SHOW_LONGLONG},
   {"Binlog_fsync_avg_fsync_secs",      (char*) &show_binlog_fsync_avg_fsync,      SHOW_FUNC},
   {"Binlog_fsync_avg_ticketwait_secs", (char*) &show_binlog_fsync_avg_ticketwait, SHOW_FUNC},
   {"Binlog_fsync_avg_syncwait_secs",   (char*) &show_binlog_fsync_avg_syncwait,   SHOW_FUNC},

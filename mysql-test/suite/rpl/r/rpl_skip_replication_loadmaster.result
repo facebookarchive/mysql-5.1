@@ -1,0 +1,52 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop table if exists t1, t2;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
+SELECT @@global.replicate_events_marked_for_skip;
+@@global.replicate_events_marked_for_skip
+filter_on_master
+SELECT variable_value into @slave_skip1 from information_schema.global_status where variable_name='Binlog_events_skip_slave';
+START SLAVE;
+create table t1 (a int, b int) engine=innodb;
+SET skip_replication=1;
+load data infile '../../std_data/loadrpl1.dat' into table t1 fields terminated by ',';
+SELECT count(*) from t1;
+count(*)
+2
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+SELECT variable_value into @slave_skip2 from information_schema.global_status where variable_name='Binlog_events_skip_slave';
+SHOW TABLES;
+Tables_in_test
+t1
+Should have no rows
+SELECT * from t1;
+a	b
+SELECT @slave_skip2 - @slave_skip1 as skip_diff_should_be_0;
+skip_diff_should_be_0
+0
+Should have many rows
+SELECT count(*), max(a) FROM t1;
+count(*)	max(a)
+2	1
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1lm' from t1;
+SET skip_replication=0;
+TRUNCATE TABLE t1;
+SET skip_replication=1;
+load data local infile 'MYSQLTEST_VARDIR/tmp/t1lm' into table t1;
+SELECT count(*), max(a) FROM t1;
+count(*)	max(a)
+2	1
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+Should have no rows
+SELECT * from t1;
+a	b
+SET skip_replication=0;
+DROP TABLE t1;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;

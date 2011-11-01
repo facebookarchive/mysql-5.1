@@ -32,6 +32,7 @@
 #include "rpl_utility.h"
 #include "rpl_record.h"
 #include <my_dir.h>
+#include "my_atomic.h"
 
 #endif /* MYSQL_CLIENT */
 
@@ -53,6 +54,11 @@
 
 /* Seconds executing SQL for replication */
 double command_slave_seconds = 0;
+
+#ifndef MYSQL_CLIENT
+my_atomic_bigint binlog_events_skip_set= 0;
+my_atomic_bigint binlog_events_skip_slave= 0;
+#endif
 
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
@@ -665,11 +671,20 @@ const char* Log_event::get_type_str()
 Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
   :log_pos(0), temp_buf(0), exec_time(0), thd(thd_arg)
 {
+  uint16 skip_flags;
   server_id=	thd->server_id;
   when=		thd->start_time;
   cache_stmt=	using_trans;
-  flags= flags_arg |
+
+  skip_flags=
     (thd->options & OPTION_SKIP_REPLICATION ? LOG_EVENT_SKIP_REPLICATION_F : 0);
+  flags= flags_arg | skip_flags;
+
+  if (skip_flags)
+  {
+    my_atomic_add_bigint(&binlog_events_skip_set, 1);
+    my_atomic_add_bigint(&(thd_get_user_stats(thd_arg)->binlog_events_skip_set), 1);
+  }
 }
 
 
@@ -818,6 +833,8 @@ int Log_event::do_update_pos(Relay_log_info *rli)
 Log_event::enum_skip_reason
 Log_event::do_shall_skip(Relay_log_info *rli)
 {
+  int skipped= 0;
+
   DBUG_PRINT("info", ("ev->server_id=%lu, ::server_id=%lu,"
                       " rli->replicate_same_server_id=%d,"
                       " rli->slave_skip_counter=%d",
@@ -826,9 +843,13 @@ Log_event::do_shall_skip(Relay_log_info *rli)
                       rli->slave_skip_counter));
   if ((server_id == ::server_id && !rli->replicate_same_server_id) ||
       (rli->slave_skip_counter == 1 && rli->is_in_group()) ||
-      (flags & LOG_EVENT_SKIP_REPLICATION_F &&
-       opt_replicate_events_marked_for_skip != RPL_SKIP_REPLICATE))
+      (skipped= (flags & LOG_EVENT_SKIP_REPLICATION_F &&
+       opt_replicate_events_marked_for_skip != RPL_SKIP_REPLICATE)))
+  {
+    if (skipped)
+      my_atomic_add_bigint(&binlog_events_skip_slave, 1);
     return EVENT_SKIP_IGNORE;
+  }
   else if (rli->slave_skip_counter > 0)
     return EVENT_SKIP_COUNT;
   else
@@ -3500,7 +3521,10 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
   */
   if (flags & LOG_EVENT_SKIP_REPLICATION_F &&
       opt_replicate_events_marked_for_skip != RPL_SKIP_REPLICATE)
+  {
+    my_atomic_add_bigint(&binlog_events_skip_slave, 1);
     DBUG_RETURN(Log_event::EVENT_SKIP_IGNORE);
+  }
 
   if (rli->slave_skip_counter > 0)
   {
