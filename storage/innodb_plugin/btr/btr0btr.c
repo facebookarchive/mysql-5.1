@@ -41,6 +41,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "lock0lock.h"
 #include "ibuf0ibuf.h"
 #include "trx0trx.h"
+#include "log0recv.h"
 
 /*
 Latching strategy of the InnoDB B-tree
