@@ -46,6 +46,7 @@ clear_table_stats_counters(TABLE_STATS* table_stats)
   }
 
   table_stats->keys_dirtied= 0;
+  table_stats->queries_used= 0;
   table_stats->rows_inserted= 0;
   table_stats->rows_updated= 0;
   table_stats->rows_deleted= 0;
@@ -344,6 +345,7 @@ ST_FIELD_INFO table_stats_fields_info[]=
 
   {"IO_INDEX_INSERTS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"KEYS_DIRTIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"QUERIES_USED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
@@ -449,6 +451,7 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
 
     table->field[f++]->store(table_stats->index_inserts, TRUE);
     table->field[f++]->store(table_stats->keys_dirtied, TRUE);
+    table->field[f++]->store(table_stats->queries_used, TRUE);
 
     if (schema_table_store_record(thd, table))
     {

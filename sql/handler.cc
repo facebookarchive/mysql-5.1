@@ -4678,6 +4678,7 @@ void handler::update_global_table_stats(THD *thd, uint keys_dirtied)
   if (table_stats)
   {
     my_atomic_add_bigint(&table_stats->keys_dirtied, keys_dirtied);
+    my_atomic_add_bigint(&table_stats->queries_used, 1);
 
     my_atomic_add_bigint(&table_stats->rows_inserted, stats.rows_inserted);
     my_atomic_add_bigint(&table_stats->rows_updated, stats.rows_updated);

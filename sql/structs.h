@@ -369,6 +369,7 @@ typedef struct st_table_stats {
   uint num_indexes;           /* min(#indexes on table, MAX_INDEX_STATS) */
 
   volatile my_atomic_bigint keys_dirtied;    /* number of memcache keys dirtied */
+  volatile my_atomic_bigint queries_used;    /* number of times used by a query */
 
   /* TODO(mcallaghan): why are these volatile? */
   volatile my_atomic_bigint rows_inserted;   /* Number of rows inserted */
