@@ -349,10 +349,11 @@ dict_mem_index_free(
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	os_fast_mutex_lock(&index->comp_fail_tree_mutex);
-	if (index->comp_fail_tree)
+	if (index->comp_fail_tree) {
+		os_fast_mutex_lock(&index->comp_fail_tree_mutex);
 		rbt_free(index->comp_fail_tree);
-	os_fast_mutex_unlock(&index->comp_fail_tree_mutex);
+		os_fast_mutex_unlock(&index->comp_fail_tree_mutex);
+	}
+	os_fast_mutex_free(&index->comp_fail_tree_mutex);
 	mem_heap_free(index->heap);
 }

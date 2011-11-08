@@ -1545,7 +1545,7 @@ page_zip_fields_free(
 {
 	if (index) {
 		dict_table_t*	table = index->table;
-		mem_heap_free(index->heap);
+		dict_mem_index_free(index);
 		mutex_free(&(table->autoinc_mutex));
 		os_fast_mutex_free(&(table->stats_mutex));
 		ut_a(0 == pthread_cond_destroy(&(table->stats_cond)));
