@@ -1188,6 +1188,7 @@ run_again:
 		prebuilt->table->stat_n_rows--;
 	}
 
+	if (!(trx->fake_changes))
 	row_update_statistics_if_needed(prebuilt->table, trx);
 	trx->op_info = "";
 
@@ -1448,6 +1449,7 @@ run_again:
 	that changes indexed columns, UPDATEs that change only non-indexed
 	columns would not affect statistics. */
 	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+		if (!(trx->fake_changes))
 		row_update_statistics_if_needed(prebuilt->table, trx);
 	}
 
@@ -1666,6 +1668,7 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
+	if (!(trx->fake_changes))
 	row_update_statistics_if_needed(table, trx);
 
 	return(err);

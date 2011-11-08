@@ -112,6 +112,7 @@ struct st_mysql_value
   int (*val_real)(struct st_mysql_value *, double *realbuf);
   int (*val_int)(struct st_mysql_value *, long long *intbuf);
 };
+void thd_reset_diagnostics(void* thd);
 int thd_in_lock_tables(const void* thd);
 int thd_tablespace_op(const void* thd);
 long long thd_test_options(const void* thd, long long test_options);

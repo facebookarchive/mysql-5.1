@@ -1188,6 +1188,7 @@ int ha_commit_trans(THD *thd, bool all, bool async)
     uint rw_ha_count;
     bool rw_trans;
     handlerton *group_commit_ht= NULL;
+    Ha_trx_info *ha_info_orig= ha_info;
 
     thd_proc_info(thd, "process commit");
 
@@ -1304,6 +1305,28 @@ int ha_commit_trans(THD *thd, bool all, bool async)
         goto end;
       }
       DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
+    }
+    else if (is_real_trans && !trans->no_2pc && (rw_ha_count == 1))
+    {
+      /* When innodb_fake_changes is enabled for a transaction and that transaction
+      changes no InnoDB rows then the InnoDB handlerton is marked as read-only and
+      does not participate in 2 phase commit above. So InnoDB won't be able to
+      raise an error during commit and the transaction would be written to the
+      binlog. This code prevents that. */
+
+      Ha_trx_info *ha;
+      for (ha= ha_info_orig; ha; ha= ha->next())
+      {
+        handlerton *ht= ha->ht();
+        if (ht->is_fake_change && ht->is_fake_change(ht, thd))
+        {
+          thd_reset_diagnostics(thd); /* avoid debug assertion */
+          ha_rollback_trans(thd, all);
+          my_error(ER_ERROR_DURING_COMMIT, MYF(0), HA_ERR_WRONG_COMMAND);
+          error= 1;
+          goto end;
+        }
+      }
     }
 
     thd_proc_info(thd, "process commit: commit");

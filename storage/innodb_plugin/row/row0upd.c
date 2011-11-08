@@ -1480,8 +1480,9 @@ row_upd_sec_index_entry(
 
 	mtr_start_trx(&mtr, trx);
 
-	found = row_search_index_entry(index, entry, BTR_MODIFY_LEAF, &pcur,
-				       &mtr);
+	found = row_search_index_entry(index, entry,
+				       trx->fake_changes ? BTR_SEARCH_LEAF : BTR_MODIFY_LEAF,
+				       &pcur, &mtr);
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 	rec = btr_cur_get_rec(btr_cur);
@@ -1631,9 +1632,11 @@ row_upd_clust_rec_by_insert(
 		index = dict_table_get_first_index(table);
 		offsets = rec_get_offsets(rec, index, offsets_,
 					  ULINT_UNDEFINED, &heap);
+		if (!(trx->fake_changes)) {
 		change_ownership = btr_cur_mark_extern_inherited_fields(
 			btr_cur_get_page_zip(btr_cur), rec, index, offsets,
 			node->update, mtr);
+		}
 		if (check_ref) {
 			/* NOTE that the following call loses
 			the position of pcur ! */
@@ -1749,7 +1752,8 @@ row_upd_clust_rec(
 	the same transaction do not modify the record in the meantime.
 	Therefore we can assert that the restoration of the cursor succeeds. */
 
-	ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
+	ut_a(btr_pcur_restore_position(thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : BTR_MODIFY_TREE,
+				       pcur, mtr));
 
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
 				    dict_table_is_comp(index->table)));
@@ -1759,7 +1763,7 @@ row_upd_clust_rec(
 					 node->cmpl_info, thr, mtr);
 	mtr_commit(mtr);
 
-	if (err == DB_SUCCESS && big_rec) {
+	if (err == DB_SUCCESS && big_rec && !(thr_get_trx(thr)->fake_changes)) {
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		rec_t*		rec;
 		rec_offs_init(offsets_);
@@ -1883,7 +1887,8 @@ row_upd_clust_step(
 
 	ut_a(pcur->rel_pos == BTR_PCUR_ON);
 
-	success = btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
+	success = btr_pcur_restore_position(thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : BTR_MODIFY_LEAF,
+					    pcur, mtr);
 
 	if (!success) {
 		err = DB_RECORD_NOT_FOUND;

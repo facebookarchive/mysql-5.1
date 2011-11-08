@@ -331,6 +331,12 @@ int thd_sql_command(const THD *thd)
 }
 
 extern "C"
+void thd_reset_diagnostics(THD *thd)
+{
+  thd->main_da.reset_diagnostics_area();
+}
+
+extern "C"
 int thd_tx_isolation(const THD *thd)
 {
   return (int) thd->variables.tx_isolation;

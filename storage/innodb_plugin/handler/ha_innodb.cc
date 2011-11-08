@@ -208,6 +208,7 @@ static int innobase_really_commit(handlerton *hton, THD* thd, bool all, bool gro
 static int innobase_commit(handlerton *hton, THD* thd, bool all, bool async);
 static int innobase_group_commit(handlerton *hton, THD* thd, bool all, bool async);
 static bool innobase_is_ordered_commit(handlerton *hton, THD* thd);
+static bool innobase_is_fake_change(handlerton *hton, THD* thd);
 static int innobase_rollback(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback_to_savepoint(handlerton *hton, THD* thd,
            void *savepoint);
@@ -380,6 +381,12 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
 static MYSQL_THDVAR_ULONG(merge_sort_block_size, PLUGIN_VAR_OPCMDARG,
   "The block size used doing external merge-sort for secondary index creation",
 	NULL, NULL, 1UL << 20, 1UL << 20, 1UL << 30, 0);
+
+static MYSQL_THDVAR_BOOL(fake_changes, PLUGIN_VAR_OPCMDARG,
+  "In the transaction after enabled, UPDATE, INSERT and DELETE only move the cursor to the records "
+  "and do nothing other operations (no changes, no ibuf, no undo, no transaction log) in the transaction. "
+  "This is to cause replication prefetch IO. ATTENTION: the transaction started after enabled is affected.",
+  NULL, NULL, FALSE);
 
 static handler *innobase_create_handler(handlerton *hton,
                                         TABLE_SHARE *table,
@@ -1914,6 +1921,8 @@ innobase_trx_init(
 	trx->check_unique_secondary = !thd_test_options(
 		thd, OPTION_RELAXED_UNIQUE_CHECKS);
 
+	trx->fake_changes = THDVAR(thd, fake_changes);
+
 	/* The replication thread ignores innodb_thread_concurrency. */
 	if (thd_is_replication_slave_thread(thd))
 		trx->always_enter_innodb = TRUE;
@@ -2556,6 +2565,7 @@ innobase_init(
         innobase_hton->commit=innobase_commit;
         innobase_hton->group_commit=innobase_group_commit;
         innobase_hton->is_ordered_commit=innobase_is_ordered_commit;
+        innobase_hton->is_fake_change=innobase_is_fake_change;
         innobase_hton->rollback=innobase_rollback;
         innobase_hton->prepare=innobase_xa_prepare;
         innobase_hton->recover=innobase_xa_recover;
@@ -3168,6 +3178,11 @@ innobase_really_commit(
 		trx_search_latch_release_if_reserved(trx);
 	}
 
+	if (trx->fake_changes && (all || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
+		innobase_rollback(hton, thd, all); /* rollback implicitly */
+		thd_reset_diagnostics(thd); /* because debug assertion code complains, if something left */
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
 	/* The flag trx->active_trans is set to 1 in
 
 	1. ::external_lock(),
@@ -3340,6 +3355,21 @@ innobase_is_ordered_commit(
 	did a prepare and this is good for group commit. */
 
 	return (trx->active_trans != 2 && trx_is_prepared(trx->conc_state));
+}
+
+/*****************************************************************//**
+Return TRUE when this is a fake change and commit and binlog write
+should not occur. */
+static
+bool
+innobase_is_fake_change(
+/*==================*/
+	handlerton	*hton,	/*!< in: Innodb handlerton */
+	THD*		thd)	/*!< in: MySQL thread handle of the user for whom
+				the transaction should be committed */
+{
+	trx_t*		trx = check_trx_exists(thd);
+	return trx->fake_changes;
 }
 
 /*****************************************************************//**
@@ -7433,6 +7463,12 @@ ha_innobase::create(
 
 	normalize_table_name(norm_name, name2);
 
+	if (trx->fake_changes) {
+		innobase_commit_low(trx);
+		trx_free_for_mysql(trx);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
+
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during a table create operation.
 	Drop table etc. do this latching in row0mysql.c. */
@@ -7818,6 +7854,10 @@ ha_innobase::delete_all_rows(void)
 	}
 	n_rows = prebuilt->table->stat_n_rows;
 
+	if (prebuilt->trx->fake_changes) {
+		goto fallback;
+	}
+
 	/* Truncate the table in InnoDB */
 
 	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
@@ -7882,6 +7922,12 @@ ha_innobase::delete_table(
 		srv_lower_case_table_names = TRUE;
 	} else {
 		srv_lower_case_table_names = FALSE;
+	}
+
+	if (trx->fake_changes) {
+		innobase_commit_low(trx);
+		trx_free_for_mysql(trx);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
 	name_len = strlen(name);
@@ -7990,6 +8036,12 @@ innobase_drop_database(
 	trx->mysql_thd = NULL;
 #else
 	trx = innobase_trx_allocate(thd);
+	if (trx->fake_changes) {
+		my_free(namebuf, MYF(0));
+		innobase_commit_low(trx);
+		trx_free_for_mysql(trx);
+		return; /* ignore */
+	}
 #endif
 	row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf, MYF(0));
@@ -8113,6 +8165,11 @@ ha_innobase::rename_table(
 	trx_search_latch_release_if_reserved(parent_trx);
 
 	trx = innobase_trx_allocate(thd);
+	if (trx->fake_changes) {
+		innobase_commit_low(trx);
+		trx_free_for_mysql(trx);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
 
 	error = innobase_rename_table(trx, from, to, TRUE);
 
@@ -10926,6 +10983,12 @@ innobase_xa_prepare(
 
 		ut_ad(trx->active_trans);
 
+		if (trx->fake_changes) {
+			/* Caller does rollback on error */
+			thd_reset_diagnostics(thd); /* avoid debug assertion */
+			return HA_ERR_WRONG_COMMAND;
+		}
+
 		innobase_set_tx_replication_state(trx); 
 		error = (int) trx_prepare_for_mysql(trx, async);
 	} else {
@@ -12378,6 +12441,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(use_purge_thread),
   MYSQL_SYSVAR(drop_table_phase1),
   MYSQL_SYSVAR(uncache_table_batch),
+  MYSQL_SYSVAR(fake_changes),
   NULL
 };
 

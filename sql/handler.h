@@ -679,6 +679,7 @@ struct handlerton
       from a transaction ordering perspective to release row locks at this time.
    */
    bool (*is_ordered_commit)(handlerton *hton, THD *thd);
+   bool (*is_fake_change)(handlerton *hton, THD *thd);
    int  (*rollback)(handlerton *hton, THD *thd, bool all);
    int  (*prepare)(handlerton *hton, THD *thd, bool all, bool async);
    int  (*recover)(handlerton *hton, XID *xid_list, uint len);
