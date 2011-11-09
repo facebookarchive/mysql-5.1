@@ -79,6 +79,8 @@ commit;
 
 sync_slave_with_master;
 connection slave;
+# Account for race after slave status is updated and before relay log sync is done
+--sleep 1
 
 let $sync_count3 = query_get_value(show status like 'Slave_relay_info_synced' , Value, 1);
 --disable_query_log
