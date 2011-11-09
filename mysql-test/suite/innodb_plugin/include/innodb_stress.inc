@@ -60,6 +60,8 @@ $table 0 $max_rows;
     enable_reconnect;
     # Call script that will poll the server waiting for it to be back online again
     source include/wait_until_connected_again.inc;
+    connection slave;
+    source include/wait_until_connected_again.inc;
     connection master;
   }
 
