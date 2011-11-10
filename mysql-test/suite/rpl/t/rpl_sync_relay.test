@@ -50,6 +50,8 @@ insert into sync_relay_table values (1), (2), (3), (4);
 
 sync_slave_with_master;
 connection slave;
+# Account for race after slave status is updated and before relay log sync is done
+--sleep 1
 
 let $sync_count2 = query_get_value(show status like 'Slave_relay_info_synced' , Value, 1);
 --disable_query_log
@@ -133,6 +135,8 @@ commit;
 sync_slave_with_master;
 connection slave;
 set global sync_relay_info=1;
+# Account for race after slave status is updated and before relay log sync is done
+--sleep 1
 
 let $sync_count5 = query_get_value(show status like 'Slave_relay_info_synced' , Value, 1);
 --disable_query_log
