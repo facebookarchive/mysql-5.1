@@ -1172,17 +1172,18 @@ page_cur_insert_rec_zip_reorg(
 {
 	ulint		pos;
 	my_bool log_compressed_pages = srv_log_compressed_pages;
+	uint compression_level = page_compression_level;
 
 	/* Recompress or reorganize and recompress the page.
 	   Don't log anything if log_compressed_pages is FALSE.
 	   We log an MLOG_COMP_REC_INSERT and MLOG_ZIP_PAGE_COMPRESS_NO_DATA if
 	   compression was successful. */
-	if (UNIV_LIKELY(page_zip_compress(page_zip, page, index,
+	if (UNIV_LIKELY(page_zip_compress(compression_level, page_zip, page, index,
 		                                log_compressed_pages ? mtr : NULL))) {
 		if (!log_compressed_pages) {
 			page_cur_insert_rec_write_log(rec, rec_size,
 			                              *current_rec, index, mtr);
-			page_zip_compress_write_log_no_data(page, index, mtr);
+			page_zip_compress_write_log_no_data(compression_level, page, index, mtr);
 		}
 		return(rec);
 	}
@@ -1287,7 +1288,17 @@ page_cur_insert_rec_zip(
 						     index, rec, offsets,
 						     NULL);
 
-		if (UNIV_LIKELY(insert_rec != NULL)) {
+		/* If recovery is on, this means that the compression of the page
+		   succeeded during runtime without reorganization, otherwise there would
+		   be a MLOG_ZIP_PAGE_COMPRESS record instead of an INSERT record
+		   (See page_cur_insert_rec_zip_reorg() for why this is the case).
+		   The uncompressed page that has the new record  will be compressed after
+		   the next log record is processed. The next log record must be
+		   MLOG_ZIP_PAGE_COMPRESS_NO_DATA and it must contain the correct
+		   compression level to compress the page.
+		   If UNIV_ZIP_DEBUG is enabled page_zip_validate() will fail after
+		   processing the current record. */
+		if (UNIV_LIKELY(insert_rec != NULL) && !recv_recovery_is_on()) {
 			insert_rec = page_cur_insert_rec_zip_reorg(
 				current_rec, block, index, insert_rec, rec_size,
 				page, page_zip, mtr);

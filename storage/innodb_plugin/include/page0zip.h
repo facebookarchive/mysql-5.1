@@ -38,6 +38,8 @@ Created June 2005 by Marko Makela
 #include "trx0types.h"
 #include "mem0mem.h"
 
+extern uint page_compression_level;
+
 /**********************************************************************//**
 Determine the size of a compressed page in bytes.
 @return	size in bytes */
@@ -109,12 +111,13 @@ UNIV_INTERN
 ibool
 page_zip_compress(
 /*==============*/
+	uint		compression_level, /*!< in: zlib compression level */
 	page_zip_des_t*	page_zip,/*!< in: size; out: data, n_blobs,
 				m_start, m_end, m_nonempty */
 	const page_t*	page,	/*!< in: uncompressed page */
 	dict_index_t*	index,	/*!< in: index of the B-tree node */
 	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
-	__attribute__((nonnull(1,2,3)));
+	__attribute__((nonnull(2,3,4)));
 
  /**********************************************************************//**
 Parses a log record of compressing an index page without the data.
@@ -488,6 +491,7 @@ UNIV_INLINE
 void
 page_zip_compress_write_log_no_data(
 /*================================*/
+	uint compression_level,
 	const page_t*	page,
 	dict_index_t*	index,
 	mtr_t*		mtr);

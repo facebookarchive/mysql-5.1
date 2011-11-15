@@ -1721,13 +1721,14 @@ btr_cur_update_alloc_zip(
 	/* we can safely pass a null pointer here because btr_cur_update_alloc_zip()
 		 is called before any modification to page is made. This makes sure that the
 		 compressed page image is not needed in the redo log.*/
-	if (!page_zip_compress(page_zip, page, index,
+	uint compression_level = page_compression_level;
+	if (!page_zip_compress(compression_level, page_zip, page, index,
 	                       log_compressed_pages ? mtr : NULL)) {
 		/* Unable to compress the page */
 		return(FALSE);
 	}
 	if (mtr && !log_compressed_pages) {
-		page_zip_compress_write_log_no_data(page, index, mtr);
+		page_zip_compress_write_log_no_data(compression_level, page, index, mtr);
 	}
 
 	/* After recompressing a page, we must make sure that the free

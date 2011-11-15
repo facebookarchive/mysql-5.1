@@ -1132,6 +1132,7 @@ UNIV_INTERN
 ibool
 page_zip_compress(
 /*==============*/
+	uint		compression_level, /*!< in: zlib compression level */
 	page_zip_des_t*	page_zip,/*!< in: size; out: data, n_blobs,
 				m_start, m_end, m_nonempty */
 	const page_t*	page,	/*!< in: uncompressed page */
@@ -1300,7 +1301,7 @@ page_zip_compress(
 						   trx_id_col, fields);
 	c_stream.next_in = fields;
 
-	err = deflateInit2(&c_stream, page_compression_level,
+	err = deflateInit2(&c_stream, compression_level,
 			   Z_DEFLATED, UNIV_PAGE_SIZE_SHIFT,
 			   MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 	ut_a(err == Z_OK);
@@ -4564,7 +4565,8 @@ page_zip_reorganize(
 	/* Restore logging. */
 	mtr_set_log_mode(mtr, log_mode);
 
-	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page, index, mtr))) {
+	if (UNIV_UNLIKELY(!page_zip_compress(page_compression_level,
+	                                     page_zip, page, index, mtr))) {
 
 #ifndef UNIV_HOTBACKUP
 		buf_block_free(temp_block);
