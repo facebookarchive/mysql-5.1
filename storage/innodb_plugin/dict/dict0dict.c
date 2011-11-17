@@ -336,12 +336,16 @@ The first determines the number of samples collected during the first phase.The
 second determines the size of the comp_fail_tree. The tables for which the
 failure rate is less than the value determined by the third are not padded.
 
+When innodb_comp_fail_tree_size is 0, the amount of data on pages is not
+restricted.
 @return: the maximum page size for which there will likely be no compression
 failure. */
 UNIV_INTERN
 ulint
 dict_index_comp_fail_max_page_size(dict_index_t* index) {
 	ulint ret;
+	if (srv_comp_fail_tree_size == 0)
+		return UNIV_PAGE_SIZE;
 	if (index->comp_fail_max_page_size_final) {
 		return index->comp_fail_max_page_size_final;
 	}
@@ -384,7 +388,7 @@ dict_index_comp_fail_store(
 	comp_fail_node_t fail_node, *n;
 	ulint old_tree_size;
 	/* do not continue storing page sizes if final max page size is set */
-	if (index->comp_fail_max_page_size_final)
+	if (srv_comp_fail_tree_size == 0 || index->comp_fail_max_page_size_final)
 		return;
 	os_fast_mutex_lock(&index->comp_fail_tree_mutex);
 	fail_node.page_size = page_size;
