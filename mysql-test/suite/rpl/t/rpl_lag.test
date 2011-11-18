@@ -10,8 +10,13 @@ drop table if exists t1;
 --enable_warnings
 
 connection slave;
+--echo Should be ON
+show global variables like "reset_seconds_behind_master";
+
+set global reset_seconds_behind_master=0;
 --echo Should be OFF
 show global variables like "reset_seconds_behind_master";
+
 set global reset_seconds_behind_master=1;
 --echo Should be ON
 show global variables like "reset_seconds_behind_master";
@@ -69,4 +74,4 @@ connection master;
 connection master;
 DROP TABLE t1;
 sync_slave_with_master;
-set global reset_seconds_behind_master=0;
+set global reset_seconds_behind_master=1;

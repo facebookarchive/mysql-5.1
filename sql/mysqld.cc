@@ -7848,7 +7848,7 @@ thread is in the relay logs.",
    "lag to flip-flop between 0 and the real lag when the IO thread is the "
    "bottleneck.",
    &reset_seconds_behind_master, &reset_seconds_behind_master,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"sync_relay_info", OPT_SYNC_RELAY_INFO,
    "Synchronously flush relay-log.info writes to disk after every nth write. "
    "Use 0 (default) to disable synchronous flushing.",
