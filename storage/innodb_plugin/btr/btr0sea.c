@@ -1237,7 +1237,7 @@ btr_search_drop_page_hash_when_freed(
 	having to fear a deadlock. */
 
 	block = buf_page_get_gen(space, zip_size, page_no, RW_S_LATCH, NULL,
-				BUF_GET_IF_IN_POOL, __FILE__, __LINE__,
+				BUF_PEEK_IF_IN_POOL, __FILE__, __LINE__,
 				&mtr);
 	/* Because the buffer pool mutex was released by
 	buf_page_peek_if_search_hashed(), it is possible that the

@@ -2168,7 +2168,7 @@ buf_page_get_gen(
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/*!< in: guessed block or NULL */
 	ulint		mode,	/*!< in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH */
+				BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mini-transaction */
@@ -2184,9 +2184,19 @@ buf_page_get_gen(
 	ut_ad((rw_latch == RW_S_LATCH)
 	      || (rw_latch == RW_X_LATCH)
 	      || (rw_latch == RW_NO_LATCH));
-	ut_ad((mode != BUF_GET_NO_LATCH) || (rw_latch == RW_NO_LATCH));
-	ut_ad((mode == BUF_GET) || (mode == BUF_GET_IF_IN_POOL)
-	      || (mode == BUF_GET_NO_LATCH));
+#ifdef UNIV_DEBUG
+	switch (mode) {
+	case BUF_GET_NO_LATCH:
+		ut_ad(rw_latch == RW_NO_LATCH);
+		break;
+	case BUF_GET:
+	case BUF_GET_IF_IN_POOL:
+	case BUF_PEEK_IF_IN_POOL:
+		break;
+	default:
+		ut_error;
+	}
+#endif /* UNIV_DEBUG */
 	ut_ad(zip_size == fil_space_get_zip_size(space));
 	ut_ad(ut_is_2pow(zip_size));
 #ifndef UNIV_LOG_DEBUG
@@ -2222,7 +2232,8 @@ loop:
 
 		buf_pool_mutex_exit();
 
-		if (mode == BUF_GET_IF_IN_POOL) {
+		if (mode == BUF_GET_IF_IN_POOL
+		    || mode == BUF_PEEK_IF_IN_POOL) {
 
 			return(NULL);
 		}
@@ -2261,7 +2272,8 @@ loop:
 
 	must_read = buf_block_get_io_fix(block) == BUF_IO_READ;
 
-	if (must_read && mode == BUF_GET_IF_IN_POOL) {
+	if (must_read && (mode == BUF_GET_IF_IN_POOL
+	                  || mode == BUF_PEEK_IF_IN_POOL)) {
 		/* The page is only being read to buffer */
 		buf_pool_mutex_exit();
 
@@ -2376,6 +2388,7 @@ wait_until_unfixed:
 		mutex_exit(&block->mutex);
 		mutex_exit(&buf_pool_zip_mutex);
 		buf_pool->n_pend_unzip++;
+		bpage->state = BUF_BLOCK_ZIP_FREE;
 
 		buf_pool_mutex_exit();
 
@@ -2430,7 +2443,9 @@ wait_until_unfixed:
 
 	buf_pool_mutex_exit();
 
-	buf_page_set_accessed_make_young(&block->page, &access_timer);
+	if (UNIV_LIKELY(mode != BUF_PEEK_IF_IN_POOL)) {
+		buf_page_set_accessed_make_young(&block->page, &access_timer);
+	}
 
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	ut_a(!block->page.file_page_was_freed);
@@ -2483,7 +2498,8 @@ wait_until_unfixed:
 
 	mtr_memo_push(mtr, block, fix_type);
 
-	if (!my_fast_timer_is_valid(&access_timer)) {
+	if (UNIV_LIKELY(mode != BUF_PEEK_IF_IN_POOL)
+	    && !my_fast_timer_is_valid(&access_timer)) {
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
