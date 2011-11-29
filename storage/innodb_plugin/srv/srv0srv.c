@@ -156,6 +156,11 @@ UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 
 UNIV_INTERN ulint	srv_use_purge_thread = 0;
 
+/** When TRUE then get S locks rather than X locks on rows
+when innodb_fake_changes is set for a transaction. When FALSE
+do not get row locks. */
+UNIV_INTERN my_bool	srv_fake_changes_locks= TRUE;
+
 /** Call buf_LRU_drop_page_hash_for_tablespace during drop table. The
 original behavior is to call it but that increases buffer pool
 mutex stalls during drop table. The call is not required. */

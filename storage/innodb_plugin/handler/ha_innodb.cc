@@ -12364,6 +12364,13 @@ static MYSQL_SYSVAR_ULONG(uncache_table_batch, srv_uncache_table_batch,
   "are checked while processing FLUSH TABLES foobar WITH MEMORY CACHE.",
   NULL, NULL, 1000, 100, 2000000000, 0);
 
+static MYSQL_SYSVAR_BOOL(fake_changes_locks, srv_fake_changes_locks,
+  PLUGIN_VAR_NOCMDARG,
+  "If enabled transactions will get S locks rather than X locks "
+  "on rows. If disabled rows will not be locked and this might prevent "
+  "some lock wait timeouts.",
+  NULL, NULL, FALSE);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -12454,6 +12461,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(drop_table_phase1),
   MYSQL_SYSVAR(uncache_table_batch),
   MYSQL_SYSVAR(fake_changes),
+  MYSQL_SYSVAR(fake_changes_locks),
   NULL
 };
 
