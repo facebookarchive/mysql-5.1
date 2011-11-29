@@ -1181,15 +1181,15 @@ run_again:
 
 	prebuilt->table->stat_n_rows++;
 
-	srv_n_rows_inserted++;
-
 	if (prebuilt->table->stat_n_rows == 0) {
 		/* Avoid wrap-over */
 		prebuilt->table->stat_n_rows--;
 	}
 
-	if (!(trx->fake_changes))
-	row_update_statistics_if_needed(prebuilt->table, trx);
+	if (!(trx->fake_changes)) {
+		srv_n_rows_inserted++;
+		row_update_statistics_if_needed(prebuilt->table, trx);
+	}
 	trx->op_info = "";
 
 	return((int) err);
@@ -1440,9 +1440,11 @@ run_again:
 			prebuilt->table->stat_n_rows--;
 		}
 
-		srv_n_rows_deleted++;
+		if (!trx->fake_changes)
+			srv_n_rows_deleted++;
 	} else {
-		srv_n_rows_updated++;
+		if (!trx->fake_changes)
+			srv_n_rows_updated++;
 	}
 
 	/* We update table statistics only if it is a DELETE or UPDATE
@@ -1663,9 +1665,11 @@ run_again:
 			table->stat_n_rows--;
 		}
 
-		srv_n_rows_deleted++;
+		if (!trx->fake_changes)
+			srv_n_rows_deleted++;
 	} else {
-		srv_n_rows_updated++;
+		if (!trx->fake_changes)
+			srv_n_rows_updated++;
 	}
 
 	if (!(trx->fake_changes))

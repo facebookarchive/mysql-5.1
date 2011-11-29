@@ -5643,7 +5643,7 @@ no_commit:
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
-	if (error == DB_SUCCESS)
+	if (error == DB_SUCCESS && !trx->fake_changes)
 		stats.rows_inserted++;
 
 	/* Handle duplicate key errors */
@@ -5942,7 +5942,7 @@ ha_innobase::update_row(
 
 	error = row_update_for_mysql((byte*) old_row, prebuilt);
 
-	if (error == DB_SUCCESS)
+	if (error == DB_SUCCESS && !trx->fake_changes)
 		stats.rows_updated++;
 
 	/* We need to do some special AUTOINC handling for the following case:
@@ -6038,7 +6038,7 @@ ha_innobase::delete_row(
 
 	error = row_update_for_mysql((byte*) record, prebuilt);
 
-	if (error == DB_SUCCESS)
+	if (error == DB_SUCCESS && !trx->fake_changes)
 		stats.rows_deleted++;
 
 	innodb_srv_conc_exit_innodb(trx, true);
