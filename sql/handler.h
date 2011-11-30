@@ -1843,6 +1843,11 @@ public:
   */
   void update_global_table_stats(THD *thd, uint keys_dirtied);
 
+  /* Return true when innodb_fake_changes was set for the current transaction
+     on this handler.
+  */
+  virtual my_bool is_fake_change_enabled(THD *thd) { return FALSE; }
+
   /* The LOCK_open fan club */
 
   /**

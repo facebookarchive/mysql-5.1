@@ -1294,6 +1294,18 @@ thd_to_trx(
 }
 
 /********************************************************************//**
+@return TRUE if fake-changes are enabled for this transaction. */
+my_bool
+ha_innobase::is_fake_change_enabled(
+/*========================*/
+	THD*		thd)	/*!< in: MySQL thread */
+{
+	trx_t*	trx = thd_to_trx(thd);
+	return (trx && trx->fake_changes);
+}
+
+
+/********************************************************************//**
 Call this function when mysqld passes control to the client. That is to
 avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more
 documentation, see handler.cc.
