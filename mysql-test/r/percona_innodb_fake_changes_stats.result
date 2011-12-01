@@ -4,7 +4,6 @@ INSERT INTO t1 VALUES (1);
 # SELECT FOR UPDATE gets S not X with fake changes
 SET autocommit=0;
 SET innodb_fake_changes=1;
-SET global innodb_fake_changes_locks=1;
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;
 a
@@ -71,4 +70,5 @@ diff
 diff
 0
 SET innodb_fake_changes=default;
+SET global innodb_fake_changes_locks=default;
 DROP TABLE t1;

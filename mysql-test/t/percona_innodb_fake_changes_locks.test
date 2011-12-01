@@ -18,7 +18,6 @@ SET innodb_fake_changes=1;
 --connection conn1
 SET autocommit=0;
 SET innodb_fake_changes=1;
-SET global innodb_fake_changes_locks=1;
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;
 
@@ -109,6 +108,7 @@ ROLLBACK;
 SELECT * FROM t1;
 SELECT * FROM t2;
 
+SET global innodb_fake_changes_locks=default;
 SET innodb_fake_changes=default;
 DROP TABLE t1;
 DROP TABLE t2;
