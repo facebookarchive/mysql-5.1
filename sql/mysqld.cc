@@ -4790,6 +4790,18 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   my_str_free= &my_str_free_mysqld;
 
   /*
+    Initialize user_stats object for SQL replication thread.
+    See thd_get_user_stats.
+  */
+  init_user_stats(&slave_user_stats);
+
+  /*
+    Initialize user_stats object for everything else (not SQL slave, not a real user)
+    See thd_get_user_stats.
+  */
+  init_user_stats(&other_user_stats);
+
+  /*
     init signals & alarm
     After this we can't quit by a simple unireg_abort
   */
@@ -4824,18 +4836,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     udf_init();
 #endif
   }
-
-  /*
-    Initialize user_stats object for SQL replication thread.
-    See thd_get_user_stats.
-  */
-  init_user_stats(&slave_user_stats);
-
-  /*
-    Initialize user_stats object for everything else (not SQL slave, not a real user)
-    See thd_get_user_stats.
-  */
-  init_user_stats(&other_user_stats);
 
   init_status_vars();
   if (opt_bootstrap) /* If running with bootstrap, do not start replication. */
