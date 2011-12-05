@@ -655,6 +655,7 @@ ha_innobase::add_index(
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 	if (prebuilt->trx->fake_changes) {
+		mem_heap_free(heap);
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
