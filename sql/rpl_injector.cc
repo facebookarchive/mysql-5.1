@@ -229,7 +229,7 @@ int injector::record_incident(THD *thd, Incident incident)
   Incident_log_event ev(thd, incident);
   if (int error= mysql_bin_log.write(&ev))
     return error;
-  mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+  mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE, true);
   return 0;
 }
 
@@ -238,6 +238,6 @@ int injector::record_incident(THD *thd, Incident incident, LEX_STRING const mess
   Incident_log_event ev(thd, incident, message);
   if (int error= mysql_bin_log.write(&ev))
     return error;
-  mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+  mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE, true);
   return 0;
 }

@@ -41,8 +41,8 @@ class TC_LOG
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
   virtual int log_xid(THD *thd, my_xid xid, bool async, handlerton *ht,
-                      int32 pending)=0;
-  virtual void unlog(ulong cookie, my_xid xid)=0;
+                      int32 pending, bool *full)=0;
+  virtual void unlog(ulong cookie, my_xid xid, bool log_was_full)=0;
 };
 
 class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
@@ -51,9 +51,10 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  int log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending)
+  int log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending,
+              bool *full)
       { return 1; }
-  void unlog(ulong cookie, my_xid xid)  { }
+  void unlog(ulong cookie, my_xid xid, bool log_was_full)  { }
 };
 
 #ifdef HAVE_MMAP
@@ -97,8 +98,9 @@ class TC_LOG_MMAP: public TC_LOG
   TC_LOG_MMAP(): inited(0) {}
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending);
-  void unlog(ulong cookie, my_xid xid);
+  int log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending,
+              bool *full);
+  void unlog(ulong cookie, my_xid xid, bool log_was_full);
   int recover();
 
   private:
@@ -434,8 +436,9 @@ public:
 
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending);
-  void unlog(ulong cookie, my_xid xid);
+  int log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending,
+              bool *full);
+  void unlog(ulong cookie, my_xid xid, bool log_was_full);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event);
@@ -481,9 +484,9 @@ public:
   void reset_gathered_updates(THD *thd);
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident,
-             bool async, handlerton *ht, int32 pending);
+             bool async, handlerton *ht, int32 pending, bool *log_was_full);
 
-  bool write_incident(THD *thd, bool lock);
+  bool write_incident(THD *thd, bool lock, bool *log_was_full);
   int  write_cache(IO_CACHE *cache, bool lock_log);
   void set_write_error(THD *thd);
   bool check_write_error(THD *thd);
@@ -502,7 +505,7 @@ public:
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
-  void rotate_and_purge(uint flags);
+  void rotate_and_purge(uint flags, bool log_maybe_full);
   void disable_group_commit(THD *thd, const char* msg);
   int order_for_group_commit(THD* thd, handlerton *ht);
   void increment_group_commit_ticket(THD* thd);

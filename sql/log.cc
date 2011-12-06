@@ -1418,6 +1418,7 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
              only the statement transaction should be ended.
     ht       handlerton for transaction used for group commit optimization
     pending  count of transactions in ha_commit_trans including the caller
+    log_was_full set to TRUE if binlog was full on write done by this trx
 
   DESCRIPTION
 
@@ -1433,7 +1434,7 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
 static int
 binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
                  Log_event *end_ev, bool all, bool async, handlerton *ht,
-                 int32 pending)
+                 int32 pending, bool *log_was_full)
 {
   DBUG_ENTER("binlog_end_trans");
   int error=0;
@@ -1468,7 +1469,8 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
       inside a stored function.
      */
     error= mysql_bin_log.write(thd, &trx_data->trans_log, end_ev,
-                               trx_data->has_incident(), async, ht, pending);
+                               trx_data->has_incident(), async, ht, pending,
+                               log_was_full);
     trx_data->reset();
 
     statistic_increment(binlog_cache_use, &LOCK_status);
@@ -1491,7 +1493,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
     if (all || !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT)))
     {
       if (trx_data->has_incident())
-        error= mysql_bin_log.write_incident(thd, TRUE);
+        error= mysql_bin_log.write_incident(thd, TRUE, log_was_full);
       trx_data->reset();
     }
     else                                        // ...statement
@@ -1560,7 +1562,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all, bool async)
        !stmt_has_updated_trans_table(thd) && stmt_has_updated_non_trans_table(thd)))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, TRUE, 0);
-    error= binlog_end_trans(thd, trx_data, &qev, all, FALSE, NULL, 0);
+    error= binlog_end_trans(thd, trx_data, &qev, all, FALSE, NULL, 0, NULL);
   }
 
   trx_data->at_least_one_stmt_committed = my_b_tell(&trx_data->trans_log) > 0;
@@ -1624,7 +1626,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
         (thd->options & OPTION_KEEP_LOG)) &&
         mysql_bin_log.check_write_error(thd))
       trx_data->set_incident();
-    error= binlog_end_trans(thd, trx_data, 0, all, FALSE, NULL, 0);
+    error= binlog_end_trans(thd, trx_data, 0, all, FALSE, NULL, 0, NULL);
   }
   else
   {
@@ -1644,7 +1646,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
          thd->current_stmt_binlog_row_based))
     {
       Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
-      error= binlog_end_trans(thd, trx_data, &qev, all, FALSE, NULL, 0);
+      error= binlog_end_trans(thd, trx_data, &qev, all, FALSE, NULL, 0, NULL);
     }
     /*
       Otherwise, we simply truncate the cache as there is no change on
@@ -1652,7 +1654,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     */
     else if (ending_trans(thd, all) ||
              (!(thd->options & OPTION_KEEP_LOG) && !stmt_has_updated_non_trans_table(thd)))
-      error= binlog_end_trans(thd, trx_data, 0, all, FALSE, NULL, 0);
+      error= binlog_end_trans(thd, trx_data, 0, all, FALSE, NULL, 0, NULL);
   }
   if (!all)
     trx_data->before_stmt_pos = MY_OFF_T_UNDEF; // part of the stmt rollback
@@ -4853,7 +4855,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       if (!error)
       {
         signal_update();
-        rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
+        rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED, true);
       }
     }
 
@@ -5057,7 +5059,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       if (flush_and_sync(thd, FALSE, NULL, 0))
 	goto err;
       signal_update();
-      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
+      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED, true);
       if (us)
       {
         us->binlog_bytes_written += written;
@@ -5151,7 +5153,7 @@ bool general_log_write(THD *thd, enum enum_server_command command,
   return FALSE;
 }
 
-void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
+void MYSQL_BIN_LOG::rotate_and_purge(uint flags, bool log_maybe_full)
 {
   DBUG_EXECUTE_IF("enable_group_commit", {
     group_commit_allowed= TRUE;
@@ -5162,7 +5164,23 @@ void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
   bool check_purge= false;
 #endif
   if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
-    pthread_mutex_lock(&LOCK_log);
+  {
+    if (log_maybe_full)
+    {
+      pthread_mutex_lock(&LOCK_log);
+    }
+    else
+    {
+      int err= pthread_mutex_trylock(&LOCK_log);
+      if (err)
+      {
+        /* When this connection wrote to the binlog it was not full, so it is
+           OK to not wait here on LOCK_log to check again whether the log is full.
+        */
+        return;
+      }
+    }
+  }
 
   /* A call to ::new_file_impl is in progress when stop_new_xids==TRUE */
   while (stop_new_xids)
@@ -5374,7 +5392,7 @@ int query_error_code(THD *thd, bool not_killed)
   return error;
 }
 
-bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
+bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock, bool *log_was_full)
 {
   uint error= 0;
   USER_STATS *us= thd ? thd_get_user_stats(thd) : NULL;
@@ -5387,6 +5405,11 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
     pthread_mutex_lock(&LOCK_log);
   }
   error= ev.write(&log_file);
+  if (log_was_full)
+  {
+    *log_was_full = my_b_tell(&log_file) >= (my_off_t) max_size;
+  }
+
   if (us)
   {
     us->binlog_bytes_written += ev.data_written;
@@ -5398,7 +5421,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
     if (!error && !(error= flush_and_sync(thd, FALSE, NULL, 0)))
     {
       signal_update();
-      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
+      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED, true);
     }
     pthread_mutex_unlock(&LOCK_log);
   }
@@ -5433,7 +5456,8 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
 */
 
 bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
-                          bool incident, bool async, handlerton *ht, int32 pending)
+                          bool incident, bool async, handlerton *ht, int32 pending,
+                          bool *log_was_full)
 {
   USER_STATS *us= thd ? thd_get_user_stats(thd) : NULL;
   DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
@@ -5511,7 +5535,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
           us->binlog_bytes_written += qinfo.data_written;
       }
 
-      if (incident && write_incident(thd, FALSE))
+      if (incident && write_incident(thd, FALSE, NULL))
         goto err;
 
       if (flush_and_sync(thd, async, ht, pending))
@@ -5540,9 +5564,14 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
       pthread_mutex_lock(&LOCK_prep_xids);
       prepared_xids++;
       pthread_mutex_unlock(&LOCK_prep_xids);
+
+      if (log_was_full)
+      {
+        *log_was_full = my_b_tell(&log_file) >= (my_off_t) max_size;
+      }
     }
     else
-      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
+      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED, true);
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
 
@@ -6600,7 +6629,8 @@ int TC_LOG_MMAP::overflow()
     to the position in memory where xid was logged to.
 */
 
-int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending)
+int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending,
+                         bool *full)
 {
   int err;
   PAGE *p;
@@ -6710,7 +6740,7 @@ int TC_LOG_MMAP::sync()
   cookie points directly to the memory where xid was logged.
 */
 
-void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
+void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid, bool log_was_full)
 {
   PAGE *p=pages+(cookie/tc_log_page_size);
   my_xid *x=(my_xid *)(data+cookie);
@@ -6956,7 +6986,8 @@ void TC_LOG_BINLOG::close()
   @retval
     1    success
 */
-int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending)
+int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending,
+                           bool *full)
 {
   DBUG_ENTER("TC_LOG_BINLOG::log");
   Xid_log_event xle(thd, xid);
@@ -6966,10 +6997,10 @@ int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int
     We always commit the entire transaction when writing an XID. Also
     note that the return value is inverted.
    */
-  DBUG_RETURN(!binlog_end_trans(thd, trx_data, &xle, TRUE, async, ht, pending));
+  DBUG_RETURN(!binlog_end_trans(thd, trx_data, &xle, TRUE, async, ht, pending, full));
 }
 
-void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
+void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid, bool log_was_full)
 {
   pthread_mutex_lock(&LOCK_prep_xids);
   DBUG_ASSERT(prepared_xids > 0);
@@ -6978,7 +7009,7 @@ void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
     pthread_cond_broadcast(&COND_prep_xids);
   }
   pthread_mutex_unlock(&LOCK_prep_xids);
-  rotate_and_purge(0);     // as ::write() did not rotate
+  rotate_and_purge(0, log_was_full);     // as ::write() did not rotate
 }
 
 int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)

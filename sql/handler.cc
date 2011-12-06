@@ -1189,6 +1189,7 @@ int ha_commit_trans(THD *thd, bool all, bool async)
     bool rw_trans;
     handlerton *group_commit_ht= NULL;
     Ha_trx_info *ha_info_orig= ha_info;
+    bool log_was_full= false;
 
     thd_proc_info(thd, "process commit");
 
@@ -1286,7 +1287,8 @@ int ha_commit_trans(THD *thd, bool all, bool async)
       if (error || (is_real_trans && xid &&
                     (error= !(cookie= tc_log->log_xid(thd, xid, async,
                                                       group_commit_ht,
-                                                      in_progress)))))
+                                                      in_progress,
+                                                      &log_was_full)))))
       {
         ha_rollback_trans(thd, all);
         error= 1;
@@ -1334,7 +1336,7 @@ int ha_commit_trans(THD *thd, bool all, bool async)
     DBUG_EXECUTE_IF("crash_commit_before_unlog", abort(););
 
     if (cookie)
-      tc_log->unlog(cookie, xid);
+      tc_log->unlog(cookie, xid, log_was_full);
     DBUG_EXECUTE_IF("crash_commit_after", abort(););
 
 end:
