@@ -743,7 +743,7 @@ struct handlerton
 
    void (*update_table_stats)(void (*cb)(const char *db, const char *tbl,
                                          my_io_perf_t *r, my_io_perf_t *w,
-                                         comp_stat_t* comp_stat,
+                                         comp_stat_t* comp_stat, int n_lru,
                                          const char *engine));
 
    uint32 license; /* Flag for Engine License */
@@ -2130,7 +2130,8 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);
 /* Get updated table statistics from all engines */
 void ha_get_table_stats(void (*cb)(const char* db, const char* tbl,
                                    my_io_perf_t* r, my_io_perf_t* w,
-                                   comp_stat_t* comp_stat, const char* engine));
+                                   comp_stat_t* comp_stat, int n_lru,
+                                   const char* engine));
 
 /* discovery */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name);

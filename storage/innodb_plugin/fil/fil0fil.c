@@ -263,10 +263,11 @@ fil_update_table_stats_one_cell(
 	my_io_perf_t*	read_arr,	/*!< in: buffer for read stats */
 	my_io_perf_t*	write_arr,	/*!< in: buffer for write stats */
 	comp_stat_t*	comp_stat_arr, /*!< in: buffer for compression stats */
+	int*		n_lru_arr,	/*!< in: buffer for n_lru stats */
 	ulint		max_per_cell,	/*!< in: size of buffers */
 	void		(*cb)(const char* db, const char* tbl,
-		              my_io_perf_t *r, my_io_perf_t *w, comp_stat_t* comp_stat,
-		              const char* engine),
+			      my_io_perf_t *r, my_io_perf_t *w, comp_stat_t* comp_stat,
+			      int n_lru, const char* engine),
 	char*		db_name_buf,	/*!< in: buffer for db names */
 	char*		table_name_buf)	/*!< in: buffer for table names */
 {
@@ -297,6 +298,7 @@ fil_update_table_stats_one_cell(
 			read_arr[found] = space->io_perf2.read;
 			write_arr[found] = space->io_perf2.write;
 			comp_stat_arr[found] = space->comp_stat;
+			n_lru_arr[found] = space->n_lru;
 
 			strcpy(&(db_name_buf[found * (FN_LEN+1)]),
 				space->db_name);
@@ -319,6 +321,7 @@ fil_update_table_stats_one_cell(
 		   &(read_arr[report]),
 		   &(write_arr[report]),
 		   &(comp_stat_arr[report]),
+		   n_lru_arr[report],
 		   "InnoDB");
 	}
 }
@@ -332,7 +335,7 @@ fil_update_table_stats(
 	/* per-table stats callback */
 	void (*cb)(const char* db, const char* tbl,
 		   my_io_perf_t *r, my_io_perf_t *w, comp_stat_t* comp_stat,
-		   const char* engine))
+		   int n_lru, const char* engine))
 {
 	ulint		n_cells;
 	ulint		n;
@@ -340,6 +343,7 @@ fil_update_table_stats(
 	my_io_perf_t*	read_arr;
 	my_io_perf_t*	write_arr;
 	comp_stat_t*	comp_stat_arr;
+	int*		n_lru_arr;
 	char*		db_name_buf;
 	char*		table_name_buf;
 	static ibool	in_progress = FALSE;
@@ -406,9 +410,10 @@ fil_update_table_stats(
 	                                    sizeof(comp_stat_t) * max_per_cell);
 	db_name_buf = (char*) ut_malloc((FN_LEN+1) * max_per_cell);
 	table_name_buf = (char*) ut_malloc((FN_LEN+1) * max_per_cell);
+	n_lru_arr = (int*) ut_malloc(sizeof(int) * max_per_cell);
 
 	if (!read_arr || !write_arr || !comp_stat_arr || !table_name_buf ||
-	    !db_name_buf) {
+	    !db_name_buf || !n_lru_arr) {
 		if (read_arr)
 			ut_free(read_arr);
 		if (write_arr)
@@ -419,6 +424,8 @@ fil_update_table_stats(
 			ut_free(db_name_buf);
 		if (table_name_buf)
 			ut_free(table_name_buf);
+		if (n_lru_arr)
+			ut_free(n_lru_arr);
 		in_progress = FALSE;
 		return;
 	}
@@ -426,8 +433,9 @@ fil_update_table_stats(
 	/* Then copy out the valid data one cell at a time */
 
 	for (n = 0; n < n_cells; ++n) {
-		fil_update_table_stats_one_cell(n, read_arr, write_arr, comp_stat_arr,
-						max_per_cell, cb, db_name_buf, table_name_buf);
+		fil_update_table_stats_one_cell(
+			n, read_arr, write_arr, comp_stat_arr, n_lru_arr,
+			max_per_cell, cb, db_name_buf, table_name_buf);
 	}
 
 	ut_free(read_arr);
@@ -435,6 +443,7 @@ fil_update_table_stats(
 	ut_free(comp_stat_arr);
 	ut_free(table_name_buf);
 	ut_free(db_name_buf);
+	ut_free(n_lru_arr);
 
 	mutex_enter(&fil_system->mutex);
 	in_progress = FALSE;
@@ -1390,6 +1399,7 @@ try_again:
 	my_io_perf_init(&(space->io_perf2.read));
 	my_io_perf_init(&(space->io_perf2.write));
 	memset(&(space->comp_stat), 0, sizeof space->comp_stat);
+	space->n_lru = 0;
 
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
 
@@ -6020,3 +6030,37 @@ fil_page_buf_page_store_checksum(
 				: BUF_NO_CHECKSUM_MAGIC);
 	}
 }
+
+/*************************************************************************
+Changes count of pages on the LRU for this space. Will lock/unlock 
+fil_system->mutex */
+
+void
+fil_change_lru_count(
+/*=================*/
+	ulint	id,	/* in: tablespace id for which count changes */
+	int	amount)	/* in: amount by which the count changes */
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(id);
+	if (space) {
+		space->used = TRUE;
+
+		if (amount > 0) {
+			space->n_lru += amount;
+		} else if ((space->n_lru + amount) >= 0) {
+			space->n_lru += amount;
+		} else {
+			fprintf(stderr, "n_lru count for space %lu is %d and "
+				"cannot be decremented by %d\n",
+				id, space->n_lru, amount);
+			ut_ad(0);
+		}
+	}
+
+	mutex_exit(&fil_system->mutex);
+}
+

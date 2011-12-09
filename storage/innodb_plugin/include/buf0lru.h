@@ -103,8 +103,9 @@ ibool
 buf_LRU_free_block(
 /*===============*/
 	buf_page_t*	bpage,	/*!< in: block to be freed */
-	ibool		zip);	/*!< in: TRUE if should remove also the
+	ibool		zip,	/*!< in: TRUE if should remove also the
 				compressed page of an uncompressed page */
+	ibool*		removed);/*!< out: return TRUE if block removed */
 /******************************************************************//**
 Try to free a replaceable block.
 @return	TRUE if found and freed */

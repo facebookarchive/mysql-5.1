@@ -45,6 +45,7 @@ clear_table_stats_counters(TABLE_STATS* table_stats)
     my_io_perf_init(&(table_stats->indexes[x].io_perf_read));
   }
 
+  table_stats->n_lru= 0;
   table_stats->keys_dirtied= 0;
   table_stats->queries_used= 0;
   table_stats->rows_inserted= 0;
@@ -346,6 +347,9 @@ ST_FIELD_INFO table_stats_fields_info[]=
   {"IO_INDEX_INSERTS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"KEYS_DIRTIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"QUERIES_USED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+
+  {"INNODB_BUFFER_POOL_PAGES", MY_INT32_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, 0, SKIP_OPEN_TABLE},
+
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
@@ -354,6 +358,7 @@ void fill_table_stats_cb(const char *db,
                          my_io_perf_t *r,
                          my_io_perf_t *w,
                          comp_stat_t *comp_stat,
+                         int n_lru,
                          const char *engine)
 {
   TABLE_STATS *stats;
@@ -366,12 +371,15 @@ void fill_table_stats_cb(const char *db,
   stats->io_perf_read = *r;
   stats->io_perf_write = *w;
   stats->comp_stat = *comp_stat;
+  stats->n_lru = n_lru;
 }
 
 int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   DBUG_ENTER("fill_table_stats");
   TABLE* table= tables->table;
+
+  /* TODO(mcallaghan): figure out how to mark deleted tables */
 
   ha_get_table_stats(fill_table_stats_cb);
 
@@ -395,7 +403,8 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
         table_stats->comp_stat.decompressed == 0 &&
         table_stats->comp_stat.decompressed_usec == 0 &&
         table_stats->io_perf_read.requests == 0 &&
-        table_stats->io_perf_write.requests == 0)
+        table_stats->io_perf_write.requests == 0 &&
+        table_stats->n_lru == 0)
     {
       continue;
     }
@@ -452,6 +461,8 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[f++]->store(table_stats->index_inserts, TRUE);
     table->field[f++]->store(table_stats->keys_dirtied, TRUE);
     table->field[f++]->store(table_stats->queries_used, TRUE);
+
+    table->field[f++]->store(table_stats->n_lru, TRUE);
 
     if (schema_table_store_record(thd, table))
     {

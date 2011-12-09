@@ -1404,6 +1404,8 @@ shrink_again:
 		/* Move the blocks of chunk to the end of the
 		LRU list and try to flush them. */
 		for (; block < bend; block++) {
+			ibool removed = FALSE;
+
 			switch (buf_block_get_state(block)) {
 			case BUF_BLOCK_NOT_USED:
 				continue;
@@ -1424,7 +1426,7 @@ shrink_again:
 
 				buf_LRU_make_block_old(&block->page);
 				dirty++;
-			} else if (!buf_LRU_free_block(&block->page, TRUE)) {
+			} else if (!buf_LRU_free_block(&block->page, TRUE, &removed)) {
 				nonfree++;
 			}
 
@@ -1432,6 +1434,8 @@ shrink_again:
 		}
 
 		buf_pool_mutex_exit();
+		/* TODO(mcallaghan): don't call fil_change_lru_count as this is debug-only
+		or dead code */
 
 		/* Request for a flush of the chunk if it helps.
 		Do not flush if there are non-free blocks, since
@@ -1821,6 +1825,7 @@ buf_page_get_zip(
 	mutex_t*	block_mutex;
 	ibool		must_read;
 	my_fast_timer_t	access_timer;
+	ibool		removed;
 
 #ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside());
@@ -1870,8 +1875,15 @@ err_exit:
 		block_mutex = &((buf_block_t*) bpage)->mutex;
 		mutex_enter(block_mutex);
 
+		/* Don't need to change LRU count for this tablespace because
+		zip=FALSE in call to buf_LRU_free_block means that the compressed
+		page won't be removed from the LRU. */
+
 		/* Discard the uncompressed page frame if possible. */
-		if (buf_LRU_free_block(bpage, FALSE)) {
+		if (buf_LRU_free_block(bpage, FALSE, &removed)) {
+			/* With zip=FALSE in call to buf_LRU_free_block the
+			compressed page must remain on the LRU */
+			ut_ad(!removed);
 
 			mutex_exit(block_mutex);
 			goto lookup;
@@ -2931,6 +2943,7 @@ buf_page_init_for_read(
 	mtr_t		mtr;
 	ibool		lru	= FALSE;
 	void*		data;
+	ibool		added_to_lru = FALSE;
 
 	ut_ad(buf_pool);
 
@@ -2994,6 +3007,7 @@ err_exit:
 
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
+		added_to_lru = TRUE;
 
 		/* We set a pass-type x-lock on the frame because then
 		the same thread which called for the read operation
@@ -3082,6 +3096,7 @@ err_exit:
 
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
+		added_to_lru = TRUE;
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		buf_LRU_insert_zip_clean(bpage);
@@ -3100,6 +3115,9 @@ func_exit:
 
 		mtr_commit(&mtr);
 	}
+
+	if (added_to_lru)
+		fil_change_lru_count(space, 1);
 
 	ut_ad(!bpage || buf_page_in_file(bpage));
 	return(bpage);
@@ -3247,6 +3265,9 @@ buf_page_create(
 	ut_a(ibuf_count_get(buf_block_get_space(block),
 			    buf_block_get_page_no(block)) == 0);
 #endif
+
+	fil_change_lru_count(space, 1);
+
 	return(block);
 }
 

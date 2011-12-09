@@ -1865,6 +1865,7 @@ buf_uncache_tablespace(
 {
 	ulint	chunk_num;
 	ulint	n_flushed = 0;
+	int	n_removed = 0;
 
 	buf_pool_mutex_enter();
 
@@ -1887,6 +1888,7 @@ buf_uncache_tablespace(
                 for (block_num = 0; block_num < chunk_size; ++block_num, ++block) {
                         mutex_t*        block_mutex;
 			buf_page_t*	bpage;
+			ibool		removed;
 
 			++n_checked;		
                         if (n_checked >= srv_uncache_table_batch) {
@@ -1926,7 +1928,8 @@ buf_uncache_tablespace(
 			}
 
 			/* This might release & relock the buffer pool and block mutex */
-			buf_LRU_free_block(bpage, TRUE);
+			buf_LRU_free_block(bpage, TRUE, &removed);
+			n_removed += (int) removed;
 
 			mutex_exit(block_mutex);
 		}
@@ -1943,6 +1946,9 @@ buf_uncache_tablespace(
 
 	if (n_flushed)
 		buf_flush_buffered_writes();
+
+	if (n_removed)
+		fil_change_lru_count(id, -n_removed);
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG

@@ -346,7 +346,7 @@ buf_LRU_invalidate_tablespace(
 	int		rescan_phase1		= 0;
 	int		rescan_all_freed	= 0;
 	int		rescan_drop_hash	= 0;
-	ulint		n_pages			= 0;
+	int		n_pages			= 0;
 
 	my_get_fast_timer(&fast_timer);
 
@@ -469,6 +469,11 @@ next_page:
 
 	buf_pool_mutex_exit();
 
+	if (n_pages) {
+		fil_change_lru_count(id, -n_pages);
+		n_pages = 0;
+	}
+
 	if (!all_freed) {
 		++rescan_all_freed;
 		os_thread_sleep(20000);
@@ -477,7 +482,7 @@ next_page:
 	}
 
 	phase2_secs = my_fast_timer_diff_now(&fast_timer, &fast_timer);
-	fprintf(stderr, "InnoDB: buf_LRU_invalidate_tablespace found %lu pages "
+	fprintf(stderr, "InnoDB: buf_LRU_invalidate_tablespace found %d pages "
 		"with rescan: (%d,%d,%d) (phase1,all_freed,drop_hash) and "
 		"locked seconds: (%.6f,%.6f) (phase1,phase2).\n",
 		n_pages,
@@ -565,13 +570,19 @@ buf_LRU_free_from_unzip_LRU_list(
 	     block = UT_LIST_GET_PREV(unzip_LRU, block), distance--) {
 
 		ibool freed;
+		ibool removed;
 
 		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 		ut_ad(block->in_unzip_LRU_list);
 		ut_ad(block->page.in_LRU_list);
 
 		mutex_enter(&block->mutex);
-		freed = buf_LRU_free_block(&block->page, FALSE);
+		freed = buf_LRU_free_block(&block->page, FALSE, &removed);
+
+		/* With zip=FALSE in call to buf_LRU_free_block the compressed
+		page must remain on the LRU */
+		ut_ad(!removed);
+
 		mutex_exit(&block->mutex);
 
 		if (freed) {
@@ -589,16 +600,18 @@ UNIV_INLINE
 ibool
 buf_LRU_free_from_common_LRU_list(
 /*==============================*/
-	ulint	n_iterations)	/*!< in: how many times this has been called
+	ulint	n_iterations,	/*!< in: how many times this has been called
 				repeatedly without result: a high value means
 				that we should search farther; if
 				n_iterations < 10, then we search
 				n_iterations / 10 * buf_pool->curr_size
 				pages from the end of the LRU list */
+	ulint*	space_id)	/*!<: out: space_id for freed page */
 {
 	buf_page_t*	bpage;
 	ulint		distance;
 
+	*space_id = ULINT_UNDEFINED;
 	ut_ad(buf_pool_mutex_own());
 
 	distance = 100 + (n_iterations * buf_pool->curr_size) / 10;
@@ -610,14 +623,22 @@ buf_LRU_free_from_common_LRU_list(
 		ibool		freed;
 		my_fast_timer_t	accessed;
 		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+		ibool		removed;
 
 		ut_ad(buf_page_in_file(bpage));
 		ut_ad(bpage->in_LRU_list);
 
 		mutex_enter(block_mutex);
 		buf_page_is_accessed(bpage, &accessed);
-		freed = buf_LRU_free_block(bpage, TRUE);
+	
+		*space_id = bpage->space;
+		
+		freed = buf_LRU_free_block(bpage, TRUE, &removed);
+
 		mutex_exit(block_mutex);
+
+		if (!removed)
+			*space_id = ULINT_UNDEFINED;
 
 		if (freed) {
 			/* Keep track of pages that are evicted without
@@ -650,13 +671,14 @@ buf_LRU_search_and_free_block(
 				n_iterations / 5 of the unzip_LRU list. */
 {
 	ibool	freed = FALSE;
+	ulint	space_id = ULINT_UNDEFINED;
 
 	buf_pool_mutex_enter();
 
 	freed = buf_LRU_free_from_unzip_LRU_list(n_iterations);
 
 	if (!freed) {
-		freed = buf_LRU_free_from_common_LRU_list(n_iterations);
+		freed = buf_LRU_free_from_common_LRU_list(n_iterations, &space_id);
 	}
 
 	if (!freed) {
@@ -666,6 +688,9 @@ buf_LRU_search_and_free_block(
 	}
 
 	buf_pool_mutex_exit();
+
+	if (space_id != ULINT_UNDEFINED)
+		fil_change_lru_count(space_id, -1);
 
 	return(freed);
 }
@@ -1342,8 +1367,9 @@ ibool
 buf_LRU_free_block(
 /*===============*/
 	buf_page_t*	bpage,	/*!< in: block to be freed */
-	ibool		zip)	/*!< in: TRUE if should remove also the
+	ibool		zip,	/*!< in: TRUE if should remove also the
 				compressed page of an uncompressed page */
+	ibool*		removed)/*!< out: return TRUE if removed from LRU */
 {
 	buf_page_t*	b = NULL;
 	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
@@ -1359,6 +1385,8 @@ buf_LRU_free_block(
 	bytes. */
 	UNIV_MEM_ASSERT_RW(bpage, sizeof *bpage);
 #endif
+
+	*removed = FALSE;
 
 	if (!buf_page_can_relocate(bpage)) {
 
@@ -1405,6 +1433,8 @@ alloc:
 	}
 #endif /* UNIV_DEBUG */
 
+	*removed = TRUE;
+
 	if (buf_LRU_block_remove_hashed_page(bpage, zip)
 	    != BUF_BLOCK_ZIP_FREE) {
 		ut_a(bpage->buf_fix_count == 0);
@@ -1441,6 +1471,8 @@ alloc:
 
 			HASH_INSERT(buf_page_t, hash,
 				    buf_pool->page_hash, fold, b);
+
+			*removed = FALSE;
 
 			/* Insert b where bpage was in the LRU list. */
 			if (UNIV_LIKELY(prev_b != NULL)) {

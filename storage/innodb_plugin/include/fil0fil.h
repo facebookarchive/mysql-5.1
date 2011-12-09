@@ -263,6 +263,7 @@ struct fil_space_struct {
 				/*!< list of all spaces */
 	os_io_perf2_t	io_perf2;/*!< per tablespace IO perf counters */
 	comp_stat_t	comp_stat; /*!< per tablespace compression counters */
+	int		n_lru;	/*!< number of pages in LRU */
 	/* If NAME_LEN were visible to InnoDB source, it would be used instead
 	of FN_LEN+1. */
 	char		db_name[FN_LEN + 1];
@@ -839,7 +840,7 @@ fil_update_table_stats(
 	/* per-table stats callback */
 	void (*cb)(const char* db, const char* tbl,
 		   my_io_perf_t *r, my_io_perf_t *w, comp_stat_t *comp_stat,
-		   const char* engine));
+		   int n_lru, const char* engine));
 
 /********************************************************************//**
 Reads or writes data. This operation is asynchronous (aio).
@@ -988,5 +989,15 @@ void
 fil_print(
 /*=======*/
 	FILE* file);	/* in: print results to this */
+
+/*************************************************************************
+Changes count of pages on the LRU for this space. Will lock/unlock 
+fil_system->mutex */
+
+void
+fil_change_lru_count(
+/*=================*/
+	ulint	space,		/* in: tablespace id for which count changes */
+	int	amount);	/* in: amount by which the count changes */
 
 #endif

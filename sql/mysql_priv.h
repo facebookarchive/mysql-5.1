@@ -1605,9 +1605,10 @@ extern ST_FIELD_INFO index_stats_fields_info[];
 int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond);
 typedef void (*table_stats_cb)(const char *db, const char *table,
                                my_io_perf_t* r, my_io_perf_t* w,
-                               comp_stat_t* comp_stat, const char *engine);
+                               comp_stat_t* comp_stat, int n_lru,
+                               const char *engine);
 void fill_table_stats_cb(const char *db, const char *table,
-                         my_io_perf_t *r, my_io_perf_t *w,
+                         my_io_perf_t *r, my_io_perf_t *w, int n_lru,
                          const char *engine);
 
 int fill_index_stats(THD *thd, TABLE_LIST *tables, COND *cond);
