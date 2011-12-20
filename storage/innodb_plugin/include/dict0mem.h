@@ -339,6 +339,7 @@ struct dict_index_struct{
 	ulint		num_compressed_fail;
 	ulint		comp_fail_max_page_size;
 	ulint		comp_fail_max_page_size_final;
+	ulint		comp_fail_ind;
 	/* @} */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */

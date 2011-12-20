@@ -309,8 +309,8 @@ dict_table_decrement_handle_count(
 }
 
 /**********************************************************************//**
-Return the maximum page size for which there will likely be no compression
-failure.
+Return the maximum page size for which pages of this size would not fail to
+compress.
 
 We require empty space on the uncompressed pages of compressed tables in order
 to prevent compression failures. The amount of data placed on a page is
@@ -318,26 +318,39 @@ determined by considering the N smallest pages that fail to compress and taking
 the median of those page sizes. The optimal amount of data to be placed on a
 page is determined when mysql starts.
 
-There are two phases: gathering statistics and using gathered statistics to
-restrict the amount of data on a page.
+After innodb_comp_fail_samples compression failures takes place for an index,
+we take the median page size of the smallest innodb_comp_fail_tree_size pages
+that failed to compress. This becomes the maximum size of the data to be placed
+on a page that belongs to this index.
 
-The data that's placed on a page is not restricted until the comp_fail_tree is
-full. After the comp_fail_tree is full and until comp_fail_num_samples
-failed-to-compress page sizes are collected, the max data size on a page is
-restricted to be the median of the values in comp_fail_tree. This value may
-change as more pages fail to compress. First phase ends when
-comp_fail_num_samples pages fail. After this, the limit on the amount of data
-placed on a page is set to be the current median value of comp_fail_tree, and is
-not changed later.
+Sometimes the failure rate doesn't become low enough for the padding size
+determined after innodb_comp_fail_samples failures. If after
+innodb_comp_fail_samples compression failures the failure rate is still greater
+than innodb_comp_fail_max_fail_rate, we reset the internal counters for the
+compression failures and compression operations, but we keep the list of the
+smallest page sizes that failed to compress. This preserves the maximum page
+size fixed so the future compression failures will make the median of the
+comp_fail_tree smaller. To give an example, let innnodb_comp_fail_max_fail_rate
+be 0.1 and let innodb_comp_fail_samples be 200. Let the max page size (the
+median of the smallest pages that failed to compress) after 200 comp failures
+be 15K. If at the end of 200 compression failures the failure rate is greater
+than 0.1, then we will continue to maintain a list of smallest pages that failed
+to compress. If after 400 compression failures the failure rate goes below 0.1
+and the max page size becomes 14K then the final value for the max page size
+will be 14K and we will no longer keep the list of smallest pages that failed
+to compress.
 
-There are three variables: innodb_comp_fail_tree_size, innodb_comp_fail_samples,
-and innodb_comp_fail_threshold.
-The first determines the number of samples collected during the first phase.The
-second determines the size of the comp_fail_tree. The tables for which the
-failure rate is less than the value determined by the third are not padded.
+There are three variables: innodb_comp_fail_samples, innodb_comp_fail_tree_size,
+and innodb_comp_fail_max_fail_rate.
+The first determines the number of samples collected before checking if the
+compression failure rate is low enough. The second determines the size of the
+number of smallest pages we'll consider when determining the max page size. The
+third determines the maximum failure rate we are willing to tolerate. The
+maximum page size is not decreased further after this failure rate is reached.
 
 When innodb_comp_fail_tree_size is 0, the amount of data on pages is not
 restricted.
+
 @return: the maximum page size for which there will likely be no compression
 failure. */
 UNIV_INTERN
@@ -388,11 +401,13 @@ dict_index_comp_fail_store(
 	comp_fail_node_t fail_node, *n;
 	ulint old_tree_size;
 	/* do not continue storing page sizes if final max page size is set */
-	if (srv_comp_fail_tree_size == 0 || index->comp_fail_max_page_size_final)
+	if (srv_comp_fail_samples == 0
+	    || srv_comp_fail_tree_size == 0
+	    || index->comp_fail_max_page_size_final)
 		return;
 	os_fast_mutex_lock(&index->comp_fail_tree_mutex);
 	fail_node.page_size = page_size;
-	fail_node.ind = index->num_compressed_fail++;
+	fail_node.ind = ++index->comp_fail_ind;
 	old_tree_size = rbt_size(index->comp_fail_tree);
 	if (old_tree_size >= srv_comp_fail_tree_size) {
 		rbt_remove_last_and_insert(index->comp_fail_tree, &fail_node, &fail_node);
@@ -413,27 +428,31 @@ dict_index_comp_fail_store(
 		/* because comp_fail_tree is a balanced  binary search tree, the root has
 		   the median value for the page sizes stored in the tree */
 		n = rbt_value(comp_fail_node_t, rbt_root(index->comp_fail_tree));
-		/* Do not return a value less than UNIV_PAGE_SIZE/2 because that means
-		   the table's disk space will be inflated instead of being compressed.
-		   UNIV_PAGE_SIZE>>6 is a fudge number that we subtract to make sure
-		   the obtained number prevents a compression failure.*/
+		/* If the algorithm hits a singularity case and gets very small pages
+		   that fail to compress, then we may not be using the pages efficiently.
+		   In order to account for this case and prevent catastrophes, we force the
+		   minimum value for the max page size to be UNIV_PAGE_SIZE/4. This works
+		   nicely for the indexes of the tables that may inflate up to 2X after
+		   compression. */
 		index->comp_fail_max_page_size
-		  = ut_max(n->page_size - (UNIV_PAGE_SIZE >> 6), UNIV_PAGE_SIZE/2);
+		  = ut_max(n->page_size - (UNIV_PAGE_SIZE >> 7), UNIV_PAGE_SIZE/4);
 	}
+
 	if (index->num_compressed_fail >= srv_comp_fail_samples
 	    && !index->comp_fail_max_page_size_final) {
-		if ((double)index->num_compressed_fail/(double)index->num_compressed
-		      < srv_comp_fail_threshold) {
-			/* if the ratio of failed compressions is less than the ratio specified by
-			   comp_fail_threshold then do not restrict the amount of data placed on a
-			   page */
-			index->comp_fail_max_page_size_final = UNIV_PAGE_SIZE;
+		double failure_rate = (double)index->num_compressed_fail/
+		                      (double)index->num_compressed;
+		if (failure_rate > srv_comp_fail_max_fail_rate) {
+			/* If we have not reached a desired failure rate we continue to collect
+			   samples and adjust padding without touching the comp_fail_tree */
+			index->num_compressed_fail = 0;
+			index->num_compressed = 0;
 		} else {
 			index->comp_fail_max_page_size_final = index->comp_fail_max_page_size;
+			/* we no longer need the comp_fail_tree */
+			rbt_free(index->comp_fail_tree);
+			index->comp_fail_tree = NULL;
 		}
-		/* we no longer need the comp_fail_tree */
-		rbt_free(index->comp_fail_tree);
-		index->comp_fail_tree = NULL;
 	}
 	os_fast_mutex_unlock(&index->comp_fail_tree_mutex);
 }

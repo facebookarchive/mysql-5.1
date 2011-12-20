@@ -278,6 +278,7 @@ dict_mem_index_create(
 	index->num_compressed_fail = 0;
 	index->comp_fail_max_page_size = UNIV_PAGE_SIZE;
 	index->comp_fail_max_page_size_final = 0;
+	index->comp_fail_ind = 0;
 #endif /* !UNIV_HOTBACKUP */
 	index->name = mem_heap_strdup(heap, index_name);
 	index->table_name = table_name;

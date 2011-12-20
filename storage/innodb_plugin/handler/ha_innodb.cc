@@ -12009,11 +12009,11 @@ static MYSQL_SYSVAR_UINT(comp_fail_tree_size,
   " for pages that fail to compress.",
   NULL, NULL, 10, 0, 1000, 0);
 
-static MYSQL_SYSVAR_DOUBLE(comp_fail_threshold,
-  srv_comp_fail_threshold, PLUGIN_VAR_OPCMDARG,
-  "If the compression failure rate of a table is less than this number"
-  " then the table will not be padded.",
-  NULL, NULL, 0.10, 0.01, 0.99, 0);
+static MYSQL_SYSVAR_DOUBLE(comp_fail_max_fail_rate,
+  srv_comp_fail_max_fail_rate, PLUGIN_VAR_OPCMDARG,
+  "If the compression failure rate of a table is greater than this number"
+  " InnoDB will continue to increase the padding size.",
+  NULL, NULL, 0.1, 0.01, 0.99, 0);
 
 static MYSQL_SYSVAR_UINT(simulate_comp_failures, srv_simulate_comp_failures,
   PLUGIN_VAR_NOCMDARG,
@@ -12411,7 +12411,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_compressed_pages),
   MYSQL_SYSVAR(comp_fail_samples),
   MYSQL_SYSVAR(comp_fail_tree_size),
-  MYSQL_SYSVAR(comp_fail_threshold),
+  MYSQL_SYSVAR(comp_fail_max_fail_rate),
   MYSQL_SYSVAR(simulate_comp_failures),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),

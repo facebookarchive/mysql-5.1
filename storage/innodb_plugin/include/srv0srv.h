@@ -112,9 +112,9 @@ extern uint srv_comp_fail_samples;
 /** Size of the red black tree for computing the average page size
 for pages that fail to compress. */
 extern uint srv_comp_fail_tree_size;
-/** If the compression failure rate of a table is less than this number
- then the table will not be padded. */
-extern double srv_comp_fail_threshold;
+/** If the compression failure rate of a table is greater than this number
+ then the padding will continue to increase even after srv_comp_fail_samples */
+extern double srv_comp_fail_max_fail_rate;
 
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
