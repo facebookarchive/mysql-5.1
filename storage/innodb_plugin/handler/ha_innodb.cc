@@ -12015,6 +12015,11 @@ static MYSQL_SYSVAR_DOUBLE(comp_fail_threshold,
   " then the table will not be padded.",
   NULL, NULL, 0.10, 0.01, 0.99, 0);
 
+static MYSQL_SYSVAR_UINT(simulate_comp_failures, srv_simulate_comp_failures,
+  PLUGIN_VAR_NOCMDARG,
+  "Simulate compression failures.",
+  NULL, NULL, 0, 0, 99, 0);
+
 static MYSQL_SYSVAR_STR(log_group_home_dir, innobase_log_group_home_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Path to InnoDB log files.", NULL, NULL, NULL);
@@ -12407,6 +12412,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(comp_fail_samples),
   MYSQL_SYSVAR(comp_fail_tree_size),
   MYSQL_SYSVAR(comp_fail_threshold),
+  MYSQL_SYSVAR(simulate_comp_failures),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),
   MYSQL_SYSVAR(log_group_home_dir),

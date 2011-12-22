@@ -37,6 +37,7 @@ Created June 2005 by Marko Makela
 #include "btr0cur.h"
 #include "page0types.h"
 #include "log0recv.h"
+#include "srv0srv.h"
 #include "zlib.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
@@ -1243,6 +1244,25 @@ page_zip_compress(
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
 			  >= page_zip_get_size(page_zip))) {
 
+		goto err_exit;
+	}
+
+	/* Simulate a compression failure with a probability determined by
+	   innodb_simulate_comp_failures, only if the page has 2 or more records and
+	   the padding computation is finished. */
+	if (srv_simulate_comp_failures
+	    && (index->comp_fail_max_page_size_final || srv_comp_fail_samples == 0)
+	    && page_get_n_recs(page) >= 2
+	    && ((rand() % 100) < srv_simulate_comp_failures)) {
+#ifdef UNIV_DEBUG
+		fprintf(stderr,
+		        "InnoDB: Simulating a compression failure"
+		        " for table %s, index %s, page %lu (%s)\n",
+		        index->table_name,
+		        index->name,
+		        page_get_page_no(page),
+		        page_is_leaf(page) ? "leaf" : "non-leaf");
+#endif
 		goto err_exit;
 	}
 

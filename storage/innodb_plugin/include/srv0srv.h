@@ -104,6 +104,7 @@ extern my_bool	srv_background_drop_table;
 /** If true, always log the images of compressed pages when the page is
 recompressed */
 extern my_bool srv_log_compressed_pages;
+extern uint srv_simulate_comp_failures;
 
 /** Number of page size samples collected from pages that fail to compress to
 determine the ideal page size that won't fail to compress. */
