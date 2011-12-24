@@ -817,10 +817,12 @@ page_copy_rec_list_start(
 				/* The page was reorganized:
 				Seek to ret_pos. */
 				ret = new_page + PAGE_NEW_INFIMUM;
-
-				do {
+				/* ret_pos may be zero */
+				while (ret_pos) {
+					ut_a(ret);
 					ret = rec_get_next_ptr(ret, TRUE);
-				} while (--ret_pos);
+					--ret_pos;
+				}
 			}
 		}
 	}
