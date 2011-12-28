@@ -1151,6 +1151,8 @@ int ha_commit_trans(THD *thd, bool all, bool async)
   bool is_real_trans= all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list;
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
+  const char* old_info= NULL;
+
   DBUG_ENTER("ha_commit_trans");
 
   /*
@@ -1191,7 +1193,7 @@ int ha_commit_trans(THD *thd, bool all, bool async)
     Ha_trx_info *ha_info_orig= ha_info;
     bool log_was_full= false;
 
-    thd_proc_info(thd, "process commit");
+    old_info= thd_proc_info(thd, "process commit");
 
     DBUG_ASSERT(thd->ticket == 0);
     thd->ticket= 0;
@@ -1210,7 +1212,7 @@ int ha_commit_trans(THD *thd, bool all, bool async)
         wait_if_global_read_lock(thd, 0, 0))
     {
       ha_rollback_trans(thd, all);
-      thd_proc_info(thd, "after commit");
+      thd_proc_info(thd, old_info ? old_info : "after commit");
       DBUG_RETURN(1);
     }
 
@@ -1346,7 +1348,7 @@ end:
     if (rw_trans)
       start_waiting_global_read_lock(thd);
 
-    thd_proc_info(thd, "after commit");
+    thd_proc_info(thd, old_info ? old_info : "after commit");
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   else if (is_real_trans)
