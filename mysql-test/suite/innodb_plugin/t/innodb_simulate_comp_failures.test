@@ -1,0 +1,6 @@
+--source include/big_test.inc
+--let $num_inserts = 100000
+--let $num_ops = 30000
+--source suite/innodb_plugin/include/innodb_simulate_comp_failures.inc
+# clean exit
+--exit

@@ -13,9 +13,9 @@ SET GLOBAL innodb_simulate_comp_failures = 25;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 100000
-SELECT FLOOR(100*compress_ops_ok/compress_ops) from information_schema.innodb_cmp where page_size=8192;
-FLOOR(100*compress_ops_ok/compress_ops)
-75
+SELECT compress_ops_ok/compress_ops > .7, compress_ops_ok/compress_ops < .9 from information_schema.innodb_cmp where page_size=8192;
+compress_ops_ok/compress_ops > .7	compress_ops_ok/compress_ops < .9
+1	1
 DROP TABLE t1;
 SET GLOBAL innodb_file_format = "Antelope";
 SET GLOBAL innodb_file_format_check = "Antelope";
