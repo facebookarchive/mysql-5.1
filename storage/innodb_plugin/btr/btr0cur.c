@@ -1396,6 +1396,11 @@ btr_cur_pessimistic_insert(
 
 		n_extents = cursor->tree_height / 16 + 3;
 
+		if (cursor->tree_height == ULINT_UNDEFINED) {
+			ut_a(thr && thr_get_trx(thr)->fake_changes);
+			n_extents = 3;
+		}
+
 		success = fsp_reserve_free_extents(&n_reserved, index->space,
 						   n_extents, FSP_NORMAL, mtr);
 		if (!success) {
@@ -1684,7 +1689,8 @@ btr_cur_update_alloc_zip(
 	ulint		length,	/*!< in: size needed */
 	ibool		create,	/*!< in: TRUE=delete-and-insert,
 				FALSE=update-in-place */
-	mtr_t*		mtr)	/*!< in: mini-transaction */
+	mtr_t*		mtr,	/*!< in: mini-transaction */
+	trx_t*		trx)	/*!< in: NULL or transaction */
 {
 	my_bool log_compressed_pages = srv_log_compressed_pages;
 	page_t* page;
@@ -1720,6 +1726,13 @@ btr_cur_update_alloc_zip(
 		return(FALSE);
 	}
 #endif
+
+	if (trx && trx->fake_changes) {
+		/* Don't call page_zip_compress_write_log_no_data as that has assert which
+		would fail. Assume there won't be a compression failure. */
+
+		return TRUE;
+	}
 
 	/* we can safely pass a null pointer here because btr_cur_update_alloc_zip()
 		 is called before any modification to page is made. This makes sure that the
@@ -1810,7 +1823,8 @@ btr_cur_update_in_place(
 	/* Check that enough space is available on the compressed page. */
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
-					 rec_offs_size(offsets), FALSE, mtr)) {
+					 rec_offs_size(offsets), FALSE, mtr, trx)) {
+		ut_ad(!heap); /* Assert because mem_heap_free is not called */
 		return(DB_ZIP_OVERFLOW);
 	}
 
@@ -2002,7 +2016,8 @@ any_extern:
 
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
-					 new_rec_size, TRUE, mtr)) {
+					 new_rec_size, TRUE, mtr,
+					 thr ? thr_get_trx(thr) : NULL)) {
 		err = DB_ZIP_OVERFLOW;
 		goto err_exit;
 	}
@@ -2235,6 +2250,10 @@ btr_cur_pessimistic_update(
 		return(err);
 	}
 
+	if (cursor->tree_height == ULINT_UNDEFINED) {
+		ut_ad(thr && thr_get_trx(thr)->fake_changes);
+	}
+
 	if (optim_err == DB_OVERFLOW) {
 		ulint	reserve_flag;
 
@@ -2243,6 +2262,11 @@ btr_cur_pessimistic_update(
 		of lack of space */
 
 		n_extents = cursor->tree_height / 16 + 3;
+
+		if (cursor->tree_height == ULINT_UNDEFINED) {
+			ut_a(thr && thr_get_trx(thr)->fake_changes);
+			n_extents = 3;
+		}
 
 		if (flags & BTR_NO_UNDO_LOG_FLAG) {
 			reserve_flag = FSP_CLEANING;
@@ -3030,6 +3054,10 @@ btr_cur_pessimistic_delete(
 		not fail because of lack of space */
 
 		n_extents = cursor->tree_height / 32 + 1;
+
+		if (cursor->tree_height == ULINT_UNDEFINED) {
+			n_extents = 3;
+		}
 
 		success = fsp_reserve_free_extents(&n_reserved,
 						   index->space,
