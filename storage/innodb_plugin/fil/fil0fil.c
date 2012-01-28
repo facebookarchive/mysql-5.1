@@ -954,11 +954,6 @@ retry:
 		return;
 	}
 
-	if (fil_system->n_open < fil_system->max_n_open) {
-
-		return;
-	}
-
 	space = fil_space_get_by_id(space_id);
 
 	if (space != NULL && space->stop_ios) {
@@ -980,6 +975,11 @@ retry:
 		count2++;
 
 		goto retry;
+	}
+
+	if (fil_system->n_open < fil_system->max_n_open) {
+
+		return;
 	}
 
 	/* If the file is already open, no need to do anything; if the space
@@ -2649,6 +2649,12 @@ fil_rename_tablespace(
 	char*		path;
 	ibool		old_name_was_specified		= TRUE;
 	char*		old_path;
+	int		pending_retry		= 0;
+	int		mod_retry		= 0;
+	ulint		last_pending		= 0;
+	ulint		last_pending_flushes	= 0;
+	ulint		last_modification	= 0;
+	ulint		last_flush_counter	= 0;
 
 	ut_a(id != 0);
 
@@ -2665,7 +2671,13 @@ retry:
 		ut_print_filename(stderr, old_name);
 		fputs(" to ", stderr);
 		ut_print_filename(stderr, new_name);
-		fprintf(stderr, ", %lu iterations\n", (ulong) count);
+		fprintf(stderr, ", %lu iterations, "
+			"retries: %d pending, %d modification, "
+			"%lu n_pending, %lu n_pending_flushes, "
+			"%lu modification_counter, %lu flush_counter\n",
+			count, pending_retry, mod_retry,
+			last_pending, last_pending_flushes,
+			last_modification, last_flush_counter);
 	}
 
 	mutex_enter(&fil_system->mutex);
@@ -2700,14 +2712,28 @@ retry:
 	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
 	node = UT_LIST_GET_FIRST(space->chain);
 
+	last_pending		= node->n_pending;
+	last_pending_flushes	= node->n_pending_flushes;
+	last_modification	= node->modification_counter;
+	last_flush_counter	= node->flush_counter;
+
 	if (node->n_pending > 0 || node->n_pending_flushes > 0) {
 		/* There are pending i/o's or flushes, sleep for a while and
 		retry */
 
 		mutex_exit(&fil_system->mutex);
 
+		/* For http://bugs.mysql.com/62100, if the doublewrite buffer
+		is not full then the writer threads might be sleeping and
+		things that would add writes to make it full can be blocked
+		by the stop_ios check in fil_mutex_enter_and_prepare_for_io.
+		So this call will wake them and make n_pending go to 0. */
+
+		os_aio_simulated_wake_handler_threads();
+
 		os_thread_sleep(20000);
 
+		++pending_retry;
 		goto retry;
 
 	} else if (node->modification_counter > node->flush_counter) {
@@ -2719,6 +2745,7 @@ retry:
 
 		fil_flush(id, FLUSH_FROM_OTHER);
 
+		++mod_retry;
 		goto retry;
 
 	} else if (node->open) {

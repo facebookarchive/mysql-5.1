@@ -4042,6 +4042,7 @@ end:
 			trx->error_state = DB_SUCCESS;
 			trx_general_rollback_for_mysql(trx, NULL);
 			trx->error_state = DB_SUCCESS;
+			err = DB_ERROR;
 			goto funct_exit;
 		}
 

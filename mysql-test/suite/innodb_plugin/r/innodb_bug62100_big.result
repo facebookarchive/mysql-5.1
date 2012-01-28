@@ -1,0 +1,30 @@
+drop table if exists t;
+create table t (i int primary key auto_increment, c char(250), d char(250), e char(250)) engine=innodb;
+create index cx on t(c);
+create index dx on t(d);
+create index ex on t(e);
+insert into t values (NULL, 'a', 'b', 'c');
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+insert into t select NULL, 'a', 'b', 'c' from t;
+select sum(i) from t;
+sum(i)
+3578189140
+rename table t to s;
+select sum(i) from s;
+sum(i)
+3578189140
+drop table s;
