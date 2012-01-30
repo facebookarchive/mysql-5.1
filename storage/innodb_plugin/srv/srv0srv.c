@@ -559,6 +559,18 @@ UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
 UNIV_INTERN my_bool	srv_use_fast_checksums = FALSE;
 
+/** Confirm checkums every time a compressed page is decompressed.
+Otherwise checksums are only confirmed when pages are read from disk. */
+UNIV_INTERN my_bool	srv_extra_checksums = FALSE;
+
+/** Limit the unzip_LRU to this number of pages expressed as
+a percentage of the number of pages on the LRU. */
+UNIV_INTERN ulong	srv_unzip_LRU_pct = 10;
+
+/** The factor to multiply the IO rate so that the cost of it is
+equivalent to the cost of the rate of page decompression. */
+UNIV_INTERN ulong	srv_lru_io_to_unzip_factor = 50;
+
 UNIV_INTERN ibool	srv_set_thread_priorities = TRUE;
 UNIV_INTERN int	srv_query_thread_priority = 0;
 

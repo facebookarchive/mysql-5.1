@@ -232,6 +232,10 @@ extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
 extern my_bool	srv_use_fast_checksums;
 
+extern my_bool	srv_extra_checksums;
+extern ulong	srv_unzip_LRU_pct;
+extern ulong	srv_lru_io_to_unzip_factor;
+
 extern ibool	srv_set_thread_priorities;
 extern int	srv_query_thread_priority;
 

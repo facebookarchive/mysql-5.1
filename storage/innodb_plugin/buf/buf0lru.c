@@ -92,10 +92,6 @@ Each interval is 1 second, defined by the rate at which
 srv_error_monitor_thread() calls buf_LRU_stat_update(). */
 #define BUF_LRU_STAT_N_INTERVAL 50
 
-/** Co-efficient with which we multiply I/O operations to equate them
-with page_zip_decompress() operations. */
-#define BUF_LRU_IO_TO_UNZIP_FACTOR 50
-
 /** Sampled values buf_LRU_stat_cur.
 Protected by buf_pool_mutex.  Updated by buf_LRU_stat_update(). */
 static buf_LRU_stat_t		buf_LRU_stat_arr[BUF_LRU_STAT_N_INTERVAL];
@@ -158,8 +154,10 @@ ibool
 buf_LRU_evict_from_unzip_LRU(void)
 /*==============================*/
 {
-	ulint	io_avg;
-	ulint	unzip_avg;
+	double	io_avg;
+	double	unzip_avg;
+	double	unzip_len;
+	double	lru_len;
 
 	ut_ad(buf_pool_mutex_own());
 
@@ -171,10 +169,11 @@ buf_LRU_evict_from_unzip_LRU(void)
 	/* If unzip_LRU is at most 10% of the size of the LRU list,
 	then use the LRU.  This slack allows us to keep hot
 	decompressed pages in the buffer pool. */
-	if (UT_LIST_GET_LEN(buf_pool->unzip_LRU)
-	    <= UT_LIST_GET_LEN(buf_pool->LRU) / 10) {
-		return(FALSE);
-	}
+	unzip_len	= ut_max(UT_LIST_GET_LEN(buf_pool->unzip_LRU), 1);
+	lru_len		= ut_max(UT_LIST_GET_LEN(buf_pool->LRU), 1);
+
+	if (((100 * unzip_len) / lru_len) <= srv_unzip_LRU_pct)
+		return FALSE; 
 
 	/* If eviction hasn't started yet, we assume by default
 	that a workload is disk bound. */
@@ -184,16 +183,16 @@ buf_LRU_evict_from_unzip_LRU(void)
 
 	/* Calculate the average over past intervals, and add the values
 	of the current interval. */
-	io_avg = buf_LRU_stat_sum.io / BUF_LRU_STAT_N_INTERVAL
+	io_avg = (double) buf_LRU_stat_sum.io / BUF_LRU_STAT_N_INTERVAL
 		+ buf_LRU_stat_cur.io;
-	unzip_avg = buf_LRU_stat_sum.unzip / BUF_LRU_STAT_N_INTERVAL
+	unzip_avg = (double) buf_LRU_stat_sum.unzip / BUF_LRU_STAT_N_INTERVAL
 		+ buf_LRU_stat_cur.unzip;
 
 	/* Decide based on our formula.  If the load is I/O bound
 	(unzip_avg is smaller than the weighted io_avg), evict an
 	uncompressed frame from unzip_LRU.  Otherwise we assume that
 	the load is CPU bound and evict from the regular LRU. */
-	return(unzip_avg <= io_avg * BUF_LRU_IO_TO_UNZIP_FACTOR);
+	return(unzip_avg <= io_avg * srv_lru_io_to_unzip_factor);
 }
 
 /******************************************************************//**

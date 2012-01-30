@@ -2406,7 +2406,9 @@ wait_until_unfixed:
 
 		/* Decompress the page and apply buffered operations
 		while not holding buf_pool_mutex or block->mutex. */
-		success = buf_zip_decompress(block, srv_use_checksums);
+		success = buf_zip_decompress(block,
+					     srv_use_checksums &&
+					     srv_extra_checksums);
 		ut_a(success);
 
 		if (UNIV_LIKELY(!recv_no_ibuf_operations)) {

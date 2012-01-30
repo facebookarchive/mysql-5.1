@@ -11896,6 +11896,13 @@ static MYSQL_SYSVAR_BOOL(fast_checksums, srv_use_fast_checksums,
   "compatible with prior releases.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(extra_checksums, srv_extra_checksums,
+  PLUGIN_VAR_NOCMDARG,
+  "Confirm checksums every time a page is decompressed when TRUE. "
+  "Otherwise confirm checksum only when a compressed page is read "
+  "from disk. ",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
   PLUGIN_VAR_READONLY,
   "The common part for InnoDB table spaces.",
@@ -12383,12 +12390,25 @@ static MYSQL_SYSVAR_ULONG(read_wait_usecs, srv_read_wait_usecs,
   "this yet.",
   NULL, NULL, 1000, 100, 10000, 0);
 
+static MYSQL_SYSVAR_ULONG(unzip_lru_pct, srv_unzip_LRU_pct,
+  PLUGIN_VAR_RQCMDARG,
+  "The limit for the size of the unzip_LRU as a percentage of the "
+  "size of the LRU.",
+  NULL, NULL, 10, 1, 90, 0);
+
+static MYSQL_SYSVAR_ULONG(lru_io_to_unzip_factor, srv_lru_io_to_unzip_factor,
+  PLUGIN_VAR_RQCMDARG,
+  "The factor by which the IO rate is multiplied to make it equivalent to the "
+  "cost of decompressing a database page. ",
+  NULL, NULL, 50, 1, 1000000, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(fast_checksums),
+  MYSQL_SYSVAR(extra_checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
   MYSQL_SYSVAR(data_file_path),
@@ -12476,6 +12496,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(fake_changes),
   MYSQL_SYSVAR(fake_changes_locks),
   MYSQL_SYSVAR(read_wait_usecs),
+  MYSQL_SYSVAR(unzip_lru_pct),
+  MYSQL_SYSVAR(lru_io_to_unzip_factor),
   NULL
 };
 

@@ -1015,7 +1015,7 @@ buf_flush_write_block_low(
 		break;
 	case BUF_BLOCK_ZIP_DIRTY:
 		frame = bpage->zip.data;
-		if (UNIV_LIKELY(srv_use_checksums)) {
+		if (UNIV_UNLIKELY(srv_use_checksums && srv_extra_checksums)) {
 			ut_a(mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM)
 			     == page_zip_calc_checksum(frame, zip_size));
 		}
