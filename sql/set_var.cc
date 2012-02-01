@@ -443,6 +443,9 @@ static sys_var_long_ptr	sys_max_write_lock_count(&vars, "max_write_lock_count",
 						 &max_write_lock_count);
 static sys_var_thd_ulong       sys_min_examined_row_limit(&vars, "min_examined_row_limit",
                                                           &SV::min_examined_row_limit);
+static sys_var_thd_ulong  sys_var_slow_log_if_rows_examined_exceed(&vars,
+                                                "slow_log_if_rows_examined_exceed",
+                                                &SV::slow_log_if_rows_examined_exceed);
 static sys_var_thd_ulong       sys_multi_range_count(&vars, "multi_range_count",
                                               &SV::multi_range_count);
 static sys_var_long_ptr	sys_myisam_data_pointer_size(&vars, "myisam_data_pointer_size",

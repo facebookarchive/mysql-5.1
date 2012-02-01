@@ -384,6 +384,7 @@ struct system_variables
   ulong max_tmp_tables;
   ulong max_insert_delayed_threads;
   ulong min_examined_row_limit;
+  ulong slow_log_if_rows_examined_exceed;
   ulong multi_range_count;
   ulong myisam_repair_threads;
   ulong myisam_sort_buff_size;

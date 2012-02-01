@@ -1,0 +1,33 @@
+#
+# Test --log-slow-extra
+#
+
+--source include/have_innodb_plugin.inc
+
+connection default;
+
+drop table if exists islow;
+--enable_warnings
+
+create table islow(i int) engine=innodb;
+insert into islow values (1), (2), (3), (4), (5), (6), (7), (8);
+
+set global long_query_time=10;
+
+set global slow_log_if_rows_examined_exceed=0;
+connect (con,localhost,root,,);
+
+select * from islow;
+
+set global slow_log_if_rows_examined_exceed=1;
+connect (con1,localhost,root,,);
+select * from islow limit 8;
+
+connection default;
+set global long_query_time=1;
+set global slow_log_if_rows_examined_exceed=0;
+disconnect con;
+disconnect con1;
+drop table islow;
+
+--exit

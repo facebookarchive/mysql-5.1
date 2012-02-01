@@ -1,0 +1,31 @@
+drop table if exists islow;
+Warnings:
+Note	1051	Unknown table 'islow'
+create table islow(i int) engine=innodb;
+insert into islow values (1), (2), (3), (4), (5), (6), (7), (8);
+set global long_query_time=10;
+set global slow_log_if_rows_examined_exceed=0;
+select * from islow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+set global slow_log_if_rows_examined_exceed=1;
+select * from islow limit 8;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+set global long_query_time=1;
+set global slow_log_if_rows_examined_exceed=0;
+drop table islow;

@@ -1882,7 +1882,7 @@ void log_slow_statement(THD *thd, struct system_status_var* query_start_status)
       error_sample_rate = opt_log_error_sample_rate;
     }
 
-    if (((end_utime_of_query - thd->utime_after_lock) >
+    if ((((end_utime_of_query - thd->utime_after_lock) >
          thd->variables.long_query_time ||
          (query_sample_rate && ((query_sample_counter % query_sample_rate) == 0)) ||
          (error_sample_rate && ((error_sample_counter % error_sample_rate) == 0)) ||
@@ -1891,6 +1891,8 @@ void log_slow_statement(THD *thd, struct system_status_var* query_start_status)
           opt_log_queries_not_using_indexes &&
            !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
         thd->examined_row_count >= thd->variables.min_examined_row_limit)
+       || (thd->variables.slow_log_if_rows_examined_exceed > 0 && 
+        thd->examined_row_count > thd->variables.slow_log_if_rows_examined_exceed))
     {
       thd_proc_info(thd, "logging slow query");
       thd->status_var.long_query_count++;
