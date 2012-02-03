@@ -2369,8 +2369,8 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
     localtime_r(&query_start_arg,&tm_tmp);
     sprintf(start_time_buff,"%2d:%02d:%02d",
             tm_tmp.tm_hour, tm_tmp.tm_min, tm_tmp.tm_sec);
-
-    sprintf(read_time_buff,"%.6f", thd->status_var.read_seconds);
+    sprintf(read_time_buff,"%.6f",
+           thd->status_var.read_seconds - query_start->read_seconds);
   }
 
   (void) pthread_mutex_lock(&LOCK_log);

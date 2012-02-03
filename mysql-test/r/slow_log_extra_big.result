@@ -1,0 +1,23 @@
+set global long_query_time=0;
+select count(*) from big_table_slow;
+count(*)
+20000
+select count(*) from big_table_slow;
+count(*)
+20000
+select count(*) from big_table_slow where id>1000 and id<2000;
+count(*)
+499
+select * from big_table_slow where id=2;
+id	v	t
+2	v	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbba
+select count(*) from big_table_slow where id >10000;
+count(*)
+15000
+select count(*) from big_table_slow where id < 100000;
+count(*)
+20000
+set global long_query_time=1;
+drop table big_table_slow;
+SET GLOBAL innodb_file_format = "Barracuda";
+SET GLOBAL innodb_file_format_check = "Antelope";

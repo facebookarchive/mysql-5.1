@@ -1,0 +1,57 @@
+#
+# Test --log-slow-extra
+#
+
+-- source include/have_innodb_plugin.inc
+
+--let $file_format_save = `SELECT @@innodb_file_format`
+--let $file_format_check_save = `SELECT @@innodb_file_format_check`
+
+# Confirm that per-query stats work.
+# Alas, you need to manually read var/mysqld.1/mysqld.slow.log
+#
+
+set global long_query_time=0;
+
+--disable_warnings
+--disable_query_log
+
+drop table if exists big_table_slow;
+create table big_table_slow (id int primary key auto_increment, v varchar(200), t text) engine=innodb key_block_size=8;
+
+let $x = 20000;
+while ($x)
+{
+eval insert into big_table_slow values(2 * $x, lpad("v", $x, "b"), lpad("a", ($x * 100) mod 9000, "b"));
+dec $x;
+}
+
+--enable_query_log
+--enable_warnings
+
+connect (con,localhost,root,,);
+
+select count(*) from big_table_slow;
+
+connect (con1,localhost,root,,);
+
+select count(*) from big_table_slow; 
+
+select count(*) from big_table_slow where id>1000 and id<2000;
+
+select * from big_table_slow where id=2;
+
+select count(*) from big_table_slow where id >10000;
+
+select count(*) from big_table_slow where id < 100000;
+
+connection default;
+set global long_query_time=1;
+disconnect con1;
+disconnect con;
+drop table big_table_slow;
+
+eval SET GLOBAL innodb_file_format = \"$file_format_save\";
+eval SET GLOBAL innodb_file_format_check = \"$file_format_check_save\";
+
+--exit
