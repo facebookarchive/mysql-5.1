@@ -2066,10 +2066,15 @@ innobase_shutdown_for_mysql(void)
 		fprintf(stderr,
 			"InnoDB: Warning: some resources were not"
 			" cleaned up in shutdown:\n"
-			"InnoDB: threads %lu, events %lu,"
-			" os_mutexes %lu, os_fast_mutexes %lu\n",
-			(ulong) os_thread_count, (ulong) os_event_count,
-			(ulong) os_mutex_count, (ulong) os_fast_mutex_count);
+			"InnoDB: threads %lu,"
+			" events %lu,"
+			" os_mutexes %lu,"
+			" os_fast_mutexes %lu\n",
+			(ulong) os_thread_count,
+			(ulong) os_event_count,
+			(ulong) os_mutex_count,
+			(ulong) os_fast_mutex_count
+		);
 	}
 
 	if (dict_foreign_err_file) {

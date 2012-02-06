@@ -315,7 +315,7 @@ sync_array_validate(
 /*******************************************************************//**
 Returns the event that the thread owning the cell waits for. */
 static
-os_event_t
+os_event_struct_t*
 sync_cell_get_event(
 /*================*/
 	sync_cell_t*	cell) /*!< in: non-empty sync array cell */
@@ -323,11 +323,11 @@ sync_cell_get_event(
 	ulint type = cell->request_type;
 
 	if (type == SYNC_MUTEX) {
-		return(((mutex_t *) cell->wait_object)->event);
+		return(&((mutex_t *) cell->wait_object)->event);
 	} else if (type == RW_LOCK_WAIT_EX) {
-		return(((rw_lock_t *) cell->wait_object)->wait_ex_event);
+		return(&((rw_lock_t *) cell->wait_object)->wait_ex_event);
 	} else { /* RW_LOCK_SHARED and RW_LOCK_EX wait on the same event */
-		return(((rw_lock_t *) cell->wait_object)->event);
+		return(&((rw_lock_t *) cell->wait_object)->event);
 	}
 }
 
@@ -345,9 +345,9 @@ sync_array_reserve_cell(
 	ulint		line,	/*!< in: line where requested */
 	ulint*		index)	/*!< out: index of the reserved cell */
 {
-	sync_cell_t*	cell;
-	os_event_t      event;
-	ulint		i;
+	sync_cell_t*		cell;
+	os_event_struct_t*	event;
+	ulint			i;
 
 	ut_a(object);
 	ut_a(index);
@@ -386,7 +386,7 @@ sync_array_reserve_cell(
 			the value of signal_count at which the event
 			was reset. */
                         event = sync_cell_get_event(cell);
-			cell->signal_count = os_event_reset(event);
+			cell->signal_count = os_event_reset2(event);
 
 			cell->reservation_time = time(NULL);
 
@@ -413,8 +413,8 @@ sync_array_wait_event(
 	sync_array_t*	arr,	/*!< in: wait array */
 	ulint		index)	/*!< in: index of the reserved cell */
 {
-	sync_cell_t*	cell;
-	os_event_t	event;
+	sync_cell_t*		cell;
+	os_event_struct_t*	event;
 
 	ut_a(arr);
 
@@ -448,7 +448,7 @@ sync_array_wait_event(
 #endif
 	sync_array_exit(arr);
 
-	os_event_wait_low(event, cell->signal_count);
+	os_event_wait_low2(event, cell->signal_count);
 
 	sync_array_free_cell(arr, index);
 }
@@ -876,11 +876,11 @@ void
 sync_arr_wake_threads_if_sema_free(void)
 /*====================================*/
 {
-	sync_array_t*	arr	= sync_primary_wait_array;
-	sync_cell_t*	cell;
-	ulint		count;
-	ulint		i;
-	os_event_t      event;
+	sync_array_t*		arr	= sync_primary_wait_array;
+	sync_cell_t*		cell;
+	ulint			count;
+	ulint			i;
+	os_event_struct_t*	event;
 
 	sync_array_enter(arr);
 
@@ -901,7 +901,7 @@ sync_arr_wake_threads_if_sema_free(void)
 
 			event = sync_cell_get_event(cell);
 
-			os_event_set(event);
+			os_event_set2(event);
 		}
 
 	}

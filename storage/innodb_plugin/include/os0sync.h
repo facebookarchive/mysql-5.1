@@ -47,15 +47,15 @@ typedef HANDLE		os_native_event_t;
 
 /** Operating system event */
 typedef struct os_event_struct	os_event_struct_t;
+/** Operating system event wrapper */
+typedef struct os_event_wrapper_struct	os_event_wrapper_struct_t;
 /** Operating system event handle */
-typedef os_event_struct_t*	os_event_t;
+typedef os_event_wrapper_struct_t*	os_event_t;
 
 /** An asynchronous signal sent between threads */
 struct os_event_struct {
 	os_native_event_t		  handle;
 					/*!< Windows event */
-	UT_LIST_NODE_T(os_event_struct_t) os_event_list;
-					/*!< list of all created events */
 };
 #else
 /** Native mutex */
@@ -63,25 +63,42 @@ typedef pthread_mutex_t	os_fast_mutex_t;
 
 /** Operating system event */
 typedef struct os_event_struct	os_event_struct_t;
+/** Operating system event wrapper */
+typedef struct os_event_wrapper_struct	os_event_wrapper_struct_t;
 /** Operating system event handle */
-typedef os_event_struct_t*	os_event_t;
+typedef os_event_wrapper_struct_t*	os_event_t;
 
 /** An asynchronous signal sent between threads */
 struct os_event_struct {
 	os_fast_mutex_t	os_mutex;	/*!< this mutex protects the next
 					fields */
-	ibool		is_set;		/*!< this is TRUE when the event is
+	ib_uint64_t	stats;		/*!< msb: "is_set"
+					this is TRUE when the event is
 					in the signaled state, i.e., a thread
 					does not stop if it tries to wait for
 					this event */
-	ib_int64_t	signal_count;	/*!< this is incremented each time
+					/*!< rest: "signal_count"
+					this is incremented each time
 					the event becomes signaled */
 	pthread_cond_t	cond_var;	/*!< condition variable is used in
 					waiting for the event */
-	UT_LIST_NODE_T(os_event_struct_t) os_event_list;
+};
+
+#include <stdint.h>
+
+#define INC_SIGNAL_COUNT(var) { ++(var)->stats; }
+#define SIGNAL_COUNT(var) ((var)->stats & INT64_MAX)
+#define SET_IS_SET(var) { (var)->stats |= INT64_MIN; }
+#define CLEAR_IS_SET(var) { (var)->stats &= INT64_MAX; }
+#define IS_SET(var) (((var)->stats & INT64_MIN) != 0)
+
+#endif
+
+struct os_event_wrapper_struct {
+	struct os_event_struct	ev;	/*!< Actual event struct */
+	UT_LIST_NODE_T(os_event_wrapper_struct_t) os_event_list;
 					/*!< list of all created events */
 };
-#endif
 
 /** Operating system mutex */
 typedef struct os_mutex_struct	os_mutex_str_t;
@@ -128,14 +145,22 @@ os_event_create(
 /*============*/
 	const char*	name);	/*!< in: the name of the event, if NULL
 				the event is created without a name */
+UNIV_INTERN
+void
+os_event_create2(
+/*============*/
+	os_event_struct_t*	event,	/*!< in: pointer to pre-allocated struct */
+	const char*	name);	/*!< in: the name of the event, if NULL
+				the event is created without a name */
 /**********************************************************//**
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
+#define os_event_set(e) os_event_set2(&((e)->ev))
 UNIV_INTERN
 void
-os_event_set(
+os_event_set2(
 /*=========*/
-	os_event_t	event);	/*!< in: event to set */
+	os_event_struct_t*	event);	/*!< in: event to set */
 /**********************************************************//**
 Resets an event semaphore to the nonsignaled state. Waiting threads will
 stop to wait for the event.
@@ -143,18 +168,25 @@ The return value should be passed to os_even_wait_low() if it is desired
 that this thread should not wait in case of an intervening call to
 os_event_set() between this os_event_reset() and the
 os_event_wait_low() call. See comments for os_event_wait_low(). */
+#define os_event_reset(e) os_event_reset2(&((e)->ev))
 UNIV_INTERN
 ib_int64_t
-os_event_reset(
+os_event_reset2(
 /*===========*/
-	os_event_t	event);	/*!< in: event to reset */
+	os_event_struct_t*	event);	/*!< in: event to reset */
 /**********************************************************//**
 Frees an event object. */
 UNIV_INTERN
 void
 os_event_free(
 /*==========*/
-	os_event_t	event);	/*!< in: event to free */
+	os_event_t	event);	/*!< in: wrapped event to free */
+
+UNIV_INTERN
+void
+os_event_free2(
+/*==========*/
+	os_event_struct_t*	event);	/*!< in: event to free */
 
 /**********************************************************//**
 Waits for an event object until it is in the signaled state. If
@@ -176,26 +208,29 @@ thread C calls os_event_wait()  [infinite wait!]
 Where such a scenario is possible, to avoid infinite wait, the
 value returned by os_event_reset() should be passed in as
 reset_sig_count. */
+#define os_event_wait_low(e,c) os_event_wait_low2(&((e)->ev),c)
 UNIV_INTERN
 void
-os_event_wait_low(
+os_event_wait_low2(
 /*==============*/
-	os_event_t	event,		/*!< in: event to wait */
+	os_event_struct_t*	event,		/*!< in: event to wait */
 	ib_int64_t	reset_sig_count);/*!< in: zero or the value
 					returned by previous call of
 					os_event_reset(). */
 
 #define os_event_wait(event) os_event_wait_low(event, 0)
+#define os_event_wait2(event) os_event_wait_low2(event, 0)
 
 /**********************************************************//**
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded. In Unix the timeout is always infinite.
 @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
+#define os_event_wait_time(e,t) os_event_wait_time(&((e)->ev),t)
 UNIV_INTERN
 ulint
-os_event_wait_time(
+os_event_wait_time2(
 /*===============*/
-	os_event_t	event,	/*!< in: event to wait */
+	os_event_struct_t*	event,	/*!< in: event to wait */
 	ulint		time);	/*!< in: timeout in microseconds, or
 				OS_SYNC_INFINITE_TIME */
 #ifdef __WIN__

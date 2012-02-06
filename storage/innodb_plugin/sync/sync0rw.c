@@ -40,6 +40,9 @@ Created 9/11/1995 Heikki Tuuri
 #include "srv0srv.h"
 #include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 
+
+UNIV_INTERN ulint	rw_lock_count	= 0;
+
 /*
 	IMPLEMENTATION OF THE RW_LOCK
 	=============================
@@ -277,8 +280,8 @@ rw_lock_create_func(
 	lock->last_x_file_name = "not yet reserved";
 	lock->last_s_line = 0;
 	lock->last_x_line = 0;
-	lock->event = os_event_create(NULL);
-	lock->wait_ex_event = os_event_create(NULL);
+	os_event_create2(&lock->event, NULL);
+	os_event_create2(&lock->wait_ex_event, NULL);
 
 	mutex_enter(&rw_lock_list_mutex);
 
@@ -286,6 +289,7 @@ rw_lock_create_func(
 	      || UT_LIST_GET_FIRST(rw_lock_list)->magic_n == RW_LOCK_MAGIC_N);
 
 	UT_LIST_ADD_FIRST(list, rw_lock_list, lock);
+	rw_lock_count++;
 
 	mutex_exit(&rw_lock_list_mutex);
 }
@@ -308,9 +312,9 @@ rw_lock_free(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 	mutex_enter(&rw_lock_list_mutex);
-	os_event_free(lock->event);
+	os_event_free2(&lock->event);
 
-	os_event_free(lock->wait_ex_event);
+	os_event_free2(&lock->wait_ex_event);
 
 	ut_ad(UT_LIST_GET_PREV(list, lock) == NULL
 	      || UT_LIST_GET_PREV(list, lock)->magic_n == RW_LOCK_MAGIC_N);
@@ -318,6 +322,7 @@ rw_lock_free(
 	      || UT_LIST_GET_NEXT(list, lock)->magic_n == RW_LOCK_MAGIC_N);
 
 	UT_LIST_REMOVE(list, rw_lock_list, lock);
+	rw_lock_count--;
 
 	mutex_exit(&rw_lock_list_mutex);
 
