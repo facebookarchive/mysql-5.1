@@ -233,14 +233,19 @@ btr_cur_latch_leaves(
 #endif /* UNIV_BTR_DEBUG */
 		get_block->check_index_page_at_flush = TRUE;
 		return;
+	case BTR_SEARCH_TREE:
+		ut_ad(mtr->trx->fake_changes);
+		/* fall thru */
 	case BTR_MODIFY_TREE:
-		/* x-latch also brothers from left to right */
+		mode = latch_mode == BTR_SEARCH_TREE ? RW_S_LATCH : RW_X_LATCH;
+
+		/* latch also brothers from left to right */
 		left_page_no = btr_page_get_prev(page, mtr);
 
 		if (left_page_no != FIL_NULL) {
 			get_block = btr_block_get(space, zip_size,
 						  left_page_no,
-						  RW_X_LATCH, mtr);
+						  mode, mtr);
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
@@ -251,7 +256,7 @@ btr_cur_latch_leaves(
 		}
 
 		get_block = btr_block_get(space, zip_size, page_no,
-					  RW_X_LATCH, mtr);
+					  mode, mtr);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -262,7 +267,7 @@ btr_cur_latch_leaves(
 		if (right_page_no != FIL_NULL) {
 			get_block = btr_block_get(space, zip_size,
 						  right_page_no,
-						  RW_X_LATCH, mtr);
+						  mode, mtr);
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
