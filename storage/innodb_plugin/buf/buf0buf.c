@@ -243,8 +243,6 @@ the read requests for the whole area.
 */
 
 #ifndef UNIV_HOTBACKUP
-/** Value in microseconds */
-static const int WAIT_FOR_READ	= 5000;
 /** Number of attemtps made to read in a page in the buffer pool */
 static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
 
@@ -1930,7 +1928,7 @@ got_block:
 
 			if (io_fix == BUF_IO_READ) {
 
-				os_thread_sleep(WAIT_FOR_READ);
+				os_thread_sleep(srv_read_wait_usecs);
 			} else {
 				break;
 			}
@@ -2315,7 +2313,7 @@ wait_until_unfixed:
 			/* The block is buffer-fixed or I/O-fixed.
 			Try again later. */
 			buf_pool_mutex_exit();
-			os_thread_sleep(WAIT_FOR_READ);
+			os_thread_sleep(srv_read_wait_usecs);
 
 			goto loop;
 		}
@@ -2484,7 +2482,7 @@ wait_until_unfixed:
 
 				if (io_fix == BUF_IO_READ) {
 
-					os_thread_sleep(WAIT_FOR_READ);
+					os_thread_sleep(srv_read_wait_usecs);
 				} else {
 					break;
 				}

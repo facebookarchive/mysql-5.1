@@ -140,6 +140,8 @@ extern double      srv_drop_table_phase2_secs;
 
 extern my_bool     srv_fake_changes_locks;
 
+extern ulint	srv_read_wait_usecs;
+
 extern ulint	srv_uncache_table_batch;
 
 extern my_bool	srv_b62037;

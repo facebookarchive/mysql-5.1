@@ -12376,6 +12376,13 @@ static MYSQL_SYSVAR_BOOL(fake_changes_locks, srv_fake_changes_locks,
   "some lock wait timeouts. Right now it is not safe to use OFF.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_ULONG(read_wait_usecs, srv_read_wait_usecs,
+  PLUGIN_VAR_RQCMDARG,
+  "How long a thread should sleep before rechecking for a disk read "
+  "request to finish. InnoDB doesn't use a condition variable for "
+  "this yet.",
+  NULL, NULL, 1000, 100, 10000, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -12468,6 +12475,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(uncache_table_batch),
   MYSQL_SYSVAR(fake_changes),
   MYSQL_SYSVAR(fake_changes_locks),
+  MYSQL_SYSVAR(read_wait_usecs),
   NULL
 };
 

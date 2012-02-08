@@ -162,6 +162,10 @@ when innodb_fake_changes is set for a transaction. When FALSE
 do not get row locks. */
 UNIV_INTERN my_bool	srv_fake_changes_locks= TRUE;
 
+/** How long to sleep waiting for a disk read to finish. InnoDB
+doesn't use a condition variable in this case. */
+UNIV_INTERN ulint	srv_read_wait_usecs =	1000;
+
 /** Call buf_LRU_drop_page_hash_for_tablespace during drop table. The
 original behavior is to call it but that increases buffer pool
 mutex stalls during drop table. The call is not required. */
