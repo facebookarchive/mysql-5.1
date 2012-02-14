@@ -280,14 +280,13 @@ void my_dbopt_cleanup(void)
     1 on error.
 */
 
-static my_bool get_dbopt(const char *dbname, HA_CREATE_INFO *create)
+static my_bool get_dbopt(const char *dbname, uint length, HA_CREATE_INFO *create)
 {
   my_dbopt_t *opt;
-  uint length;
   my_bool error= 1;
-  
-  length= (uint) strlen(dbname);
-  
+
+  DBUG_ASSERT(length == (uint) strlen(dbname));
+
   rw_rdlock(&LOCK_dboptions);
   if ((opt= (my_dbopt_t*) hash_search(&dboptions, (uchar*) dbname, length)))
   {
@@ -311,15 +310,14 @@ static my_bool get_dbopt(const char *dbname, HA_CREATE_INFO *create)
     1 on error.
 */
 
-static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
+static my_bool put_dbopt(const char *dbname, uint length, HA_CREATE_INFO *create)
 {
   my_dbopt_t *opt;
-  uint length;
   my_bool error= 0;
   DBUG_ENTER("put_dbopt");
 
-  length= (uint) strlen(dbname);
-  
+  DBUG_ASSERT(length == (uint) strlen(dbname));
+
   rw_wrlock(&LOCK_dboptions);
   if (!(opt= (my_dbopt_t*) hash_search(&dboptions, (uchar*) dbname, length)))
   { 
@@ -379,7 +377,7 @@ void del_dbopt(const char *path)
   1	Could not create file or write to it.  Error sent through my_error()
 */
 
-static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
+static bool write_db_opt(THD *thd, const char *path, uint length, HA_CREATE_INFO *create)
 {
   register File file;
   char buf[256]; // Should be enough for one option
@@ -388,7 +386,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   if (!create->default_table_charset)
     create->default_table_charset= thd->variables.collation_server;
 
-  if (put_dbopt(path, create))
+  if (put_dbopt(path, length, create))
     return 1;
 
   if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
@@ -414,6 +412,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 
   load_db_opt()
   path		Path for option file
+  length	Lenth of "path"
   create	Where to store the read options
 
   DESCRIPTION
@@ -424,7 +423,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 
 */
 
-bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
+bool load_db_opt(THD *thd, const char *path, uint length, HA_CREATE_INFO *create)
 {
   File file;
   char buf[256];
@@ -436,7 +435,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   create->default_table_charset= thd->variables.collation_server;
 
   /* Check if options for this database are already in the hash */
-  if (!get_dbopt(path, create))
+  if (!get_dbopt(path, length, create))
     DBUG_RETURN(0);
 
   /* Otherwise, load options from the .opt file */
@@ -494,7 +493,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
     but it's not an error, as put_dbopt() takes this
     possibility into account.
   */
-  error= put_dbopt(path, create);
+  error= put_dbopt(path, length, create);
 
   end_io_cache(&cache);
 err2:
@@ -543,10 +542,10 @@ bool load_db_opt_by_name(THD *thd, const char *db_name,
     Pass an empty file name, and the database options file name as extension
     to avoid table name to file name encoding.
   */
-  (void) build_table_filename(db_opt_path, sizeof(db_opt_path) - 1,
+  uint length = build_table_filename(db_opt_path, sizeof(db_opt_path) - 1,
                               db_name, "", MY_DB_OPT_FILE, 0);
 
-  return load_db_opt(thd, db_opt_path, db_create_info);
+  return load_db_opt(thd, db_opt_path, length, db_create_info);
 }
 
 
@@ -690,7 +689,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
 
   path[path_len-1]= FN_LIBCHAR;
   strmake(path+path_len, MY_DB_OPT_FILE, sizeof(path)-path_len-1);
-  if (write_db_opt(thd, path, create_info))
+  if (write_db_opt(thd, path, strlen(path), create_info))
   {
     /*
       Could not create options file.
@@ -781,6 +780,7 @@ exit2:
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
   char path[FN_REFLEN+16];
+  uint path_len;
   long result=1;
   int error= 0;
   DBUG_ENTER("mysql_alter_db");
@@ -819,8 +819,8 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
      We pass MY_DB_OPT_FILE as "extension" to avoid
      "table name to file name" encoding.
   */
-  build_table_filename(path, sizeof(path) - 1, db, "", MY_DB_OPT_FILE, 0);
-  if ((error=write_db_opt(thd, path, create_info)))
+  path_len = build_table_filename(path, sizeof(path) - 1, db, "", MY_DB_OPT_FILE, 0);
+  if ((error=write_db_opt(thd, path, path_len, create_info)))
     goto exit;
 
   /* Change options if current database is being altered. */
@@ -1870,9 +1870,9 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
   if (thd->db && !strcmp(thd->db, old_db->str))
     change_to_newdb= 1;
 
-  build_table_filename(path, sizeof(path)-1,
+  length= build_table_filename(path, sizeof(path)-1,
                        old_db->str, "", MY_DB_OPT_FILE, 0);
-  if ((load_db_opt(thd, path, &create_info)))
+  if ((load_db_opt(thd, path, length, &create_info)))
     create_info.default_table_charset= thd->variables.collation_server;
 
   length= build_table_filename(path, sizeof(path)-1, old_db->str, "", "", 0);
