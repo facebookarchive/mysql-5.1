@@ -221,12 +221,12 @@ bool my_database_names_init(void)
   if (!dboptions_init)
   {
     dboptions_init= 1;
-    error= hash_init(&dboptions, lower_case_table_names ? 
-                     &my_charset_bin : system_charset_info,
+    error= hash_init(&dboptions, lower_case_table_names ?
+                     system_charset_info : &my_charset_bin,
                      32, 0, 0, (hash_get_key) dboptions_get_key,
                      free_dbopt,0) ||
-           hash_init(&lock_db_cache, lower_case_table_names ? 
-                     &my_charset_bin : system_charset_info,
+           hash_init(&lock_db_cache, lower_case_table_names ?
+                     system_charset_info : &my_charset_bin,
                      32, 0, 0, (hash_get_key) lock_db_get_key,
                      lock_db_free_element,0);
 
@@ -260,8 +260,8 @@ void my_dbopt_cleanup(void)
 {
   rw_wrlock(&LOCK_dboptions);
   hash_free(&dboptions);
-  hash_init(&dboptions, lower_case_table_names ? 
-            &my_charset_bin : system_charset_info,
+  hash_init(&dboptions, lower_case_table_names ?
+            system_charset_info : &my_charset_bin,
             32, 0, 0, (hash_get_key) dboptions_get_key,
             free_dbopt,0);
   rw_unlock(&LOCK_dboptions);
