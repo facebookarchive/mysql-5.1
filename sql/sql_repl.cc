@@ -486,6 +486,18 @@ send_event_to_slave(THD *thd, NET *net, String* const packet)
   return NULL;    /* Success */
 }
 
+static void repl_cleanup(String *packet, char *packet_buffer)
+{
+  if (packet_buffer != NULL)
+  {
+    /* Make sure it does not reference packet_buffer */
+    packet->free();
+
+    /* Free the fixed packet buffer. */
+    my_free(packet_buffer, MYF(0));
+  }
+}
+
 /*
   TODO: Clean up loop to only have one call to send_file()
 */
@@ -498,7 +510,13 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   char search_file_name[FN_REFLEN], *name;
   IO_CACHE log;
   File file = -1;
-  String* const packet = &thd->packet;
+  /*
+    Use a local string here to avoid disturbing the contents of thd->packet.
+    Note that calling thd->packet->free() here will make code elsewhere
+    crash.
+  */
+  String packet_str;
+  String* packet= &packet_str;
   int error;
   const char *errmsg = "Unknown error", *tmp_msg;
   NET* net = &thd->net;
@@ -524,6 +542,14 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   /* The number of times to skip calls to processlist_slave_offset */
   int skip_state_update;
 
+  /* Preallocate fixed buffer for event packets.  If an event is more
+     than the size, String class will re-allocate memory and we will
+     reset the packet memory for the next packet creation command.
+     This reduces calls to malloc and free.
+   */
+  const ulong packet_buffer_size = rpl_event_buffer_size;
+  char *packet_buffer = NULL;
+
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
@@ -548,6 +574,13 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   {
     errmsg = "Misconfigured master - server id was not set";
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+    goto err;
+  }
+
+  packet_buffer = (char*) my_malloc(packet_buffer_size, MYF(MY_WME));
+  if (packet_buffer == NULL) {
+    errmsg   = "Master failed pre-allocate event fixed buffer";
+    my_errno = ER_OUTOFMEMORY;
     goto err;
   }
 
@@ -768,7 +801,13 @@ impossible position";
 	goto err;
       }
 
-      packet->set("\0", 1, &my_charset_bin);
+      /*
+         packet_buffer is only used in this case as it is the common case and
+         I prefer to reduce the size of the diff.
+      */
+      packet->set(packet_buffer, (uint32) packet_buffer_size, &my_charset_bin);
+      packet->length(0);
+      packet->append("\0", 1);
     }
 
     /*
@@ -984,6 +1023,7 @@ end:
   thd->variables.max_allowed_packet= old_max_allowed_packet;
   /* Undo any calls done by processlist_slave_offset */
   thd->set_query(orig_query, orig_query_length);
+  repl_cleanup(packet, packet_buffer);
   DBUG_VOID_RETURN;
 
 err:
@@ -1010,6 +1050,7 @@ err:
   my_message(my_errno, errmsg, MYF(0));
   /* Undo any calls done by processlist_slave_offset */
   thd->set_query(orig_query, orig_query_length);
+  repl_cleanup(packet, packet_buffer);
   DBUG_VOID_RETURN;
 }
 

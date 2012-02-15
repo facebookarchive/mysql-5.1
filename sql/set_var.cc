@@ -628,6 +628,9 @@ static sys_var_thd_ulong	sys_sort_buffer(&vars, "sort_buffer_size",
 static sys_var_bool_ptr sys_rpl_transaction_enabled(&vars, "rpl_transaction_enabled",
                                                     &rpl_transaction_enabled);
 
+static sys_var_long_ptr	sys_rpl_event_buffer_size(&vars, "rpl_event_buffer_size",
+ 				     	          &rpl_event_buffer_size);
+
 static sys_var_long_ptr	sys_log_query_sample_rate(&vars, "log_query_sample_rate",
  				     	          &opt_log_query_sample_rate);
 

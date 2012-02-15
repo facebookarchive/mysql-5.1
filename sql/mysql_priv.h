@@ -2169,6 +2169,8 @@ extern my_bool admission_control_wait_reentry;
 extern my_bool admission_control_disabled;
 extern my_bool transaction_control_disabled;
 
+extern ulong rpl_event_buffer_size;
+
 /*
   Excuse me for doing this. This is a global variable exported by the
   InnoDB plugin. It is the maximum number of transaction slots that
