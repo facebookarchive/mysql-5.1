@@ -1,0 +1,35 @@
+#
+# Check peak_lag_sample_rate
+#
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop table if exists t1;
+Should be 100
+show global variables like "peak_lag_sample_rate";
+Variable_name	Value
+peak_lag_sample_rate	100
+set global peak_lag_sample_rate=1;
+Should be 1
+show global variables like "peak_lag_sample_rate";
+Variable_name	Value
+peak_lag_sample_rate	1
+peak_lag should be zero, and is 0
+stop slave;
+CREATE TABLE t1 (id INT, v int);
+insert into t1 values (1,0);
+insert into t1 values (2,0);
+start slave;
+stop slave;
+insert into t1 values (3,0);
+start slave;
+result
+1
+#
+# Cleanup
+#
+DROP TABLE t1;
+set global peak_lag_sample_rate=100;

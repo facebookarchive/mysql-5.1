@@ -1741,6 +1741,8 @@ bool show_master_info(THD* thd, Master_info* mi)
                                              sizeof(mi->ssl_key)));
   field_list.push_back(new Item_return_int("Seconds_Behind_Master", 10,
                                            MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_return_int("Lag_Peak_Over_Last_Period", 10,
+                                           MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_SSL_Verify_Server_Cert",
                                              3));
   field_list.push_back(new Item_return_int("Last_IO_Errno", 4, MYSQL_TYPE_LONG));
@@ -1829,7 +1831,8 @@ bool show_master_info(THD* thd, Master_info* mi)
     if ((mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) &&
         mi->rli.slave_running)
     {
-      long time_diff= ((long)(time(0) - mi->rli.last_master_timestamp)
+      time_t now = time(0);
+      long time_diff= ((long)(now - mi->rli.last_master_timestamp)
                        - mi->clock_diff_with_master);
       /*
         Apparently on some systems time_diff can be <0. Here are possible
@@ -1853,11 +1856,16 @@ bool show_master_info(THD* thd, Master_info* mi)
       */
       protocol->store((longlong)(mi->rli.last_master_timestamp ?
                                  max(0, time_diff) : 0));
+
+      protocol->store(
+          (longlong) (max(0, mi->rli.peak_lag(now))));
     }
     else
     {
       protocol->store_null();
+      protocol->store_null();
     }
+
     protocol->store(mi->ssl_verify_server_cert? "Yes":"No", &my_charset_bin);
 
     // Last_IO_Errno
@@ -2305,6 +2313,8 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
     my_get_fast_timer(&init_timer);
 
     exec_res= ev->apply_event(rli);
+    if (exec_res == 0)
+      rli->update_peak_lag(ev->when);
 
     double wall_seconds= my_fast_timer_diff_now(&init_timer, &init_timer);
 

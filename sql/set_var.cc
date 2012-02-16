@@ -1015,6 +1015,8 @@ static sys_var_bool_ptr sys_log_datagram(&vars, "log_datagram", &log_datagram,
 static sys_var_long_ptr sys_log_datagram_usecs(&vars, "log_datagram_usecs",
                                         &log_datagram_usecs);
 static sys_var_bool_ptr sys_log_slow_extra(&vars, "log_slow_extra", &opt_log_slow_extra);
+static sys_var_long_ptr sys_peak_lag_sample_rate(&vars, "peak_lag_sample_rate",
+                                      &opt_peak_lag_sample_rate);
 static sys_var_bool_ptr	sys_log_slave(&vars, "log_slow_slave_statements",
                                       &opt_log_slow_slave_statements);
 sys_var_str sys_var_general_log_path(&vars, "general_log_file", sys_check_log_path,

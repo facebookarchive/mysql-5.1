@@ -1,0 +1,56 @@
+--echo #
+--echo # Check peak_lag_sample_rate
+--echo #
+
+--source include/master-slave.inc
+--source include/not_embedded.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+connection slave;
+--echo Should be 100
+show global variables like "peak_lag_sample_rate";
+set global peak_lag_sample_rate=1;
+--echo Should be 1
+show global variables like "peak_lag_sample_rate";
+
+let $peak_lag = query_get_value(SHOW SLAVE STATUS, Lag_Peak_Over_Last_Period, 1);
+--echo peak_lag should be zero, and is $peak_lag
+stop slave;
+
+connection master;
+CREATE TABLE t1 (id INT, v int);
+insert into t1 values (1,0);
+--sleep 3
+insert into t1 values (2,0);
+
+connection slave;
+start slave;
+--source include/wait_for_slave_io_to_start.inc
+--source include/wait_for_slave_sql_to_start.inc
+--sleep 2
+stop slave;
+
+connection master;
+insert into t1 values (3,0);
+
+connection slave;
+start slave;
+--source include/wait_for_slave_io_to_start.inc
+--source include/wait_for_slave_sql_to_start.inc
+let $peak_lag = query_get_value(SHOW SLAVE STATUS, Lag_Peak_Over_Last_Period, 1);
+
+--disable_query_log
+--eval select $peak_lag > 2 as result
+--enable_query_log
+
+--echo #
+--echo # Cleanup
+--echo #
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+set global peak_lag_sample_rate=100;

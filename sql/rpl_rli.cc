@@ -38,6 +38,7 @@ Relay_log_info::Relay_log_info()
    is_fake(FALSE),
 #endif
    group_master_log_pos(0), log_space_total(0), ignore_log_space_limit(0),
+   events_since_last_sample(0),
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), slave_run_id(0), sql_thd(0),
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
@@ -53,9 +54,13 @@ Relay_log_info::Relay_log_info()
   bzero((char*) &info_file, sizeof(info_file));
   bzero((char*) &cache_buf, sizeof(cache_buf));
   cached_charset_invalidate();
+  peak_lag_window = new peak_lag_over_last_N_seconds(
+                            240, (time_t)240, (time_t)1);
+
   pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&log_space_lock, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&peak_lag_window_lock, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&data_cond, NULL);
   pthread_cond_init(&start_cond, NULL);
   pthread_cond_init(&stop_cond, NULL);
@@ -68,10 +73,11 @@ Relay_log_info::Relay_log_info()
 Relay_log_info::~Relay_log_info()
 {
   DBUG_ENTER("Relay_log_info::~Relay_log_info");
-
+  delete peak_lag_window;
   pthread_mutex_destroy(&run_lock);
   pthread_mutex_destroy(&data_lock);
   pthread_mutex_destroy(&log_space_lock);
+  pthread_mutex_destroy(&peak_lag_window_lock);
   pthread_cond_destroy(&data_cond);
   pthread_cond_destroy(&start_cond);
   pthread_cond_destroy(&stop_cond);
@@ -626,6 +632,60 @@ void Relay_log_info::clear_until_condition()
   DBUG_VOID_RETURN;
 }
 
+/**
+ Update the peak lag over the last N seconds. It accepts one
+ parameter which is the time this event happened on master.
+ This function will only sample one event every 'peak_lag_sample_rate'
+ events. Internally it maintains a moving time window, and will only
+ remember N latest lags that happened in the time window, and also remove
+ lags that falls out of the period. This function uses the local timestamp
+ to compute the interval between two local replay events. When inserting
+ into the peak_lag_window, the first argument is the lag compared to master
+ (need to substract from master timestamp), and the second parameter is the
+ local timestamp.
+
+ @when_master the time stamp when did this event happen on master
+ */
+void Relay_log_info::update_peak_lag(time_t when_master)
+{
+  ++events_since_last_sample;
+  if (events_since_last_sample < opt_peak_lag_sample_rate)
+    return;
+
+  //sample this event
+  time_t when_slave = time(0);
+  if (((time_t) -1) == when_slave)
+    return; // time() error
+
+  //the lag of this event
+  long current_ev_lag = when_slave - when_master - mi->clock_diff_with_master;
+  pthread_mutex_lock(&peak_lag_window_lock);
+  bool ret = peak_lag_window->push_back(max(0, current_ev_lag),
+      when_slave);
+  pthread_mutex_unlock(&peak_lag_window_lock);
+
+  if (ret)
+    events_since_last_sample = 0;
+}
+
+/**
+ Return the peak lag over the N seconds until now. 
+
+ The peak_lag_window maintains lags that happened over last N seconds until M,
+ where M may be now and may be very old if there is no event replayed recently.
+
+ @param now the current timestamp. The peak_lag_window uses
+        this parameter to update its window before returning.
+ */
+time_t Relay_log_info::peak_lag(time_t now)
+{
+  time_t ret = (time_t)0;
+  pthread_mutex_lock(&peak_lag_window_lock);
+  if(!peak_lag_window->empty())
+    ret = peak_lag_window->max_in_window(now);
+  pthread_mutex_unlock(&peak_lag_window_lock);
+  return ret;
+}
 
 /*
   Open the given relay log

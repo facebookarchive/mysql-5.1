@@ -193,6 +193,14 @@ public:
 
   time_t last_master_timestamp;
 
+  peak_lag_over_last_N_seconds* peak_lag_window;
+  uint32 events_since_last_sample;
+  pthread_mutex_t peak_lag_window_lock;
+
+  void update_peak_lag(time_t when_master);
+
+  time_t peak_lag(time_t now);
+
   void clear_until_condition();
 
   /*
@@ -267,7 +275,7 @@ public:
     LOAD DATA INFILE. This is used for security reasons.
    */ 
   char slave_patternload_file[FN_REFLEN]; 
-  size_t slave_patternload_file_size;  
+  size_t slave_patternload_file_size;
 
   Relay_log_info();
   ~Relay_log_info();
