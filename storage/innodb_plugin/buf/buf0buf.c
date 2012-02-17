@@ -280,6 +280,8 @@ struct buf_chunk_struct{
 };
 #endif /* !UNIV_HOTBACKUP */
 
+UNIV_INTERN ulint		buf_malloc_cache_len = 1000;
+
 /*********************************************************************//**
 Get the nth chunk's buffer block in the specified buffer pool.
 @return the nth chunk's buffer block. */
@@ -1077,6 +1079,7 @@ buf_pool_init(void)
 	buf_pool->chunks = chunk = mem_alloc(sizeof *chunk);
 
 	UT_LIST_INIT(buf_pool->free);
+	UT_LIST_INIT(buf_pool->buf_malloc_cache);
 
 	if (!buf_chunk_init(chunk, srv_buf_pool_size)) {
 		mem_free(chunk);
@@ -1129,6 +1132,22 @@ buf_pool_init(void)
 }
 
 /********************************************************************//**
+Frees the buffer page malloc cache. */
+UNIV_INTERN
+void
+buf_malloc_cache_free(void)
+/*======================*/
+{
+	buf_page_t* bpage = UT_LIST_GET_FIRST(buf_pool->buf_malloc_cache);
+	buf_page_t* tmp;
+	while (bpage) {
+		tmp = UT_LIST_GET_NEXT(malloc_cache, bpage);
+		ut_free(bpage);
+		bpage = tmp;
+	}
+}
+
+/********************************************************************//**
 Frees the buffer pool at shutdown.  This must not be invoked before
 freeing all mutexes. */
 UNIV_INTERN
@@ -1139,6 +1158,7 @@ buf_pool_free(void)
 	buf_chunk_t*	chunk;
 	buf_chunk_t*	chunks;
 
+	buf_malloc_cache_free();
 	chunks = buf_pool->chunks;
 	chunk = chunks + buf_pool->n_chunks;
 
@@ -2188,6 +2208,7 @@ buf_page_get_gen(
 	ulint		fix_type;
 	ibool		must_read;
 	ulint		retries = 0;
+	ibool		buf_page_cached = FALSE;
 
 	ut_ad(mtr);
 	ut_ad(mtr->state == MTR_ACTIVE);
@@ -2400,9 +2421,15 @@ wait_until_unfixed:
 		buf_pool->n_pend_unzip++;
 		bpage->state = BUF_BLOCK_ZIP_FREE;
 
+		if (UT_LIST_GET_LEN(buf_pool->buf_malloc_cache) < buf_malloc_cache_len) {
+			buf_page_free_descriptor(bpage, TRUE);
+			buf_page_cached = TRUE;
+		}
+
 		buf_pool_mutex_exit();
 
-		buf_page_free_descriptor(bpage);
+		if (!buf_page_cached)
+			buf_page_free_descriptor(bpage, FALSE);
 
 		/* Decompress the page and apply buffered operations
 		while not holding buf_pool_mutex or block->mutex. */
@@ -3068,7 +3095,7 @@ err_exit:
 			goto func_exit;
 		}
 
-		bpage = buf_page_alloc_descriptor();
+		bpage = buf_page_alloc_descriptor(TRUE);
 
 		page_zip_des_init(&bpage->zip);
 		page_zip_set_size(&bpage->zip, zip_size);
@@ -4278,3 +4305,4 @@ buf_page_init_for_backup_restore(
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
+

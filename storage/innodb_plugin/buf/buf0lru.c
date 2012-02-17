@@ -1419,7 +1419,7 @@ buf_LRU_free_block(
 		If it cannot be allocated (without freeing a block
 		from the LRU list), refuse to free bpage. */
 alloc:
-		b = buf_page_alloc_descriptor();
+		b = buf_page_alloc_descriptor(TRUE);
 		ut_a(b);
 		memcpy(b, bpage, sizeof *b);
 	}
@@ -1813,8 +1813,8 @@ buf_LRU_block_remove_hashed_page(
 		buf_buddy_free(bpage->zip.data,
 			       page_zip_get_size(&bpage->zip));
 		bpage->state = BUF_BLOCK_ZIP_FREE;
+		buf_page_free_descriptor(bpage, TRUE);
 		buf_pool_mutex_exit_allow();
-		buf_page_free_descriptor(bpage);
 		return(BUF_BLOCK_ZIP_FREE);
 
 	case BUF_BLOCK_FILE_PAGE:

@@ -75,6 +75,8 @@ extern buf_block_t*	back_block1;	/*!< first block, for --apply-log */
 extern buf_block_t*	back_block2;	/*!< second block, for page reorganize */
 #endif /* !UNIV_HOTBACKUP */
 
+extern ulint buf_malloc_cache_len;
+
 /** Magic value to use instead of checksums when they are disabled */
 #define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
 
@@ -131,6 +133,13 @@ buf_pool_free(void);
 /*===============*/
 
 /********************************************************************//**
+Frees the buffer page malloc cache. */
+UNIV_INTERN
+void
+buf_malloc_cache_free(void);
+/*======================*/
+
+/********************************************************************//**
 Drops the adaptive hash index.  To prevent a livelock, this function
 is only to be called while holding btr_search_latch and while
 btr_search_enabled == FALSE. */
@@ -178,7 +187,7 @@ Allocates a buf_page_t descriptor. This function must succeed. In case
 of failure we assert in this function. */
 UNIV_INLINE
 buf_page_t*
-buf_page_alloc_descriptor(void)
+buf_page_alloc_descriptor(ibool buf_pool_mutex_owned)
 /*===========================*/
 	__attribute__((malloc));
 /********************************************************************//**
@@ -187,7 +196,8 @@ UNIV_INLINE
 void
 buf_page_free_descriptor(
 /*=====================*/
-	buf_page_t*	bpage)	/*!< in: bpage descriptor to free. */
+	buf_page_t*	bpage,	/*!< in: bpage descriptor to free. */
+	ibool buf_pool_mutex_owned)
 	__attribute__((nonnull));
 
 /********************************************************************//**
@@ -1182,6 +1192,8 @@ struct buf_page_struct{
 
 	UT_LIST_NODE_T(buf_page_t) LRU;
 					/*!< node of the LRU list */
+	UT_LIST_NODE_T(buf_page_t) malloc_cache;
+					/*!< node of the linked list to cache memory allocations */
 #ifdef UNIV_DEBUG
 	ibool		in_LRU_list;	/*!< TRUE if the page is in
 					the LRU list; used in
@@ -1414,6 +1426,9 @@ struct buf_pool_struct{
 	UT_LIST_BASE_NODE_T(buf_page_t) flush_list;
 					/*!< base node of the modified block
 					list */
+	UT_LIST_BASE_NODE_T(buf_page_t) buf_malloc_cache;
+					/*!< base of the buf_malloc_cache list */
+
 	ibool		init_flush[BUF_FLUSH_N_TYPES];
 					/*!< this is TRUE when a flush of the
 					given type is being initialized */
