@@ -676,7 +676,7 @@ corrupted_page:
 	write_buf = trx_doublewrite->write_buf;
 	i = 0;
 
-	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE, 0,
+	fil_io(OS_FILE_WRITE | OS_AIO_DOUBLE_WRITE, TRUE, TRX_SYS_SPACE, 0,
 	       trx_doublewrite->block1, 0, len,
 	       (void*) write_buf, NULL);
 
@@ -713,7 +713,7 @@ corrupted_page:
 		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
 	ut_ad(i == TRX_SYS_DOUBLEWRITE_BLOCK_SIZE);
 
-	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE, 0,
+	fil_io(OS_FILE_WRITE | OS_AIO_DOUBLE_WRITE, TRUE, TRX_SYS_SPACE, 0,
 	       trx_doublewrite->block2, 0, len,
 	       (void*) write_buf, NULL);
 

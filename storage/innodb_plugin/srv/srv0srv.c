@@ -2309,6 +2309,20 @@ srv_export_innodb_status(void)
         export_vars.innodb_data_sync_write_svc_secs=
 		os_sync_write_perf.svc_usecs / 1000000.0;
 
+        export_vars.innodb_data_log_write_bytes=
+		os_log_write_perf.bytes;
+        export_vars.innodb_data_log_write_requests=
+		os_log_write_perf.requests;
+        export_vars.innodb_data_log_write_svc_secs=
+		os_log_write_perf.svc_usecs / 1000000.0;
+
+        export_vars.innodb_data_double_write_bytes=
+		os_double_write_perf.bytes;
+        export_vars.innodb_data_double_write_requests=
+		os_double_write_perf.requests;
+        export_vars.innodb_data_double_write_svc_secs=
+		os_double_write_perf.svc_usecs / 1000000.0;
+
 	export_vars.innodb_buffer_pool_flushed_lru=
 		buf_pool->n_flushed[BUF_FLUSH_LRU];
 	export_vars.innodb_buffer_pool_flushed_list=

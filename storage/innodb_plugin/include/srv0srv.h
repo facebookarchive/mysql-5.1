@@ -829,6 +829,12 @@ struct export_var_struct{
 	ulint innodb_data_sync_write_bytes;	/*!< #bytes for sync writes */
 	ulint innodb_data_sync_write_requests;	/*!< #requests for sync writes */
 	double innodb_data_sync_write_svc_secs;	/*!< service time for sync writes */
+	ulint innodb_data_log_write_bytes;	/*!< #bytes for log writes */
+	ulint innodb_data_log_write_requests;	/*!< #requests for log writes */
+	double innodb_data_log_write_svc_secs;	/*!< service time for log writes */
+	ulint innodb_data_double_write_bytes;	/*!< #bytes for double writes */
+	ulint innodb_data_double_write_requests;/*!< #requests for double writes */
+	double innodb_data_double_write_svc_secs;/*!< service time for double writes */
 	ulint background_drop_table_queue;	/*!< #tables in background drop queue */
 	ulint innodb_buffer_pool_flushed_lru;	/*!< #pages flushed from LRU */
 	ulint innodb_buffer_pool_flushed_list;	/*!< #pages flushed from flush list */

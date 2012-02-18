@@ -5272,7 +5272,10 @@ _fil_io(
 				may introduce hidden chances of deadlocks,
 				because i/os are not actually handled until
 				all have been posted: use with great
-				caution! */
+				caution! When ORed to OS_AIO_DOUBLE_WRITE,
+				OS_FILE_LOG or OS_AIO_SIMULATED_WAKE_LATER is
+				used to indicate how perf counters are to
+				be updated for sync writes. */
 	ibool	sync,		/*!< in: TRUE if synchronous aio is desired */
 	ulint	space_id,	/*!< in: space id */
 	ulint	zip_size,	/*!< in: compressed page size in bytes;
@@ -5300,13 +5303,17 @@ _fil_io(
 	ulint		offset_low;
 	ibool		ret;
 	ulint		is_log;
-	ulint		wake_later;
+	ulint		io_flags;
+
+	io_flags = type & OS_AIO_SIMULATED_WAKE_LATER;
+	type = type & ~OS_AIO_SIMULATED_WAKE_LATER;
 
 	is_log = type & OS_FILE_LOG;
+	io_flags |= is_log;
 	type = type & ~OS_FILE_LOG;
 
-	wake_later = type & OS_AIO_SIMULATED_WAKE_LATER;
-	type = type & ~OS_AIO_SIMULATED_WAKE_LATER;
+	io_flags |= (type & OS_AIO_DOUBLE_WRITE);
+	type = type & ~OS_AIO_DOUBLE_WRITE;
 
 	ut_ad(byte_offset < UNIV_PAGE_SIZE);
 	ut_ad(!zip_size || !byte_offset);
@@ -5462,7 +5469,7 @@ _fil_io(
 	}
 #else
 	/* Queue the aio request */
-	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
+	ret = os_aio(type, mode | io_flags, node->name, node->handle, buf,
 		     offset_low, offset_high, len, node, message,
 		     &space->io_perf2, table_io_perf);
 #endif

@@ -182,6 +182,8 @@ log. */
 				requests in a batch, and only after that
 				wake the i/o-handler thread; this has
 				effect only in simulated aio */
+#define OS_AIO_DOUBLE_WRITE	1024	/*!< ORed to mode in call to
+					os_aio for doublewrite writes */
 /* @} */
 
 #define OS_WIN31	1	/*!< Microsoft Windows 3.x */
@@ -257,6 +259,12 @@ extern my_io_perf_t	os_sync_read_perf;
 
 /** Performance statistics for sync writes */
 extern my_io_perf_t	os_sync_write_perf;
+
+/** Performance statistics for log writes */
+extern my_io_perf_t	os_log_write_perf;
+
+/** Performance statistics for doublewrite writes */
+extern my_io_perf_t	os_double_write_perf;
  
 /**************************************************************************
 Prints IO statistics. */

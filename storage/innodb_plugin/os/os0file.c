@@ -226,6 +226,8 @@ my_io_perf_t os_async_write_perf;
 
 my_io_perf_t os_sync_read_perf;
 my_io_perf_t os_sync_write_perf;
+my_io_perf_t os_log_write_perf;
+my_io_perf_t os_double_write_perf;
 /* @} */
 
 /** Seconds waiting for fsync to finish */
@@ -3323,6 +3325,8 @@ os_aio_init(
 
 	my_io_perf_init(&os_sync_read_perf);
 	my_io_perf_init(&os_sync_write_perf);
+	my_io_perf_init(&os_log_write_perf);
+	my_io_perf_init(&os_double_write_perf);
 
 	/* fprintf(stderr, "Array n per seg %lu\n", n_per_seg); */
 
@@ -3829,6 +3833,8 @@ os_aio(
 	ulint		err		= 0;
 	ibool		retry;
 	ulint		wake_later;
+	ulint		is_log_write;
+	ulint		is_double_write;
 
 	ut_ad(file);
 	ut_ad(buf);
@@ -3837,8 +3843,13 @@ os_aio(
 	ut_ad(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(os_aio_validate());
 
+	is_log_write = mode & OS_FILE_LOG;
+	is_double_write = mode & OS_AIO_DOUBLE_WRITE;
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
-	mode = mode & (~OS_AIO_SIMULATED_WAKE_LATER);
+
+	mode = mode & ~(OS_AIO_SIMULATED_WAKE_LATER |
+			OS_FILE_LOG |
+			OS_AIO_DOUBLE_WRITE);
 
 	if (mode == OS_AIO_SYNC
 #ifdef WIN_ASYNC_IO
@@ -3880,8 +3891,18 @@ os_aio(
 					elapsed_secs, &end_timer, &start_timer);
 			}
 		} else {
-			os_io_perf_update_all(&os_sync_write_perf, n,
-				elapsed_secs, &end_timer, &start_timer);
+			my_io_perf_t *perf;
+
+			if (is_log_write)
+				perf = &os_log_write_perf;
+			else if (is_double_write) 
+				perf = &os_double_write_perf;
+			else
+				perf = &os_sync_write_perf;
+
+			os_io_perf_update_all(perf, n, elapsed_secs, &end_timer,
+						&start_timer);
+
 			/* Per fil_space_t counters */
 			os_io_perf_update_all(&(io_perf2->write), n,
 				elapsed_secs, &end_timer, &start_timer);
@@ -4724,6 +4745,12 @@ loop:
 
 	fprintf(file, "Sync writes: ");
 	os_io_perf_print(file, &os_sync_write_perf, TRUE);
+
+	fprintf(file, "Log writes: ");
+	os_io_perf_print(file, &os_log_write_perf, TRUE);
+
+	fprintf(file, "Doublewrite buffer writes: ");
+	os_io_perf_print(file, &os_double_write_perf, TRUE);
  
 	fprintf(file,
 		"File flushes: %lu requests, %.2f seconds, %.2f msecs/r, %lu old\n",
