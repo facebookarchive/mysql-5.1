@@ -86,6 +86,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#include "page0zip.h"
 
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
@@ -2654,6 +2655,17 @@ srv_export_innodb_status(void)
 			break;
 		}
 	}
+	export_vars.innodb_malloc_cache_hits_compress = malloc_cache_compress->hits;
+	export_vars.innodb_malloc_cache_misses_compress =
+		malloc_cache_compress->misses;
+	export_vars.innodb_malloc_cache_hits_decompress =
+		malloc_cache_decompress->hits;
+	export_vars.innodb_malloc_cache_misses_decompress =
+		malloc_cache_decompress->misses;
+	export_vars.innodb_malloc_cache_block_size_compress =
+		malloc_cache_compress->block_size;
+	export_vars.innodb_malloc_cache_block_size_decompress =
+		malloc_cache_decompress->block_size;
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 

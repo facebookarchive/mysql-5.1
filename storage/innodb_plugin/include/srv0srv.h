@@ -1062,6 +1062,12 @@ struct export_var_struct{
 	ib_int64_t	zip16384_decompressed_secondary_usec;
 	double		drop_table_phase1_secs;
 	double		drop_table_phase2_secs;
+	ulint 		innodb_malloc_cache_hits_compress;
+	ulint 		innodb_malloc_cache_misses_compress;
+	ulint 		innodb_malloc_cache_hits_decompress;
+	ulint 		innodb_malloc_cache_misses_decompress;
+	ulint 		innodb_malloc_cache_block_size_compress;
+	ulint 		innodb_malloc_cache_block_size_decompress;
 };
 
 /** The server system struct */

@@ -90,6 +90,23 @@ UNIV_INTERN ulint	btr_cur_n_sea_old	= 0;
 /** In the optimistic insert, if the insert does not fit, but this much space
 can be released by page reorganize, then it is reorganized */
 #define BTR_CUR_PAGE_REORGANIZE_LIMIT	(UNIV_PAGE_SIZE / 32)
+/** Window bits and memory level parameters are used for zlib functions
+deflate() and inflate(). Changing window bits to a smaller size will make
+decompression not work on the existing data (i.e. tables need to be dumped
+and re-compressed after this change). Increasing windowBits should be OK
+in terms of backwards-data-compatibility. Changing memLevel will only affect
+future compressions, but not decompression. Decompression is independent
+of memLevel. Therefore changing memLevel is backwards-data-compatible both ways.
+Higher memLevel or higher windowBits mean better compression
+and more memory usage. These values must be so that the compressing (or
+decompressing) a blob should not require more memory than compressing (or
+decompressing) a database page. This is because we use the same malloc_cache for
+compressing (or decompressing) pages and blobs. See the calls to
+mem_heap_create_cached() in page_zip_compress(), page_zip_decompress(),
+btr_store_big_rec_extern_fields(), and
+btr_copy_externally_stored_field_prefix_low(). */
+#define BTR_CUR_BLOB_WBITS 15
+#define BTR_CUR_BLOB_MEM_LEVEL 8
 
 /** The structure of a BLOB part header */
 /* @{ */
@@ -4004,12 +4021,10 @@ btr_store_big_rec_extern_fields(
 	ut_a(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		/* Zlib deflate needs 128 kilobytes for the default
-		window size, plus 512 << memLevel, plus a few
-		kilobytes for small objects.  We use reduced memLevel
-		to limit the memory consumption, and preallocate the
-		heap, hoping to avoid memory fragmentation. */
-		heap = mem_heap_create(250000);
+		/* Create a heap that's big enough for deflate(). */
+		heap = mem_heap_create_cached(DEFLATE_MEMORY_BOUND(BTR_CUR_BLOB_WBITS,
+		                                                   BTR_CUR_BLOB_MEM_LEVEL),
+		                              malloc_cache_compress);
 		page_zip_set_alloc(&c_stream, heap);
 	}
 
@@ -4041,8 +4056,9 @@ btr_store_big_rec_extern_fields(
 			c_stream.next_in = (void*) big_rec_vec->fields[i].data;
 			c_stream.avail_in = extern_len;
 			if (i == 0) {
-				err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION,
-						   Z_DEFLATED, 15, 7, Z_DEFAULT_STRATEGY);
+				err = deflateInit2(&c_stream, page_compression_level,
+						   Z_DEFLATED, BTR_CUR_BLOB_WBITS, BTR_CUR_BLOB_MEM_LEVEL,
+						   Z_DEFAULT_STRATEGY);
 				ut_a(err == Z_OK);
 			}
 			err = deflateReset(&c_stream);
@@ -4845,16 +4861,16 @@ btr_copy_externally_stored_field_prefix_low(
 		z_stream	d_stream;
 		mem_heap_t*	heap;
 
-		/* Zlib inflate needs 32 kilobytes for the default
-		window size, plus a few kilobytes for small objects. */
-		heap = mem_heap_create(40000);
+		/* Create a heap that's big enough for inflate(). */
+		heap = mem_heap_create_cached(INFLATE_MEMORY_BOUND(BTR_CUR_BLOB_WBITS),
+		                              malloc_cache_decompress);
 		page_zip_set_alloc(&d_stream, heap);
 
 		d_stream.next_out = buf;
 		d_stream.avail_out = len;
 		d_stream.avail_in = 0;
 
-		err = inflateInit(&d_stream);
+		err = inflateInit2(&d_stream, BTR_CUR_BLOB_WBITS);
 		ut_a(err == Z_OK);
 
 		btr_copy_zblob_prefix(&d_stream, zip_size,

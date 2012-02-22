@@ -38,8 +38,19 @@ Created June 2005 by Marko Makela
 #include "trx0types.h"
 #include "mem0mem.h"
 
+/**  Compression level used for compressed row format.  0 is no compression
+  (only for testing), 1 is fastest, 9 is best compression, default is 6. */
 extern uint page_compression_level;
-
+extern ulint malloc_cache_compress_len;
+extern ulint malloc_cache_decompress_len;
+extern mem_block_cache_t* malloc_cache_compress;
+extern mem_block_cache_t* malloc_cache_decompress;
+UNIV_INTERN
+void
+page_zip_init(void);
+UNIV_INTERN
+void
+page_zip_close();
 /**********************************************************************//**
 Determine the size of a compressed page in bytes.
 @return	size in bytes */
@@ -480,10 +491,6 @@ page_zip_calc_checksum(
         const void*     data,   /*!< in: compressed page */
         ulint           size)   /*!< in: size of compressed page */
 	__attribute__((nonnull));
-
-/**  Compression level used for compressed row format.  0 is no compression
-  (only for testing), 1 is fastest, 9 is best compression, default is 6. */
-extern uint page_compression_level;
 
 /**********************************************************************//**
 Write a log record of compressing an index page without the data on the page. */

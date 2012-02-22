@@ -1046,6 +1046,18 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.zip16384_decompressed_secondary,   SHOW_LONG},
   {"zip_16384_decompressed_secondary_usec",
   (char*) &export_vars.zip16384_decompressed_secondary_usec, SHOW_LONGLONG},
+  {"malloc_cache_hits_compress",
+  (char*) &export_vars.innodb_malloc_cache_hits_compress, SHOW_LONG},
+  {"malloc_cache_misses_compress",
+  (char*) &export_vars.innodb_malloc_cache_misses_compress, SHOW_LONG},
+  {"malloc_cache_hits_decompress",
+  (char*) &export_vars.innodb_malloc_cache_hits_decompress, SHOW_LONG},
+  {"malloc_cache_misses_decompress",
+  (char*) &export_vars.innodb_malloc_cache_misses_decompress, SHOW_LONG},
+  {"malloc_cache_block_size_compress",
+  (char*) &export_vars.innodb_malloc_cache_block_size_compress, SHOW_LONG},
+  {"malloc_cache_block_size_decompress",
+  (char*) &export_vars.innodb_malloc_cache_block_size_decompress, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -12193,8 +12205,20 @@ static MYSQL_SYSVAR_UINT(old_blocks_time, buf_LRU_old_threshold_ms,
 static MYSQL_SYSVAR_ULONG(malloc_cache_len, buf_malloc_cache_len,
   PLUGIN_VAR_OPCMDARG,
   "Length of the non-blocking queue that's used to cache memory allocations for"
-  " buffer pool pages.",
+  " buffer pool page descriptors. 0 length means no caching.",
   NULL, NULL, 1000L, 0L, 1000000L, 0);
+
+static MYSQL_SYSVAR_ULONG(compress_malloc_cache_len,
+  malloc_cache_compress_len, PLUGIN_VAR_OPCMDARG,
+  "Length of the cache for the memory allocations used for "
+  "page_zip_compress(). 0 length means no caching.",
+  NULL, NULL, 1000L, 0L, 10000L, 0);
+
+static MYSQL_SYSVAR_ULONG(decompress_malloc_cache_len,
+  malloc_cache_decompress_len, PLUGIN_VAR_OPCMDARG,
+  "Length of the cache for the memory allocations used for "
+  "page_zip_decompress(). 0 length means no caching.",
+  NULL, NULL, 1000L, 0L, 10000L, 0);
 
 static MYSQL_SYSVAR_LONG(open_files, innobase_open_files,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -12517,6 +12541,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(unzip_lru_pct),
   MYSQL_SYSVAR(lru_io_to_unzip_factor),
   MYSQL_SYSVAR(malloc_cache_len),
+  MYSQL_SYSVAR(compress_malloc_cache_len),
+  MYSQL_SYSVAR(decompress_malloc_cache_len),
   NULL
 };
 
