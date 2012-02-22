@@ -131,7 +131,7 @@ which LOCK_open is locked */
 UNIV_INTERN my_bool  srv_background_drop_table = FALSE;
 /** If true, always log the images of compressed pages when the page is
 recompressed */
-UNIV_INTERN my_bool srv_log_compressed_pages = TRUE;
+UNIV_INTERN my_bool srv_log_compressed_pages = FALSE;
 
 UNIV_INTERN uint srv_comp_fail_tree_size = 0;
 UNIV_INTERN uint srv_comp_fail_samples = 0;

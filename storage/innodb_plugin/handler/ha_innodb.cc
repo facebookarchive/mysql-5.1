@@ -12014,7 +12014,7 @@ static MYSQL_SYSVAR_BOOL(log_compressed_pages, srv_log_compressed_pages,
   " logs the compressed pages to prevent against corruption because of a change"
   " in the algorithm to compress the pages. When turned OFF, this variable"
   " makes InnoDB assume that the compression algorithm doesn't change.",
-  NULL, NULL, TRUE);
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_UINT(comp_fail_samples,
   srv_comp_fail_samples, PLUGIN_VAR_OPCMDARG,
