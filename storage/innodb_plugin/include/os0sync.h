@@ -68,10 +68,17 @@ typedef struct os_event_wrapper_struct	os_event_wrapper_struct_t;
 /** Operating system event handle */
 typedef os_event_wrapper_struct_t*	os_event_t;
 
-/** An asynchronous signal sent between threads */
-struct os_event_struct {
+typedef struct os_event_support_struct {
 	os_fast_mutex_t	os_mutex;	/*!< this mutex protects the next
 					fields */
+	pthread_cond_t	cond_var;	/*!< condition variable is used in
+					waiting for the event */
+} os_event_support_t;
+
+extern os_event_support_t*	os_support;
+
+/** An asynchronous signal sent between threads */
+struct os_event_struct {
 	ib_uint64_t	stats;		/*!< msb: "is_set"
 					this is TRUE when the event is
 					in the signaled state, i.e., a thread
@@ -80,8 +87,15 @@ struct os_event_struct {
 					/*!< rest: "signal_count"
 					this is incremented each time
 					the event becomes signaled */
-	pthread_cond_t	cond_var;	/*!< condition variable is used in
-					waiting for the event */
+	os_event_support_t*	sup;	/*!< Pointer to OS-support data
+					For events created by os_event_create()
+					this will point to an allocated set of
+					data exclusively for this event.
+					For events created by os_event_create2()
+					this will point to one of the shared
+					sync data pool elements
+					allocated by os_sync_init()
+					*/
 };
 
 #include <stdint.h>

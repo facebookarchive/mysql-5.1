@@ -141,6 +141,7 @@ static ulong innobase_read_io_threads;
 static ulong innobase_write_io_threads;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
+static unsigned long innobase_sync_pool_size;
 
 /** Percentage of the buffer pool to reserve for 'old' blocks.
 Connected to buf_LRU_old_ratio. */
@@ -2853,6 +2854,7 @@ innobase_change_buffering_inited_ok:
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
+	srv_sync_pool_size = (ulint) innobase_sync_pool_size;
 
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
@@ -12133,6 +12135,11 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
+static MYSQL_SYSVAR_ULONG(sync_pool_size, innobase_sync_pool_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "The size of the shared sync pool buffer InnoDB uses to store system lock and condition variables.",
+  NULL, NULL, 1UL, 1UL, ULONG_MAX, 1UL);
+
 static MYSQL_SYSVAR_LONG(ibuf_max_pct_of_buffer_pool, srv_ibuf_max_pct_of_buffer_pool,
   PLUGIN_VAR_RQCMDARG,
   "Maximum percentage of the buffer pool that sould be used for the insert buffer. "
@@ -12448,6 +12455,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
+  MYSQL_SYSVAR(sync_pool_size),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(fast_checksums),
   MYSQL_SYSVAR(extra_checksums),

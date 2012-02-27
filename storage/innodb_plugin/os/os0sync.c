@@ -36,6 +36,7 @@ Created 9/6/1995 Heikki Tuuri
 
 #include "ut0mem.h"
 #include "srv0start.h"
+#include "srv0srv.h"
 
 /* Type definition for an operating system mutex struct */
 struct os_mutex_struct{
@@ -57,6 +58,8 @@ UNIV_INTERN os_mutex_t	os_sync_mutex;
 static ibool		os_sync_mutex_inited	= FALSE;
 /** TRUE when os_sync_free() is being executed */
 static ibool		os_sync_free_called	= FALSE;
+
+UNIV_INTERN os_event_support_t*	os_support = NULL;
 
 /** This is incremented by 1 in os_thread_create and decremented by 1 in
 os_thread_exit */
@@ -91,6 +94,13 @@ os_sync_init(void)
 	os_sync_mutex_inited = FALSE;
 
 	os_sync_mutex = os_mutex_create(NULL);
+
+	int i = 0;
+	os_support = ut_malloc(sizeof(os_event_support_t) * srv_sync_pool_size);
+	for(; i < srv_sync_pool_size; ++i) {
+		os_fast_mutex_init(&os_support[i].os_mutex);
+		ut_a(0 == pthread_cond_init(&os_support[i].cond_var, NULL));
+	}
 
 	os_sync_mutex_inited = TRUE;
 }
@@ -131,6 +141,16 @@ os_sync_free(void)
 	}
 	os_sync_free_called = FALSE;
 
+	/* This is the code that should run to clean up
+	int i = 0;
+	for(; i < srv_sync_pool_size; ++i) {
+		os_fast_mutex_free(&os_support[i].os_mutex);
+		ut_a(0 == pthread_cond_destroy(&os_support[i].cond_var));
+	}
+	...but we do this instead, since we don't clean up the events pool,
+	and so should not remove the pthread data they all point to: */
+	os_fast_mutex_count -= srv_sync_pool_size;
+
 	if (UNIV_UNLIKELY(os_sync_mutex_inited)) {
 		os_mutex_enter(os_sync_mutex);
 	}
@@ -138,7 +158,6 @@ os_sync_free(void)
 	/* Account for the events, and their fast_mutexes,
 	within the (never de-initialized) rw_lock structs */
 	os_event_count -= rw_lock_count*2;
-	os_fast_mutex_count -= rw_lock_count*2;
 	rw_lock_count = 0;
 
 	if (UNIV_UNLIKELY(os_sync_mutex_inited)) {
@@ -162,6 +181,13 @@ os_event_create(
 	os_event_t event = ut_malloc(sizeof(struct os_event_wrapper_struct));
 
 	os_event_create2(&event->ev, name);
+
+	/*Note: this overwrites the "sup" element, that was pointed to a
+	shared sync data pool element by os_event_create2, with a
+	dynamically-allocated set of data exclusively for this event. */
+	event->ev.sup = ut_malloc(sizeof(os_event_support_t));
+	os_fast_mutex_init(&(event->ev.sup->os_mutex));
+	ut_a(0 == pthread_cond_init(&(event->ev.sup->cond_var), NULL));
 
 	if (os_sync_mutex != NULL) {
 		os_mutex_enter(os_sync_mutex);
@@ -199,10 +225,6 @@ os_event_create2(
 #else /* Unix */
 	UT_NOT_USED(name);
 
-	os_fast_mutex_init(&(event->os_mutex));
-
-	ut_a(0 == pthread_cond_init(&(event->cond_var), NULL));
-
 	/* We return this value in os_event_reset(), which can then be
 	be used to pass to the os_event_wait_low(). The value of zero
 	is reserved in os_event_wait_low() for the case when the
@@ -219,6 +241,10 @@ os_event_create2(
 		os_mutex_enter(os_sync_mutex);
 	}
 
+	/*Note: this sets the "sup" element to point to a
+	shared sync data pool element.
+	This will be overwritten if this was called by os_event_create. */
+	event->sup = os_support + (os_event_count % srv_sync_pool_size);
 	os_event_count++;
 
 	if (os_sync_mutex != NULL) {
@@ -241,17 +267,17 @@ os_event_set2(
 #else
 	ut_a(event);
 
-	os_fast_mutex_lock(&(event->os_mutex));
+	os_fast_mutex_lock(&(event->sup->os_mutex));
 
 	if (IS_SET(event)) {
 		/* Do nothing */
 	} else {
 		INC_SIGNAL_COUNT(event);
 		SET_IS_SET(event);
-		ut_a(0 == pthread_cond_broadcast(&(event->cond_var)));
+		ut_a(0 == pthread_cond_broadcast(&(event->sup->cond_var)));
 	}
 
-	os_fast_mutex_unlock(&(event->os_mutex));
+	os_fast_mutex_unlock(&(event->sup->os_mutex));
 #endif
 }
 
@@ -278,7 +304,7 @@ os_event_reset2(
 #else
 	ut_a(event);
 
-	os_fast_mutex_lock(&(event->os_mutex));
+	os_fast_mutex_lock(&(event->sup->os_mutex));
 
 	if (!IS_SET(event)) {
 		/* Do nothing */
@@ -287,7 +313,7 @@ os_event_reset2(
 	}
 	ret = SIGNAL_COUNT(event);
 
-	os_fast_mutex_unlock(&(event->os_mutex));
+	os_fast_mutex_unlock(&(event->sup->os_mutex));
 #endif
 	return(ret);
 }
@@ -308,16 +334,16 @@ os_event_free_internal(
 	ut_a(event);
 
 	/* This is to avoid freeing the mutex twice */
-	os_fast_mutex_free(&(event->ev.os_mutex));
+	os_fast_mutex_free(&(event->ev.sup->os_mutex));
 
-	ut_a(0 == pthread_cond_destroy(&(event->ev.cond_var)));
+	ut_a(0 == pthread_cond_destroy(&(event->ev.sup->cond_var)));
 #endif
 	/* Remove from the list of events */
 
 	UT_LIST_REMOVE(os_event_list, os_event_list, event);
 
 	os_event_count--;
-
+	ut_free(event->ev.sup);
 	ut_free(event);
 }
 
@@ -329,6 +355,10 @@ os_event_free(
 	os_event_t	event)	/*!< in: event to free */
 
 {
+	os_fast_mutex_free(&(event->ev.sup->os_mutex));
+	ut_a(0 == pthread_cond_destroy(&(event->ev.sup->cond_var)));
+	ut_free(event->ev.sup);
+
 	os_event_free2(&event->ev);
 
 	os_mutex_enter(os_sync_mutex);
@@ -356,8 +386,7 @@ os_event_free2(
 #else
 	ut_a(event);
 
-	os_fast_mutex_free(&(event->os_mutex));
-	ut_a(0 == pthread_cond_destroy(&(event->cond_var)));
+	event->sup = NULL;
 #endif
 	/* Remove from the list of events */
 
@@ -415,7 +444,7 @@ os_event_wait_low2(
 #else
 	ib_int64_t	old_signal_count;
 
-	os_fast_mutex_lock(&(event->os_mutex));
+	os_fast_mutex_lock(&(event->sup->os_mutex));
 
 	if (reset_sig_count) {
 		old_signal_count = reset_sig_count;
@@ -427,7 +456,7 @@ os_event_wait_low2(
 		if (IS_SET(event)
 		    || SIGNAL_COUNT(event) != old_signal_count) {
 
-			os_fast_mutex_unlock(&(event->os_mutex));
+			os_fast_mutex_unlock(&(event->sup->os_mutex));
 
 			if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
 
@@ -438,7 +467,7 @@ os_event_wait_low2(
 			return;
 		}
 
-		pthread_cond_wait(&(event->cond_var), &(event->os_mutex));
+		pthread_cond_wait(&(event->sup->cond_var), &(event->sup->os_mutex));
 
 		/* Solaris manual said that spurious wakeups may occur: we
 		have to check if the event really has been signaled after
