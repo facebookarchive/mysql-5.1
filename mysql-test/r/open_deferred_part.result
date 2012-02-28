@@ -1,0 +1,34 @@
+drop table if exists open_deferred_part_fail;
+create table open_deferred_part_fail(i int primary key) engine=innodb partition by hash (i) partitions 2;
+insert into open_deferred_part_fail values (1);
+flush tables;
+select * from open_deferred_part_fail;
+i
+1
+flush tables;
+select * from open_deferred_part_fail;
+i
+1
+flush tables;
+select * from open_deferred_part_fail;
+i
+1
+flush tables;
+select * from open_deferred_part_fail;
+i
+1
+ERROR 42S02: Table 'foo.open_deferred_part_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_part_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_part_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_part_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_part_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_part_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_part_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_part_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_part_fail' doesn't exist
+ERROR 42S02: Table 'foo.open_deferred_part_fail' doesn't exist
+flush tables;
+select * from open_deferred_part_fail;
+i
+1
+drop table open_deferred_part_fail;

@@ -301,7 +301,17 @@ public:
     being used for normal queries (not before meta-data changes always.
     If the object was opened it will also be closed before being deleted.
   */
-  virtual int open(const char *name, int mode, uint test_if_locked);
+  virtual int open(const char *name, int mode, uint test_if_locked)
+  {
+    return open_internal(name, mode, test_if_locked, TRUE);
+  }
+  virtual int open_fast(const char *name, int mode, uint test_if_locked)
+  {
+    return open_internal(name, mode, test_if_locked, FALSE);
+  }
+  int open_internal(const char *name, int mode, uint test_if_locked,
+				bool get_stats);
+  virtual int open_deferred(THD *thd);
   virtual int close(void);
 
   /*

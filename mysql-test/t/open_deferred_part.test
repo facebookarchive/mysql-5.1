@@ -1,0 +1,41 @@
+-- source include/have_partition.inc
+-- source include/have_innodb.inc
+-- source include/have_debug.inc
+
+--disable_warnings
+drop table if exists open_deferred_part_fail;
+--enable_warnings
+
+create table open_deferred_part_fail(i int primary key) engine=innodb partition by hash (i) partitions 2;
+insert into open_deferred_part_fail values (1);
+
+flush tables;
+select * from open_deferred_part_fail;
+
+flush tables;
+select * from open_deferred_part_fail;
+
+flush tables;
+select * from open_deferred_part_fail;
+
+flush tables;
+select * from open_deferred_part_fail;
+
+--disable_query_log
+
+let $count= 10;
+while ($count)
+{
+flush tables;
+--error ER_NO_SUCH_TABLE
+select * from open_deferred_part_fail;
+dec $count;
+}
+
+--enable_query_log
+
+flush tables;
+select * from open_deferred_part_fail;
+
+drop table open_deferred_part_fail;
+

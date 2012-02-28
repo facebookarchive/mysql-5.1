@@ -2472,10 +2472,11 @@ void ha_data_partition_destroy(void *ha_data)
   Open handler object
 
   SYNOPSIS
-    open()
+    open_internal()
     name                  Full path of table name
     mode                  Open mode flags
     test_if_locked        ?
+    get_stats             Load Stats Now (or defer)
 
   RETURN VALUE
     >0                    Error
@@ -2491,7 +2492,8 @@ void ha_data_partition_destroy(void *ha_data)
     by calling ha_open() which then calls the handler specific open().
 */
 
-int ha_partition::open(const char *name, int mode, uint test_if_locked)
+int ha_partition::open_internal(const char *name, int mode, uint test_if_locked,
+	bool get_stats)
 {
   char *name_buffer_ptr= m_name_buffer_ptr;
   int error;
@@ -2560,7 +2562,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
                           FALSE);
     if ((error= (*file)->ha_open(table, (const char*) name_buff, mode,
-                                 test_if_locked, TRUE)))
+                                 test_if_locked, get_stats)))
       goto err_handler;
     m_no_locks+= (*file)->lock_count();
     name_buffer_ptr+= strlen(name_buffer_ptr) + 1;
@@ -2653,6 +2655,15 @@ err_handler:
     bitmap_free(&(m_part_info->used_partitions));
 
   DBUG_RETURN(error);
+}
+
+int ha_partition::open_deferred(THD *thd) {
+  DBUG_ENTER("ha_partition::open_deferred");
+  handler **file= m_file;
+  do {
+    (*file)->open_deferred(thd);
+  } while (*(++file));
+  DBUG_RETURN(0);
 }
 
 handler *ha_partition::clone(MEM_ROOT *mem_root)

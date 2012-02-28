@@ -2344,6 +2344,24 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   {
     error=open_fast(name,mode,test_if_locked);
     statistic_increment(opened_fast, &LOCK_status);
+
+    DBUG_EXECUTE_IF("open_deferred_part_fail",
+                    {
+                      // After five opens, fail 10 times for open_deferred_part_fail
+                      static int counter=0;
+                      if (!strcmp("open_deferred_part_fail",
+                                  table_arg->s->table_name.str))
+                      {
+                        if (counter > 14)
+                        {
+                          error= HA_ERR_NO_SUCH_TABLE;
+                          my_error(ER_NO_SUCH_TABLE, MYF(0), "foo",
+                                   "open_deferred_part_fail");
+                        }
+                        counter++;
+                        if (counter > 34) { counter= 0; }
+                      }
+                    });
   }
 
   if (error)
