@@ -425,6 +425,8 @@ static sys_var_long_ptr_global
 sys_max_prepared_stmt_count(&vars, "max_prepared_stmt_count",
                             &max_prepared_stmt_count,
                             &LOCK_prepared_stmt_count);
+static sys_var_bool_ptr        sys_fix_relay_log_space_limit(&vars, "fix_relay_log_space_limit",
+                                                             &fix_relay_log_space_limit);
 static sys_var_long_ptr	sys_max_relay_log_size(&vars, "max_relay_log_size",
                                                &max_relay_log_size,
                                                fix_max_relay_log_size);

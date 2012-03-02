@@ -2002,6 +2002,7 @@ extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
 extern ulong max_binlog_size, max_relay_log_size;
+extern my_bool fix_relay_log_space_limit;
 extern ulong opt_binlog_rows_event_max_size;
 extern ulong rpl_recovery_rank, thread_cache_size, thread_pool_size;
 extern ulong back_log;

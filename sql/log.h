@@ -497,9 +497,9 @@ public:
 
   /*
     v stands for vector
-    invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
+    invoked as appendv(newfile, buf1,len1,buf2,len2,...,bufn,lenn,0)
   */
-  bool appendv(const char* buf,uint len,...);
+  bool appendv(bool* newfile,const char* buf,uint len,...);
   bool append(Log_event* ev);
 
   void make_log_name(char* buf, const char* log_ident);

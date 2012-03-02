@@ -4136,7 +4136,7 @@ err:
 }
 
 
-bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
+bool MYSQL_BIN_LOG::appendv(bool* newfile, const char* buf, uint len,...)
 {
   bool error= 0;
   USER_STATS *us= current_thd ? thd_get_user_stats(current_thd) : NULL;
@@ -4145,6 +4145,7 @@ bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
   va_start(args,len);
 
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
+  *newfile= FALSE;
 
   safe_mutex_assert_owner(&LOCK_log);
   do
@@ -4168,7 +4169,10 @@ bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
      I don't think this needs to wait to force a rotate.
   */
   if (!stop_new_xids && (uint) my_b_append_tell(&log_file) > max_size)
+  {
     new_file_without_locking();
+    *newfile= TRUE;
+  }
 
 err:
   if (!error)

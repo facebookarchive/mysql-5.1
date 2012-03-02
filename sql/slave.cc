@@ -106,6 +106,7 @@ char* slave_load_tmpdir = 0;
 Master_info *active_mi= 0;
 my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
+my_bool fix_relay_log_space_limit = TRUE;
 
 /* Number of events written to the relay log by the IO thread */
 ulong relay_io_events= 0;
@@ -4002,6 +4003,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
   else
   {
+    bool newfile;
+
     /*
        Must update mi->master_log_pos before calling appendv() because a new
        relay-log needs a correct master position for transactional replication.
@@ -4009,10 +4012,17 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     mi->master_log_pos+= inc_pos;
 
     /* write the event to the relay log */
-    if (likely(!(rli->relay_log.appendv(buf,event_len,0))))
+    if (likely(!(rli->relay_log.appendv(&newfile,buf,event_len,0))))
     {
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+
+      /*
+         Hack for bugs.mysql.com/64503 that allows the IO thread to exceed
+         relay-log-limit by one log file rather than many.
+       */
+      if (fix_relay_log_space_limit && newfile)
+        rli->ignore_log_space_limit= 0;
     }
     else
     {
@@ -4641,6 +4651,7 @@ static Log_event* next_event(Relay_log_info* rli)
           - I see no better detection method
           - purge_first_log is not called that often
         */
+        DBUG_EXECUTE_IF("pause_sql_thread_before_purge", sleep(1););
         if (rli->relay_log.purge_first_log
             (rli,
              rli->group_relay_log_pos == rli->event_relay_log_pos

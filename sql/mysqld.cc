@@ -6131,6 +6131,7 @@ enum options_mysqld
   OPT_QUERY_CACHE_TYPE, OPT_QUERY_CACHE_WLOCK_INVALIDATE, OPT_RECORD_BUFFER,
   OPT_QUERY_CACHE_SKIP_LEADING_COMMENT,
   OPT_RECORD_RND_BUFFER, OPT_DIV_PRECINCREMENT, OPT_RELAY_LOG_SPACE_LIMIT,
+  OPT_FIX_RELAY_LOG_SPACE_LIMIT,
   OPT_RELAY_LOG_PURGE,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
   OPT_SLAVE_TRANS_RETRIES, OPT_READONLY, OPT_DEBUGGING,
@@ -7697,6 +7698,13 @@ thread is in the relay logs.",
    &relay_log_purge,
    &relay_log_purge, 0, GET_BOOL, NO_ARG,
    1, 0, 1, 0, 1, 0},
+  {"fix_relay_log_space_limit", OPT_FIX_RELAY_LOG_SPACE_LIMIT,
+   "1 = kludge to fix bugs.mysql.com/64503 and not ignore relay-log-space-limit. For "
+   "huge binlog groups that span multiple binlog files this kludge might not work. In "
+   "that case disable it. But with 1G binlog files that should be unlikely. When "
+   "official MySQL fixes the bug this kludge can be removed. ",
+   &fix_relay_log_space_limit, &fix_relay_log_space_limit,
+   0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 1, 0},
   {"relay_log_space_limit", OPT_RELAY_LOG_SPACE_LIMIT,
    "Maximum space to use for all relay logs.",
    &relay_log_space_limit,
