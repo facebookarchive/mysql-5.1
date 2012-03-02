@@ -4618,20 +4618,36 @@ static Log_event* next_event(Relay_log_info* rli)
         if ((strlen(innobase_get_mysql_relay_log_name()) > 0 &&
              innobase_get_mysql_relay_log_pos() != RPL_BAD_POS))
         {
+          DBUG_EXECUTE_IF("pause_sql_thread_before_purge", sleep(1););
+
+          rli->relay_log.lock_index();
+
           /* Delete all files before InnoDB's current one. */
-          if (rli->relay_log.purge_logs(
+          int purge_res=
+              rli->relay_log.purge_logs(
                   innobase_get_mysql_relay_log_name(),
                   /*included*/0,
-                  /*need_mutex*/1,
+                  /*need_mutex*/0,
                   /*need_update_threads*/0,
-                  &rli->log_space_total) != 0 ||
+                  &rli->log_space_total);
+
+          /* Copy code from purge_first_log to wake the IO thread */
+          pthread_mutex_lock(&rli->log_space_lock);
+          rli->ignore_log_space_limit= 0;
+          pthread_mutex_unlock(&rli->log_space_lock);
+          pthread_cond_broadcast(&rli->log_space_cond);
+
+          if (purge_res != 0 ||
               rli->relay_log.find_log_pos(&rli->linfo,
                                           rli->event_relay_log_name,
-                                          /*need_lock*/1) != 0)
+                                          /*need_lock*/0) != 0)
           {
+            rli->relay_log.unlock_index();
             errmsg = "Error purging old logs";
             goto err;
           }
+
+          rli->relay_log.unlock_index();
         }
 
         do_purge_log = false;

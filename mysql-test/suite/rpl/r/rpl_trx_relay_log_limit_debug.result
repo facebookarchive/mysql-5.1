@@ -1,0 +1,32 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+show global variables like "relay_log_space_limit";
+Variable_name	Value
+relay_log_space_limit	16384
+show global variables like "fix_relay_log_space_limit";
+Variable_name	Value
+fix_relay_log_space_limit	ON
+show global variables like "relay_log_purge";
+Variable_name	Value
+relay_log_purge	ON
+show global variables like "max_relay_log_size";
+Variable_name	Value
+max_relay_log_size	4096
+show global variables like "rpl_transaction_enabled";
+Variable_name	Value
+rpl_transaction_enabled	ON
+drop table if exists t1;
+CREATE TABLE t1(a int primary key auto_increment, b char(250)) engine=innodb;
+Let the slave SQL thread catch up to the slave IO thread and set ignore_log_space_limit=1
+SET GLOBAL debug="d,pause_sql_thread_before_purge";
+Commit many changes
+Confirm that the relay log limit has been enforced
+Limit_enforced
+1
+SET GLOBAL debug="reset";
+Cleanup
+DROP TABLE t1;
