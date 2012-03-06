@@ -133,6 +133,11 @@ UNIV_INTERN fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 initialized. */
 fil_system_t*	fil_system	= NULL;
 
+/** Count usage of the doublewrite buffer separate from other activity to
+the system tablespace. */
+os_io_perf2_t	io_perf_doublewrite;
+comp_stat_t	comp_stat_doublewrite;
+
 static
 ibool
 fil_page_buf_page_is_corrupted_offline(
@@ -444,6 +449,15 @@ fil_update_table_stats(
 	ut_free(table_name_buf);
 	ut_free(db_name_buf);
 	ut_free(n_lru_arr);
+
+	/* Invoke the callback for doublewrite buffer IO */
+	cb("sys:innodb" /* schema */,
+	   "doublewrite" /* table */,
+	   &io_perf_doublewrite.read,
+	   &io_perf_doublewrite.write,
+	   &comp_stat_doublewrite,
+	   0 /* n_lru */,
+	   "InnoDB");
 
 	mutex_enter(&fil_system->mutex);
 	in_progress = FALSE;
@@ -1709,6 +1723,10 @@ fil_init(
 	UT_LIST_INIT(fil_system->LRU);
 
 	fil_system->max_n_open = max_n_open;
+
+	my_io_perf_init(&io_perf_doublewrite.read);
+	my_io_perf_init(&io_perf_doublewrite.write);
+	memset(&comp_stat_doublewrite, 0, sizeof(comp_stat_doublewrite));
 }
 
 /*******************************************************************//**
@@ -5471,7 +5489,9 @@ _fil_io(
 	/* Queue the aio request */
 	ret = os_aio(type, mode | io_flags, node->name, node->handle, buf,
 		     offset_low, offset_high, len, node, message,
-		     &space->io_perf2, table_io_perf);
+		     (io_flags & OS_AIO_DOUBLE_WRITE)
+			? &io_perf_doublewrite : &space->io_perf2,
+		     table_io_perf);
 #endif
 	ut_a(ret);
 
