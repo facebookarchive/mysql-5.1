@@ -34,6 +34,8 @@ Created 12/18/1995 Heikki Tuuri
 #include "page0types.h"
 #include "fsp0types.h"
 
+extern double fseg_reserve_factor;
+
 /**********************************************************************//**
 Initializes the file space system. */
 UNIV_INTERN

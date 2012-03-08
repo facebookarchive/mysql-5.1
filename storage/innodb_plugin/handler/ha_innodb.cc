@@ -12030,6 +12030,15 @@ static MYSQL_SYSVAR_BOOL(log_compressed_pages, srv_log_compressed_pages,
   " makes InnoDB assume that the compression algorithm doesn't change.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_DOUBLE(segment_reserve_factor, fseg_reserve_factor,
+  PLUGIN_VAR_OPCMDARG,
+  "If this value is x, then if the number of unused but reserved"
+  " pages in a segment is less than	reserved pages * x, and there are"
+  " at least FSEG_FRAG_LIMIT used pages, then we allow a new empty extent to"
+  " be added to the segment in fseg_alloc_free_page. Otherwise, we"
+  " use unused pages of the segment.",
+  NULL, NULL, 0.01, 0.0003, 0.4, 0);
+
 static MYSQL_SYSVAR_UINT(comp_fail_samples,
   srv_comp_fail_samples, PLUGIN_VAR_OPCMDARG,
   "Number of page size samples collected from pages that fail to compress to"
@@ -12551,6 +12560,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(malloc_cache_len),
   MYSQL_SYSVAR(compress_malloc_cache_len),
   MYSQL_SYSVAR(decompress_malloc_cache_len),
+  MYSQL_SYSVAR(segment_reserve_factor),
   NULL
 };
 

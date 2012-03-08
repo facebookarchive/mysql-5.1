@@ -165,10 +165,10 @@ typedef	byte	fseg_inode_t;
 
 #define FSEG_MAGIC_N_VALUE	97937874
 
-#define	FSEG_FILLFACTOR		8	/* If this value is x, then if
+double fseg_reserve_factor = 0.125;	/* If this value is x, then if
 					the number of unused but reserved
 					pages in a segment is less than
-					reserved pages * 1/x, and there are
+					reserved pages * x, and there are
 					at least FSEG_FRAG_LIMIT used pages,
 					then we allow a new empty extent to
 					be added to the segment in
@@ -2630,7 +2630,7 @@ fseg_alloc_free_page_low(
 		ret_page = hint;
 		/*-----------------------------------------------------------*/
 	} else if ((xdes_get_state(descr, mtr) == XDES_FREE)
-		   && ((reserved - used) < reserved / FSEG_FILLFACTOR)
+		   && ((reserved - used) < fseg_reserve_factor * reserved)
 		   && (used >= FSEG_FRAG_LIMIT)) {
 
 		/* 2. We allocate the free extent from space and can take
@@ -2652,7 +2652,7 @@ fseg_alloc_free_page_low(
 		ret_page = hint;
 		/*-----------------------------------------------------------*/
 	} else if ((direction != FSP_NO_DIR)
-		   && ((reserved - used) < reserved / FSEG_FILLFACTOR)
+		   && ((reserved - used) < fseg_reserve_factor * reserved)
 		   && (used >= FSEG_FRAG_LIMIT)
 		   && (!!(ret_descr
 			  = fseg_alloc_free_extent(seg_inode,
