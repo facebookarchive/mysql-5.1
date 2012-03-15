@@ -972,6 +972,8 @@ static double getopt_double(char *arg, const struct my_option *optp, int *err)
   double num;
   int error;
   char *end= arg + 1000;                     /* Big enough as *arg is \0 terminated */
+  double max_value = ((double)optp->max_value) / (1 << 20);
+  double min_value = ((double)optp->min_value) / (1 << 20);
   num= my_strtod(arg, &end, &error);
   if (end[0] != 0 || error)
   {
@@ -981,9 +983,9 @@ static double getopt_double(char *arg, const struct my_option *optp, int *err)
     *err= EXIT_ARGUMENT_INVALID;
     return 0.0;
   }
-  if (optp->max_value && num > (double) optp->max_value)
-    num= (double) optp->max_value;
-  return max(num, (double) optp->min_value);
+  if (max_value && num > max_value)
+    num= max_value;
+  return max(num, min_value);
 }
 
 double getopt_double_limit_value(double num, double max_val, double min_val,
@@ -1052,7 +1054,7 @@ static void init_one_value(const struct my_option *option, void *variable,
     *((ulonglong*) variable)= (ulonglong) value;
     break;
   case GET_DOUBLE:
-    *((double*) variable)=  (double) value;
+    *((double*) variable)=  ((double) value)/(1 << 20);
     break;
   case GET_STR:
     /*

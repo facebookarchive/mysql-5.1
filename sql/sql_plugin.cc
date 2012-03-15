@@ -2890,9 +2890,15 @@ bool sys_var_pluginvar::update(THD *thd, set_var *var)
 
 #define OPTION_SET_LIMITS(type, options, opt) \
   options->var_type= type; \
-  options->def_value= (opt)->def_val; \
-  options->min_value= (opt)->min_val; \
-  options->max_value= (opt)->max_val; \
+  if (type != GET_DOUBLE) { \
+    options->def_value= (opt)->def_val; \
+    options->min_value = (opt)->min_val; \
+    options->max_value = (opt)->max_val; \
+  } else { \
+    options->def_value = (1 << 20) * (opt)->def_val; \
+    options->min_value = (1 << 20) * (opt)->min_val; \
+    options->max_value = (1 << 20) * (opt)->max_val; \
+  } \
   options->block_size= (long) (opt)->blk_sz
 
 
