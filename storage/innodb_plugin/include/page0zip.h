@@ -486,15 +486,47 @@ page_zip_parse_compress_no_data(
 	__attribute__((nonnull(1,2)));
 
 /**********************************************************************//**
-Calculate the compressed page checksum.
+Calculate the compressed page checksum. Old fashion.
 @return	page checksum */
 UNIV_INTERN
 ulint
-page_zip_calc_checksum(
+page_zip_calc_checksum_old(
 /*===================*/
         const void*     data,   /*!< in: compressed page */
         ulint           size)   /*!< in: size of compressed page */
 	__attribute__((nonnull));
+
+/**********************************************************************//**
+Calculate the compressed page checksum. Move fast and use crc32.
+@return	page checksum */
+UNIV_INTERN
+ulint
+page_zip_calc_checksum_fast(
+/*===================*/
+        const void*     data,   /*!< in: compressed page */
+        ulint           size)   /*!< in: size of compressed page */
+	__attribute__((nonnull));
+
+/**********************************************************************//**
+Return true if stored checksum matches the calculated checksum taking into
+account srv_use_checksums and srv_use_fast_checksum_compressed.
+@return	true if stored checksum matches the calculated checksum */
+UNIV_INTERN
+ibool
+page_zip_checksum_match(
+	ulint				checksum_stored,
+	const void*	data,
+	ulint 			size);
+
+/**********************************************************************//**
+Return the appropriate checksum for the compressed page based on
+srv_use_checksums and srv_use_fast_checksum_compressed.
+@return	checksum for the compressed page */
+UNIV_INTERN
+ulint
+page_zip_calc_checksum(
+	const void* data,
+	ulint size);
 
 /**********************************************************************//**
 Write a log record of compressing an index page without the data on the page. */

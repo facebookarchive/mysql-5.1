@@ -4861,7 +4861,7 @@ Calculate the compressed page checksum.
 @return	page checksum */
 UNIV_INTERN
 ulint
-page_zip_calc_checksum(
+page_zip_calc_checksum_old(
 /*===================*/
 	const void*	data,	/*!< in: compressed page */
 	ulint		size)	/*!< in: size of compressed page */
@@ -4881,4 +4881,73 @@ page_zip_calc_checksum(
 			size - FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 	return((ulint) adler);
+}
+
+/**********************************************************************//**
+Calculate the compressed page checksum.
+@return	page checksum */
+UNIV_INTERN
+ulint
+page_zip_calc_checksum_fast(
+/*===================*/
+	const void*	data,	/*!< in: compressed page */
+	ulint		size)	/*!< in: size of compressed page */
+{
+	/* Exclude FIL_PAGE_SPACE_OR_CHKSUM, FIL_PAGE_LSN,
+	and FIL_PAGE_FILE_FLUSH_LSN from the checksum. */
+
+	const Bytef*	s	= data;
+	ib_uint32_t crc32;
+
+	ut_ad(size > FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+
+	/* nizam: This is compatible with 5.6 page_zip_calc_checksum() */
+	crc32 = my_fast_crc32(s + FIL_PAGE_OFFSET,
+	                      FIL_PAGE_LSN - FIL_PAGE_OFFSET)
+	        ^ my_fast_crc32(s + FIL_PAGE_TYPE, 2)
+	        ^ my_fast_crc32(s + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+	                        size - FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+
+	return((ulint) crc32);
+}
+
+/**********************************************************************//**
+Return true if stored checksum matches the calculated checksum.
+@return	true if stored checksum matches the calculated checksum */
+UNIV_INTERN
+ibool
+page_zip_checksum_match(
+	ulint				checksum_stored,
+	const void*	data,
+	ulint 			size)
+{
+	if (UNIV_UNLIKELY(checksum_stored == BUF_NO_CHECKSUM_MAGIC))
+		return TRUE;
+	if (UNIV_LIKELY(srv_use_fast_checksums_compressed))
+		return (checksum_stored
+			      == page_zip_calc_checksum_fast(data, size))
+			     || (checksum_stored
+			         == page_zip_calc_checksum_old(data, size));
+	else
+		return (checksum_stored
+			      == page_zip_calc_checksum_old(data, size))
+			      || (checksum_stored
+			          == page_zip_calc_checksum_fast(data, size));
+}
+
+/**********************************************************************//**
+Return the appropriate checksum for the compressed page based on
+srv_use_checksums and srv_use_fast_checksum_compressed.
+@return	checksum for the compressed page */
+UNIV_INTERN
+ulint
+page_zip_calc_checksum(
+	const void* data,
+	ulint size)
+{
+	if (UNIV_UNLIKELY(!srv_use_checksums))
+		return BUF_NO_CHECKSUM_MAGIC;
+	return UNIV_LIKELY(srv_use_fast_checksums_compressed)
+					? page_zip_calc_checksum_fast(data, size)
+					: page_zip_calc_checksum_old(data, size);
 }

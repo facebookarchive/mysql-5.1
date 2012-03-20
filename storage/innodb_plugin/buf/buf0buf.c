@@ -321,6 +321,9 @@ buf_calc_page_fast_checksum(
 	checksum is stored, and also the last 8 bytes of page because
 	there we store the old formula checksum. */
 
+	/* nizam: following is not compatible with 5.6 crc32 checksum
+	because of the '+' operation instead of '^'. We should make 5.6
+	checksums backward-compatible once we port our changes. */
 	checksum = my_fast_crc32(page + FIL_PAGE_OFFSET,
 			    FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET)
 		+ my_fast_crc32(page + FIL_PAGE_DATA,
@@ -484,9 +487,7 @@ buf_page_is_corrupted(
 						  + FIL_PAGE_SPACE_OR_CHKSUM);
 
 		if (UNIV_UNLIKELY(zip_size)) {
-			return(checksum_field != BUF_NO_CHECKSUM_MAGIC
-			       && checksum_field
-			       != page_zip_calc_checksum(read_buf, zip_size));
+			return !page_zip_checksum_match(checksum_field, read_buf, zip_size);
 		}
 
 		old_checksum_field = mach_read_from_4(
@@ -578,19 +579,24 @@ buf_page_print(
 		switch (fil_page_get_type(read_buf)) {
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
-			checksum = srv_use_checksums
-				? page_zip_calc_checksum(read_buf, zip_size)
+			old_checksum = srv_use_checksums
+				? page_zip_calc_checksum_old(read_buf, zip_size)
+				: BUF_NO_CHECKSUM_MAGIC;
+			fast_checksum = srv_use_checksums
+				? page_zip_calc_checksum_fast(read_buf, zip_size)
 				: BUF_NO_CHECKSUM_MAGIC;
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				"  InnoDB: Compressed BLOB page"
-				" checksum %lu, stored %lu\n"
+				" old checksum %lu, fast checksum: %lu,"
+				" stored %lu\n"
 				"InnoDB: Page lsn %lu %lu\n"
 				"InnoDB: Page number (if stored"
 				" to page already) %lu,\n"
 				"InnoDB: space id (if stored"
 				" to page already) %lu\n",
-				(ulong) checksum,
+				(ulong) old_checksum,
+				(ulong) fast_checksum,
 				(ulong) mach_read_from_4(
 					read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
 				(ulong) mach_read_from_4(
@@ -611,20 +617,24 @@ buf_page_print(
 				fil_page_get_type(read_buf));
 			/* fall through */
 		case FIL_PAGE_INDEX:
-			checksum = srv_use_checksums
-				? page_zip_calc_checksum(read_buf, zip_size)
+			old_checksum = srv_use_checksums
+				? page_zip_calc_checksum_old(read_buf, zip_size)
 				: BUF_NO_CHECKSUM_MAGIC;
-
+			fast_checksum = srv_use_checksums
+				? page_zip_calc_checksum_fast(read_buf, zip_size)
+				: BUF_NO_CHECKSUM_MAGIC;
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB: Compressed page checksum %lu,"
+				"  InnoDB: Compressed page "
+				" old checksum %lu, fast checksum: %lu,"
 				" stored %lu\n"
 				"InnoDB: Page lsn %lu %lu\n"
 				"InnoDB: Page number (if stored"
 				" to page already) %lu,\n"
 				"InnoDB: space id (if stored"
 				" to page already) %lu\n",
-				(ulong) checksum,
+				(ulong) old_checksum,
+				(ulong) fast_checksum,
 				(ulong) mach_read_from_4(
 					read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
 				(ulong) mach_read_from_4(
@@ -1994,23 +2004,27 @@ buf_zip_decompress(
 	const byte*	frame		= block->page.zip.data;
 	ulint		stamp_checksum	= mach_read_from_4(
 		frame + FIL_PAGE_SPACE_OR_CHKSUM);
+	ulint old_checksum, fast_checksum;
 
 	ut_ad(buf_block_get_zip_size(block));
 	ut_a(buf_block_get_space(block) != 0);
 
-	if (UNIV_LIKELY(check && stamp_checksum != BUF_NO_CHECKSUM_MAGIC)) {
-		ulint	calc_checksum	= page_zip_calc_checksum(
+	if (check
+	    && !page_zip_checksum_match(stamp_checksum,
+	                                frame,
+	                                page_zip_get_size(&block->page.zip))) {
+		fast_checksum	= page_zip_calc_checksum_fast(
 			frame, page_zip_get_size(&block->page.zip));
-
-		if (UNIV_UNLIKELY(stamp_checksum != calc_checksum)) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: compressed page checksum mismatch"
-				" (space %u page %u): %lu != %lu\n",
-				block->page.space, block->page.offset,
-				stamp_checksum, calc_checksum);
-			return(FALSE);
-		}
+		old_checksum	= page_zip_calc_checksum_old(
+			frame, page_zip_get_size(&block->page.zip));
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: compressed page checksum mismatch"
+			" (space %u page %u): stamped checksum = %lu fast_checksum = %lu"
+			"  old_checksum = %lu\n",
+			block->page.space, block->page.offset,
+			stamp_checksum, fast_checksum, old_checksum);
+		return(FALSE);
 	}
 
 	switch (fil_page_get_type(frame)) {

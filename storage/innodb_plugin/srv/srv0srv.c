@@ -558,6 +558,7 @@ UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
 UNIV_INTERN my_bool	srv_use_fast_checksums = FALSE;
+UNIV_INTERN my_bool srv_use_fast_checksums_compressed = TRUE;
 
 /** Confirm checkums every time a compressed page is decompressed.
 Otherwise checksums are only confirmed when pages are read from disk. */

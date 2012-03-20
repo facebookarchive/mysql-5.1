@@ -11922,6 +11922,14 @@ static MYSQL_SYSVAR_BOOL(fast_checksums, srv_use_fast_checksums,
   "compatible with prior releases.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(fast_checksums_compressed,
+  srv_use_fast_checksums_compressed,
+  PLUGIN_VAR_NOCMDARG,
+  "Enable fast crc32 checksum algorithm for compressed pages (enabled by "
+  "default). Files updated while fast checsums was enabled are no longer "
+  "backwards compatible with prior releases.",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_BOOL(extra_checksums, srv_extra_checksums,
   PLUGIN_VAR_NOCMDARG,
   "Confirm checksums every time a page is decompressed when TRUE. "
@@ -12505,6 +12513,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(fast_checksums),
   MYSQL_SYSVAR(extra_checksums),
+  MYSQL_SYSVAR(fast_checksums_compressed),
   MYSQL_SYSVAR(extra_checksums_unzip_lru),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),

@@ -6028,9 +6028,7 @@ fil_page_buf_page_is_corrupted_offline(
 					  + FIL_PAGE_SPACE_OR_CHKSUM);
 
 	if (zip_size) {
-		return(checksum_field != BUF_NO_CHECKSUM_MAGIC
-		       && checksum_field
-		       != page_zip_calc_checksum(page, zip_size));
+		return !page_zip_checksum_match(checksum_field, page, zip_size);
 	}
 
 	old_checksum_field = mach_read_from_4(
@@ -6079,9 +6077,7 @@ fil_page_buf_page_store_checksum(
 						: BUF_NO_CHECKSUM_MAGIC);
 	} else {
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
-				srv_use_checksums
-				? page_zip_calc_checksum(page, zip_size)
-				: BUF_NO_CHECKSUM_MAGIC);
+		                page_zip_calc_checksum(page, zip_size));
 	}
 }
 

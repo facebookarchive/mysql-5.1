@@ -1567,11 +1567,8 @@ alloc:
 
 			mach_write_to_4(
 				b->zip.data + FIL_PAGE_SPACE_OR_CHKSUM,
-				UNIV_LIKELY(srv_use_checksums)
-				? page_zip_calc_checksum(
-					b->zip.data,
-					page_zip_get_size(&b->zip))
-				: BUF_NO_CHECKSUM_MAGIC);
+				page_zip_calc_checksum(b->zip.data,
+				                       page_zip_get_size(&b->zip)));
 		}
 
 		buf_pool_mutex_enter();

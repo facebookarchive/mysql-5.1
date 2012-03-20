@@ -109,6 +109,7 @@ typedef unsigned long int ulint;
 typedef unsigned char uchar;
 typedef unsigned int uint32;
 typedef unsigned long ulong;
+typedef unsigned int ib_uint32_t;
 
 void my_init_cpu_optimizations();
 uint32 my_fast_crc32(const uchar* data, ulong length);
@@ -303,14 +304,13 @@ ut_fold_binary(
 Calculate the compressed page checksum.
 @return	page checksum */
 ulint
-page_zip_calc_checksum(
+page_zip_calc_checksum_old(
 /*===================*/
 	const void*	data,	/*!< in: compressed page */
 	ulint		size)	/*!< in: size of compressed page */
 {
 	/* Exclude FIL_PAGE_SPACE_OR_CHKSUM, FIL_PAGE_LSN,
 	and FIL_PAGE_FILE_FLUSH_LSN from the checksum. */
-
 	const Bytef*	s	= data;
 	uLong		adler;
 
@@ -321,6 +321,31 @@ page_zip_calc_checksum(
 			size - FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 	return((ulint) adler);
+}
+
+/**********************************************************************//**
+Calculate the compressed page checksum.
+@return	page checksum */
+ulint
+page_zip_calc_checksum_fast(
+/*===================*/
+	const void*	data,	/*!< in: compressed page */
+	ulint		size)	/*!< in: size of compressed page */
+{
+	/* Exclude FIL_PAGE_SPACE_OR_CHKSUM, FIL_PAGE_LSN,
+	and FIL_PAGE_FILE_FLUSH_LSN from the checksum. */
+
+	const Bytef*	s	= data;
+	ib_uint32_t crc32;
+
+	/* nizam: This is compatible with 5.6 page_zip_calc_checksum() */
+	crc32 = my_fast_crc32(s + FIL_PAGE_OFFSET,
+	                      FIL_PAGE_LSN - FIL_PAGE_OFFSET)
+	        ^ my_fast_crc32(s + FIL_PAGE_TYPE, 2)
+	        ^ my_fast_crc32(s + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+	                        size - FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+
+	return((ulint) crc32);
 }
 
 
@@ -514,11 +539,17 @@ int lsn_match(uchar* p, ulint page_no, ulint page_size, int compressed, int debu
 int checksum_match(uchar* p, ulint page_no, ulint page_size, int compressed, int debug) {
   ulint csum, csumfield, oldcsumfield, oldcsum, fastcsum;
   if (compressed) {
-    csum = page_zip_calc_checksum(p, page_size);
     csumfield= mach_read_from_4(p + FIL_PAGE_SPACE_OR_CHKSUM);
+    fastcsum = page_zip_calc_checksum_fast(p, page_size);
+    if (fastcsum == csumfield) {
+      if (debug)
+        printf("page %lu: fastcsum = %lu; recorded = %lu\n", page_no, fastcsum, csumfield);
+      return 1;
+    }
+    oldcsum = page_zip_calc_checksum_old(p, page_size);
     if (debug)
-      printf("page %lu: calculated = %lu; recorded = %lu\n", page_no, csum, csumfield);
-    return csum == csumfield;
+      printf("page %lu: oldcsum = %lu; fastcsum = %lu; recorded = %lu\n", page_no, oldcsum, fastcsum, csumfield);
+    return oldcsum == csumfield;
   } else {
     /* check the "stored log sequence numbers" */
     if (!lsn_match(p, page_no, page_size, 0, debug))

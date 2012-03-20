@@ -911,10 +911,7 @@ buf_flush_init_for_writing(
 			memset(page_zip->data + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 			mach_write_to_4(page_zip->data
 					+ FIL_PAGE_SPACE_OR_CHKSUM,
-					srv_use_checksums
-					? page_zip_calc_checksum(
-						page_zip->data, zip_size)
-					: BUF_NO_CHECKSUM_MAGIC);
+					page_zip_calc_checksum(page_zip->data, zip_size));
 			return;
 		}
 
@@ -1016,8 +1013,10 @@ buf_flush_write_block_low(
 	case BUF_BLOCK_ZIP_DIRTY:
 		frame = bpage->zip.data;
 		if (UNIV_UNLIKELY(srv_use_checksums && srv_extra_checksums)) {
-			ut_a(mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM)
-			     == page_zip_calc_checksum(frame, zip_size));
+			ut_a(page_zip_checksum_match(
+			       mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM),
+			       frame,
+			       zip_size));
 		}
 		mach_write_ull(frame + FIL_PAGE_LSN,
 			       bpage->newest_modification);
