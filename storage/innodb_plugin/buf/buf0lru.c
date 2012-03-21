@@ -1556,7 +1556,8 @@ alloc:
 		UNIV_MEM_INVALID(((buf_block_t*) bpage)->frame,
 				 UNIV_PAGE_SIZE);
 
-		if (b) {
+		if (b && (srv_extra_checksums_unzip_lru ||
+		          buf_page_get_state(b) == BUF_BLOCK_ZIP_DIRTY)) {
 			/* Compute and stamp the compressed page
 			checksum while not holding any mutex.  The
 			block is already half-freed

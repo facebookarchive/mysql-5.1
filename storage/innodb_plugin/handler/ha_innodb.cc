@@ -11929,6 +11929,13 @@ static MYSQL_SYSVAR_BOOL(extra_checksums, srv_extra_checksums,
   "from disk. ",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(extra_checksums_unzip_lru,
+  srv_extra_checksums_unzip_lru, PLUGIN_VAR_NOCMDARG,
+  "Update the checksum of a compressed page when the uncompressed "
+  "frame is evicted from unzip_LRU. This is a kludge for the mysql "
+  "bug http://bugs.mysql.com/bug.php?id=64715",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
   PLUGIN_VAR_READONLY,
   "The common part for InnoDB table spaces.",
@@ -12474,6 +12481,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(fast_checksums),
   MYSQL_SYSVAR(extra_checksums),
+  MYSQL_SYSVAR(extra_checksums_unzip_lru),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
   MYSQL_SYSVAR(data_file_path),

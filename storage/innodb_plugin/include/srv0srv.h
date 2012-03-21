@@ -238,6 +238,7 @@ extern ibool	srv_use_checksums;
 extern my_bool	srv_use_fast_checksums;
 
 extern my_bool	srv_extra_checksums;
+extern my_bool	srv_extra_checksums_unzip_lru;
 extern ulong	srv_unzip_LRU_pct;
 extern ulong	srv_lru_io_to_unzip_factor;
 
