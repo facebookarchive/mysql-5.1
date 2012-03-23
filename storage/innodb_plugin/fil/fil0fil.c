@@ -3985,10 +3985,10 @@ convert_err_exit:
 				fprintf(stderr, "InnoDB: The page %lu seems to be converted wrong.\n", page_no);
 				goto convert_err_exit;
 			}
-			btr_page_set_index_id(page, page_zip, index->id, &mtr);
 
+			btr_page_set_index_id(page, page_zip, index->id, &mtr);
 			/* confirm whether fits to the page size or not */
-			if (!page_zip_compress(page_compression_level,
+			if (!page_zip_compress(page_zip_compression_flags,
 			                       page_zip, page, index, &mtr)
 			    && !btr_page_reorganize(block, index, &mtr)) {
 				buf_block_t*	new_block;

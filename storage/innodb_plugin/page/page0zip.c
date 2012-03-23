@@ -38,7 +38,6 @@ Created June 2005 by Marko Makela
 #include "page0types.h"
 #include "log0recv.h"
 #include "srv0srv.h"
-#include "zlib.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
 # include "btr0sea.h"
@@ -1133,6 +1132,8 @@ mem_block_cache_t malloc_cache_compress_obj;
 mem_block_cache_t malloc_cache_decompress_obj;
 mem_block_cache_t* malloc_cache_compress;
 mem_block_cache_t* malloc_cache_decompress;
+my_bool page_zip_zlib_wrap = FALSE;
+uint page_zip_zlib_strategy = Z_DEFAULT_STRATEGY;
 
 UNIV_INTERN
 void
@@ -1178,7 +1179,8 @@ UNIV_INTERN
 ibool
 page_zip_compress(
 /*==============*/
-	uint		compression_level, /*!< in: zlib compression level */
+	uchar		compression_flags, /*!< in: zlib compression level and other
+	                           options */
 	page_zip_des_t*	page_zip,/*!< in: size; out: data, n_blobs,
 				m_start, m_end, m_nonempty */
 	const page_t*	page,	/*!< in: uncompressed page */
@@ -1209,6 +1211,14 @@ page_zip_compress(
 	int comp_stat_page_size = 0;
 	ulint	space_id = page_get_space_id(page);
 	fil_space_t* space;
+	uint level;
+	uint wrap;
+	uint strategy;
+	int window_bits;
+	page_zip_decode_compression_flags(compression_flags, &level,
+	                                  &wrap, &strategy);
+	window_bits = wrap ? UNIV_PAGE_SIZE_SHIFT
+	                   : -((int)UNIV_PAGE_SIZE_SHIFT);
 	my_get_fast_timer(&start);
 	ut_ad(fil_system);
 #endif /* !UNIV_HOTBACKUP */
@@ -1366,9 +1376,9 @@ page_zip_compress(
 						   trx_id_col, fields);
 	c_stream.next_in = fields;
 
-	err = deflateInit2(&c_stream, compression_level,
-			   Z_DEFLATED, UNIV_PAGE_SIZE_SHIFT,
-			   MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
+	err = deflateInit2(&c_stream, level,
+			   Z_DEFLATED, window_bits,
+			   MAX_MEM_LEVEL, strategy);
 	ut_a(err == Z_OK);
 
 	if (UNIV_LIKELY(!trx_id_col)) {
@@ -2963,6 +2973,51 @@ zlib_done:
 }
 
 /**********************************************************************//**
+This function determines the sign for window_bits and reads the zlib header
+from the decompress stream. The data may have been compressed with a negative
+(no adler32 headers) or a positive (with adler32 headers) window_bits.
+Regardless of the current value of page_zip_zlib_wrap, we always
+first try the positive window_bits then negative window_bits, because the
+surest way to determine if the stream has adler32 headers is to see if the
+stream begins with the zlib header together with the adler32 value of it.
+This adds a tiny bit of overhead for the pages that were compressed without
+adler32s.
+@return TRUE if stream is initialized and zlib header was read, FALSE
+if data can be decompressed with neither window_bits nor -window_bits */
+UNIV_INTERN
+ibool
+page_zip_init_d_stream(
+	z_stream* strm,
+	ulint window_bits)
+{
+	Bytef* next_in = strm->next_in;
+	Bytef* next_out = strm->next_out;
+	ulint avail_in = strm->avail_in;
+	ulint avail_out = strm->avail_out;
+
+	if (UNIV_UNLIKELY(inflateInit2(strm, window_bits) != Z_OK)) {
+		/* initialization must always succeed regardless of window_bits */
+		ut_error;
+	}
+	/* Try decoding zlib header assuming adler32. */
+	if (inflate(strm, Z_BLOCK) == Z_OK)
+		return TRUE;
+	/* reset the stream */
+	strm->next_in = next_in;
+	strm->next_out = next_out;
+	strm->avail_in = avail_in;
+	strm->avail_out = avail_out;
+	if (UNIV_UNLIKELY(inflateReset2(strm, -window_bits) != Z_OK)) {
+		ut_error;
+	}
+	/* Decode again the zlib header. */
+	if (UNIV_LIKELY(inflate(strm, Z_BLOCK) == Z_OK)) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+/**********************************************************************//**
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected.
@@ -3081,19 +3136,13 @@ zlib_error:
 	d_stream.next_out = page + PAGE_ZIP_START;
 	d_stream.avail_out = UNIV_PAGE_SIZE - PAGE_ZIP_START;
 
-	if (UNIV_UNLIKELY(inflateInit2(&d_stream, UNIV_PAGE_SIZE_SHIFT)
-			  != Z_OK)) {
-		ut_error;
-	}
-
-	/* Decode the zlib header and the index information. */
-	if (UNIV_UNLIKELY(inflate(&d_stream, Z_BLOCK) != Z_OK)) {
-
+	if (UNIV_UNLIKELY(!page_zip_init_d_stream(&d_stream, UNIV_PAGE_SIZE_SHIFT))) {
 		page_zip_fail(("page_zip_decompress:"
-			       " 1 inflate(Z_BLOCK)=%s\n", d_stream.msg));
+		       " 1 inflate(Z_BLOCK)=%s\n", d_stream.msg));
 		goto zlib_error;
 	}
 
+	/* Decode index */
 	if (UNIV_UNLIKELY(inflate(&d_stream, Z_BLOCK) != Z_OK)) {
 
 		page_zip_fail(("page_zip_decompress:"
@@ -4632,7 +4681,7 @@ page_zip_reorganize(
 	/* Restore logging. */
 	mtr_set_log_mode(mtr, log_mode);
 
-	if (UNIV_UNLIKELY(!page_zip_compress(page_compression_level,
+	if (UNIV_UNLIKELY(!page_zip_compress(page_zip_compression_flags,
 	                                     page_zip, page, index, mtr))) {
 
 #ifndef UNIV_HOTBACKUP

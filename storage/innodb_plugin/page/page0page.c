@@ -524,7 +524,7 @@ page_create_zip(
 	page = page_create_low(block, TRUE);
 	mach_write_to_2(page + PAGE_HEADER + PAGE_LEVEL, level);
 
-	if (UNIV_UNLIKELY(!page_zip_compress(page_compression_level,
+	if (UNIV_UNLIKELY(!page_zip_compress(page_zip_compression_flags,
 	                                     page_zip, page, index, mtr))) {
 		/* The compression of a newly created page
 		should always succeed. */
@@ -671,7 +671,7 @@ page_copy_rec_list_end(
 		mtr_set_log_mode(mtr, log_mode);
 
 		if (UNIV_UNLIKELY
-		    (!page_zip_compress(page_compression_level, new_page_zip,
+		    (!page_zip_compress(page_zip_compression_flags, new_page_zip,
 		                        new_page, index, mtr))) {
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
@@ -791,7 +791,7 @@ page_copy_rec_list_start(
 		mtr_set_log_mode(mtr, log_mode);
 
 		if (UNIV_UNLIKELY
-		    (!page_zip_compress(page_compression_level, new_page_zip,
+		    (!page_zip_compress(page_zip_compression_flags, new_page_zip,
 		                        new_page, index, mtr))) {
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */

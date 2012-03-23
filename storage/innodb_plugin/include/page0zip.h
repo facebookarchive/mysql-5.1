@@ -37,6 +37,7 @@ Created June 2005 by Marko Makela
 #include "dict0types.h"
 #include "trx0types.h"
 #include "mem0mem.h"
+#include "zlib.h"
 
 /**  Compression level used for compressed row format.  0 is no compression
   (only for testing), 1 is fastest, 9 is best compression, default is 6. */
@@ -45,6 +46,8 @@ extern ulint malloc_cache_compress_len;
 extern ulint malloc_cache_decompress_len;
 extern mem_block_cache_t* malloc_cache_compress;
 extern mem_block_cache_t* malloc_cache_decompress;
+extern my_bool page_zip_zlib_wrap;
+extern uint page_zip_zlib_strategy;
 UNIV_INTERN
 void
 page_zip_init(void);
@@ -122,7 +125,8 @@ UNIV_INTERN
 ibool
 page_zip_compress(
 /*==============*/
-	uint		compression_level, /*!< in: zlib compression level */
+	uchar		compression_flags, /*!< in: zlib compression level and other
+	                           options */
 	page_zip_des_t*	page_zip,/*!< in: size; out: data, n_blobs,
 				m_start, m_end, m_nonempty */
 	const page_t*	page,	/*!< in: uncompressed page */
@@ -498,10 +502,57 @@ UNIV_INLINE
 void
 page_zip_compress_write_log_no_data(
 /*================================*/
-	uint compression_level,
+	uchar compression_flags,
 	const page_t*	page,
 	dict_index_t*	index,
 	mtr_t*		mtr);
+
+/**********************************************************************//**
+Read the compression level and other compression options from the compression
+flag. */
+UNIV_INLINE
+void
+page_zip_decode_compression_flags(
+/*=============================*/
+	uchar	flags,
+	uint*	level,
+	uint*	no_wrap,
+	uint*	strategy);
+
+/**********************************************************************//**
+Write the compression level and other compression options into the compression
+flag and return it. */
+UNIV_INLINE
+uchar
+page_zip_encode_compression_flags(
+/*=============================*/
+	uint	level,
+	uint	no_wrap,
+	uint	strategy);
+
+#define page_zip_compression_flags \
+	page_zip_encode_compression_flags( \
+	  page_compression_level, \
+	  page_zip_zlib_wrap, \
+	  page_zip_zlib_strategy)
+
+/**********************************************************************//**
+This function determines the sign for window_bits and reads the zlib header
+from the decompress stream. The data may have been compressed with a negative
+(no adler32 headers) or a positive (with adler32 headers) window_bits.
+Regardless of the current value of page_zip_zlib_wrap, we always
+first try the positive window_bits then negative window_bits, because the
+surest way to determine if the stream has adler32 headers is to see if the
+stream begins with the zlib header together with the adler32 value of it.
+This adds a tiny bit of overhead for the pages that were compressed without
+adler32s.
+@return TRUE if stream is initialized and zlib header was read, FALSE
+if data can be decompressed with neither window_bits nor -window_bits */
+UNIV_INTERN
+ibool
+page_zip_init_d_stream(
+	z_stream* strm,
+	ulint window_bits);
 
 #ifndef UNIV_HOTBACKUP
 /** Check if a pointer to an uncompressed page matches a compressed page.

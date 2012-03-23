@@ -1759,14 +1759,14 @@ btr_cur_update_alloc_zip(
 	/* we can safely pass a null pointer here because btr_cur_update_alloc_zip()
 		 is called before any modification to page is made. This makes sure that the
 		 compressed page image is not needed in the redo log.*/
-	uint compression_level = page_compression_level;
-	if (!page_zip_compress(compression_level, page_zip, page, index,
+	uchar compression_flags = page_zip_compression_flags;
+	if (!page_zip_compress(compression_flags, page_zip, page, index,
 	                       log_compressed_pages ? mtr : NULL)) {
 		/* Unable to compress the page */
 		return(FALSE);
 	}
 	if (mtr && !log_compressed_pages) {
-		page_zip_compress_write_log_no_data(compression_level, page, index, mtr);
+		page_zip_compress_write_log_no_data(compression_flags, page, index, mtr);
 	}
 
 	/* After recompressing a page, we must make sure that the free
@@ -4003,6 +4003,8 @@ btr_store_big_rec_extern_fields(
 	mem_heap_t* heap = NULL;
 	page_zip_des_t*	page_zip;
 	z_stream c_stream;
+	int window_bits = page_zip_zlib_wrap ? BTR_CUR_BLOB_WBITS
+	                                     : -(int)BTR_CUR_BLOB_WBITS;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
@@ -4057,8 +4059,8 @@ btr_store_big_rec_extern_fields(
 			c_stream.avail_in = extern_len;
 			if (i == 0) {
 				err = deflateInit2(&c_stream, page_compression_level,
-						   Z_DEFLATED, BTR_CUR_BLOB_WBITS, BTR_CUR_BLOB_MEM_LEVEL,
-						   Z_DEFAULT_STRATEGY);
+						   Z_DEFLATED, window_bits, BTR_CUR_BLOB_MEM_LEVEL,
+						   page_zip_zlib_strategy);
 				ut_a(err == Z_OK);
 			}
 			err = deflateReset(&c_stream);
@@ -4720,6 +4722,7 @@ btr_copy_zblob_prefix(
 	ulint		offset)	/*!< in: offset on the first BLOB page */
 {
 	ulint	page_type = FIL_PAGE_TYPE_ZBLOB;
+	ibool inflate_inited = FALSE;
 
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(zip_size >= PAGE_ZIP_MIN_SIZE);
@@ -4772,6 +4775,11 @@ btr_copy_zblob_prefix(
 
 		d_stream->next_in = bpage->zip.data + offset;
 		d_stream->avail_in = zip_size - offset;
+
+		if (!inflate_inited) {
+			inflate_inited = page_zip_init_d_stream(d_stream, BTR_CUR_BLOB_WBITS);
+			ut_a(inflate_inited);
+		}
 
 		err = inflate(d_stream, Z_NO_FLUSH);
 		switch (err) {
@@ -4857,7 +4865,6 @@ btr_copy_externally_stored_field_prefix_low(
 	}
 
 	if (UNIV_UNLIKELY(zip_size)) {
-		int		err;
 		z_stream	d_stream;
 		mem_heap_t*	heap;
 
@@ -4870,9 +4877,7 @@ btr_copy_externally_stored_field_prefix_low(
 		d_stream.avail_out = len;
 		d_stream.avail_in = 0;
 
-		err = inflateInit2(&d_stream, BTR_CUR_BLOB_WBITS);
-		ut_a(err == Z_OK);
-
+		/* d_stream is initialized inside btr_copy_zblob_prefix() */
 		btr_copy_zblob_prefix(&d_stream, zip_size,
 				      space_id, page_no, offset);
 		inflateEnd(&d_stream);

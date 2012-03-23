@@ -12375,6 +12375,27 @@ static MYSQL_SYSVAR_UINT(compression_level, page_compression_level,
   " (only for testing), 1 is fastest, 9 is best compression, default is 6.",
   NULL, NULL, 6, 0, 9, 0);
 
+static MYSQL_SYSVAR_BOOL(zlib_wrap, page_zip_zlib_wrap,
+  PLUGIN_VAR_OPCMDARG,
+  "When this parameter is OFF, innodb tells zlib to not compute adler32 values "
+  "for the compressed data by specifying a negative windowBits value for "
+  "deflateInit2(). This reduces the size of the compressed data and saves CPU. "
+  "See the documentation for deflateInit2() at http://zlib.net/manual.html "
+  "for details. Changing this dynamically may break xtrabackup and crash "
+  "recovery.",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_UINT(zlib_strategy, page_zip_zlib_strategy,
+  PLUGIN_VAR_OPCMDARG,
+  "This parameter determines the strategy to be used by zlib. "
+  "Possible values are 0(DEFAULT), 1(FILTERED), 2(HUFFMAN_ONLY), "
+  "3(RLE = run length encoding), and 4 (FIXED = no dynamic huffman codes, "
+  "faster decompression). This value should not be set to something other than "
+  "0 except for testing purposes. In the future we may add the ability to set "
+  "this per table which should be more useful. Changing this dynamically may "
+  "break xtrabackup and crash recovery.",
+  NULL, NULL, 0, 0, 4, 0);
+
 static MYSQL_SYSVAR_ULONG(aio_old_usecs, os_aio_old_usecs,
   PLUGIN_VAR_RQCMDARG,
   "AIO requests are scheduled in file offset order until they are at least"
@@ -12576,6 +12597,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(compress_malloc_cache_len),
   MYSQL_SYSVAR(decompress_malloc_cache_len),
   MYSQL_SYSVAR(segment_reserve_factor),
+  MYSQL_SYSVAR(zlib_wrap),
+  MYSQL_SYSVAR(zlib_strategy),
   NULL
 };
 

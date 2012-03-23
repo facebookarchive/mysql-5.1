@@ -1172,18 +1172,18 @@ page_cur_insert_rec_zip_reorg(
 {
 	ulint		pos;
 	my_bool log_compressed_pages = srv_log_compressed_pages;
-	uint compression_level = page_compression_level;
+	uchar compression_flags = page_zip_compression_flags;
 
 	/* Recompress or reorganize and recompress the page.
 	   Don't log anything if log_compressed_pages is FALSE.
 	   We log an MLOG_COMP_REC_INSERT and MLOG_ZIP_PAGE_COMPRESS_NO_DATA if
 	   compression was successful. */
-	if (UNIV_LIKELY(page_zip_compress(compression_level, page_zip, page, index,
+	if (UNIV_LIKELY(page_zip_compress(compression_flags, page_zip, page, index,
 		                                log_compressed_pages ? mtr : NULL))) {
-		if (!log_compressed_pages) {
+		if (mtr && !log_compressed_pages) {
 			page_cur_insert_rec_write_log(rec, rec_size,
 			                              *current_rec, index, mtr);
-			page_zip_compress_write_log_no_data(compression_level, page, index, mtr);
+			page_zip_compress_write_log_no_data(compression_flags, page, index, mtr);
 		}
 		return(rec);
 	}

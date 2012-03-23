@@ -941,7 +941,7 @@ static
 void
 btr_page_reorganize_write_log(
 	ibool compressed,
-	uint compression_level,
+	uchar compression_flags,
 	const page_t*	page,
 	dict_index_t*	index,
 	mtr_t*				mtr)
@@ -955,7 +955,7 @@ btr_page_reorganize_write_log(
 	if (!log_ptr)
 		return;
 	if (compressed) {
-		mach_write_to_1(log_ptr, compression_level);
+		mach_write_to_1(log_ptr, compression_flags);
 		mlog_close(mtr, log_ptr + 1);
 	}
 }
@@ -971,7 +971,7 @@ btr_page_reorganize_low(
 				there cannot exist locks on the
 				page, and a hash index should not be
 				dropped: it cannot exist */
-	uint		compression_level, /*!< in: compression level to be used
+	uchar		compression_flags, /*!< in: compression options to be used
 	                                if the page is compressed */
 	buf_block_t*	block,	/*!< in: page to be reorganized */
 	dict_index_t*	index,	/*!< in: record descriptor */
@@ -998,7 +998,7 @@ btr_page_reorganize_low(
 
 #ifndef UNIV_HOTBACKUP
 	btr_page_reorganize_write_log(page_zip != NULL,
-	                              compression_level, page, index, mtr);
+	                              compression_flags, page, index, mtr);
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Turn logging off */
@@ -1046,7 +1046,7 @@ btr_page_reorganize_low(
 	}
 
 	if (UNIV_LIKELY_NULL(page_zip)
-	    && UNIV_UNLIKELY(!page_zip_compress(compression_level,
+	    && UNIV_UNLIKELY(!page_zip_compress(compression_flags,
 	                                        page_zip,
 	                                        page,
 	                                        index,
@@ -1136,7 +1136,7 @@ btr_page_reorganize(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	return(btr_page_reorganize_low(FALSE,
-	                               page_compression_level,
+	                               page_zip_compression_flags,
 	                               block,
 	                               index,
 	                               mtr));
@@ -1159,25 +1159,15 @@ btr_parse_page_reorganize(
 {
 	ut_ad(ptr && end_ptr);
 	/* initialize to avoid compiler warnings */
-	uint compression_level = page_compression_level;
+	uchar compression_flags = (uchar)~0;
 	if (compressed) {
 		if (ptr == end_ptr)
 			return NULL;
-		compression_level = (uint)mach_read_from_1(ptr);
-		if (compression_level > 9) {
-			fprintf(stderr,
-			        "InnoDB: Warning: compression_level(%u) is not between 0 and 9, "
-			        "setting it to %u.\n", compression_level, page_compression_level);
-			compression_level = page_compression_level; /* set to default level */
-			ut_ad(0); /* Crash in debug mode */
-			/* Assume whatever logged belongs to the next log record, so do not
-			  increment ptr */
-		} else {
-			++ptr;
-		}
+		compression_flags = (uchar)mach_read_from_1(ptr);
+		++ptr;
 	}
 	if (UNIV_LIKELY(block != NULL)) {
-		btr_page_reorganize_low(TRUE, compression_level, block, index, mtr);
+		btr_page_reorganize_low(TRUE, compression_flags, block, index, mtr);
 	}
 	return(ptr);
 }

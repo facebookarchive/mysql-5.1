@@ -334,12 +334,54 @@ page_zip_available(
 }
 
 /**********************************************************************//**
+Read the compression level and other compression options from the compression
+flag. */
+UNIV_INLINE
+void
+page_zip_decode_compression_flags(
+/*=============================*/
+	uchar	flags,
+	uint*	level,
+	uint*	wrap,
+	uint*	strategy)
+{
+	/* level needs 4 bits 0..9 */
+	*level = flags & 0xf;
+	/* wrap needs 1 bit. Older versions of innodb had wrap=1
+	by default and only compression level	was logged.
+	That's why we flip the value of the bit */
+	*wrap = (flags & 0x10) ? 0 : 1;
+	/* strategy needs 3 bits 0..4 */
+	*strategy = flags >> 5;
+	ut_a(*level <= 9);
+	ut_a(*strategy <= 4);
+}
+
+/**********************************************************************//**
+Write the compression level and other compression options into the compression
+flag and return it. */
+UNIV_INLINE
+uchar
+page_zip_encode_compression_flags(
+/*=============================*/
+	uint	level,
+	uint	wrap,
+	uint	strategy)
+{
+	ut_ad((level <= 9) && (wrap <= 1) && (strategy <= 4));
+	return ((uchar)level)
+	       | (((uchar)(wrap ? 0 : 1)) << 4)
+	       | (((uchar)strategy) << 5);
+}
+
+
+/**********************************************************************//**
 Write a log record of compressing an index page without the data on the page. */
 UNIV_INLINE
 void
 page_zip_compress_write_log_no_data(
 /*================================*/
-	uint compression_level,
+	uchar compression_flags,
 	const page_t*	page,
 	dict_index_t*	index,
 	mtr_t*				mtr)
@@ -348,7 +390,7 @@ page_zip_compress_write_log_no_data(
 	                                          MLOG_ZIP_PAGE_COMPRESS_NO_DATA, 1);
 	if (!log_ptr)
 		return;
-	mach_write_to_1(log_ptr, compression_level);
+	mach_write_to_1(log_ptr, compression_flags);
 	mlog_close(mtr, log_ptr + 1);
 }
 
@@ -368,12 +410,12 @@ page_zip_parse_compress_no_data(
 {
 	if (end_ptr == ptr)
 		return NULL;
-	uint compression_level = mach_read_from_1(ptr);
+	uchar compression_flags = mach_read_from_1(ptr);
 	/* If page compression fails then there must be something wrong
 	   because a compress log record is logged only if the compression
 	   was successful. Crash in this case. */
 	if (page
-	    && !page_zip_compress(compression_level, page_zip, page, index, NULL)) {
+	    && !page_zip_compress(compression_flags, page_zip, page, index, NULL)) {
 		ut_error;
 	}
 	return ptr + 1;
