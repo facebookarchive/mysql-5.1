@@ -115,6 +115,10 @@ extern uint srv_comp_fail_tree_size;
 /** If the compression failure rate of a table is greater than this number
  then the padding will continue to increase even after srv_comp_fail_samples */
 extern double srv_comp_fail_max_fail_rate;
+/** This determines the maximum amount of empty space that can be  reserved on a
+page to make the page compressible as a fraction of the page size. */
+extern double srv_comp_fail_max_padding;
+
 
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;

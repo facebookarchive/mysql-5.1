@@ -138,6 +138,7 @@ UNIV_INTERN uint srv_comp_fail_tree_size = 0;
 UNIV_INTERN uint srv_comp_fail_samples = 0;
 UNIV_INTERN double srv_comp_fail_max_fail_rate = 0.1;
 UNIV_INTERN uint srv_simulate_comp_failures = 0;
+UNIV_INTERN double srv_comp_fail_max_padding = .75;
 
 /** Whether to check file format during startup.  A value of
 DICT_TF_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to

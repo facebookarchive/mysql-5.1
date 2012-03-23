@@ -357,15 +357,23 @@ UNIV_INTERN
 ulint
 dict_index_comp_fail_max_page_size(dict_index_t* index) {
 	ulint ret;
+	/* If the algorithm hits a singularity case and gets very small pages
+  that fail to compress, then we may not be using the pages efficiently.
+  In order to account for this case and prevent catastrophes, we force the
+  max value for padding to be UNIV_PAGE_SIZE * srv_comp_fail_max_padding.
+	This works nicely for the secondary indexes of the tables that may inflate
+	after compression. */
 	if (srv_comp_fail_tree_size == 0)
 		return UNIV_PAGE_SIZE;
 	if (index->comp_fail_max_page_size_final) {
-		return index->comp_fail_max_page_size_final;
+		return ut_max(index->comp_fail_max_page_size_final,
+		              (ulint) ((1 - srv_comp_fail_max_padding) * UNIV_PAGE_SIZE));
 	}
 	os_fast_mutex_lock(&index->comp_fail_tree_mutex);
 	ret = index->comp_fail_max_page_size;
 	os_fast_mutex_unlock(&index->comp_fail_tree_mutex);
-	return ret;
+	return ut_max(ret,
+	              (ulint) ((1 - srv_comp_fail_max_padding) * UNIV_PAGE_SIZE));
 }
 
 UNIV_INTERN
@@ -422,20 +430,14 @@ dict_index_comp_fail_store(
 	} else {
 		rbt_insert(index->comp_fail_tree, &fail_node, &fail_node);
 	}
-	if (rbt_size(index->comp_fail_tree) < srv_comp_fail_tree_size) {
+	if (rbt_size(index->comp_fail_tree)
+	     < ut_max(srv_comp_fail_tree_size, srv_comp_fail_samples/5)) {
 		index->comp_fail_max_page_size = UNIV_PAGE_SIZE;
 	} else {
 		/* because comp_fail_tree is a balanced  binary search tree, the root has
 		   the median value for the page sizes stored in the tree */
 		n = rbt_value(comp_fail_node_t, rbt_root(index->comp_fail_tree));
-		/* If the algorithm hits a singularity case and gets very small pages
-		   that fail to compress, then we may not be using the pages efficiently.
-		   In order to account for this case and prevent catastrophes, we force the
-		   minimum value for the max page size to be UNIV_PAGE_SIZE/4. This works
-		   nicely for the indexes of the tables that may inflate up to 2X after
-		   compression. */
-		index->comp_fail_max_page_size
-		  = ut_max(n->page_size - (UNIV_PAGE_SIZE >> 7), UNIV_PAGE_SIZE/4);
+		index->comp_fail_max_page_size = n->page_size - (UNIV_PAGE_SIZE >> 7);
 	}
 
 	if (index->num_compressed_fail >= srv_comp_fail_samples

@@ -12057,6 +12057,12 @@ static MYSQL_SYSVAR_DOUBLE(comp_fail_max_fail_rate,
   " InnoDB will continue to increase the padding size.",
   NULL, NULL, 0.1, 0.01, 0.99, 0);
 
+static MYSQL_SYSVAR_DOUBLE(comp_fail_max_padding,
+  srv_comp_fail_max_padding, PLUGIN_VAR_OPCMDARG,
+  "This determines the maximum amount of empty space that can be  reserved on a"
+  " page to make the page compressible as a fraction of the page size.",
+  NULL, NULL, 0.75, 0.0, 1.0, 0);
+
 static MYSQL_SYSVAR_UINT(simulate_comp_failures, srv_simulate_comp_failures,
   PLUGIN_VAR_NOCMDARG,
   "Simulate compression failures.",
@@ -12498,6 +12504,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(comp_fail_samples),
   MYSQL_SYSVAR(comp_fail_tree_size),
   MYSQL_SYSVAR(comp_fail_max_fail_rate),
+  MYSQL_SYSVAR(comp_fail_max_padding),
   MYSQL_SYSVAR(simulate_comp_failures),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),
