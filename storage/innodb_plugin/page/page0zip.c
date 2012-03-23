@@ -1250,7 +1250,6 @@ page_zip_compress(
 
 	if (page_is_leaf(page)) {
 		n_fields = dict_index_get_n_fields(index);
-		dict_index_increment_num_compressed(index);
 	} else {
 		n_fields = dict_index_get_n_unique_in_tree(index);
 	}
@@ -1306,7 +1305,7 @@ page_zip_compress(
 	   innodb_simulate_comp_failures, only if the page has 2 or more records and
 	   the padding computation is finished. */
 	if (srv_simulate_comp_failures
-	    && (index->comp_fail_max_page_size_final || srv_comp_fail_samples == 0)
+	    && index->padding_algo == PADDING_ALGO_NONE
 	    && page_get_n_recs(page) >= 2
 	    && ((rand() % 100) < srv_simulate_comp_failures)) {
 #ifdef UNIV_DEBUG
@@ -1473,14 +1472,12 @@ err_exit:
 			if (dict_index_is_clust(index)) {
 				++space->comp_stat.compressed_primary;
 				space->comp_stat.compressed_primary_usec += udiff;
+				space->comp_stat.padding =
+				  UNIV_PAGE_SIZE - dict_index_comp_max_page_size(index);
 			}
 		}
 		if (page_is_leaf(page)) {
-			dict_index_comp_fail_store(index, page_get_data_size(page));
-			/* only update the padding for table if this is the primary index */
-			if (dict_index_is_clust(index))
-				space->comp_stat.padding =
-				  UNIV_PAGE_SIZE - dict_index_comp_fail_max_page_size(index);
+			dict_index_comp_fail(index, page_get_data_size(page));
 		}
 		mutex_exit(&fil_system->mutex);
 
@@ -1574,10 +1571,15 @@ err_exit:
 			++space->comp_stat.compressed_primary_ok;
 			space->comp_stat.compressed_primary_usec += udiff;
 			space->comp_stat.compressed_primary_ok_usec += udiff;
+			/* only update the padding for table if this is the primary index */
+			space->comp_stat.padding =
+			  UNIV_PAGE_SIZE - dict_index_comp_max_page_size(index);
 		}
 	}
+	if (page_is_leaf(page)) {
+		dict_index_comp_success(index, page_get_data_size(page));
+	}
 	mutex_exit(&fil_system->mutex);
-
 #endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);

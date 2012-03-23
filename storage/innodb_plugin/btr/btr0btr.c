@@ -2681,7 +2681,7 @@ err_exit:
 	    && zip_size
 	    && page_is_leaf(merge_page)
 	    && ((page_get_data_size(merge_page) + data_size)
-	        >= dict_index_comp_fail_max_page_size(index))) {
+	        >= dict_index_comp_max_page_size(index))) {
 		mutex_enter(&fil_system->mutex);
 		++fil_space_get_by_id(space)->comp_stat.padding_savings;
 		mutex_exit(&fil_system->mutex);

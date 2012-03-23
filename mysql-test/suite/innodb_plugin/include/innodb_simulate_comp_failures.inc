@@ -3,11 +3,10 @@
 --echo #
 --source include/not_embedded.inc
 --source include/have_innodb.inc
-
+--disable_query_log
 # record the file format in order to restore in the end.
 --let $file_format_save = `SELECT @@innodb_file_format`
 --let $file_format_check_save = `SELECT @@innodb_file_format_check`
---let $comp_fail_samples_save = `SELECT @@innodb_comp_fail_samples`
 --let $simulate_comp_failures_save = `SELECT @@innodb_simulate_comp_failures`
 
 --disable_warnings
@@ -17,16 +16,13 @@ SET GLOBAL INNODB_FILE_FORMAT='Barracuda';
 
 # since this test generates lot of errors in log, suppress checking errors
 call mtr.add_suppression(".*");
-
+--enable_query_log
 # create the table with compressed pages of size 8K.
 CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255), KEY msg_i(msg))
 ENGINE=INNODB
 ROW_FORMAT=COMPRESSED
 KEY_BLOCK_SIZE=8;
 
-# turn off adaptive padding so that it's not confused
-# by random compression failures
-SET GLOBAL innodb_comp_fail_samples = 0;
 # percentage of compressions that will be forced to fail
 SET GLOBAL innodb_simulate_comp_failures = 25;
 --disable_query_log
@@ -117,15 +113,14 @@ while($num_ops_ind)
   dec $num_ops_ind;
 }
 
---enable_query_log
 --enable_result_log
 # success rate must be approx 75%, we require it to be between 70% and 90%.
 SELECT compress_ops_ok/compress_ops > .7, compress_ops_ok/compress_ops < .9 from information_schema.innodb_cmp where page_size=8192;
+--disable_query_log
 # final cleanup
 DROP TABLE t1;
-
 # restore innodb_file_format and innodb_file_format_check
 eval SET GLOBAL innodb_file_format = \"$file_format_save\";
 eval SET GLOBAL innodb_file_format_check = \"$file_format_check_save\";
-eval SET GLOBAL innodb_comp_fail_samples = $comp_fail_samples_save;
 eval SET GLOBAL innodb_simulate_comp_failures = $simulate_comp_failures_save;
+--enable_query_log

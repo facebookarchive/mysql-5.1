@@ -1207,13 +1207,13 @@ fail_err:
 
 #ifndef UNIV_HOTBACKUP
 	/* We subtract rec_size from the return value of
-	   dict_index_comp_fail_max_page_size() to make sure that the page
+	   dict_index_comp_max_page_size() to make sure that the page
 	   size we obtain is well below the threshold for failing to compress */
 	if (!recv_recovery_is_on()
 	    && zip_size
 	    && leaf
 	    && ((rec_size + page_get_data_size(page))
-	        >= dict_index_comp_fail_max_page_size(index))) {
+	        >= dict_index_comp_max_page_size(index))) {
 		mutex_enter(&fil_system->mutex);
 		++fil_space_get_by_id(index->space)->comp_stat.padding_savings;
 		mutex_exit(&fil_system->mutex);
@@ -1735,13 +1735,13 @@ btr_cur_update_alloc_zip(
 	page = buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP
 	/* We subtract length from the return value of
-	   dict_index_comp_fail_max_page_size() to make sure that the page
+	   dict_index_comp_max_page_size() to make sure that the page
 	   size we obtain is well below the threshold for failing to compress */
 	if (create
 	    && !recv_recovery_is_on()
 	    && page_is_leaf(page)
 	    && ((length + page_get_data_size(page))
-	        >= dict_index_comp_fail_max_page_size(index))) {
+	        >= dict_index_comp_max_page_size(index))) {
 		mutex_enter(&fil_system->mutex);
 		++fil_space_get_by_id(index->space)->comp_stat.padding_savings;
 		mutex_exit(&fil_system->mutex);

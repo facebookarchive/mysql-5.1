@@ -272,10 +272,18 @@ struct dict_field_struct{
 					DICT_MAX_INDEX_COL_LEN */
 };
 
-typedef struct comp_fail_node_st {
-	ulint	page_size;	/* size of the page failed to compress */
-	ulint	ind;	/* the rank at which it was inserted into comp_fail_tree */
-} comp_fail_node_t;
+UNIV_INTERN
+void*
+dict_padding_state_create(
+/*==============*/
+	uint type);
+
+UNIV_INTERN
+void
+dict_padding_state_free(
+/*===================*/
+	uint type,
+	void *state);
 
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
@@ -333,13 +341,11 @@ struct dict_index_struct{
 	ulint		stat_n_leaf_pages;
 				/*!< approximate number of leaf pages in the
 				index tree */
-	ib_rbt_t		*comp_fail_tree;
-	os_fast_mutex_t	comp_fail_tree_mutex;
-	ulint		num_compressed;
-	ulint		num_compressed_fail;
-	ulint		comp_fail_max_page_size;
-	ulint		comp_fail_max_page_size_final;
-	ulint		comp_fail_ind;
+	uint		padding_algo;
+				/*!< padding algorithm used to compute padding
+				compressed pages */
+	void*		padding_state;
+				/*!< state used by the padding algorithm */
 	/* @} */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */

@@ -106,20 +106,6 @@ recompressed */
 extern my_bool srv_log_compressed_pages;
 extern uint srv_simulate_comp_failures;
 
-/** Number of page size samples collected from pages that fail to compress to
-determine the ideal page size that won't fail to compress. */
-extern uint srv_comp_fail_samples;
-/** Size of the red black tree for computing the average page size
-for pages that fail to compress. */
-extern uint srv_comp_fail_tree_size;
-/** If the compression failure rate of a table is greater than this number
- then the padding will continue to increase even after srv_comp_fail_samples */
-extern double srv_comp_fail_max_fail_rate;
-/** This determines the maximum amount of empty space that can be  reserved on a
-page to make the page compressible as a fraction of the page size. */
-extern double srv_comp_fail_max_padding;
-
-
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
 /** Whether to check file format during startup.  A value of

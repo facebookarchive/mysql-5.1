@@ -12046,29 +12046,34 @@ static MYSQL_SYSVAR_DOUBLE(segment_reserve_factor, fseg_reserve_factor,
   " use unused pages of the segment.",
   NULL, NULL, 0.01, 0.0003, 0.4, 0);
 
-static MYSQL_SYSVAR_UINT(comp_fail_samples,
-  srv_comp_fail_samples, PLUGIN_VAR_OPCMDARG,
+static MYSQL_SYSVAR_ULONG(padding_tree_samples,
+  dict_padding_tree_samples, PLUGIN_VAR_OPCMDARG,
   "Number of page size samples collected from pages that fail to compress to"
   " determine the ideal page size that won't fail to compress.",
   NULL, NULL, 200, 0, 1000, 0);
 
-static MYSQL_SYSVAR_UINT(comp_fail_tree_size,
-  srv_comp_fail_tree_size, PLUGIN_VAR_OPCMDARG,
+static MYSQL_SYSVAR_ULONG(padding_tree_size,
+  dict_padding_tree_size, PLUGIN_VAR_OPCMDARG,
   "Size of the red black tree for computing the average page size"
   " for pages that fail to compress.",
   NULL, NULL, 10, 0, 1000, 0);
 
-static MYSQL_SYSVAR_DOUBLE(comp_fail_max_fail_rate,
-  srv_comp_fail_max_fail_rate, PLUGIN_VAR_OPCMDARG,
+static MYSQL_SYSVAR_DOUBLE(padding_max_fail_rate,
+  dict_padding_max_fail_rate, PLUGIN_VAR_OPCMDARG,
   "If the compression failure rate of a table is greater than this number"
   " InnoDB will continue to increase the padding size.",
-  NULL, NULL, 0.1, 0.01, 0.99, 0);
+  NULL, NULL, 0.05, 0.01, 0.99, 0);
 
-static MYSQL_SYSVAR_DOUBLE(comp_fail_max_padding,
-  srv_comp_fail_max_padding, PLUGIN_VAR_OPCMDARG,
+static MYSQL_SYSVAR_DOUBLE(padding_max,
+  dict_padding_max, PLUGIN_VAR_OPCMDARG,
   "This determines the maximum amount of empty space that can be  reserved on a"
   " page to make the page compressible as a fraction of the page size.",
   NULL, NULL, 0.75, 0.0, 1.0, 0);
+
+static MYSQL_SYSVAR_UINT(padding_algo, dict_padding_algo,
+  PLUGIN_VAR_OPCMDARG,
+  "Padding algorithm to be used for compressed pages.",
+  NULL, NULL, PADDING_ALGO_LINEAR, 0, PADDING_ALGO_MAX, 0);
 
 static MYSQL_SYSVAR_UINT(simulate_comp_failures, srv_simulate_comp_failures,
   PLUGIN_VAR_NOCMDARG,
@@ -12381,8 +12386,7 @@ static MYSQL_SYSVAR_BOOL(zlib_wrap, page_zip_zlib_wrap,
   "for the compressed data by specifying a negative windowBits value for "
   "deflateInit2(). This reduces the size of the compressed data and saves CPU. "
   "See the documentation for deflateInit2() at http://zlib.net/manual.html "
-  "for details. Changing this dynamically may break xtrabackup and crash "
-  "recovery.",
+  "for details.",
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_UINT(zlib_strategy, page_zip_zlib_strategy,
@@ -12392,8 +12396,7 @@ static MYSQL_SYSVAR_UINT(zlib_strategy, page_zip_zlib_strategy,
   "3(RLE = run length encoding), and 4 (FIXED = no dynamic huffman codes, "
   "faster decompression). This value should not be set to something other than "
   "0 except for testing purposes. In the future we may add the ability to set "
-  "this per table which should be more useful. Changing this dynamically may "
-  "break xtrabackup and crash recovery.",
+  "this per table which should be more useful.",
   NULL, NULL, 0, 0, 4, 0);
 
 static MYSQL_SYSVAR_ULONG(aio_old_usecs, os_aio_old_usecs,
@@ -12530,10 +12533,11 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif /* UNIV_LOG_ARCHIVE */
   MYSQL_SYSVAR(log_buffer_size),
   MYSQL_SYSVAR(log_compressed_pages),
-  MYSQL_SYSVAR(comp_fail_samples),
-  MYSQL_SYSVAR(comp_fail_tree_size),
-  MYSQL_SYSVAR(comp_fail_max_fail_rate),
-  MYSQL_SYSVAR(comp_fail_max_padding),
+  MYSQL_SYSVAR(padding_tree_samples),
+  MYSQL_SYSVAR(padding_tree_size),
+  MYSQL_SYSVAR(padding_max_fail_rate),
+  MYSQL_SYSVAR(padding_max),
+  MYSQL_SYSVAR(padding_algo),
   MYSQL_SYSVAR(simulate_comp_failures),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),
