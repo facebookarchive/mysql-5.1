@@ -11934,7 +11934,7 @@ static MYSQL_SYSVAR_BOOL(extra_checksums_unzip_lru,
   "Update the checksum of a compressed page when the uncompressed "
   "frame is evicted from unzip_LRU. This is a kludge for the mysql "
   "bug http://bugs.mysql.com/bug.php?id=64715",
-  NULL, NULL, TRUE);
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
   PLUGIN_VAR_READONLY,

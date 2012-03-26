@@ -570,7 +570,7 @@ UNIV_INTERN my_bool	srv_extra_checksums = FALSE;
 /** Update the checksum of a compressed page when the uncompressed
 frame is evicted from unzip_LRU. This is a kludge for the mysql
 bug http://bugs.mysql.com/bug.php?id=64715. */
-UNIV_INTERN my_bool srv_extra_checksums_unzip_lru = TRUE;
+UNIV_INTERN my_bool srv_extra_checksums_unzip_lru = FALSE;
 
 /** Limit the unzip_LRU to this number of pages expressed as
 a percentage of the number of pages on the LRU. */
