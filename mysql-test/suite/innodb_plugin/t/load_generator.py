@@ -83,6 +83,8 @@ class Worker(threading.Thread):
       insert_or_update = self.rand.randint(0, 3)
       msg = sha1("%d%d" % (idx, self.loop_num))
       self.loop_num += 1
+      if self.rand.randint(0, 36) == 0:
+        cur.execute("SET GLOBAL innodb_zlib_wrap=1-@@innodb_zlib_wrap");
       try:
         stmt = None
         if insert_or_update:
@@ -140,6 +142,8 @@ class Worker(threading.Thread):
       insert_or_update = self.rand.randint(0, 3)
       msg = sha1("%d%d" % (idx, self.loop_num))
       self.loop_num += 1
+      if self.rand.randint(0, 36) == 0:
+        cur.execute("SET GLOBAL innodb_zlib_wrap=1-@@innodb_zlib_wrap");
       try:
         stmt = None
         if insert_or_update:

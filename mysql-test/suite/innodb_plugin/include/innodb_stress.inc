@@ -27,6 +27,9 @@ call mtr.add_suppression(".*");
 --let $master_host = 127.0.0.1
 --let $table = test
 --let $user = root
+--disable_query_log
+--let $zlib_wrap_save = `SELECT @@innodb_zlib_wrap`
+--enable_query_log
 
 while ($num_crashes)
 {
@@ -117,5 +120,7 @@ connection master;
 # restore innodb_file_format and innodb_file_format_check
 # Wish we did not have to waste time on this -- http://bugs.mysql.com/bug.php?id=62075
 SET GLOBAL innodb_file_format_check = "Antelope";
-
+--disable_query_log
+eval SET GLOBAL innodb_zlib_wrap=$zlib_wrap_save;
+--enable_query_log
 --exec rm -rf /tmp/load_generator
