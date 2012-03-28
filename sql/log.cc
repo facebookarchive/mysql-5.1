@@ -2357,7 +2357,7 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
   /* For slow query log */
   sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
   sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
-  if (opt_log_slow_extra && query_start_arg)
+  if (opt_log_slow_extra && query_start_arg && query_start)
   {
     struct tm tm_tmp;
 
