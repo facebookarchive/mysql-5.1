@@ -108,9 +108,9 @@ void my_getopt_register_get_addr(my_getopt_value func_addr)
   getopt_get_addr= func_addr;
 }
 
-int handle_options(int *argc, char ***argv, 
+int handle_options_low(int *argc, char ***argv, 
 		   const struct my_option *longopts,
-                   my_get_one_option get_one_option)
+                   my_get_one_option get_one_option, my_bool fix_doubles)
 {
   uint UNINIT_VAR(opt_found), argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
@@ -120,7 +120,20 @@ int handle_options(int *argc, char ***argv,
   const struct my_option *optp;
   void *value;
   int error, i;
+  struct my_option *opt = (struct my_option*)longopts;
 
+  if (fix_doubles) {
+    for (; opt->name; opt++) {
+      switch (opt->var_type) {
+      case GET_DOUBLE:
+        opt->def_value *= (1 << 20);
+        opt->min_value *= (1 << 20);
+        opt->max_value *= (1 << 20);
+      default:
+        continue;
+      }
+    }
+  }
   /* handle_options() assumes arg0 (program name) always exists */
   DBUG_ASSERT(argc && *argc >= 1);
   DBUG_ASSERT(argv && *argv);
@@ -556,6 +569,13 @@ int handle_options(int *argc, char ***argv,
   */
   (*argv)[argvpos]= 0;
   return 0;
+}
+
+int handle_options(int *argc, char ***argv, 
+		   const struct my_option *longopts,
+                   my_get_one_option get_one_option)
+{
+	return handle_options_low(argc, argv, longopts, get_one_option, TRUE);
 }
 
 

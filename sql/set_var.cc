@@ -3301,6 +3301,8 @@ bool sys_var_microseconds::update(THD *thd, set_var *var)
 void sys_var_microseconds::set_default(THD *thd, enum_var_type type)
 {
   longlong microseconds= (longlong) (option_limits->def_value * 1000000.0);
+  if (option_limits->var_type == GET_DOUBLE)
+    microseconds /= (1 << 20);
   if (type == OPT_GLOBAL)
   {
     pthread_mutex_lock(&LOCK_global_system_variables);

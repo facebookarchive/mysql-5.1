@@ -3364,7 +3364,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
     */
     opts[0].def_value= opts[1].def_value= (int)plugin_load_policy;
 
-    error= handle_options(argc, &argv, opts, get_one_plugin_option);
+    error= handle_options_low(argc, &argv, opts, get_one_plugin_option, FALSE);
     (*argc)++; /* add back one for the program name */
 
     if (error)
