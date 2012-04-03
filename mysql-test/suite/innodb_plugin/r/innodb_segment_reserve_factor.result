@@ -15,5 +15,5 @@ SET GLOBAL innodb_segment_reserve_factor = 0.002;
 CREATE TABLE t2 like t1;
 LOAD DATA INFILE 'segment_reserve_factor.dat' INTO TABLE t2;
 # comparing the sizes of t1.ibd and t2.ibd (t2.ibd must be at most 95% of t1.ibd)
-cd var/mysqld.1/data/test; stat -c %s t1.ibd  t2.ibd | xargs | awk '{if ($2/$1 < .95) print "PASS"; else print "FAIL";}'
+stat -c %s var/mysqld.1/data/test/t1.ibd  var/mysqld.1/data/test/t2.ibd | xargs | awk '{if ($2/$1 < .95) print "PASS"; else print "FAIL";}'
 PASS
