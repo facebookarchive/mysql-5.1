@@ -1,2 +1,0 @@
-SET GLOBAL innodb_comp_fail_tree_size = 0;
-SET GLOBAL innodb_comp_fail_tree_size = 1000;
