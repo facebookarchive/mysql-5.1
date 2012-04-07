@@ -3,7 +3,7 @@ AC_DEFUN([GOOGLE_CHECK_PERFTOOLS_DIR], [
 save_CPPFLAGS="$CPPFLAGS"
 save_LIBS="$LIBS"
 CPPFLAGS="$PERFTOOLS_INCLUDES $CPPFLAGS"
-LIBS="$LIBS $PERFTOOLS_LIBS -lprofiler -lstdc++"
+LIBS="$LIBS $PERFTOOLS_LIBS $mysql_perftools_dir/lib/libprofiler.a -lstdc++"
 AC_CACHE_VAL([mysql_cv_perftools],
   [AC_TRY_LINK([#include <profiler.h>],
     [ProfilerDisable(); return 0;],
@@ -69,13 +69,10 @@ case "$mysql_perftools_dir" in
     ;;
   *)
     # Test for perftools using all known library file endings
-    if test \( -f "$mysql_perftools_dir/lib/libprofiler.a"  -o \
-               -f "$mysql_perftools_dir/lib/libprofiler.so" -o \
-               -f "$mysql_perftools_dir/lib/libprofiler.sl" -o \
-               -f "$mysql_perftools_dir/lib/libprofiler.dylib" \) \
-            -a -f "$mysql_perftools_dir/include/google/tcmalloc.h"; then
+    if test -f "$mysql_perftools_dir/lib/libprofiler.a" -a \
+            -f "$mysql_perftools_dir/include/google/tcmalloc.h"; then
+      PERFTOOLS_LIBS=""
       PERFTOOLS_INCLUDES="-I$mysql_perftools_dir/include/google"
-      PERFTOOLS_LIBS="-L$mysql_perftools_dir/lib"
       GOOGLE_CHECK_PERFTOOLS_DIR
     fi
     if test "x$mysql_cv_perftools" != "xyes"; then 
@@ -102,17 +99,17 @@ AC_ARG_ENABLE(perftools-stacktrace,
 if test "$mysql_cv_perftools" = "yes"; then
   if test "$enable_perftools_profiling" = "yes"; then
     AC_DEFINE([GOOGLE_PROFILE], [1], [Define to enable perftools support])
-    PERFTOOLS_LIBS="$PERFTOOLS_LIBS -lprofiler"
+    PERFTOOLS_LIBS="$mysql_perftools_dir/lib/libprofiler.a"
   fi
 
   if test "$enable_perftools_tcmalloc" = "yes"; then
     AC_DEFINE([GOOGLE_TCMALLOC], [1], [Define to enable perftools tcmalloc support])
-    PERFTOOLS_LIBS="$PERFTOOLS_LIBS -ltcmalloc_minimal"
+    PERFTOOLS_LIBS="$PERFTOOLS_LIBS $mysql_perftools_dir/lib/libtcmalloc_minimal.a"
   fi
 
   if test "$enable_perftools_stacktrace" = "yes"; then
     AC_DEFINE([GOOGLE_STACKTRACE], [1], [Define to enable perftools stacktrace stuff])
-    PERFTOOLS_LIBS="$PERFTOOLS_LIBS -lstacktrace"
+    PERFTOOLS_LIBS="$PERFTOOLS_LIBS $mysql_perftools_dir/lib/libstacktrace.a"
   fi
 
   if test "x$PERFTOOLS_DEPS" = "x"; then
