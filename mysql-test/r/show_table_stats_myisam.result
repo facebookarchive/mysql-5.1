@@ -74,14 +74,14 @@ insert into p1 select * from src;
 analyze table p1;
 flush statistics;
 update p1 set a = 32 where a = 1;
-select 'should be 1,0,1,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
-should be 1,0,1,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
-should be 1,0,1,0	1	0	1	0
+select 'should be (1 or 2),0,1,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
+should be (1 or 2),0,1,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
+should be (1 or 2),0,1,0	1	0	1	0
 flush statistics;
 update p1 set a = 51 where a = 32;
-select 'should be 1,0,1,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
-should be 1,0,1,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
-should be 1,0,1,0	1	0	1	0
+select 'should be (1 or 2),0,1,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
+should be (1 or 2),0,1,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
+should be (1 or 2),0,1,0	1	0	1	0
 delete from p1;
 insert into p1 select * from src;
 analyze table p1;
@@ -145,9 +145,9 @@ flush statistics;
 select count(*) from p1 where a < 0;
 count(*)
 0
-select 'should be 1,0,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
-should be 1,0,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
-should be 1,0,0,0	1	0	0	0
+select 'should be (0 or 1),0,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
+should be (0 or 1),0,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
+should be (0 or 1),0,0,0	1	0	0	0
 flush statistics;
 select a from p1 where a < 32 order by a desc;
 a
@@ -231,16 +231,16 @@ should be 1,0,0,0	1	0	0	0
 flush statistics;
 select b from s1 where b < 0;
 b
-select 'should be 1,0,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 's1';
-should be 1,0,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
-should be 1,0,0,0	1	0	0	0
+select 'should be (0 or 1),0,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 's1';
+should be (0 or 1),0,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
+should be (0 or 1),0,0,0	1	0	0	0
 flush statistics;
 select b from s1 where b < 2;
 b
 1
-select 'should be 2,0,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 's1';
-should be 2,0,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
-should be 2,0,0,0	2	0	0	0
+select 'should be (1 or 2),0,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 's1';
+should be (1 or 2),0,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
+should be (1 or 2),0,0,0	2	0	0	0
 flush statistics;
 select b from s1 where b < 4 order by b desc;
 b

@@ -7870,7 +7870,7 @@ Deletes all rows of an InnoDB table.
 @return	error number */
 UNIV_INTERN
 int
-ha_innobase::delete_all_rows(void)
+ha_innobase::delete_all_rows(ha_rows* nrows)
 /*==============================*/
 {
 	int		error;
@@ -7907,8 +7907,11 @@ ha_innobase::delete_all_rows(void)
 	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
 					    NULL);
 
-	if (!error)
+	if (!error) {
 		stats.rows_deleted += n_rows;
+    if (nrows != NULL)
+      *nrows= n_rows;
+  }
 
 	DBUG_RETURN(error);
 }

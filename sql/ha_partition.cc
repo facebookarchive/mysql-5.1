@@ -3134,6 +3134,8 @@ int ha_partition::write_row(uchar * buf)
   reenable_binlog(thd);
 exit:
   table->timestamp_field_type= orig_timestamp_type;
+  if (!error)
+    stats.rows_inserted++;
   DBUG_RETURN(error);
 }
 
@@ -3238,6 +3240,8 @@ exit:
     set_auto_increment_if_higher(table->found_next_number_field);
   }
   table->timestamp_field_type= orig_timestamp_type;
+  if (!error)
+    stats.rows_updated++;
   DBUG_RETURN(error);
 }
 
@@ -3285,6 +3289,8 @@ int ha_partition::delete_row(const uchar *buf)
   tmp_disable_binlog(thd);
   error= m_file[part_id]->ha_delete_row(buf);
   reenable_binlog(thd);
+  if (!error)
+    stats.rows_deleted++;
   DBUG_RETURN(error);
 }
 
@@ -3311,12 +3317,13 @@ int ha_partition::delete_row(const uchar *buf)
     Called from sql_union.cc by st_select_lex_unit::exec().
 */
 
-int ha_partition::delete_all_rows()
+int ha_partition::delete_all_rows(ha_rows* nrows)
 {
   int error;
   bool truncate= FALSE;
   handler **file;
   THD *thd= ha_thd();
+  ha_rows nrows_in_partition= 0;
   DBUG_ENTER("ha_partition::delete_all_rows");
 
   if (thd->lex->sql_command == SQLCOM_TRUNCATE)
@@ -3331,8 +3338,11 @@ int ha_partition::delete_all_rows()
   file= m_file;
   do
   {
-    if ((error= (*file)->ha_delete_all_rows()))
+    if ((error= (*file)->ha_delete_all_rows(&nrows_in_partition)))
       DBUG_RETURN(error);
+    stats.rows_deleted+= nrows_in_partition;
+    if (nrows != NULL)
+      *nrows+= nrows_in_partition;
     /* Ignore the error */
     if (truncate)
       (void) (*file)->ha_reset_auto_increment(0);
@@ -3684,6 +3694,7 @@ int ha_partition::rnd_next(uchar *buf)
   uint part_id= m_part_spec.start_part;
   DBUG_ENTER("ha_partition::rnd_next");
 
+  stats.rows_requested++;
   if (NO_CURRENT_PART_ID == part_id)
   {
     /*
@@ -3704,6 +3715,7 @@ int ha_partition::rnd_next(uchar *buf)
       m_last_part= part_id;
       m_part_spec.start_part= part_id;
       table->status= 0;
+      stats.rows_read++;
       DBUG_RETURN(0);
     }
 
@@ -3831,7 +3843,11 @@ int ha_partition::rnd_pos(uchar * buf, uchar *pos)
   DBUG_ASSERT(part_id < m_tot_parts);
   file= m_file[part_id];
   m_last_part= part_id;
-  DBUG_RETURN(file->rnd_pos(buf, (pos + PARTITION_BYTES_IN_POS)));
+  int error= file->rnd_pos(buf, (pos + PARTITION_BYTES_IN_POS));
+  if (!error)
+    stats.rows_read++;
+  stats.rows_requested++;
+  DBUG_RETURN(error);
 }
 
 
@@ -4043,7 +4059,14 @@ int ha_partition::index_read_map(uchar *buf, const uchar *key,
   m_start_key.key= key;
   m_start_key.keypart_map= keypart_map;
   m_start_key.flag= find_flag;
-  DBUG_RETURN(common_index_read(buf, TRUE));
+  int error= common_index_read(buf, TRUE);
+  if (!error)
+  {
+    stats.rows_read++;
+    stats.rows_index_first++;
+  }
+  stats.rows_requested++;
+  DBUG_RETURN(error);
 }
 
 
@@ -4169,7 +4192,14 @@ int ha_partition::index_first(uchar * buf)
 
   end_range= 0;
   m_index_scan_type= partition_index_first;
-  DBUG_RETURN(common_first_last(buf));
+  int error= common_first_last(buf);
+  if (!error)
+  {
+    stats.rows_read++;
+    stats.rows_index_first++;
+  }
+  stats.rows_requested++;
+  DBUG_RETURN(error);
 }
 
 
@@ -4199,7 +4229,14 @@ int ha_partition::index_last(uchar * buf)
   DBUG_ENTER("ha_partition::index_last");
 
   m_index_scan_type= partition_index_last;
-  DBUG_RETURN(common_first_last(buf));
+  int error= common_first_last(buf);
+  if (!error)
+  {
+    stats.rows_read++;
+    stats.rows_index_first++;
+  }
+  stats.rows_requested++;
+  DBUG_RETURN(error);
 }
 
 /*
@@ -4253,7 +4290,14 @@ int ha_partition::index_read_last_map(uchar *buf, const uchar *key,
   m_start_key.key= key;
   m_start_key.keypart_map= keypart_map;
   m_start_key.flag= HA_READ_PREFIX_LAST;
-  DBUG_RETURN(common_index_read(buf, TRUE));
+  int error= common_index_read(buf, TRUE);
+  if (!error)
+  {
+    stats.rows_read++;
+    stats.rows_index_first++;
+  }
+  stats.rows_requested++;
+  DBUG_RETURN(error);
 }
 
 
@@ -4307,6 +4351,12 @@ int ha_partition::index_read_idx_map(uchar *buf, uint index,
     /* fall back on the default implementation */
     error= handler::index_read_idx_map(buf, index, key, keypart_map, find_flag);
   }
+  if (!error)
+  {
+    stats.rows_read++;
+    stats.rows_index_first++;
+  }
+  stats.rows_requested++;
   DBUG_RETURN(error);
 }
 
@@ -4336,11 +4386,19 @@ int ha_partition::index_next(uchar * buf)
     must be able to do index_last() -> index_prev() -> index_next()
   */
   DBUG_ASSERT(m_index_scan_type != partition_index_last);
+  int error;
   if (!m_ordered_scan_ongoing)
+    error= handle_unordered_next(buf, FALSE);
+  else
+    error= handle_ordered_next(buf, FALSE);
+
+  if (!error)
   {
-    DBUG_RETURN(handle_unordered_next(buf, FALSE));
+    stats.rows_read++;
+    stats.rows_index_next++;
   }
-  DBUG_RETURN(handle_ordered_next(buf, FALSE));
+  stats.rows_requested++;
+  DBUG_RETURN(error);
 }
 
 
@@ -4368,9 +4426,18 @@ int ha_partition::index_next_same(uchar *buf, const uchar *key, uint keylen)
 
   DBUG_ASSERT(keylen == m_start_key.length);
   DBUG_ASSERT(m_index_scan_type != partition_index_last);
+  int error;
   if (!m_ordered_scan_ongoing)
-    DBUG_RETURN(handle_unordered_next(buf, TRUE));
-  DBUG_RETURN(handle_ordered_next(buf, TRUE));
+    error= handle_unordered_next(buf, TRUE);
+  else
+    error= handle_ordered_next(buf, TRUE);
+  if (!error)
+  {
+    stats.rows_read++;
+    stats.rows_index_next++;
+  }
+  stats.rows_requested++;
+  DBUG_RETURN(error);
 }
 
 
@@ -4395,7 +4462,14 @@ int ha_partition::index_prev(uchar * buf)
 
   /* TODO: read comment in index_next */
   DBUG_ASSERT(m_index_scan_type != partition_index_first);
-  DBUG_RETURN(handle_ordered_prev(buf));
+  int error= handle_ordered_prev(buf);
+  if (!error)
+  {
+    stats.rows_read++;
+    stats.rows_index_next++;
+  }
+  stats.rows_requested++;
+  DBUG_RETURN(error);
 }
 
 
@@ -4447,6 +4521,13 @@ int ha_partition::read_range_first(const key_range *start_key,
 
   m_index_scan_type= partition_read_range;
   error= common_index_read(m_rec0, test(start_key));
+  if (!error) {
+    stats.rows_read++;
+    if (test(start_key))
+      stats.rows_index_first++;
+  }
+  stats.rows_requested++;
+
   DBUG_RETURN(error);
 }
 
@@ -4466,11 +4547,18 @@ int ha_partition::read_range_next()
 {
   DBUG_ENTER("ha_partition::read_range_next");
 
+  int error;
   if (m_ordered_scan_ongoing)
+    error= handle_ordered_next(table->record[0], eq_range);
+  else
+    error= handle_unordered_next(table->record[0], eq_range);
+  if (!error)
   {
-    DBUG_RETURN(handle_ordered_next(table->record[0], eq_range));
+    stats.rows_read++;
+    stats.rows_index_next++;
   }
-  DBUG_RETURN(handle_unordered_next(table->record[0], eq_range));
+  stats.rows_requested++;
+  DBUG_RETURN(error);
 }
 
 

@@ -1316,7 +1316,7 @@ public:
   }
   int ha_bulk_update_row(const uchar *old_data, uchar *new_data,
                          uint *dup_key_found);
-  int ha_delete_all_rows();
+  int ha_delete_all_rows(ha_rows* nrows=NULL);
   int ha_reset_auto_increment(ulonglong value);
   int ha_backup(THD* thd, HA_CHECK_OPT* check_opt);
   int ha_restore(THD* thd, HA_CHECK_OPT* check_opt);
@@ -2009,8 +2009,10 @@ private:
     return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
     by one. It should reset auto_increment if
     thd->lex->sql_command == SQLCOM_TRUNCATE.
+
+    @param nrows If not NULL, it will be set to the number of rows deleted
   */
-  virtual int delete_all_rows()
+  virtual int delete_all_rows(ha_rows* nrows=NULL)
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
   /**
     Reset the auto-increment counter to the given value, i.e. the next row

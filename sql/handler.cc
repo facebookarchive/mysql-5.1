@@ -3481,11 +3481,11 @@ handler::ha_bulk_update_row(const uchar *old_data, uchar *new_data,
 */
 
 int
-handler::ha_delete_all_rows()
+handler::ha_delete_all_rows(ha_rows* nrows)
 {
   mark_trx_read_write();
 
-  return delete_all_rows();
+  return delete_all_rows(nrows);
 }
 
 

@@ -1982,7 +1982,7 @@ int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
   return mi_extra(file, operation, (void*) &cache_size);
 }
 
-int ha_myisam::delete_all_rows()
+int ha_myisam::delete_all_rows(ha_rows* nrows)
 {
   MI_ISAMINFO misam_info;
   (void) mi_status(file,&misam_info, HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -1991,6 +1991,8 @@ int ha_myisam::delete_all_rows()
 
   if (!r)
     stats.rows_deleted += misam_info.records;
+  if (nrows != NULL)
+    *nrows= misam_info.records;
 
   return r;
 }

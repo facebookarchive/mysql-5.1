@@ -433,11 +433,13 @@ int ha_heap::reset()
 }
 
 
-int ha_heap::delete_all_rows()
+int ha_heap::delete_all_rows(ha_rows* nrows)
 {
   HEAPINFO hp_info;
   (void) heap_info(file,&hp_info,0);
   stats.rows_deleted += hp_info.records;
+  if (nrows != NULL)
+    nrows+= hp_info.records;
 
   heap_clear(file);
   if (table->s->tmp_table == NO_TMP_TABLE)

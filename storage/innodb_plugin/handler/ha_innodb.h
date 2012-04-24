@@ -190,7 +190,7 @@ class ha_innobase: public handler
 	void update_create_info(HA_CREATE_INFO* create_info);
 	int create(const char *name, register TABLE *form,
 					HA_CREATE_INFO *create_info);
-	int delete_all_rows();
+	int delete_all_rows(ha_rows* nrows=NULL);
 	int delete_table(const char *name, my_bool delayed_drop);
 	int delayed_drop_table();
 	int rename_table(const char* from, const char* to);
