@@ -120,6 +120,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
   SQLCOM_HA_OPEN_READ_CLOSE,
   SQLCOM_SHOW_ENGINE_TRX,
+  SQLCOM_SHOW_MEMORY_STATUS,
 
   /*
     When a command is added here, be sure it's also added in mysqld.cc

@@ -46,6 +46,10 @@ my_atomic_bigint transaction_control_fails= 0;
 #include "sql_trigger.h"
 #include "my_atomic.h"
 
+#ifdef HAVE_JEMALLOC
+#include "jemalloc/jemalloc.h"
+#endif
+
 /**
   @defgroup Runtime_Environment Runtime Environment
   @{
@@ -341,6 +345,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE_DB]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_MASTER_STAT]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_MEMORY_STATUS]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_PROC]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]=  CF_STATUS_COMMAND;
@@ -2313,6 +2318,78 @@ bool sp_process_definer(THD *thd)
   DBUG_RETURN(FALSE);
 }
 
+typedef struct
+{
+  char *cur;
+  char *end;
+} malloc_status;
+
+static void update_malloc_status()
+{
+#ifdef HAVE_JEMALLOC
+  uint64_t val= 1;
+  size_t len = sizeof(val);
+
+  mallctl("epoch", &val, &len, &val, sizeof(uint64_t));
+#endif
+}
+
+static void get_jemalloc_status(void* mstat_arg, const char* status)
+{
+  malloc_status* mstat= (malloc_status*) mstat_arg;
+  size_t status_len= status ? strlen(status) : 0;
+
+  if (!status_len || status_len > (mstat->end - mstat->cur))
+    return;
+
+  strcpy(mstat->cur, status);
+  mstat->cur += status_len;
+}
+
+static int show_memory_status(THD* thd)
+{
+  List<Item> field_list;
+  Protocol *protocol= thd->protocol;
+  malloc_status mstat;
+  char* buf;
+  const uint MALLOC_STATUS_LEN= 300000;
+
+  field_list.push_back(new Item_empty_string("Status",10));
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    return TRUE;
+
+  protocol->prepare_for_resend();
+
+  buf= (char*) my_malloc(MALLOC_STATUS_LEN+1, MYF(0));
+  mstat.cur= buf;
+  mstat.end= buf + MALLOC_STATUS_LEN;
+  if (!buf)
+    return TRUE;
+
+#ifdef HAVE_JEMALLOC
+  /*
+    get_jemalloc_status will be called many times per call to
+    malloc_stats_print.
+  */
+  malloc_stats_print(get_jemalloc_status, &mstat, "");
+#else
+  strcpy(buf, "You should be using jemalloc");
+  mstat.cur += strlen(buf);
+#endif
+
+  protocol->store(buf, mstat.cur - buf, system_charset_info);
+  if (protocol->write())
+  {
+    my_free((void*)buf, MYF(0));
+    return TRUE;
+  }
+
+  my_free((void*)buf, MYF(0));
+
+  my_eof(thd);
+  return FALSE;
+}
 
 /**
   Execute command saved in thd and lex->sql_command.
@@ -2574,6 +2651,9 @@ mysql_execute_command(THD *thd,
   {
     system_status_var old_status_var= thd->status_var;
     thd->initial_status_var= &old_status_var;
+
+    update_malloc_status();
+
     if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
       res= execute_sqlcom_select(thd, all_tables, post_parse);
     /* Don't log SHOW STATUS commands to slow query log */
@@ -2858,6 +2938,14 @@ mysql_execute_command(THD *thd,
       if (check_global_access(thd, PROCESS_ACL))
         goto error;
       res = ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_TRX);
+      break;
+    }
+  case SQLCOM_SHOW_MEMORY_STATUS:
+    {
+      if (check_global_access(thd, PROCESS_ACL))
+        goto error;
+
+      res= show_memory_status(thd);
       break;
     }
 #ifdef HAVE_REPLICATION
