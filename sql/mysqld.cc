@@ -874,6 +874,9 @@ static char *opt_perftools_profile_output;
 int orig_argc;
 char **orig_argv;
 
+static pthread_cond_t COND_handler_count;
+static uint handler_count;
+
 static my_socket unix_sock,ip_sock;
 struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 
@@ -889,8 +892,6 @@ static uint thr_kill_signal;
 #undef	 getpid
 #include <process.h>
 
-static pthread_cond_t COND_handler_count;
-static uint handler_count;
 static bool start_mode=0, use_opt_args;
 static int opt_argc;
 static char **opt_argv;
@@ -977,7 +978,7 @@ static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static int fix_paths(void);
-pthread_handler_t handle_connections_sockets(void *arg);
+pthread_handler_t handle_connections_socket(void *arg);
 pthread_handler_t kill_server_thread(void *arg);
 static void bootstrap(FILE *file);
 static bool read_init_file(char *file_name);
@@ -4422,7 +4423,7 @@ static void create_shutdown_thread()
 #endif /* EMBEDDED_LIBRARY */
 
 
-#if (defined(__NT__) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY)
 static void handle_connections_methods()
 {
   pthread_t hThread;
@@ -4452,16 +4453,32 @@ static void handle_connections_methods()
     }
   }
 #endif /* __NT__ */
+
+#ifdef __WIN__
   if (have_tcpip && !opt_disable_networking)
+#endif
   {
     handler_count++;
     if (profile_pthread_create(&hThread,&connection_attrib,
-		       handle_connections_sockets, 0))
+		       handle_connections_socket, (&ip_sock)))
     {
       sql_print_warning("Can't create thread to handle TCP/IP");
       handler_count--;
     }
   }
+
+#ifdef HAVE_SYS_UN_H
+  {
+    handler_count++;
+    if (profile_pthread_create(&hThread,&connection_attrib,
+             handle_connections_socket, (&unix_sock)))
+    {
+      sql_print_warning("Can't create thread to handle unix socket");
+      handler_count--;
+
+    }
+  }
+#endif
 #ifdef HAVE_SMEM
   if (opt_enable_shared_memory)
   {
@@ -4491,7 +4508,7 @@ void decrement_handler_count()
 }
 #else
 #define decrement_handler_count()
-#endif /* defined(__NT__) || defined(HAVE_SMEM) */
+#endif /* !defined(EMBEDDED_LIBRARY) */
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -4905,9 +4922,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   pthread_cond_signal(&COND_server_started);
   pthread_mutex_unlock(&LOCK_server_started);
 
-#if defined(__NT__) || defined(HAVE_SMEM)
-  handle_connections_methods();
-#else
+#if !(defined(__NT__) || defined(HAVE_SMEM))
 #ifdef __WIN__
   if (!have_tcpip || opt_disable_networking)
   {
@@ -4915,8 +4930,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     unireg_abort(1);
   }
 #endif
-  handle_connections_sockets(0);
-#endif /* __NT__ */
+#endif
+
+  handle_connections_methods();
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
   
@@ -5443,160 +5459,43 @@ inline void kill_broken_server()
 	/* Handle new connections and spawn new process to handle them */
 
 #ifndef EMBEDDED_LIBRARY
-pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
+
+pthread_handler_t handle_connections_socket (void *arg)
 {
-  my_socket UNINIT_VAR(sock),UNINIT_VAR(new_sock);
+  my_thread_init();
+  my_socket sock = *((my_socket*)arg);
+  my_socket UNINIT_VAR(new_sock);
   uint error_count=0;
   THD *thd;
   struct sockaddr_in cAddr;
-  int ip_flags=0,socket_flags=0,flags=0,retval;
+  int retval;
   st_vio *vio_tmp;
-#ifdef HAVE_POLL
-  int socket_count=0;
-  struct pollfd fds[2]; // for ip_sock and unix_sock
-#else
-  fd_set readFDs,clientFDs;
-  uint max_used_connection= (uint) (max(ip_sock,unix_sock)+1);
-#endif
-  DBUG_ENTER("handle_connections_sockets");
-
+  DBUG_ENTER("handle_connections_socket");
   LINT_INIT(new_sock);
-
-  (void) my_pthread_getprio(pthread_self());		// For debugging
-
-#ifndef HAVE_POLL
-  FD_ZERO(&clientFDs);
-#endif
-
-  if (ip_sock != INVALID_SOCKET)
-  {
-#ifdef HAVE_POLL
-    fds[socket_count].fd= ip_sock;
-    fds[socket_count].events= POLLIN;
-    socket_count++;
-#else
-    FD_SET(ip_sock,&clientFDs);
-#endif
-#ifdef HAVE_FCNTL
-    ip_flags = fcntl(ip_sock, F_GETFL, 0);
-#endif
-  }
-#ifdef HAVE_SYS_UN_H
-#ifdef HAVE_POLL
-  fds[socket_count].fd= unix_sock;
-  fds[socket_count].events= POLLIN;
-  socket_count++;
-#else
-  FD_SET(unix_sock,&clientFDs);
-#endif
-#ifdef HAVE_FCNTL
-  socket_flags=fcntl(unix_sock, F_GETFL, 0);
-#endif
-#endif
-
+  (void) my_pthread_getprio(pthread_self());        // For debugging
   DBUG_PRINT("general",("Waiting for connections."));
   MAYBE_BROKEN_SYSCALL;
+
+  size_socket length=sizeof(struct sockaddr_in);
   while (!abort_loop)
   {
-#ifdef HAVE_POLL
-    retval= poll(fds,socket_count,-1);
-#else
-    readFDs=clientFDs;
-
-    retval= select((int) max_used_connection,&readFDs,0,0,0);
-#endif //HAVE_POLL
-
-    if (retval < 0)
-    {
-      if (socket_errno != SOCKET_EINTR)
-      {
-	if (!select_errors++ && !abort_loop)	/* purecov: inspected */
-	  sql_print_error("mysqld: Got error %d from select",socket_errno); /* purecov: inspected */
-      }
-      MAYBE_BROKEN_SYSCALL
-      continue;
-    }
-
-    if (abort_loop)
-    {
-      MAYBE_BROKEN_SYSCALL;
-      break;
-    }
-
-    /* Is this a new connection request ? */
-#ifdef HAVE_POLL
-    for (int i= 0; i < socket_count; ++i) {
-      if (fds[i].revents & POLLIN)
-      {
-        sock= fds[i].fd;
-#ifdef HAVE_FCNTL
-        flags= fcntl(sock, F_GETFL, 0);
-#else
-        flags= 0;
-#endif // HAVE_FCNTL
-        break;
-      }
-    }
-#else  // HAVE_POLL
-#ifdef HAVE_SYS_UN_H
-    if (FD_ISSET(unix_sock,&readFDs))
-    {
-      sock = unix_sock;
-      flags= socket_flags;
-    }
-    else
-#endif // HAVE_SYS_UN_H
-    {
-      sock = ip_sock;
-      flags= ip_flags;
-    }
-#endif // HAVE_POLL
-
-#if !defined(NO_FCNTL_NONBLOCK)
-    if (!(test_flags & TEST_BLOCKING))
-    {
-#if defined(O_NONBLOCK)
-      fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-#elif defined(O_NDELAY)
-      fcntl(sock, F_SETFL, flags | O_NDELAY);
-#endif
-    }
-#endif /* NO_FCNTL_NONBLOCK */
-    for (uint retry=0; retry < MAX_ACCEPT_RETRY; retry++)
-    {
-      size_socket length=sizeof(struct sockaddr_in);
-      new_sock = accept(sock, my_reinterpret_cast(struct sockaddr *) (&cAddr),
-			&length);
-#ifdef __NETWARE__ 
+    new_sock = accept(sock, my_reinterpret_cast(struct sockaddr *) (&cAddr),
+            &length);
+#ifdef __NETWARE__
       // TODO: temporary fix, waiting for TCP/IP fix - DEFECT000303149
       if ((new_sock == INVALID_SOCKET) && (socket_errno == EINVAL))
       {
         kill_server(SIGTERM);
       }
 #endif
-      if (new_sock != INVALID_SOCKET ||
-	  (socket_errno != SOCKET_EINTR && socket_errno != SOCKET_EAGAIN))
-	break;
-      MAYBE_BROKEN_SYSCALL;
-#if !defined(NO_FCNTL_NONBLOCK)
-      if (!(test_flags & TEST_BLOCKING))
-      {
-	if (retry == MAX_ACCEPT_RETRY - 1)
-	  fcntl(sock, F_SETFL, flags);		// Try without O_NONBLOCK
-      }
-#endif
-    }
-#if !defined(NO_FCNTL_NONBLOCK)
-    if (!(test_flags & TEST_BLOCKING))
-      fcntl(sock, F_SETFL, flags);
-#endif
+
     if (new_sock == INVALID_SOCKET)
     {
-      if ((error_count++ & 255) == 0)		// This can happen often
-	sql_perror("Error in accept");
       MAYBE_BROKEN_SYSCALL;
+      if ((error_count++ & 255) == 0)       // This can happen often
+        sql_perror("Error in accept");
       if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
-	sleep(1);				// Give other threads some time
+        sleep(1);               // Give other threads some time
       continue;
     }
 
@@ -5604,33 +5503,33 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
     {
       if (sock == ip_sock)
       {
-	struct request_info req;
-	signal(SIGCHLD, SIG_DFL);
-	request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, new_sock, NULL);
-	my_fromhost(&req);
-	if (!my_hosts_access(&req))
-	{
-	  /*
-	    This may be stupid but refuse() includes an exit(0)
-	    which we surely don't want...
-	    clean_exit() - same stupid thing ...
-	  */
-	  syslog(deny_severity, "refused connect from %s",
-		 my_eval_client(&req));
+    struct request_info req;
+    signal(SIGCHLD, SIG_DFL);
+    request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, new_sock, NULL);
+    my_fromhost(&req);
+    if (!my_hosts_access(&req))
+    {
+      /*
+        This may be stupid but refuse() includes an exit(0)
+        which we surely don't want...
+        clean_exit() - same stupid thing ...
+      */
+      syslog(deny_severity, "refused connect from %s",
+         my_eval_client(&req));
 
-	  /*
-	    C++ sucks (the gibberish in front just translates the supplied
-	    sink function pointer in the req structure from a void (*sink)();
-	    to a void(*sink)(int) if you omit the cast, the C++ compiler
-	    will cry...
-	  */
-	  if (req.sink)
-	    ((void (*)(int))req.sink)(req.fd);
+      /*
+        C++ sucks (the gibberish in front just translates the supplied
+        sink function pointer in the req structure from a void (*sink)();
+        to a void(*sink)(int) if you omit the cast, the C++ compiler
+        will cry...
+      */
+      if (req.sink)
+        ((void (*)(int))req.sink)(req.fd);
 
-	  (void) shutdown(new_sock, SHUT_RDWR);
-	  (void) closesocket(new_sock);
-	  continue;
-	}
+      (void) shutdown(new_sock, SHUT_RDWR);
+      (void) closesocket(new_sock);
+      continue;
+    }
       }
     }
 #endif /* HAVE_LIBWRAP */
@@ -5641,10 +5540,10 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
       dummyLen = sizeof(struct sockaddr);
       if (getsockname(new_sock,&dummy, &dummyLen) < 0)
       {
-	sql_perror("Error on new connection socket");
-	(void) shutdown(new_sock, SHUT_RDWR);
-	(void) closesocket(new_sock);
-	continue;
+        sql_perror("Error on new connection socket");
+        (void) shutdown(new_sock, SHUT_RDWR);
+        (void) closesocket(new_sock);
+        continue;
       }
     }
 
@@ -5658,11 +5557,12 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
       VOID(closesocket(new_sock));
       continue;
     }
+
     if (!(vio_tmp=vio_new(new_sock,
-			  sock == unix_sock ? VIO_TYPE_SOCKET :
-			  VIO_TYPE_TCPIP,
-			  sock == unix_sock ? VIO_LOCALHOST: 0)) ||
-	my_net_init(&thd->net,vio_tmp))
+              sock == unix_sock ? VIO_TYPE_SOCKET :
+              VIO_TYPE_TCPIP,
+              sock == unix_sock ? VIO_LOCALHOST: 0)) ||
+    my_net_init(&thd->net,vio_tmp))
     {
       /*
         Only delete the temporary vio if we didn't already attach it to the
@@ -5673,12 +5573,13 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
         vio_delete(vio_tmp);
       else
       {
-	(void) shutdown(new_sock, SHUT_RDWR);
-	(void) closesocket(new_sock);
+        (void) shutdown(new_sock, SHUT_RDWR);
+        (void) closesocket(new_sock);
       }
       delete thd;
       continue;
     }
+
     if (sock == unix_sock)
       thd->security_ctx->host=(char*) my_localhost;
 
