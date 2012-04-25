@@ -1,0 +1,32 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop table if exists t1;
+call mtr.add_suppression(".*");
+CREATE TABLE t1(a int primary key) engine=innodb;
+SET GLOBAL debug="d,crash_before_writing_xid";
+BEGIN;
+insert into t1 values(10);
+COMMIT;
+insert into t1 values(11);
+start slave;
+ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
+delete from t1;
+reset master;
+insert into t1 values (12);
+delete from t1;
+show global status like "Xa_recovery_rollback";
+Variable_name	Value
+Xa_recovery_rollback	1
+change master to master_host='127.0.0.1',master_port=13000, master_user='root';
+show global status like "Xa_recovery_rollback";
+Variable_name	Value
+Xa_recovery_rollback	0
+start slave;
+select * from t1;
+a
+12
+drop table t1;

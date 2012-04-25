@@ -1290,6 +1290,12 @@ int reset_slave(THD *thd, Master_info* mi)
   ha_reset_slave(thd);
 
   /*
+    This is manual intervention so clear the variable that would make
+    START SLAVE fail.
+  */
+  xa_recovery_did_rollback= 0;
+
+  /*
     Clear master's log coordinates and reset host/user/etc to the values
     specified in mysqld's options (only for good display of SHOW SLAVE STATUS;
     next init_master_info() (in start_slave() for example) would have set them
@@ -1424,6 +1430,12 @@ bool change_master(THD* thd, Master_info* mi)
     unlock_slave_threads(mi);
     DBUG_RETURN(TRUE);
   }
+
+  /*
+    This is manual intervention so clear the variable that would make
+    SLAVE START fail.
+  */
+  xa_recovery_did_rollback= 0;
 
   thd_proc_info(thd, "Changing master");
   LEX_MASTER_INFO* lex_mi= &thd->lex->mi;

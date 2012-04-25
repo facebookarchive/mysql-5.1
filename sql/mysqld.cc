@@ -8650,6 +8650,7 @@ SHOW_VAR status_vars[]= {
 #ifdef COMMUNITY_SERVER
   {"Uptime_since_flush_status",(char*) &show_flushstatustime,   SHOW_FUNC},
 #endif
+  {"Xa_recovery_rollback",     (char*) &xa_recovery_did_rollback, SHOW_INT},
   {NullS, NullS, SHOW_LONG}
 };
 
