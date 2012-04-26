@@ -162,6 +162,7 @@ typedef struct st_mi_create_info
   uint old_options;
   uint8 language;
   my_bool with_auto_increment;
+  my_bool internal_tmp_table;
 } MI_CREATE_INFO;
 
 struct st_myisam_info;			/* For referense */

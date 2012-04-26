@@ -572,7 +572,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   if (! (flags & HA_DONT_TOUCH_DATA))
     share.state.create_time= (long) time((time_t*) 0);
 
-  pthread_mutex_lock(&THR_LOCK_myisam);
+  if (!ci->internal_tmp_table)
+    pthread_mutex_lock(&THR_LOCK_myisam);
 
   /*
     NOTE: For test_if_reopen() we need a real path name. Hence we need
@@ -629,7 +630,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     NOTE: The filename is compared against unique_file_name of every
     open table. Hence we need a real path here.
   */
-  if (test_if_reopen(filename))
+  if (!ci->internal_tmp_table && test_if_reopen(filename))
   {
     my_printf_error(0, "MyISAM table '%s' is in use "
                     "(most likely by a MERGE table). Try FLUSH TABLES.",
@@ -827,14 +828,16 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       goto err;
   }
   errpos=0;
-  pthread_mutex_unlock(&THR_LOCK_myisam);
+  if (!ci->internal_tmp_table)
+    pthread_mutex_unlock(&THR_LOCK_myisam);
   if (my_close(file,MYF(0)))
     goto err;
   my_free((char*) rec_per_key_part,MYF(0));
   DBUG_RETURN(0);
 
 err:
-  pthread_mutex_unlock(&THR_LOCK_myisam);
+  if (!ci->internal_tmp_table)
+    pthread_mutex_unlock(&THR_LOCK_myisam);
   save_errno=my_errno;
   switch (errpos) {
   case 3:

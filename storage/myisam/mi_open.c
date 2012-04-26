@@ -85,6 +85,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   ulong rec_per_key_part[HA_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
   my_off_t key_root[HA_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
   ulonglong max_key_file_length, max_data_file_length;
+  my_bool internal_tmp_table= test(open_flags & HA_OPEN_INTERNAL_TABLE);
   DBUG_ENTER("mi_open");
 
   LINT_INIT(m_info);
@@ -103,8 +104,15 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     DBUG_RETURN (NULL);
   }
 
-  pthread_mutex_lock(&THR_LOCK_myisam);
-  if (!(old_info=test_if_reopen(name_buff)))
+  if (!internal_tmp_table)
+  {
+    pthread_mutex_lock(&THR_LOCK_myisam);
+    old_info=test_if_reopen(name_buff);
+  }
+  else
+    old_info= 0;
+
+  if (!old_info)
   {
     share= &share_buff;
     bzero((uchar*) &share_buff,sizeof(share_buff));
@@ -648,10 +656,15 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 #ifdef THREAD
   thr_lock_data_init(&share->lock,&m_info->lock,(void*) m_info);
 #endif
-  m_info->open_list.data=(void*) m_info;
-  myisam_open_list=list_add(myisam_open_list,&m_info->open_list);
 
-  pthread_mutex_unlock(&THR_LOCK_myisam);
+  if (!internal_tmp_table)
+  {
+    m_info->open_list.data=(void*) m_info;
+    myisam_open_list=list_add(myisam_open_list,&m_info->open_list);
+    pthread_mutex_unlock(&THR_LOCK_myisam);
+  }
+  else
+    m_info->open_list.data= 0;
 
   bzero(info.buff, share->base.max_key_block_length * 2);
 
@@ -694,7 +707,8 @@ err:
   default:
     break;
   }
-  pthread_mutex_unlock(&THR_LOCK_myisam);
+  if (!internal_tmp_table)
+    pthread_mutex_unlock(&THR_LOCK_myisam);
   my_errno=save_errno;
   DBUG_RETURN (NULL);
 } /* mi_open */
