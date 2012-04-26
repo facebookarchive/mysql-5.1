@@ -1,0 +1,79 @@
+#
+# Use error injection to testing failure handling during DDL
+# Added for http://bugs.mysql.com/62401
+#
+
+--source include/have_innodb_plugin.inc
+--source include/have_debug.inc
+
+call mtr.add_suppression("InnoDB: Error: row_merge_drop_index failed with error code: 47");
+call mtr.add_suppression("InnoDB: Error: row_merge_rename_indexes failed with error code: 47");
+
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+
+create table t1(i int primary key, c char(50)) engine=innodb;
+create index x1 on t1(c);
+
+insert into t1 values (1, 'foobar');
+
+set global innodb_fail_ddl_drop_index = TRUE;
+alter table t1 drop index x1;
+set global innodb_fail_ddl_drop_index = FALSE;
+
+show create table t1;
+
+create index x2 on t1(c);
+alter table t1 drop index x2;
+
+create index x1 on t1(c);
+show create table t1;
+select i from t1 force index(x1);
+
+set global innodb_fail_ddl_rename_index = TRUE;
+--error ER_TOO_MANY_CONCURRENT_TRXS
+create index x3 on t1(c(10));
+set global innodb_fail_ddl_rename_index = FALSE;
+show create table t1;
+
+create table t2(i int) engine=innodb;
+insert into t2 values (1);
+
+set global innodb_fail_ddl_rename_table1 = TRUE;
+--error ER_ERROR_ON_RENAME
+rename table t2 to t3;
+set global innodb_fail_ddl_rename_table1 = FALSE;
+
+show create table t2;
+select * from t2;
+
+set global innodb_fail_ddl_rename_table2 = TRUE;
+--error ER_ERROR_ON_RENAME
+rename table t2 to t3;
+set global innodb_fail_ddl_rename_table2 = FALSE;
+
+show create table t2;
+select * from t2;
+
+set global innodb_fail_ddl_truncate_table = TRUE;
+truncate table t2;
+set global innodb_fail_ddl_truncate_table = FALSE;
+
+show create table t2;
+select * from t2;
+
+create table t3(i int) engine=innodb;
+insert into t3 values (1);
+
+set global innodb_fail_ddl_drop_table = TRUE;
+--error ER_BAD_TABLE_ERROR
+drop table t3;
+set global innodb_fail_ddl_drop_table = FALSE;
+
+show create table t3;
+select * from t3;
+
+drop table t1;
+drop table t2;
+drop table t3;

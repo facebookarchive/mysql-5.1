@@ -2997,6 +2997,13 @@ next_rec:
 	pars_info_add_dulint_literal(info, "old_id", table->id);
 	pars_info_add_dulint_literal(info, "new_id", new_id);
 
+#ifdef UNIV_DEBUG
+	if (srv_fail_ddl_truncate_table) {
+		err = trx->error_state = DB_TOO_MANY_CONCURRENT_TRXS;
+		goto failed;
+	}
+#endif
+
 	err = que_eval_sql(info,
 			   "PROCEDURE RENUMBER_TABLESPACE_PROC () IS\n"
 			   "BEGIN\n"
@@ -3011,6 +3018,10 @@ next_rec:
 			   "COMMIT WORK;\n"
 			   "END;\n"
 			   , FALSE, trx);
+
+#ifdef UNIV_DEBUG
+failed:
+#endif
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
@@ -3294,6 +3305,13 @@ check_next_foreign:
 
 	pars_info_add_str_literal(info, "table_name", name);
 
+#ifdef UNIV_DEBUG
+	if (srv_fail_ddl_drop_table) {
+		err = trx->error_state = DB_TOO_MANY_CONCURRENT_TRXS;
+		goto failed;
+	}
+#endif
+
 	err = que_eval_sql(info,
 			   "PROCEDURE DROP_TABLE_PROC () IS\n"
 			   "sys_foreign_id CHAR;\n"
@@ -3361,6 +3379,10 @@ check_next_foreign:
 			   "WHERE ID = table_id;\n"
 			   "END;\n"
 			   , FALSE, trx);
+
+#ifdef UNIV_DEBUG
+failed:
+#endif
 
 	switch (err) {
 		ibool		is_temp;
@@ -3889,6 +3911,13 @@ row_rename_table_for_mysql(
 	pars_info_add_str_literal(info, "new_table_name", new_name);
 	pars_info_add_str_literal(info, "old_table_name", old_name);
 
+#ifdef UNIV_DEBUG
+	if (srv_fail_ddl_rename_table1) {
+		err = trx->error_state = DB_TOO_MANY_CONCURRENT_TRXS;
+		goto failed1;
+	}
+#endif
+
 	err = que_eval_sql(info,
 			   "PROCEDURE RENAME_TABLE () IS\n"
 			   "BEGIN\n"
@@ -3896,6 +3925,10 @@ row_rename_table_for_mysql(
 			   " WHERE NAME = :old_table_name;\n"
 			   "END;\n"
 			   , FALSE, trx);
+
+#ifdef UNIV_DEBUG
+failed1:
+#endif
 
 	if (err != DB_SUCCESS) {
 
@@ -3907,6 +3940,13 @@ row_rename_table_for_mysql(
 
 		pars_info_add_str_literal(info, "new_table_name", new_name);
 		pars_info_add_str_literal(info, "old_table_name", old_name);
+
+#ifdef UNIV_DEBUG
+		if (srv_fail_ddl_rename_table2) {
+			err = trx->error_state = DB_TOO_MANY_CONCURRENT_TRXS;
+			goto failed2;
+		}
+#endif
 
 		err = que_eval_sql(
 			info,
@@ -3973,6 +4013,11 @@ row_rename_table_for_mysql(
 			"    = TO_BINARY(:old_table_name);\n"
 			"END;\n"
 			, FALSE, trx);
+
+#ifdef UNIV_DEBUG
+failed2:
+			ut_ad(err); /* had to put something here */
+#endif
 
 	} else if (n_constraints_to_drop > 0) {
 		/* Drop some constraints of tmp tables. */

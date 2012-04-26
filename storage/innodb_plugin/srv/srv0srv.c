@@ -395,6 +395,16 @@ UNIV_INTERN ulint	srv_lock_deadlocks	= 0;
 /** Number of row lock wait timeouts */
 UNIV_INTERN ulint	srv_lock_wait_timeouts	= 0;
 
+#ifdef UNIV_DEBUG
+/** Error injection */
+UNIV_INTERN my_bool	srv_fail_ddl_drop_index		= FALSE;
+UNIV_INTERN my_bool	srv_fail_ddl_rename_index	= FALSE;
+UNIV_INTERN my_bool	srv_fail_ddl_drop_table		= FALSE;
+UNIV_INTERN my_bool	srv_fail_ddl_rename_table1	= FALSE;
+UNIV_INTERN my_bool	srv_fail_ddl_rename_table2	= FALSE;
+UNIV_INTERN my_bool	srv_fail_ddl_truncate_table	= FALSE;
+#endif
+
 /** Pages flushed from foreground thread to maintain non-dirty pages on free list */
 UNIV_INTERN ulint	srv_n_flushed_free_margin_fg	= 0;
 

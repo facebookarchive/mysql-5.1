@@ -350,6 +350,16 @@ extern ulint	srv_lock_deadlocks;
 /** Number of lock wait timeouts */
 extern ulint	srv_lock_wait_timeouts;
 
+#ifdef UNIV_DEBUG
+/** Error injection */
+extern my_bool	srv_fail_ddl_drop_index;
+extern my_bool	srv_fail_ddl_rename_index;
+extern my_bool	srv_fail_ddl_drop_table;
+extern my_bool	srv_fail_ddl_rename_table1;
+extern my_bool	srv_fail_ddl_rename_table2;
+extern my_bool	srv_fail_ddl_truncate_table;
+#endif
+
 /** Main background thread does flushes for fuzzy checkpoint */
 extern my_bool	srv_background_checkpoint;
 

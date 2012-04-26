@@ -2035,7 +2035,7 @@ row_merge_drop_index(
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
 	frees the file segments of the B-tree associated with the index. */
 
-	static const char str1[] =
+	static const char sql[] =
 		"PROCEDURE DROP_INDEX_PROC () IS\n"
 		"BEGIN\n"
 		/* Rename the index, so that it will be dropped by
@@ -2059,9 +2059,30 @@ row_merge_drop_index(
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
-	err = que_eval_sql(info, str1, FALSE, trx);
 
-	ut_a(err == DB_SUCCESS);
+#ifdef UNIV_DEBUG
+	if (srv_fail_ddl_drop_index) {
+		err = trx->error_state = DB_TOO_MANY_CONCURRENT_TRXS;
+                goto failed;
+	}
+#endif
+
+	err = que_eval_sql(info, sql, FALSE, trx);
+
+#ifdef UNIV_DEBUG
+failed:
+#endif
+
+	if (err != DB_SUCCESS) {
+		/* Even though we ensure that DDL transactions are WAIT
+		and DEADLOCK free, we could encounter other errors e.g.,
+		DB_TOO_MANY_CONCURRENT_TRXS. */
+		trx->error_state = DB_SUCCESS;
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error: row_merge_drop_index failed "
+			"with error code: %lu.\n", (ulint) err);
+	}
 
 	/* Replace this index with another equivalent index for all
 	foreign key constraints on this table where this index is used */
@@ -2313,7 +2334,7 @@ row_merge_rename_indexes(
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in renaming indexes. */
 
-	static const char rename_indexes[] =
+	static const char sql[] =
 		"PROCEDURE RENAME_INDEXES_PROC () IS\n"
 		"BEGIN\n"
 		"UPDATE SYS_INDEXES SET NAME=SUBSTR(NAME,1,LENGTH(NAME)-1)\n"
@@ -2329,7 +2350,18 @@ row_merge_rename_indexes(
 
 	pars_info_add_dulint_literal(info, "tableid", table->id);
 
-	err = que_eval_sql(info, rename_indexes, FALSE, trx);
+#ifdef UNIV_DEBUG
+	if (srv_fail_ddl_rename_index) {
+		err = trx->error_state = DB_TOO_MANY_CONCURRENT_TRXS;
+                goto failed;
+	}
+#endif
+
+	err = que_eval_sql(info, sql, FALSE, trx);
+
+#ifdef UNIV_DEBUG
+failed:
+#endif
 
 	if (err == DB_SUCCESS) {
 		dict_index_t*	index = dict_table_get_first_index(table);
@@ -2339,6 +2371,15 @@ row_merge_rename_indexes(
 			}
 			index = dict_table_get_next_index(index);
 		} while (index);
+	} else {
+		/* Even though we ensure that DDL transactions are WAIT
+		and DEADLOCK free, we could encounter other errors e.g.,
+		DB_TOO_MANY_CONCURRENT_TRXS. */
+		trx->error_state = DB_SUCCESS;
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error: row_merge_rename_indexes "
+			"failed with error code: %lu.\n", (ulint) err);
 	}
 
 	trx->op_info = "";
@@ -2377,7 +2418,7 @@ row_merge_rename_tables(
 		memcpy(old_name, old_table->name, strlen(old_table->name) + 1);
 	} else {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "InnoDB: too long table name: '%s', "
+		fprintf(stderr, " InnoDB: too long table name: '%s', "
 			"max length is %d\n", old_table->name,
 			MAX_TABLE_NAME_LEN);
 		ut_error;

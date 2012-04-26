@@ -12505,6 +12505,38 @@ static MYSQL_SYSVAR_ULONG(lru_io_to_unzip_factor, srv_lru_io_to_unzip_factor,
   "cost of decompressing a database page. ",
   NULL, NULL, 50, 1, 1000000, 0);
 
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_BOOL(fail_ddl_drop_index, srv_fail_ddl_drop_index,
+  PLUGIN_VAR_NOCMDARG,
+  "Inject errors in on dictionary change for DROP INDEX",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(fail_ddl_rename_index, srv_fail_ddl_rename_index,
+  PLUGIN_VAR_NOCMDARG,
+  "Inject errors in on dictionary change for index rename",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(fail_ddl_drop_table, srv_fail_ddl_drop_table,
+  PLUGIN_VAR_NOCMDARG,
+  "Inject errors in on dictionary change for drop table",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(fail_ddl_truncate_table, srv_fail_ddl_truncate_table,
+  PLUGIN_VAR_NOCMDARG,
+  "Inject errors in on dictionary change for truncate table",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(fail_ddl_rename_table1, srv_fail_ddl_rename_table1,
+  PLUGIN_VAR_NOCMDARG,
+  "Inject errors in on dictionary change for rename table",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(fail_ddl_rename_table2, srv_fail_ddl_rename_table2,
+  PLUGIN_VAR_NOCMDARG,
+  "Inject errors in on dictionary change for rename table",
+  NULL, NULL, FALSE);
+#endif
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -12612,6 +12644,14 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(segment_reserve_factor),
   MYSQL_SYSVAR(zlib_wrap),
   MYSQL_SYSVAR(zlib_strategy),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(fail_ddl_drop_index),
+  MYSQL_SYSVAR(fail_ddl_rename_index),
+  MYSQL_SYSVAR(fail_ddl_drop_table),
+  MYSQL_SYSVAR(fail_ddl_rename_table1),
+  MYSQL_SYSVAR(fail_ddl_rename_table2),
+  MYSQL_SYSVAR(fail_ddl_truncate_table),
+#endif
   NULL
 };
 
