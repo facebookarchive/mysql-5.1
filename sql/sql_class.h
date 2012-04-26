@@ -1368,6 +1368,38 @@ struct Ha_data
   Ha_data() :ha_ptr(NULL) {}
 };
 
+class Socket_Conn : public ilink
+{
+ public:
+  Socket_Conn(my_socket listen_socket, my_socket connect_socket,
+	      bool is_from_tcpip)
+  {
+    _listen_socket = listen_socket;
+    _connection_socket = connect_socket;
+    _is_tcp_ip = is_from_tcpip;
+  }
+
+  bool is_tcp_ip_socket()
+  {
+    return _is_tcp_ip;
+  }
+
+  my_socket listen_socket()
+  {
+    return _listen_socket;
+  }
+
+  my_socket connection_socket()
+  {
+    return _connection_socket;
+  }
+
+ private:
+  my_socket _listen_socket;
+  my_socket _connection_socket;
+  bool _is_tcp_ip;
+};
+
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as

@@ -1125,14 +1125,73 @@ static void prepare_new_connection_state(THD* thd)
   }
 }
 
+THD* new_thd_from_socket(Socket_Conn* socket_conn)
+{
+  my_socket new_sock = socket_conn->connection_socket();
+  size_socket dummyLen;
+  struct sockaddr dummy;
+  dummyLen = sizeof(struct sockaddr);
+  if (getsockname(new_sock, &dummy, & dummyLen) < 0)
+  {
+    sql_perror("Error on new connection socket");
+    (void) shutdown(new_sock, SHUT_RDWR);
+    (void) closesocket(new_sock);
+    return NULL;
+  }
+
+  THD *thd;
+  if (!(thd= new THD))
+  {
+    (void) shutdown(new_sock, SHUT_RDWR);
+    VOID(closesocket(new_sock));
+    return NULL;
+  }
+
+  bool is_unix_sock = 0;
+#ifdef HAVE_SYS_UN_H
+  is_unix_sock = !socket_conn->is_tcp_ip_socket();
+#endif
+
+  st_vio *vio_tmp;
+  if (!(vio_tmp=vio_new(new_sock,
+	    is_unix_sock ? VIO_TYPE_SOCKET : VIO_TYPE_TCPIP,
+            is_unix_sock ? VIO_LOCALHOST: 0)) ||
+      my_net_init(&thd->net,vio_tmp))
+  {
+    /*
+      Only delete the temporary vio if we didn't already attach it to the
+      NET object. The destructor in THD will delete any initialized net
+      structure.
+    */
+    if (vio_tmp && thd->net.vio != vio_tmp)
+      vio_delete(vio_tmp);
+    else
+    {
+      (void) shutdown(new_sock, SHUT_RDWR);
+      (void) closesocket(new_sock);
+    }
+    delete thd;
+    return NULL;
+  }
+  if (is_unix_sock)
+    thd->security_ctx->host=(char*) my_localhost;
+
+  NET *net=&thd->net;
+  if (protocol_version > 9)
+    net->return_errno=1;
+
+  return thd;
+}
 
 /*
-  Thread handler for a connection
+  Handle one connection. If parameter end_raw_connection is true,
+  it means thread_scheduler.end_raw_connection_thread needs to be
+  called to end this thread.
 
   SYNOPSIS
-    handle_one_connection()
+    handle_one_connection_real()
     arg		Connection object (THD)
-
+    end_raw_connection Is this connection from a raw connection.
   IMPLEMENTATION
     This function (normally) does the following:
     - Initialize thread
@@ -1143,17 +1202,19 @@ static void prepare_new_connection_state(THD* thd)
     - End thread  / Handle next connection using thread from thread cache
 */
 
-pthread_handler_t handle_one_connection(void *arg)
+static int handle_one_connection_real(void* arg, bool end_raw_connection)
 {
-  THD *thd= (THD*) arg;
+  THD* thd = (THD*) arg;
 
   thd->thr_create_utime= my_micro_time();
-
   if (thread_scheduler.init_new_connection_thread())
   {
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     statistic_increment(aborted_connects,&LOCK_status);
-    thread_scheduler.end_thread(thd,0);
+    if(end_raw_connection)
+      thread_scheduler.end_raw_connection_thread(thd,0);
+    else
+      thread_scheduler.end_thread(thd,0);
     return 0;
   }
 
@@ -1200,10 +1261,15 @@ pthread_handler_t handle_one_connection(void *arg)
 	break;
     }
     end_connection(thd);
-   
+
 end_thread:
     close_connection(thd, 0, 1);
-    if (thread_scheduler.end_thread(thd,1))
+    int ret = 0;
+    if (end_raw_connection)
+      ret = thread_scheduler.end_raw_connection_thread(thd, 1);
+    else
+      ret = thread_scheduler.end_thread(thd,1);
+    if (ret)
       return 0;                                 // Probably no-threads
 
     /*
@@ -1215,6 +1281,60 @@ end_thread:
     thd->thread_stack= (char*) &thd;
   }
 }
+
+/*
+  Thread handler for a connection
+
+  SYNOPSIS
+    handle_one_connection()
+    arg		Connection object (THD)
+*/
+
+pthread_handler_t handle_one_connection(void *arg)
+{
+  handle_one_connection_real(arg, false);
+}
+
+/*
+  Thread handler for a raw connection
+
+  SYNOPSIS
+    handle_one_raw_connection()
+    arg		pair of pointers to socket descriptors
+*/
+
+pthread_handler_t handle_one_raw_connection(void *arg)
+{
+  THD* thd;
+  Socket_Conn* socket_conn = (Socket_Conn *) arg;
+  my_thread_init();
+  thd = new_thd_from_socket(socket_conn);
+  if (thd == NULL)
+  {
+    thread_scheduler.end_raw_connection_thread(NULL,0);
+    return 0;
+  }
+
+  pthread_mutex_lock(&LOCK_thread_count);
+  threads.append(thd);
+  /*
+    The initialization of thread_id is done in create_embedded_thd() for
+    the embedded library.
+    TODO: refactor this to avoid code duplication there
+  */
+  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
+
+#ifdef LIBMEMCACHE
+  thd->mcHandle = mcHandle;
+#endif
+  pthread_mutex_unlock(&LOCK_thread_count);
+
+  DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
+  thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
+
+  handle_one_connection_real(thd, true);
+}
+
 
 /* This is a BSD license and covers the changes to the end of the file */
 /* Copyright (C) 2009 Google, Inc.
