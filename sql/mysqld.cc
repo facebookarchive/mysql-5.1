@@ -5476,11 +5476,13 @@ pthread_handler_t handle_connections_socket (void *arg)
   DBUG_PRINT("general",("Waiting for connections."));
   MAYBE_BROKEN_SYSCALL;
 
-  size_socket length=sizeof(struct sockaddr_in);
   while (!abort_loop)
   {
-    new_sock = accept(sock, my_reinterpret_cast(struct sockaddr *) (&cAddr),
-            &length);
+    for (uint retry=0; retry < MAX_ACCEPT_RETRY; retry++)
+    {
+      size_socket length=sizeof(struct sockaddr_in);
+      new_sock = accept(sock, my_reinterpret_cast(struct sockaddr *) (&cAddr),
+			&length);
 #ifdef __NETWARE__
       // TODO: temporary fix, waiting for TCP/IP fix - DEFECT000303149
       if ((new_sock == INVALID_SOCKET) && (socket_errno == EINVAL))
@@ -5488,14 +5490,19 @@ pthread_handler_t handle_connections_socket (void *arg)
         kill_server(SIGTERM);
       }
 #endif
+      if (new_sock != INVALID_SOCKET ||
+          (socket_errno != SOCKET_EINTR && socket_errno != SOCKET_EAGAIN))
+        break;
+      MAYBE_BROKEN_SYSCALL;
+    }
 
     if (new_sock == INVALID_SOCKET)
     {
       MAYBE_BROKEN_SYSCALL;
-      if ((error_count++ & 255) == 0)       // This can happen often
-        sql_perror("Error in accept");
+      if ((++error_count & 255) == 0)       // This can happen often
+	sql_perror("Error in accept");
       if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
-        sleep(1);               // Give other threads some time
+	sleep(1);               // Give other threads some time
       continue;
     }
 
