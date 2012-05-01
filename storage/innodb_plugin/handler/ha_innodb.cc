@@ -12538,7 +12538,12 @@ static MYSQL_SYSVAR_BOOL(fail_ddl_rename_table2, srv_fail_ddl_rename_table2,
   PLUGIN_VAR_NOCMDARG,
   "Inject errors in on dictionary change for rename table",
   NULL, NULL, FALSE);
-#endif
+
+static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Debug flags for InnoDB to limit TRX_RSEG_N_SLOTS for trx_rsegf_undo_find_free()",
+  NULL, NULL, 0, 0, 1024, 0);
+#endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
@@ -12654,6 +12659,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(fail_ddl_rename_table1),
   MYSQL_SYSVAR(fail_ddl_rename_table2),
   MYSQL_SYSVAR(fail_ddl_truncate_table),
+  MYSQL_SYSVAR(trx_rseg_n_slots_debug),
 #endif
   NULL
 };
