@@ -1108,10 +1108,19 @@ ha_innobase::update_stats_from_trx(
 	bool write)		/* in: true for a write operation */
 {
 	my_io_perf_sum(&stats.table_io_perf_read, &trx->table_io_perf.read);
+  if (ha_partition_stats != NULL)
+    my_io_perf_sum(&(ha_partition_stats->table_io_perf_read),
+                   &trx->table_io_perf.read);
 
 	if (write) {
 		my_io_perf_sum(&stats.table_io_perf_write, &trx->table_io_perf.write);
 		stats.index_inserts += trx->table_io_perf.index_inserts;
+    if (ha_partition_stats != NULL)
+    {
+      my_io_perf_sum(&(ha_partition_stats->table_io_perf_write),
+                     &trx->table_io_perf.write);
+      ha_partition_stats->index_inserts += trx->table_io_perf.index_inserts;
+    }
 	}
 }
 
@@ -2034,7 +2043,8 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
 		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
 		  HA_TABLE_SCAN_ON_INDEX),
   start_of_scan(0),
-  num_write_row(0)
+  num_write_row(0),
+  ha_partition_stats(NULL)
 {}
 
 /*********************************************************************//**
@@ -11383,6 +11393,13 @@ ha_innobase::check_if_incompatible_data(
 	}
 
 	return(COMPATIBLE_DATA_YES);
+}
+
+UNIV_INTERN
+void
+ha_innobase::set_partition_owner_stats(ha_statistics *stats)
+{
+  ha_partition_stats= stats;
 }
 
 /************************************************************//**

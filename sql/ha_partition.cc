@@ -1702,7 +1702,9 @@ int ha_partition::copy_partitions(ulonglong * const copied,
         /* Copy record to new handler */
         (*copied)++;
         tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
+        m_new_file[new_part]->set_partition_owner_stats(&stats);
         result= m_new_file[new_part]->ha_write_row(m_rec0);
+        m_new_file[new_part]->set_partition_owner_stats(NULL);
         reenable_binlog(thd);
         if (result)
           goto error;
@@ -3128,7 +3130,9 @@ int ha_partition::write_row(uchar * buf)
   start_part_bulk_insert(thd, part_id);
 
   tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
+  m_file[part_id]->set_partition_owner_stats(&stats);
   error= m_file[part_id]->ha_write_row(buf);
+  m_file[part_id]->set_partition_owner_stats(NULL);
   if (have_auto_increment && !table->s->next_number_keypart)
     set_auto_increment_if_higher(table->next_number_field);
   reenable_binlog(thd);
@@ -3196,7 +3200,9 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   {
     DBUG_PRINT("info", ("Update in partition %d", new_part_id));
     tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
+    m_file[new_part_id]->set_partition_owner_stats(&stats);
     error= m_file[new_part_id]->ha_update_row(old_data, new_data);
+    m_file[new_part_id]->set_partition_owner_stats(NULL);
     reenable_binlog(thd);
     goto exit;
   }
@@ -3205,13 +3211,17 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
     DBUG_PRINT("info", ("Update from partition %d to partition %d",
 			old_part_id, new_part_id));
     tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
+    m_file[new_part_id]->set_partition_owner_stats(&stats);
     error= m_file[new_part_id]->ha_write_row(new_data);
+    m_file[new_part_id]->set_partition_owner_stats(NULL);
     reenable_binlog(thd);
     if (error)
       goto exit;
 
     tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
+    m_file[old_part_id]->set_partition_owner_stats(&stats);
     error= m_file[old_part_id]->ha_delete_row(old_data);
+    m_file[old_part_id]->set_partition_owner_stats(NULL);
     reenable_binlog(thd);
     if (error)
     {
@@ -3287,7 +3297,9 @@ int ha_partition::delete_row(const uchar *buf)
   }
   m_last_part= part_id;
   tmp_disable_binlog(thd);
+  m_file[part_id]->set_partition_owner_stats(&stats);
   error= m_file[part_id]->ha_delete_row(buf);
+  m_file[part_id]->set_partition_owner_stats(NULL);
   reenable_binlog(thd);
   if (!error)
     stats.rows_deleted++;
@@ -6819,6 +6831,23 @@ int ha_partition::indexes_are_disabled(void)
       break;
   }
   return error;
+}
+
+int
+ha_partition::flush_memory_cache(void)
+{
+  handler **file;
+  int error = 0;
+
+	DBUG_ENTER("ha_partition::flush_memory_cache");
+
+  for (file= m_file; *file; file++)
+  {
+    if ((error= (*file)->flush_memory_cache()))
+      break;
+  }
+
+	DBUG_RETURN(error);
 }
 
 

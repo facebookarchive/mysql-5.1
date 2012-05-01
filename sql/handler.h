@@ -1862,6 +1862,11 @@ public:
   */
   virtual int delayed_drop_table() { return 0; }
 
+  /**
+    Called by owner ha_partition (if there's one) to assign stats object
+  */
+  virtual void set_partition_owner_stats(ha_statistics* stats) {}
+
 protected:
   /* Service methods for use by storage engines. */
   void ha_statistic_increment(ulong SSV::*offset) const;

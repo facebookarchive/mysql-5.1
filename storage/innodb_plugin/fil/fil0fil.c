@@ -1227,9 +1227,18 @@ parse_db_and_table(
 				/* Success! */
 				parsed = TRUE;
 
+        const char* partition_name_divider= table_start;
+        /* Remove attached partitioned table information */
+        while (*partition_name_divider != '\0' &&
+               *partition_name_divider != '#')
+          partition_name_divider++;
+
+        const char* table_end = *partition_name_divider == '#' ?
+          partition_name_divider : dot_start;
+
 				strncpy(table_name, table_start + 1,
-					dot_start - (table_start + 1));
-				table_name[dot_start - (table_start + 1)] = '\0';
+					table_end - (table_start + 1));
+				table_name[table_end - (table_start + 1)] = '\0';
 
 				strncpy(db_name, db_start + 1,
 					table_start - (db_start + 1));

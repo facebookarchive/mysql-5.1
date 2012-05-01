@@ -991,6 +991,7 @@ private:
       ha_data->next_auto_inc_val= nr + 1;
     unlock_auto_increment();
   }
+	int flush_memory_cache();
 
 public:
 
