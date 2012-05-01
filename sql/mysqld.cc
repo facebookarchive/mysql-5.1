@@ -810,7 +810,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
-                LOCK_connection_count;
+                LOCK_connection_count, LOCK_sql_rand;
 #ifdef LIBMEMCACHE
 pthread_mutex_t LOCK_memcache_call;
 #endif
@@ -3789,6 +3789,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_connection_count, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_sql_rand, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
 #ifndef HAVE_YASSL

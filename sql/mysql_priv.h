@@ -2099,6 +2099,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open, LOCK_lock_db,
 extern pthread_mutex_t LOCK_memcache_call;
 #endif
 extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
+extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_sql_rand;
 #ifdef HAVE_OPENSSL
 extern pthread_mutex_t LOCK_des_key_file;
 #endif
@@ -2544,9 +2545,9 @@ inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 
 inline ulong sql_rnd_with_mutex()
 {
-  pthread_mutex_lock(&LOCK_thread_count);
+  pthread_mutex_lock(&LOCK_sql_rand);
   ulong tmp=(ulong) (my_rnd(&sql_rand) * 0xffffffff); /* make all bits random */
-  pthread_mutex_unlock(&LOCK_thread_count);
+  pthread_mutex_unlock(&LOCK_sql_rand);
   return tmp;
 }
 
