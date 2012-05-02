@@ -1602,6 +1602,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
   (void) pthread_mutex_destroy(&LOCK_connection_count);
+  (void) pthread_mutex_destroy(&LOCK_sql_rand);
   Events::destroy_mutexes();
 #ifdef LIBMEMCACHE
   (void) pthread_mutex_destroy(&LOCK_memcache_call);
