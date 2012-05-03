@@ -441,7 +441,7 @@ TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
 
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
-static bool volatile select_thread_in_use, signal_thread_in_use;
+static bool volatile signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
@@ -1026,41 +1026,6 @@ static void close_connections(void)
   kill_cached_threads++;
   flush_thread_cache();
 
-  /* kill connection thread */
-#if !defined(__WIN__) && !defined(__NETWARE__)
-  DBUG_PRINT("quit", ("waiting for select thread: 0x%lx",
-                      (ulong) select_thread));
-  (void) pthread_mutex_lock(&LOCK_thread_count);
-
-  while (select_thread_in_use)
-  {
-    struct timespec abstime;
-    int error;
-    LINT_INIT(error);
-    DBUG_PRINT("info",("Waiting for select thread"));
-
-#ifndef DONT_USE_THR_ALARM
-    if (pthread_kill(select_thread, thr_client_alarm))
-      break;					// allready dead
-#endif
-    set_timespec(abstime, 2);
-    for (uint tmp=0 ; tmp < 10 && select_thread_in_use; tmp++)
-    {
-      error=pthread_cond_timedwait(&COND_thread_count,&LOCK_thread_count,
-				   &abstime);
-      if (error != EINTR)
-	break;
-    }
-#ifdef EXTRA_DEBUG
-    if (error != 0 && !count++)
-      sql_print_error("Got error %d from pthread_cond_timedwait",error);
-#endif
-    close_server_sock();
-  }
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
-#endif /* __WIN__ */
-
-
   /* Abort listening to new connections */
   DBUG_PRINT("quit",("Closing sockets"));
   if (!opt_disable_networking )
@@ -1346,7 +1311,7 @@ static void __cdecl kill_server(int sig_ptr)
   /* purecov: begin deadcode */
 #ifdef __NETWARE__
   if (!event_flag)
-    pthread_join(select_thread, NULL);		// wait for main thread
+    pthread_join(select_thread, NULL);    // wait for main thread
 #endif /* __NETWARE__ */
 
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
@@ -4741,7 +4706,6 @@ int main(int argc, char **argv)
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
   select_thread=pthread_self();
-  select_thread_in_use=1;
 
 #ifdef HAVE_LIBWRAP
   libwrapName= my_progname+dirname_length(my_progname);
@@ -4842,7 +4806,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
     abort_loop=1;
-    select_thread_in_use=0;
 #ifndef __NETWARE__
     (void) pthread_kill(signal_thread, MYSQL_KILL_SIGNAL);
 #endif /* __NETWARE__ */
@@ -4888,7 +4851,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   if (opt_bootstrap)
   {
-    select_thread_in_use= 0;                    // Allow 'kill' to work
     bootstrap(stdin);
     unireg_abort(bootstrap_error ? 1 : 0);
   }
@@ -4946,7 +4908,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif
   (void) pthread_mutex_lock(&LOCK_thread_count);
   DBUG_PRINT("quit", ("Got thread_count mutex"));
-  select_thread_in_use=0;			// For close_connections
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   (void) pthread_cond_broadcast(&COND_thread_count);
 #ifdef EXTRA_DEBUG2
@@ -5448,7 +5409,6 @@ inline void kill_broken_server()
 #endif
       (!opt_disable_networking && ip_sock == INVALID_SOCKET))
   {
-    select_thread_in_use = 0;
     /* The following call will never return */
     kill_server(IF_NETWARE(MYSQL_KILL_SIGNAL, (void*) MYSQL_KILL_SIGNAL));
   }
@@ -8790,7 +8750,7 @@ static int mysql_init_variables(void)
   cached_thread_count= 0;
   opt_endinfo= using_udf_functions= 0;
   opt_using_transactions= 0;
-  abort_loop= select_thread_in_use= signal_thread_in_use= 0;
+  abort_loop= signal_thread_in_use= 0;
   ready_to_exit= shutdown_in_progress= grant_option= 0;
   aborted_threads= aborted_connects= 0;
   delayed_insert_threads= delayed_insert_writes= delayed_rows_in_use= 0;
