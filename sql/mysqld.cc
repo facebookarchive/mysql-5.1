@@ -2029,7 +2029,7 @@ void unlink_thd(THD *thd)
   thread_count--;
   if(thd != NULL)
   {
-    delete thd;
+    thd->unlink();
   }
   DBUG_VOID_RETURN;
 }
@@ -2191,6 +2191,8 @@ static bool one_thread_per_connection_end_real(THD *thd, bool put_in_cache,
   }
 
   pthread_mutex_unlock(&LOCK_thread_count);
+  if (thd)
+    delete thd;
   if (put_in_cache)
     DBUG_RETURN(0);                             // Thread is reused
 
