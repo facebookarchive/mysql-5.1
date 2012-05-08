@@ -1280,6 +1280,8 @@ end_thread:
     thd= current_thd;
     thd->thread_stack= (char*) &thd;
   }
+
+  return 0;
 }
 
 /*

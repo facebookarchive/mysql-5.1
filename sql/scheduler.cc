@@ -54,7 +54,8 @@ scheduler_functions::scheduler_functions()
 static bool no_threads_end(THD *thd, bool put_in_cache)
 {
   unlink_thd(thd);
-  delete thd;
+  if (thd)
+    delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
   return 1;                                     // Abort handle_one_connection
 }
@@ -73,6 +74,7 @@ void one_thread_scheduler(scheduler_functions* func)
 #endif
   func->init_new_connection_thread= init_dummy;
   func->end_thread= no_threads_end;
+  func->end_raw_connection_thread = no_threads_end;
 }
 
 
