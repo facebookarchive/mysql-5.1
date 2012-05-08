@@ -437,6 +437,14 @@ TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
                              log_output_names, 
                              (unsigned int *) log_output_names_len};
 
+const char *allow_noncurrent_db_rw_levels[] = {"ON", "LOG", "LOG_WARN",
+					       "OFF", NullS};
+TYPELIB allow_noncurrent_db_rw_typelib=
+{
+  array_elements(allow_noncurrent_db_rw_levels) - 1, "",
+  allow_noncurrent_db_rw_levels, NULL
+};
+
 /* static variables */
 
 /* the default log output is log tables */
@@ -6300,6 +6308,7 @@ enum options_mysqld
   OPT_FB_LIBMCC_WARN_MS,
   OPT_FB_ALWAYS_DIRTY,
 #endif
+  OPT_ALLOW_NONCURRENT_DB_RW,
   OPT_RESERVED_SUPER_CONNECTIONS,
   OPT_RESET_SECONDS_BEHIND_MASTER,
   OPT_PERFTOOLS_PROFILE,
@@ -6552,6 +6561,14 @@ struct my_option my_long_options[] =
    &opt_fb_mcproxy_server, &opt_fb_mcproxy_server,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"allow_noncurrent_db_rw", OPT_ALLOW_NONCURRENT_DB_RW,
+   "ON = Allow read and write tables not in current database. LOG = Allow read "
+   "and write tables that are not in current database, but log it. LOG_WARN = "
+   "The same as LOG, but also send an error to client. OFF = Disallow read and "
+   " write tables that are not in current datbase, and send an error to client."
+   , &global_system_variables.allow_noncurrent_db_rw
+   , &max_system_variables.allow_noncurrent_db_rw,
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, 2, 0, 1, 0},
   {"flush", OPT_FLUSH, "Flush tables to disk between SQL commands.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   /* We must always support the next option to make scripts like mysqltest

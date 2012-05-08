@@ -590,6 +590,10 @@ sys_var_enum_const      sys_thread_handling(&vars, "thread_handling",
                                             &thread_handling_typelib,
                                             NULL);
 
+static sys_var_thd_enum sys_noncurrent_db_rw(&vars, "allow_noncurrent_db_rw",
+					      &SV::allow_noncurrent_db_rw,
+					      &allow_noncurrent_db_rw_typelib);
+
 #ifdef HAVE_QUERY_CACHE
 static sys_var_long_ptr	sys_query_cache_size(&vars, "query_cache_size",
 					     &query_cache_size,
