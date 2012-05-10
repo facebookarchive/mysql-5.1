@@ -1398,6 +1398,7 @@ void init_user_stats(USER_STATS *user_stats)
   DBUG_ENTER("init_user_stats");
 
   my_io_perf_init(&(user_stats->io_perf_read));
+  my_io_perf_init(&(user_stats->io_perf_read_blob));
 
   user_stats->binlog_bytes_written= 0;
   user_stats->binlog_events_skip_set= 0;
@@ -1452,9 +1453,10 @@ update_user_stats_after_statement(USER_STATS *us,
                                   double wall_seconds,
                                   bool is_other_command,
                                   bool is_xid_event,
-                                  my_io_perf_t *start_perf_read)
+                                  my_io_perf_t *start_perf_read,
+                                  my_io_perf_t *start_perf_read_blob)
 {
-  my_io_perf_t end_perf_read, diff_io_perf;
+  my_io_perf_t diff_io_perf, diff_io_perf_blob;
   my_atomic_bigint wall_microsecs= (my_atomic_bigint)
       (wall_seconds * 1000000.0);
 
@@ -1477,10 +1479,11 @@ update_user_stats_after_statement(USER_STATS *us,
     my_atomic_add_bigint(&(us->rows_index_first), thd->rows_index_first);
     my_atomic_add_bigint(&(us->rows_index_next), thd->rows_index_next);
 
-    end_perf_read = thd->io_perf_read;
-
-    my_io_perf_diff(&diff_io_perf, &end_perf_read, start_perf_read);
+    my_io_perf_diff(&diff_io_perf, &thd->io_perf_read, start_perf_read);
     my_io_perf_sum_atomic_helper(&(us->io_perf_read), &diff_io_perf);
+
+    my_io_perf_diff(&diff_io_perf_blob, &thd->io_perf_read_blob, start_perf_read_blob);
+    my_io_perf_sum_atomic_helper(&(us->io_perf_read_blob), &diff_io_perf_blob);
   }
   else
   {
@@ -1523,6 +1526,10 @@ fill_one_user_stats(TABLE *table, USER_CONN *uc, USER_STATS* us,
   table->field[f++]->store(us->io_perf_read.requests, TRUE);
   table->field[f++]->store(us->io_perf_read.svc_usecs, TRUE);
   table->field[f++]->store(us->io_perf_read.wait_usecs, TRUE);
+  table->field[f++]->store(us->io_perf_read_blob.bytes, TRUE);
+  table->field[f++]->store(us->io_perf_read_blob.requests, TRUE);
+  table->field[f++]->store(us->io_perf_read_blob.svc_usecs, TRUE);
+  table->field[f++]->store(us->io_perf_read_blob.wait_usecs, TRUE);
   table->field[f++]->store(us->errors_access_denied, TRUE);
   table->field[f++]->store(us->errors_total, TRUE);
   table->field[f++]->store(us->keys_dirtied, TRUE);

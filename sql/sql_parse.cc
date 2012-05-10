@@ -1057,7 +1057,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   NET *net= &thd->net;
   bool error= 0;
   my_fast_timer_t init_timer, last_timer;
-  my_io_perf_t start_perf_read;   /* for USER_STATISTICS */
+  my_io_perf_t start_perf_read, start_perf_read_blob;   /* for USER_STATISTICS */
   my_bool async_commit= FALSE;
 
   /* For per-query performance counters with log_slow_statement */
@@ -1154,6 +1154,7 @@ skip_ac:
      The per-session var is read now and diffed later.
   */
   start_perf_read = thd->io_perf_read;
+  start_perf_read_blob = thd->io_perf_read_blob;
 
   /**
     Clear the set of flags that are expected to be cleared at the
@@ -1837,7 +1838,8 @@ skip_ac:
       USER_STATS *us= thd_get_user_stats(thd);
       update_user_stats_after_statement(us, thd, wall_seconds,
                                         command != COM_QUERY,
-                                        FALSE, &start_perf_read);
+                                        FALSE, &start_perf_read,
+                                        &start_perf_read_blob);
     }
   }
 

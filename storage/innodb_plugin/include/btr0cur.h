@@ -586,7 +586,8 @@ btr_rec_copy_externally_stored_field(
 				zero for uncompressed BLOBs */
 	ulint		no,	/*!< in: field number */
 	ulint*		len,	/*!< out: length of the field */
-	mem_heap_t*	heap);	/*!< in: mem heap */
+	mem_heap_t*	heap,	/*!< in: mem heap */
+  trx_t* trx); /*!< in: transaction handle */
 /*******************************************************************//**
 Flags the data tuple fields that are marked as extern storage in the
 update vector.  We use this function to remember which fields we must

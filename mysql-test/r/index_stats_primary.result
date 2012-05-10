@@ -19,6 +19,13 @@ IO_READ_SVC_USECS_MAX	bigint(21)	NO		0
 IO_READ_WAIT_USECS	bigint(21)	NO		0	
 IO_READ_WAIT_USECS_MAX	bigint(21)	NO		0	
 IO_READ_OLD_IOS	bigint(21)	NO		0	
+IO_READ_BYTES_BLOB	bigint(21)	NO		0	
+IO_READ_REQUESTS_BLOB	bigint(21)	NO		0	
+IO_READ_SVC_USECS_BLOB	bigint(21)	NO		0	
+IO_READ_SVC_USECS_MAX_BLOB	bigint(21)	NO		0	
+IO_READ_WAIT_USECS_BLOB	bigint(21)	NO		0	
+IO_READ_WAIT_USECS_MAX_BLOB	bigint(21)	NO		0	
+IO_READ_OLD_IOS_BLOB	bigint(21)	NO		0	
 flush statistics;
 grant usage on *.* to mysqltest_1@localhost;
 flush user_resources;

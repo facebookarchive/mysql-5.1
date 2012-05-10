@@ -1555,6 +1555,8 @@ public:
 
   my_io_perf_t io_perf_read;/* IO perf counters for slow query log */
   my_io_perf_t io_perf_write;/* IO perf counters for slow query log */
+  my_io_perf_t io_perf_read_blob;/* IO perf counters for slow query
+                                 log for blob*/
 
   /* Counters for information_schema.USER_STATISTICS.
      Set to 0 at statement start

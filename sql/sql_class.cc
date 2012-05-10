@@ -940,6 +940,7 @@ void THD::init(void)
 
   my_io_perf_init(&io_perf_read);
   my_io_perf_init(&io_perf_write);
+  my_io_perf_init(&io_perf_read_blob);
 
   uses_admission_control = QUERY_NOT_SCHEDULED;
 #if defined(ENABLED_DEBUG_SYNC)

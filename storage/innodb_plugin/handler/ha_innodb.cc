@@ -281,7 +281,7 @@ innobase_update_table_stats(
 /*===============*/
 	/* per-table stats callback */
 	void (*cb)(const char* db, const char* tbl,
-		   my_io_perf_t* r, my_io_perf_t* w,
+		   my_io_perf_t* r, my_io_perf_t* w, my_io_perf_t* r_blob,
 		   comp_stat_t *comp_stat, int n_lru, const char* engine));
 
 /** Reads replication state (relay/master log offset and position)
@@ -1089,6 +1089,7 @@ ha_innobase::init_trx_table_stats(
 	bool write)	/* in: true for a write operation */
 {
 	my_io_perf_init(&trx->table_io_perf.read);
+	my_io_perf_init(&trx->table_io_perf.read_blob);
 
 	if (write) {
 		my_io_perf_init(&trx->table_io_perf.write);
@@ -1108,9 +1109,14 @@ ha_innobase::update_stats_from_trx(
 	bool write)		/* in: true for a write operation */
 {
 	my_io_perf_sum(&stats.table_io_perf_read, &trx->table_io_perf.read);
+	my_io_perf_sum(&stats.table_io_perf_read_blob, &trx->table_io_perf.read_blob);
   if (ha_partition_stats != NULL)
+  {
     my_io_perf_sum(&(ha_partition_stats->table_io_perf_read),
                    &trx->table_io_perf.read);
+    my_io_perf_sum(&(ha_partition_stats->table_io_perf_read_blob),
+                   &trx->table_io_perf.read_blob);
+  }
 
 	if (write) {
 		my_io_perf_sum(&stats.table_io_perf_write, &trx->table_io_perf.write);
@@ -3034,8 +3040,8 @@ innobase_update_table_stats(
 /*===============*/
 	/* per-table stats callback */
 	void (*cb)(const char* db, const char* tbl,
-		   my_io_perf_t* r, my_io_perf_t* w, comp_stat_t* comp_stat,
-		   int n_lru, const char* engine))
+		   my_io_perf_t* r, my_io_perf_t* w, my_io_perf_t* r_blob,
+       comp_stat_t* comp_stat, int n_lru, const char* engine))
 {
 	fil_update_table_stats(cb);
 }

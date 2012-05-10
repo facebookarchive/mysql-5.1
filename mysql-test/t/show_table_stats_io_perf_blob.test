@@ -1,0 +1,30 @@
+source include/not_embedded.inc;
+source include/have_innodb.inc;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1 (a int not null primary key, b blob) engine=innodb;
+
+insert into t1 values (1, repeat("test", 3000));
+
+# Clear innodb page cache so the read stats can be deterministic
+flush tables t1 with memory cache;
+select count(*) from t1;
+flush tables t1 with memory cache;
+
+--disable_result_log
+select * from t1 where a=1;
+--enable_result_log
+
+select 'should be 49152,3,0,16384,1,0',
+IO_READ_BYTES, IO_READ_REQUESTS, IO_READ_OLD_IOS,
+IO_READ_BYTES_BLOB, IO_READ_REQUESTS_BLOB, IO_READ_OLD_IOS_BLOB
+from information_schema.table_statistics where table_name like 't1%';
+
+select USER_NAME, DISK_READ_BYTES, DISK_READ_REQUESTS, DISK_READ_BYTES_BLOB,
+DISK_READ_REQUESTS_BLOB from information_schema.user_statistics where
+USER_NAME=substring_index(user(),'@',1);
+
+drop table t1;

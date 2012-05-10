@@ -267,12 +267,13 @@ fil_update_table_stats_one_cell(
 	ulint		cell_number,	/*!< in: cell to report */
 	my_io_perf_t*	read_arr,	/*!< in: buffer for read stats */
 	my_io_perf_t*	write_arr,	/*!< in: buffer for write stats */
+	my_io_perf_t*	read_arr_blob,	/*!< in: buffer for read stats for blob */
 	comp_stat_t*	comp_stat_arr, /*!< in: buffer for compression stats */
 	int*		n_lru_arr,	/*!< in: buffer for n_lru stats */
 	ulint		max_per_cell,	/*!< in: size of buffers */
 	void		(*cb)(const char* db, const char* tbl,
-			      my_io_perf_t *r, my_io_perf_t *w, comp_stat_t* comp_stat,
-			      int n_lru, const char* engine),
+			      my_io_perf_t *r, my_io_perf_t *w, my_io_perf_t *r_blob,
+            comp_stat_t* comp_stat, int n_lru, const char* engine),
 	char*		db_name_buf,	/*!< in: buffer for db names */
 	char*		table_name_buf)	/*!< in: buffer for table names */
 {
@@ -302,6 +303,7 @@ fil_update_table_stats_one_cell(
 
 			read_arr[found] = space->io_perf2.read;
 			write_arr[found] = space->io_perf2.write;
+			read_arr_blob[found] = space->io_perf2.read_blob;
 			comp_stat_arr[found] = space->comp_stat;
 			n_lru_arr[found] = space->n_lru;
 
@@ -325,6 +327,7 @@ fil_update_table_stats_one_cell(
 		   &(table_name_buf[report * (FN_LEN+1)]),
 		   &(read_arr[report]),
 		   &(write_arr[report]),
+		   &(read_arr_blob[report]),
 		   &(comp_stat_arr[report]),
 		   n_lru_arr[report],
 		   "InnoDB");
@@ -339,14 +342,15 @@ fil_update_table_stats(
 /*===================*/
 	/* per-table stats callback */
 	void (*cb)(const char* db, const char* tbl,
-		   my_io_perf_t *r, my_io_perf_t *w, comp_stat_t* comp_stat,
-		   int n_lru, const char* engine))
+		   my_io_perf_t *r, my_io_perf_t *w, my_io_perf_t *r_blob,
+       comp_stat_t* comp_stat, int n_lru, const char* engine))
 {
 	ulint		n_cells;
 	ulint		n;
 	ulint		max_per_cell = 0;
 	my_io_perf_t*	read_arr;
 	my_io_perf_t*	write_arr;
+	my_io_perf_t*	read_arr_blob;
 	comp_stat_t*	comp_stat_arr;
 	int*		n_lru_arr;
 	char*		db_name_buf;
@@ -411,18 +415,22 @@ fil_update_table_stats(
 
 	read_arr = (my_io_perf_t*) ut_malloc(sizeof(my_io_perf_t) * max_per_cell);
 	write_arr = (my_io_perf_t*) ut_malloc(sizeof(my_io_perf_t) * max_per_cell);
+	read_arr_blob = (my_io_perf_t*) ut_malloc(
+                                      sizeof(my_io_perf_t) * max_per_cell);
 	comp_stat_arr = (comp_stat_t*) ut_malloc(
 	                                    sizeof(comp_stat_t) * max_per_cell);
 	db_name_buf = (char*) ut_malloc((FN_LEN+1) * max_per_cell);
 	table_name_buf = (char*) ut_malloc((FN_LEN+1) * max_per_cell);
 	n_lru_arr = (int*) ut_malloc(sizeof(int) * max_per_cell);
 
-	if (!read_arr || !write_arr || !comp_stat_arr || !table_name_buf ||
-	    !db_name_buf || !n_lru_arr) {
+	if (!read_arr || !write_arr || !read_arr_blob || !comp_stat_arr ||
+      !table_name_buf || !db_name_buf || !n_lru_arr) {
 		if (read_arr)
 			ut_free(read_arr);
 		if (write_arr)
 			ut_free(write_arr);
+		if (read_arr_blob)
+			ut_free(read_arr_blob);
 		if (comp_stat_arr)
 			ut_free(comp_stat_arr);
 		if (db_name_buf)
@@ -439,12 +447,13 @@ fil_update_table_stats(
 
 	for (n = 0; n < n_cells; ++n) {
 		fil_update_table_stats_one_cell(
-			n, read_arr, write_arr, comp_stat_arr, n_lru_arr,
+			n, read_arr, write_arr, read_arr_blob, comp_stat_arr, n_lru_arr,
 			max_per_cell, cb, db_name_buf, table_name_buf);
 	}
 
 	ut_free(read_arr);
 	ut_free(write_arr);
+	ut_free(read_arr_blob);
 	ut_free(comp_stat_arr);
 	ut_free(table_name_buf);
 	ut_free(db_name_buf);
@@ -455,6 +464,7 @@ fil_update_table_stats(
 	   "doublewrite" /* table */,
 	   &io_perf_doublewrite.read,
 	   &io_perf_doublewrite.write,
+	   &io_perf_doublewrite.read_blob,
 	   &comp_stat_doublewrite,
 	   0 /* n_lru */,
 	   "InnoDB");
@@ -1421,6 +1431,7 @@ try_again:
 
 	my_io_perf_init(&(space->io_perf2.read));
 	my_io_perf_init(&(space->io_perf2.write));
+	my_io_perf_init(&(space->io_perf2.read_blob));
 	memset(&(space->comp_stat), 0, sizeof space->comp_stat);
 	space->n_lru = 0;
 

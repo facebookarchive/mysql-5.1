@@ -217,6 +217,7 @@ typedef struct user_resources {
 
 typedef struct st_user_stats {
   my_io_perf_t     io_perf_read;
+  my_io_perf_t     io_perf_read_blob;
   my_atomic_bigint bytes_received;
   my_atomic_bigint bytes_sent;
   my_atomic_bigint binlog_bytes_written;
@@ -351,6 +352,7 @@ typedef struct st_index_stats {
   my_atomic_bigint volatile rows_index_next;
 
   my_io_perf_t io_perf_read;         /* Read IO performance counters */
+  my_io_perf_t io_perf_read_blob;    /* Read IO performance counters for blob */
 } INDEX_STATS;
 
 /* 
@@ -388,6 +390,7 @@ typedef struct st_table_stats {
 
   my_io_perf_t io_perf_read;         /* Read IO performance counters */
   my_io_perf_t io_perf_write;        /* Write IO performance counters */
+  my_io_perf_t io_perf_read_blob;    /* Read IO performance counters for blob */
   volatile my_atomic_bigint index_inserts;  /* Number of secondary index inserts. */
 
   /* LOCK_global_table_stats is locked when this is updated */
@@ -423,7 +426,8 @@ update_user_stats_after_statement(USER_STATS *us,
                                   double wall_seconds,
                                   bool is_other_command,
                                   bool is_xid_event,
-                                  my_io_perf_t *start_perf_read);
+                                  my_io_perf_t *start_perf_read,
+                                  my_io_perf_t *start_perf_read_blob);
 
 	/* Bits in form->update */
 #define REG_MAKE_DUPP		1	/* Make a copy of record when read */

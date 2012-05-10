@@ -2305,12 +2305,13 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 
   if (reason == Log_event::EVENT_SKIP_NOT)
   {
-    my_io_perf_t start_perf_read;
+    my_io_perf_t start_perf_read, start_perf_read_blob;
     my_fast_timer_t init_timer;
 
     /* Initialize for user_statistics, see dispatch_command */
     thd->reset_user_stats_counters();
     start_perf_read = thd->io_perf_read;
+    start_perf_read_blob = thd->io_perf_read_blob;
     my_get_fast_timer(&init_timer);
 
     exec_res= ev->apply_event(rli);
@@ -2354,7 +2355,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
     {
       USER_STATS *us= thd_get_user_stats(thd);
       update_user_stats_after_statement(us, thd, wall_seconds, is_other, is_xid,
-                                        &start_perf_read);
+                                        &start_perf_read, &start_perf_read_blob);
     }
   }
 

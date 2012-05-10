@@ -1,0 +1,21 @@
+drop table if exists t1;
+CREATE TABLE t1 (a int not null primary key, b blob) engine=innodb;
+insert into t1 values (1, repeat("test", 3000));
+flush tables t1 with memory cache;
+select count(*) from t1;
+count(*)
+1
+flush tables t1 with memory cache;
+select * from t1 where a=1;
+select 'should be 49152,3,0,16384,1,0',
+IO_READ_BYTES, IO_READ_REQUESTS, IO_READ_OLD_IOS,
+IO_READ_BYTES_BLOB, IO_READ_REQUESTS_BLOB, IO_READ_OLD_IOS_BLOB
+from information_schema.table_statistics where table_name like 't1%';
+should be 49152,3,0,16384,1,0	IO_READ_BYTES	IO_READ_REQUESTS	IO_READ_OLD_IOS	IO_READ_BYTES_BLOB	IO_READ_REQUESTS_BLOB	IO_READ_OLD_IOS_BLOB
+should be 49152,3,0,16384,1,0	49152	3	0	16384	1	0
+select USER_NAME, DISK_READ_BYTES, DISK_READ_REQUESTS, DISK_READ_BYTES_BLOB,
+DISK_READ_REQUESTS_BLOB from information_schema.user_statistics where
+USER_NAME=substring_index(user(),'@',1);
+USER_NAME	DISK_READ_BYTES	DISK_READ_REQUESTS	DISK_READ_BYTES_BLOB	DISK_READ_REQUESTS_BLOB
+root	32768	2	16384	1
+drop table t1;

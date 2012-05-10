@@ -43,6 +43,7 @@ clear_table_stats_counters(TABLE_STATS* table_stats)
     table_stats->indexes[x].rows_index_first= 0;
     table_stats->indexes[x].rows_index_next= 0;
     my_io_perf_init(&(table_stats->indexes[x].io_perf_read));
+    my_io_perf_init(&(table_stats->indexes[x].io_perf_read_blob));
   }
 
   table_stats->n_lru= 0;
@@ -58,6 +59,7 @@ clear_table_stats_counters(TABLE_STATS* table_stats)
 
   my_io_perf_init(&table_stats->io_perf_read);
   my_io_perf_init(&table_stats->io_perf_write);
+  my_io_perf_init(&table_stats->io_perf_read_blob);
   table_stats->index_inserts = 0;
 	memset(&table_stats->comp_stat, 0, sizeof(table_stats->comp_stat));
 }
@@ -344,6 +346,14 @@ ST_FIELD_INFO table_stats_fields_info[]=
   {"IO_WRITE_WAIT_USECS_MAX", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"IO_WRITE_OLD_IOS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
 
+  {"IO_READ_BYTES_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"IO_READ_REQUESTS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"IO_READ_SVC_USECS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"IO_READ_SVC_USECS_MAX_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"IO_READ_WAIT_USECS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"IO_READ_WAIT_USECS_MAX_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"IO_READ_OLD_IOS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+
   {"IO_INDEX_INSERTS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"KEYS_DIRTIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"QUERIES_USED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
@@ -357,6 +367,7 @@ void fill_table_stats_cb(const char *db,
                          const char *table,
                          my_io_perf_t *r,
                          my_io_perf_t *w,
+                         my_io_perf_t *r_blob,
                          comp_stat_t *comp_stat,
                          int n_lru,
                          const char *engine)
@@ -370,6 +381,7 @@ void fill_table_stats_cb(const char *db,
   /* These assignments allow for races. That is OK. */
   stats->io_perf_read = *r;
   stats->io_perf_write = *w;
+  stats->io_perf_read_blob = *r_blob;
   stats->comp_stat = *comp_stat;
   stats->n_lru = n_lru;
 }
@@ -404,6 +416,7 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
         table_stats->comp_stat.decompressed_usec == 0 &&
         table_stats->io_perf_read.requests == 0 &&
         table_stats->io_perf_write.requests == 0 &&
+        table_stats->io_perf_read_blob.requests == 0 &&
         table_stats->n_lru == 0)
     {
       continue;
@@ -458,6 +471,14 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[f++]->store(table_stats->io_perf_write.wait_usecs_max, TRUE);
     table->field[f++]->store(table_stats->io_perf_write.old_ios, TRUE);
 
+    table->field[f++]->store(table_stats->io_perf_read_blob.bytes, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read_blob.requests, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read_blob.svc_usecs, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read_blob.svc_usecs_max, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read_blob.wait_usecs, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read_blob.wait_usecs_max, TRUE);
+    table->field[f++]->store(table_stats->io_perf_read_blob.old_ios, TRUE);
+
     table->field[f++]->store(table_stats->index_inserts, TRUE);
     table->field[f++]->store(table_stats->keys_dirtied, TRUE);
     table->field[f++]->store(table_stats->queries_used, TRUE);
@@ -497,6 +518,14 @@ ST_FIELD_INFO index_stats_fields_info[]=
   {"IO_READ_WAIT_USECS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"IO_READ_WAIT_USECS_MAX", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"IO_READ_OLD_IOS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+
+  {"IO_READ_BYTES_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"IO_READ_REQUESTS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"IO_READ_SVC_USECS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"IO_READ_SVC_USECS_MAX_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"IO_READ_WAIT_USECS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"IO_READ_WAIT_USECS_MAX_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"IO_READ_OLD_IOS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
@@ -559,6 +588,14 @@ int fill_index_stats(THD *thd, TABLE_LIST *tables, COND *cond)
       table->field[f++]->store(index_stats->io_perf_read.wait_usecs_max, TRUE);
       table->field[f++]->store(index_stats->io_perf_read.old_ios, TRUE);
 
+      table->field[f++]->store(index_stats->io_perf_read_blob.bytes, TRUE);
+      table->field[f++]->store(index_stats->io_perf_read_blob.requests, TRUE);
+      table->field[f++]->store(index_stats->io_perf_read_blob.svc_usecs, TRUE);
+      table->field[f++]->store(index_stats->io_perf_read_blob.svc_usecs_max, TRUE);
+      table->field[f++]->store(index_stats->io_perf_read_blob.wait_usecs, TRUE);
+      table->field[f++]->store(index_stats->io_perf_read_blob.wait_usecs_max, TRUE);
+      table->field[f++]->store(index_stats->io_perf_read_blob.old_ios, TRUE);
+
       if (schema_table_store_record(thd, table))
       {
         pthread_mutex_unlock(&LOCK_global_table_stats);
@@ -596,6 +633,10 @@ ST_FIELD_INFO user_stats_fields_info[]=
   {"DISK_READ_REQUESTS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"DISK_READ_SVC_USECS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"DISK_READ_WAIT_USECS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"DISK_READ_BYTES_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"DISK_READ_REQUESTS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"DISK_READ_SVC_USECS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"DISK_READ_WAIT_USECS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"ERRORS_ACCESS_DENIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"ERRORS_TOTAL", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"KEYS_DIRTIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
