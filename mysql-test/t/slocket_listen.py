@@ -11,7 +11,7 @@ def main():
     print 'Usage: %s <socket name>' % argv[0]
     exit(1)
 
-  sn = argv[1]
+  sn = make_relative_path(argv[1])
 
   s = socket(AF_UNIX, SOCK_DGRAM)
   if len(argv) < 2:
@@ -36,6 +36,13 @@ def main():
   s.close()
   try_unlink(sn)
 
+def make_relative_path(path):
+  current_dir = getcwd()
+  if path.find(current_dir) == 0:
+    path = path[len(current_dir):]
+    if path[0] == '/':
+      path = path[1:]
+  return path
 
 def try_unlink(sn):
   try:
