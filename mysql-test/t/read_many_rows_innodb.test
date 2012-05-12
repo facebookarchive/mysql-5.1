@@ -8,6 +8,9 @@
 #               main code --> include/read_many_rows_innodb.inc
 #
 
+# Don't test in Debug mode, too slow.
+--source include/have_nodebug.inc
+
 --source include/big_test.inc
 
 --source include/have_innodb.inc
