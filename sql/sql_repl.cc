@@ -2136,8 +2136,11 @@ static sys_var_long_ptr	sys_slave_trans_retries(&vars, "slave_transaction_retrie
 static sys_var_sync_binlog_period sys_sync_binlog_period(&vars, "sync_binlog", &sync_binlog_period);
 static sys_var_long_ptr sys_group_commit_timeout_usecs(&vars, "group_commit_timeout_usecs", &group_commit_timeout_usecs);
 static sys_var_long_ptr sys_group_commit_min_size(&vars, "group_commit_min_size", &group_commit_min_size);
+static sys_var_long_ptr sys_group_commit_hang_disable(&vars, "group_commit_hang_disable_seconds", &group_commit_hang_disable_secs);
+static sys_var_long_ptr sys_group_commit_hang_log(&vars, "group_commit_hang_log_seconds", &group_commit_hang_log_secs);
 static sys_var_long_ptr sys_sync_relay_info_period(&vars, "sync_relay_info", &sync_relay_info_period);
 static sys_var_slave_skip_counter sys_slave_skip_counter(&vars, "sql_slave_skip_counter");
+static sys_var_long_ptr sys_binlog_fsync_slow_usecs(&vars, "binlog_fsync_slow_useconds", &binlog_fsync_slow_usecs);
 
 static sys_var_bool_ptr sys_force_binlog_order(&vars, "force_binlog_order", &force_binlog_order);
 

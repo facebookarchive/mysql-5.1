@@ -1,3 +1,5 @@
+SET GLOBAL group_commit_hang_log_seconds=1;
+select variable_value into @fslow1 from information_schema.global_status where variable_name='Binlog_fsync_slow';
 connection c1
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (k INT NOT NULL, a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, PRIMARY KEY(k)) ENGINE=InnoDB;
@@ -218,6 +220,10 @@ k	a	b	c
 1	10	0	0
 set DEBUG_SYNC="RESET";
 set SESSION debug="RESET";
+select variable_value into @fslow2 from information_schema.global_status where variable_name='Binlog_fsync_slow';
+select @fslow2 - @fslow1;
+@fslow2 - @fslow1
+0
 ""
 final cleanup
 ""
@@ -228,3 +234,4 @@ SET GLOBAL innodb_prepare_commit_mutex=1;
 SET GLOBAL sync_binlog=0;
 SET GLOBAL group_commit_timeout_usecs=1000;
 SET GLOBAL group_commit_min_size=8;
+SET GLOBAL group_commit_hang_log_seconds=default;

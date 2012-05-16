@@ -2024,6 +2024,8 @@ extern ulong current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
 extern ulong group_commit_timeout_usecs;
 extern ulong group_commit_min_size;
+extern ulong group_commit_hang_disable_secs;
+extern ulong group_commit_hang_log_secs;
 extern my_bool force_binlog_order;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
@@ -2179,6 +2181,9 @@ extern my_bool admission_control_diskio;
 extern my_bool admission_control_wait_reentry;
 extern my_bool admission_control_disabled;
 extern my_bool transaction_control_disabled;
+
+extern ulong binlog_fsync_slow_usecs;
+extern ulong binlog_fsync_slow;
 
 extern ulong rpl_event_buffer_size;
 

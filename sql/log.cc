@@ -59,6 +59,7 @@ LOGGER logger;
 
 MYSQL_BIN_LOG mysql_bin_log;
 ulong sync_binlog_counter= 0;
+ulong binlog_fsync_slow= 0;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
@@ -4282,6 +4283,8 @@ void MYSQL_BIN_LOG::wait_for_group_commit_order(THD *thd)
   ulonglong initial_ticket;
   timespec cond_wake_time;
   my_bool first_loop= TRUE;
+  my_bool first_err= FALSE;
+  my_bool first_log= FALSE;
   my_fast_timer_t wait_start;
   double wait_secs;
 
@@ -4297,7 +4300,7 @@ void MYSQL_BIN_LOG::wait_for_group_commit_order(THD *thd)
 
   DEBUG_SYNC(thd, "on_group_commit_dequeue");
 
-  set_timespec(cond_wake_time, GROUP_COMMIT_HANG_ERROR_SECONDS);
+  set_timespec(cond_wake_time, 1);
   my_get_fast_timer(&wait_start);
 
   pthread_mutex_lock(&LOCK_group_commit);
@@ -4315,19 +4318,15 @@ void MYSQL_BIN_LOG::wait_for_group_commit_order(THD *thd)
          thd->ticket > current_ticket)
   {
     int slot, err;
-    my_bool first_err;
 
 #ifndef DBUG_OFF
 wait_loop:
 #endif
 
-    first_err= FALSE;
-
     if (!first_loop)
     {
-      set_timespec(cond_wake_time, GROUP_COMMIT_HANG_ERROR_SECONDS);
+      set_timespec(cond_wake_time, 1);
     }
-    else
     {
       first_loop= FALSE;
     }
@@ -4337,10 +4336,10 @@ wait_loop:
                                  &LOCK_group_commit, &cond_wake_time);
 
     DBUG_EXECUTE_IF("group_commit_long_wait", {
-        wait_secs= GROUP_COMMIT_HANG_ERROR_SECONDS+1;
+        wait_secs= 2;
         goto long_wait;} );
     DBUG_EXECUTE_IF("group_commit_really_long_wait", {
-        wait_secs= GROUP_COMMIT_HANG_KILL_SECONDS+1;
+        wait_secs= group_commit_hang_disable_secs+1;
         goto really_long_wait;} );
 
     if (err == ETIMEDOUT)
@@ -4350,7 +4349,7 @@ wait_loop:
       */
       wait_secs = my_fast_timer_diff_now(&wait_start, NULL);
 
-      if (wait_secs > GROUP_COMMIT_HANG_KILL_SECONDS)
+      if (wait_secs > group_commit_hang_disable_secs)
       {
 #ifndef DBUG_OFF
 really_long_wait:
@@ -4361,20 +4360,31 @@ really_long_wait:
         disable_group_commit(thd, "waited too long for ticket");
         ++binlog_fsync_reallylongwait;
       }
-      else if (!first_err && wait_secs > GROUP_COMMIT_HANG_ERROR_SECONDS)
+      else if (!first_err && wait_secs > 0.9)
       {
+        /* 
+          wait_secs might be just less than 1 second 
+        */
 #ifndef DBUG_OFF
 long_wait:
 #endif
         first_err= TRUE;
-        sql_print_error("Group commit: waiting for ticket %lu to reach %lu for "
+        ++binlog_fsync_longwait;
+      }
+
+      if (!first_log && wait_secs > group_commit_hang_log_secs)
+      {
+        first_log= TRUE;
+
+        sql_print_error("Group commit: %ld start waiting for ticket %lu to reach %lu for "
                         "%lu microseconds, initial ticket was %lu",
+                        (unsigned long) thd->variables.pseudo_thread_id,
                         (unsigned long) current_ticket,
                         (unsigned long) thd->ticket,
                         (unsigned long) (1000000.0 * wait_secs),
                         (unsigned long) initial_ticket);
-        ++binlog_fsync_longwait;
       }
+
     }
   }
   pthread_mutex_unlock(&LOCK_group_commit);
@@ -4382,6 +4392,16 @@ long_wait:
   wait_secs = my_fast_timer_diff_now(&wait_start, NULL);
   binlog_fsync_ticketwait_secs += wait_secs;
   ++binlog_fsync_ticketwaits;
+
+  if (wait_secs > group_commit_hang_log_secs)
+  {
+    sql_print_error("Group commit: %ld done waiting for ticket to reach %lu for "
+                    "%lu microseconds, initial ticket was %lu",
+                    (unsigned long) thd->variables.pseudo_thread_id,
+                    (unsigned long) thd->ticket,
+                    (unsigned long) (1000000.0 * wait_secs),
+                    (unsigned long) initial_ticket);
+  }
 }
 
 int MYSQL_BIN_LOG::flush_and_sync(THD *thd, bool async, handlerton *ht, int32 pending)
@@ -4489,6 +4509,8 @@ int MYSQL_BIN_LOG::flush_and_sync(THD *thd, bool async, handlerton *ht, int32 pe
         ++binlog_fsync_groupsync;
         ++binlog_fsync_count;
         binlog_fsync_total_secs += fsync_time;
+        if ((fsync_time * 1000000) >= binlog_fsync_slow_usecs)
+          ++binlog_fsync_slow;
       }
       else
       {
@@ -4515,6 +4537,8 @@ int MYSQL_BIN_LOG::flush_and_sync(THD *thd, bool async, handlerton *ht, int32 pe
       ++binlog_fsync_nowait;
       ++binlog_fsync_count;
       binlog_fsync_total_secs += fsync_time;
+      if ((fsync_time * 1000000) >= binlog_fsync_slow_usecs)
+        ++binlog_fsync_slow;
     }
   }
 

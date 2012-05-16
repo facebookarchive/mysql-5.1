@@ -9,8 +9,13 @@
 
 --disable_query_log
 call mtr.add_suppression("Group commit disabled because a bug has been found.*");
-call mtr.add_suppression("Group commit: waiting for ticket.*");
+call mtr.add_suppression("Group commit: .* start waiting for ticket.*");
 --enable_query_log
+
+# make sure warning is printed on first timeout
+SET GLOBAL group_commit_hang_log_seconds=1;
+
+select variable_value into @fslow1 from information_schema.global_status where variable_name='Binlog_fsync_slow';
 
 # setup
 connect(c1,127.0.0.1,root,,test,$MASTER_MYPORT,);
@@ -241,6 +246,10 @@ select * from t1 where k=1;
 set DEBUG_SYNC="RESET";
 set SESSION debug="RESET";
 
+connection default;
+select variable_value into @fslow2 from information_schema.global_status where variable_name='Binlog_fsync_slow';
+select @fslow2 - @fslow1;
+
 ################################################################################
 echo "";
 echo final cleanup;
@@ -256,5 +265,5 @@ SET GLOBAL innodb_prepare_commit_mutex=1;
 SET GLOBAL sync_binlog=0;
 SET GLOBAL group_commit_timeout_usecs=1000;
 SET GLOBAL group_commit_min_size=8;
-
+SET GLOBAL group_commit_hang_log_seconds=default;
 

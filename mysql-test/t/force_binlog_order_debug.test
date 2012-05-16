@@ -8,7 +8,7 @@
 --source include/have_log_bin.inc
 
 --disable_query_log
-call mtr.add_suppression("Group commit: waiting for.*");
+call mtr.add_suppression("Group commit: .* done waiting for ticket to reach.*");
 --enable_query_log
 
 # setup

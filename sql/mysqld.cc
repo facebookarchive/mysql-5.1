@@ -681,6 +681,8 @@ my_bool log_datagram= 0;
 ulong log_datagram_usecs= 0;
 int log_datagram_sock= -1;
 
+ulong binlog_fsync_slow_usecs= 500000;
+
 double binlog_fsync_syncwait_secs= 0.0;
 double binlog_fsync_ticketwait_secs= 0.0;
 double binlog_fsync_total_secs= 0.0;
@@ -697,6 +699,9 @@ ulonglong binlog_fsync_notry= 0;
 ulonglong binlog_fsync_enough_pending= 0;
 ulonglong binlog_fsync_not_too_many_waiting= 0;
 ulonglong binlog_bytes_written= 0;
+
+ulong group_commit_hang_disable_secs= 60;
+ulong group_commit_hang_log_secs= 2;
 
 my_bool opt_log_slow_extra;
 
@@ -6127,6 +6132,7 @@ enum options_mysqld
   OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
   OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
   OPT_BINLOG_FORMAT,
+  OPT_BINLOG_FSYNC_SLOW_USECS,
 #ifndef DBUG_OFF
   OPT_BINLOG_SHOW_XID,
 #endif
@@ -6218,6 +6224,8 @@ enum options_mysqld
   OPT_SYNC_FRM, OPT_SYNC_BINLOG,
   OPT_GROUP_COMMIT_TIMEOUT_USECS,
   OPT_GROUP_COMMIT_MIN_SIZE,
+  OPT_GROUP_COMMIT_HANG_DISABLE_SECS,
+  OPT_GROUP_COMMIT_HANG_LOG_SECS,
   OPT_SYNC_REPLICATION,
   OPT_SYNC_REPLICATION_SLAVE_ID,
   OPT_SYNC_REPLICATION_TIMEOUT,
@@ -6397,6 +6405,11 @@ struct my_option my_long_options[] =
    /* sub_size */     0, /* block_size */ 256, 
    /* app_type */ 0
   },
+  {"binlog_fsync_slow_useconds", OPT_BINLOG_FSYNC_SLOW_USECS,
+   "Count and report number of binlog fsyncs that take more than this number "
+   "of microseconds.",
+   &binlog_fsync_slow_usecs, &binlog_fsync_slow_usecs,
+   0, GET_ULONG, REQUIRED_ARG, 500000, 10000, 100000000, 0, 0, 0},
 #ifndef DISABLE_GRANT_OPTIONS
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7819,6 +7832,17 @@ thread is in the relay logs.",
    "Use 0 (default) to disable synchronous flushing.",
    &sync_binlog_period, &sync_binlog_period, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
+  {"group_commit_hang_disable_seconds", OPT_GROUP_COMMIT_HANG_DISABLE_SECS,
+   "Maximum time in seconds to wait for a transaction to wait to write changes "
+   "to InnoDB transaction log when group commit was used. Group commit is "
+   "disabled when this has been exceeded.",
+   &group_commit_hang_disable_secs, &group_commit_hang_disable_secs,
+   0, GET_ULONG, REQUIRED_ARG, 60, 10, 600, 0, 1, 0},
+  {"group_commit_hang_log_seconds", OPT_GROUP_COMMIT_HANG_LOG_SECS,
+   "Write a warning to the mysqld error log for transactions that wait this "
+   "long to write changes to the InnoDB transaction log when group commit was used.",
+   &group_commit_hang_log_secs, &group_commit_hang_log_secs,
+   0, GET_ULONG, REQUIRED_ARG, 2, 1, 600, 0, 1, 0},
   {"group_commit_timeout_usecs", OPT_GROUP_COMMIT_TIMEOUT_USECS,
    "Maximum time in usecs to wait for group commit. Transactions ignore this "
    "unless group commit (innodb_prepare_commit_mutex) is on and the "
@@ -8604,6 +8628,7 @@ SHOW_VAR status_vars[]= {
   {"Binlog_fsync_not_too_many_waiting", (char*) &binlog_fsync_not_too_many_waiting, SHOW_LONGLONG},
   {"Binlog_fsync_total_seconds",      (char*) &binlog_fsync_total_secs,     SHOW_DOUBLE},
   {"Binlog_fsync_ticketwait_seconds", (char*) &binlog_fsync_ticketwait_secs,SHOW_DOUBLE},
+  {"Binlog_fsync_slow",        (char*) &binlog_fsync_slow, SHOW_LONG},
   {"Binlog_fsync_syncwait_seconds",   (char*) &binlog_fsync_syncwait_secs,  SHOW_DOUBLE},
   {"Binlog_fsync_ticket_current", (char*) &show_binlog_ticket_current, SHOW_FUNC},
   {"Binlog_fsync_ticket_next", (char*) &show_binlog_ticket_next, SHOW_FUNC},
@@ -8985,6 +9010,8 @@ static int mysql_init_variables(void)
   sync_relay_info_period= 0;
   sync_relay_info_events= 0;
 
+  binlog_fsync_slow_usecs= 500000;
+
   reset_seconds_behind_master= FALSE;
 
   log_datagram= 0;
@@ -9010,6 +9037,9 @@ static int mysql_init_variables(void)
 
   group_commit_min_size= 8;
   group_commit_timeout_usecs= 1000;
+
+  group_commit_hang_disable_secs= 60;
+  group_commit_hang_log_secs= 2;
 
   rpl_event_buffer_size= 1024 * 1024;
 

@@ -6,6 +6,12 @@
 --source include/have_innodb.inc
 --source include/have_log_bin.inc
 
+# confirm the variables exist
+SET GLOBAL group_commit_hang_log_seconds = default;
+SET GLOBAL group_commit_hang_disable_seconds = default;
+SHOW GLOBAL VARIABLES like "group_commit_hang_log_seconds";
+SHOW GLOBAL VARIABLES like "group_commit_hang_disable_seconds";
+
 # setup
 connect(c1,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect(c2,127.0.0.1,root,,test,$MASTER_MYPORT,);
@@ -22,6 +28,7 @@ INSERT INTO t1 (k, a, b, c) VALUES (1, 0, 0, 0);
 INSERT INTO t1 (k, a, b, c) VALUES (2, 0, 0, 0);
 
 SET GLOBAL group_commit_min_size=2;
+select variable_value into @fslow1 from information_schema.global_status where variable_name='Binlog_fsync_slow';
 
 ################################################################################
 echo "";
@@ -137,6 +144,9 @@ select variable_value into @fsc2 from information_schema.global_status where var
 select @fsc2 - @fsc1;
 select variable_value into @fsg2 from information_schema.global_status where variable_name='Binlog_fsync_grouped';
 select @fsg2 - @fsg1;
+
+select variable_value into @fslow2 from information_schema.global_status where variable_name='Binlog_fsync_slow';
+select @fslow2 - @fslow1;
 
 ################################################################################
 echo "";
