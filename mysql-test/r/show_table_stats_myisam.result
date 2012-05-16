@@ -36,7 +36,7 @@ from information_schema.table_statistics where table_name = 'p1';
 TABLE_SCHEMA	TABLE_NAME	TABLE_ENGINE	ROWS_INSERTED	ROWS_UPDATED	ROWS_DELETED	ROWS_READ	ROWS_REQUESTED	ROWS_INDEX_FIRST	ROWS_INDEX_NEXT	IO_INDEX_INSERTS
 test	p1	ENGINE	2	0	0	0	0	0	0	0
 select TABLE_SCHEMA,TABLE_NAME,TABLE_ENGINE,ROWS_INSERTED,ROWS_UPDATED,ROWS_DELETED,ROWS_READ,ROWS_REQUESTED,ROWS_INDEX_FIRST,ROWS_INDEX_NEXT,IO_INDEX_INSERTS
-from information_schema.table_statistics where table_name like 'p%';
+from information_schema.table_statistics where table_name like 'p%' order by ROWS_INSERTED;
 TABLE_SCHEMA	TABLE_NAME	TABLE_ENGINE	ROWS_INSERTED	ROWS_UPDATED	ROWS_DELETED	ROWS_READ	ROWS_REQUESTED	ROWS_INDEX_FIRST	ROWS_INDEX_NEXT	IO_INDEX_INSERTS
 test	p1	ENGINE	2	0	0	0	0	0	0	0
 select 'should be 0,2,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
