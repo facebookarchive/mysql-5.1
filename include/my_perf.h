@@ -131,7 +131,7 @@ struct my_io_perf_struct {
   volatile my_atomic_bigint svc_usecs_max;
   volatile my_atomic_bigint wait_usecs; /*!< total time in the request array */
   volatile my_atomic_bigint wait_usecs_max;
-  volatile my_atomic_bigint old_ios; /*!< requests that take too long */
+  volatile my_atomic_bigint slow_ios; /*!< requests that take too long */
 };
 typedef struct my_io_perf_struct my_io_perf_t;
 
@@ -154,14 +154,14 @@ void my_io_perf_diff(my_io_perf_t* diff,
 /* Accumulates io perf values using atomic operations */
 void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
     longlong requests, longlong svc_usecs, longlong wait_usecs,
-    longlong old_ios);
+    longlong slow_ios);
 
 /* Accumulates io perf values using atomic operations */
 STATIC_INLINE void my_io_perf_sum_atomic_helper(my_io_perf_t* sum,
                                                 const my_io_perf_t* perf)
 {
   my_io_perf_sum_atomic(sum, perf->bytes, perf->requests, perf->svc_usecs,
-      perf->wait_usecs, perf->old_ios);
+      perf->wait_usecs, perf->slow_ios);
 }
 
 

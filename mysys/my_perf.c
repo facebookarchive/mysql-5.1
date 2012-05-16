@@ -54,7 +54,7 @@ void my_io_perf_init(my_io_perf_t* perf)
   perf->svc_usecs_max = 0;
   perf->wait_usecs = 0;
   perf->wait_usecs_max = 0;
-  perf->old_ios = 0;
+  perf->slow_ios = 0;
 }
 
 /**********************************************************************
@@ -67,7 +67,7 @@ void my_io_perf_sum(my_io_perf_t* sum, const my_io_perf_t* perf)
   sum->svc_usecs_max = max(sum->svc_usecs_max, perf->svc_usecs_max);
   sum->wait_usecs += perf->wait_usecs;
   sum->wait_usecs_max = max(sum->wait_usecs_max, perf->wait_usecs_max);
-  sum->old_ios += perf->old_ios;
+  sum->slow_ios += perf->slow_ios;
 }
 
 /**********************************************************************
@@ -95,10 +95,10 @@ void my_io_perf_diff(my_io_perf_t* diff,
   else
     diff->wait_usecs = 0;
 
-  if (a->old_ios > b->old_ios)
-    diff->old_ios = a->old_ios - b->old_ios;
+  if (a->slow_ios > b->slow_ios)
+    diff->slow_ios = a->slow_ios - b->slow_ios;
   else
-    diff->old_ios = 0;
+    diff->slow_ios = 0;
 
   diff->svc_usecs_max = max(a->svc_usecs_max, b->svc_usecs_max);
   diff->wait_usecs_max = max(a->wait_usecs_max, b->wait_usecs_max);
@@ -108,7 +108,7 @@ void my_io_perf_diff(my_io_perf_t* diff,
 Accumulate per-table IO stats helper function using atomic ops */
 void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
     longlong requests, longlong svc_usecs, longlong wait_usecs,
-    longlong old_ios)
+    longlong slow_ios)
 {
   my_atomic_bigint old_svc_usecs_max, old_wait_usecs_max;
 
@@ -132,7 +132,7 @@ void my_io_perf_sum_atomic(my_io_perf_t* sum, longlong bytes,
   if (wait_usecs > old_wait_usecs_max)
     my_atomic_cas_bigint(&sum->wait_usecs_max, &old_wait_usecs_max, wait_usecs);
 
-  my_atomic_add_bigint(&sum->old_ios, old_ios);
+  my_atomic_add_bigint(&sum->slow_ios, slow_ios);
 }
 
 

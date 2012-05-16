@@ -64,10 +64,6 @@ extern ulint	os_n_pending_reads;
 /** Number of pending write operations */
 extern ulint	os_n_pending_writes;
 
-/** AIO requests are scheduled in file offset order until they are at least
-   this old and then they are scheduled oldest first. */
-extern ulint	os_aio_old_usecs;
-
 #ifdef __WIN__
 
 /** We define always WIN_ASYNC_IO, and check at run-time whether
@@ -197,6 +193,18 @@ extern ulint	os_n_fsyncs;
 
 /** Seconds waiting for file flushes to finish */
 extern double os_file_flush_secs;
+
+/** Number of times InnoDB fsync took more than srv_io_slow_usecs */
+extern ulint	os_fsync_too_slow;
+
+/** Max seconds for InnoDB fsync */
+extern double	os_fsync_max_secs;
+
+/** Number of async reads that waited longer than srv_io_old_usecs */
+extern ulint	os_async_read_old_ios;
+
+/** Number of async writes that waited longer than srv_io_old_usecs */
+extern ulint	os_async_write_old_ios;
 
 /* File types for directory entry data type */
 

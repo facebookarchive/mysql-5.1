@@ -182,15 +182,6 @@ static ulint os_aio_thread_buffer_size[SRV_MAX_N_IO_THREADS];
 /** Performance counters indexed by global segment number */
 static my_io_perf_t os_aio_perf[SRV_MAX_N_IO_THREADS];
 
-/** AIO requests are scheduled in file offset order until they are at least
-   this old and then they have priority. */
-UNIV_INTERN ulint	os_aio_old_usecs	= 2000000;
-
-/** IO requests that take long than this to service (excludes wait time)
-    are counted as "slow" requests and reported. */
-UNIV_INTERN ulint	os_aio_slow_secs	= 1;
-UNIV_INTERN ulint	os_aio_slow_usecs	= 1000000;
-
 /** The aio arrays for non-ibuf i/o and ibuf i/o, as well as sync aio. These
 are NULL when the module has not yet been initialized. @{ */
 static os_aio_array_t*	os_aio_read_array	= NULL;	/*!< Reads */
@@ -217,8 +208,16 @@ UNIV_INTERN ulint	os_n_file_writes_old	= 0;
 UNIV_INTERN ulint	os_n_fsyncs_old		= 0;
 UNIV_INTERN time_t	os_last_printout;
 
-/** Number of fsyncs that took longer than os_n_slow_secs */
-static ulint		os_n_slow_fsyncs	= 0;
+/** Number of fsyncs that took longer than srv_io_slow_usecs */
+ulint		os_fsync_too_slow	= 0;
+
+/** Max svc time for fsync */
+double		os_fsync_max_secs	= 0;
+
+/** Number of async reads that waited longer than srv_io_old_usecs */
+ulint		os_async_read_old_ios	= 0;
+/** Number of async writes that waited longer than srv_io_old_usecs */
+ulint		os_async_write_old_ios	= 0;
 
 /** Global counters for sync and async IO @{ */
 my_io_perf_t os_async_read_perf;
@@ -301,8 +300,8 @@ os_io_perf_update_all(
 
 	perf->svc_usecs += svc_usecs;
 
-	if ((ulong)svc_usecs >= os_aio_slow_usecs) {
-		perf->old_ios += 1;
+	if ((ulong)svc_usecs >= srv_io_slow_usecs) {
+		perf->slow_ios += 1;
 	}
 
         perf->svc_usecs_max = max(perf->svc_usecs_max, svc_usecs);
@@ -2229,8 +2228,11 @@ os_file_flush(
 	ret = os_file_fsync(file);
 #endif
 	flush_secs = my_fast_timer_diff_now(&start_timer, NULL);
-	if (flush_secs >= os_aio_slow_secs)
-		++os_n_slow_fsyncs;
+	if (flush_secs >= (srv_io_slow_usecs * 1000000.0))
+		++os_fsync_too_slow;
+
+	if (flush_secs >= os_fsync_max_secs)
+		os_fsync_max_secs = flush_secs;
 
 	os_file_flush_secs += flush_secs;
 
@@ -4289,7 +4291,7 @@ restart:
 
 	n_consecutive = 0;
 
-	/* If there are at least os_aio_old_usecs old requests, then pick the oldest
+	/* If there are at least srv_io_old_usecs old requests, then pick the oldest
 	one to prevent starvation. If several requests have the same age,
 	then pick the one at the lowest offset. */
 
@@ -4304,8 +4306,8 @@ restart:
 			age = my_fast_timer_diff(&slot->reservation_time, &now) * 1000000;
 
                         /* Now that age is a float, age will rarely == biggest_age */
-			if ((age >= os_aio_old_usecs && age > biggest_age)
-			    || (age >= os_aio_old_usecs && age == biggest_age
+			if ((age >= srv_io_old_usecs && age > biggest_age)
+			    || (age >= srv_io_old_usecs && age == biggest_age
 				&& slot->offset < oldest_offset)) {
 
 				/* Found an i/o request */
@@ -4333,8 +4335,13 @@ restart:
 
 	if (oldest_request) {
 		slot = oldest_request;
-		if (biggest_age >= os_aio_slow_usecs) {
-			os_aio_perf[global_segment].old_ios += 1;
+		if (biggest_age >= srv_io_old_usecs) {
+
+			if (slot->type == OS_FILE_WRITE)
+				os_async_write_old_ios += 1;
+			else
+				os_async_read_old_ios += 1;
+
 		}
         } else {
 		slot = lowest_request;
@@ -4613,11 +4620,11 @@ os_io_perf_print(
 	double nzero_requests = max(perf->requests, 1);
 
 	fprintf(file,
-		"%lld requests, %lld old, %.2f bytes/r, "
+		"%lld requests, %lld slow, %.2f bytes/r, "
 		"svc: %.2f secs, %.2f msecs/r, %.2f max msecs, "
 		"wait: %.2f secs %.2f msecs/r, %.2f max msecs",
 		(long long) perf->requests,
-		(long long) perf->old_ios,
+		(long long) perf->slow_ios,
 		perf->bytes / nzero_requests,
 		/* svc: starts here */
 		perf->svc_usecs / 1000000.0,
@@ -4769,10 +4776,15 @@ loop:
 	os_io_perf_print(file, &os_double_write_perf, TRUE);
  
 	fprintf(file,
-		"File flushes: %lu requests, %.2f seconds, %.2f msecs/r, %lu old\n",
+		"File flushes: %lu requests, %.2f seconds, %.2f msecs/r, %lu slow, %lu max ms\n",
 		os_n_fsyncs, os_file_flush_secs,
 		(os_file_flush_secs * 1000.0) / (os_n_fsyncs + 1),
-		os_n_slow_fsyncs);
+		os_fsync_too_slow,
+		(unsigned long) (os_fsync_max_secs * 1000));
+
+	fprintf(file,
+		"Old async requests: %lu read, %lu write\n",
+		os_async_read_old_ios, os_async_write_old_ios);
 
 	if (os_file_n_pending_preads != 0 || os_file_n_pending_pwrites != 0) {
 		fprintf(file,
