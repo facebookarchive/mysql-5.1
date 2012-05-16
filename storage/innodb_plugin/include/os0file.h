@@ -236,7 +236,7 @@ performance counters. */
 struct os_io_perf2_struct {
 	my_io_perf_t	read;
 	my_io_perf_t	write;
-  my_io_perf_t  read_blob;
+	my_io_perf_t	read_blob;
 };
 typedef struct os_io_perf2_struct os_io_perf2_t;
 
@@ -245,7 +245,7 @@ performance counters. */
 struct os_io_table_perf_struct {
 	my_io_perf_t	read;			/*!< sync read */
 	my_io_perf_t	write;			/*!< sync write */
-  my_io_perf_t  read_blob;  /*!< sync read for blob */
+	my_io_perf_t	read_blob;	/*!< sync read for blob */
 	longlong      	index_inserts;		/*!< secondary index inserts */
 };
 typedef struct os_io_table_perf_struct os_io_table_perf_t;

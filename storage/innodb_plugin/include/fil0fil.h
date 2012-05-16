@@ -839,8 +839,8 @@ fil_update_table_stats(
 /*===================*/
 	/* per-table stats callback */
 	void (*cb)(const char* db, const char* tbl,
-		   my_io_perf_t *r, my_io_perf_t *w, my_io_perf_t *r_blob,
-       comp_stat_t *comp_stat, int n_lru, const char* engine));
+			 my_io_perf_t *r, my_io_perf_t *w, my_io_perf_t *r_blob,
+			 comp_stat_t *comp_stat, int n_lru, const char* engine));
 
 /********************************************************************//**
 Reads or writes data. This operation is asynchronous (aio).

@@ -4663,7 +4663,7 @@ btr_copy_blob_prefix(
 	ulint		space_id,/*!< in: space id of the BLOB pages */
 	ulint		page_no,/*!< in: page number of the first BLOB page */
 	ulint		offset,	/*!< in: offset on the first BLOB page */
-  trx_t*  trx) /*!< in: transaction handle */
+	trx_t*		trx) /*!< in: transaction handle */
 {
 	ulint	copied_len	= 0;
 
@@ -4860,7 +4860,7 @@ btr_copy_externally_stored_field_prefix_low(
 	ulint		space_id,/*!< in: space id of the first BLOB page */
 	ulint		page_no,/*!< in: page number of the first BLOB page */
 	ulint		offset,	/*!< in: offset on the first BLOB page */
-  trx_t*  trx) /*!< in: transaction handle */
+	trx_t*		trx) /*!< in: transaction handle */
 {
 	if (UNIV_UNLIKELY(len == 0)) {
 		return(0);
@@ -4888,7 +4888,7 @@ btr_copy_externally_stored_field_prefix_low(
 		return(d_stream.total_out);
 	} else {
 		return(btr_copy_blob_prefix(buf, len, space_id,
-					    page_no, offset, trx));
+							page_no, offset, trx));
 	}
 }
 
@@ -4944,11 +4944,11 @@ btr_copy_externally_stored_field_prefix(
 	offset = mach_read_from_4(data + BTR_EXTERN_OFFSET);
 
 	return(local_len
-	       + btr_copy_externally_stored_field_prefix_low(buf + local_len,
-							     len - local_len,
-							     zip_size,
-							     space_id, page_no,
-							     offset, NULL));
+				 + btr_copy_externally_stored_field_prefix_low(buf + local_len,
+									 len - local_len,
+									 zip_size,
+									 space_id, page_no,
+									 offset, NULL));
 }
 
 /*******************************************************************//**
@@ -4968,7 +4968,7 @@ btr_copy_externally_stored_field(
 				zero for uncompressed BLOBs */
 	ulint		local_len,/*!< in: length of data */
 	mem_heap_t*	heap,	/*!< in: mem heap */
-  trx_t* trx) /*!< in: transaction handle */
+	trx_t*		trx) /*!< in: transaction handle */
 {
 	ulint	space_id;
 	ulint	page_no;
@@ -4996,10 +4996,10 @@ btr_copy_externally_stored_field(
 	memcpy(buf, data, local_len);
 	*len = local_len
 		+ btr_copy_externally_stored_field_prefix_low(buf + local_len,
-							      extern_len,
-							      zip_size,
-							      space_id,
-							      page_no, offset, trx);
+										extern_len,
+										zip_size,
+										space_id,
+										page_no, offset, trx);
 
 	return(buf);
 }
@@ -5019,7 +5019,7 @@ btr_rec_copy_externally_stored_field(
 	ulint		no,	/*!< in: field number */
 	ulint*		len,	/*!< out: length of the field */
 	mem_heap_t*	heap,	/*!< in: mem heap */
-  trx_t* trx) /*!< in: transaction handle */
+	trx_t*		trx) /*!< in: transaction handle */
 {
 	ulint		local_len;
 	const byte*	data;

@@ -281,8 +281,8 @@ innobase_update_table_stats(
 /*===============*/
 	/* per-table stats callback */
 	void (*cb)(const char* db, const char* tbl,
-		   my_io_perf_t* r, my_io_perf_t* w, my_io_perf_t* r_blob,
-		   comp_stat_t *comp_stat, int n_lru, const char* engine));
+			 my_io_perf_t* r, my_io_perf_t* w, my_io_perf_t* r_blob,
+			 comp_stat_t *comp_stat, int n_lru, const char* engine));
 
 /** Reads replication state (relay/master log offset and position)
 from the transaction system header into global variables. After this
@@ -1110,23 +1110,23 @@ ha_innobase::update_stats_from_trx(
 {
 	my_io_perf_sum(&stats.table_io_perf_read, &trx->table_io_perf.read);
 	my_io_perf_sum(&stats.table_io_perf_read_blob, &trx->table_io_perf.read_blob);
-  if (ha_partition_stats != NULL)
-  {
-    my_io_perf_sum(&(ha_partition_stats->table_io_perf_read),
-                   &trx->table_io_perf.read);
-    my_io_perf_sum(&(ha_partition_stats->table_io_perf_read_blob),
-                   &trx->table_io_perf.read_blob);
-  }
+	if (ha_partition_stats != NULL)
+	{
+		my_io_perf_sum(&(ha_partition_stats->table_io_perf_read),
+									 &trx->table_io_perf.read);
+		my_io_perf_sum(&(ha_partition_stats->table_io_perf_read_blob),
+									 &trx->table_io_perf.read_blob);
+	}
 
 	if (write) {
 		my_io_perf_sum(&stats.table_io_perf_write, &trx->table_io_perf.write);
 		stats.index_inserts += trx->table_io_perf.index_inserts;
-    if (ha_partition_stats != NULL)
-    {
-      my_io_perf_sum(&(ha_partition_stats->table_io_perf_write),
-                     &trx->table_io_perf.write);
-      ha_partition_stats->index_inserts += trx->table_io_perf.index_inserts;
-    }
+		if (ha_partition_stats != NULL)
+		{
+			my_io_perf_sum(&(ha_partition_stats->table_io_perf_write),
+										 &trx->table_io_perf.write);
+			ha_partition_stats->index_inserts += trx->table_io_perf.index_inserts;
+		}
 	}
 }
 
@@ -2049,8 +2049,8 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
 		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
 		  HA_TABLE_SCAN_ON_INDEX),
   start_of_scan(0),
-  num_write_row(0),
-  ha_partition_stats(NULL)
+	num_write_row(0),
+	ha_partition_stats(NULL)
 {}
 
 /*********************************************************************//**
@@ -3040,8 +3040,8 @@ innobase_update_table_stats(
 /*===============*/
 	/* per-table stats callback */
 	void (*cb)(const char* db, const char* tbl,
-		   my_io_perf_t* r, my_io_perf_t* w, my_io_perf_t* r_blob,
-       comp_stat_t* comp_stat, int n_lru, const char* engine))
+			 my_io_perf_t* r, my_io_perf_t* w, my_io_perf_t* r_blob,
+			 comp_stat_t* comp_stat, int n_lru, const char* engine))
 {
 	fil_update_table_stats(cb);
 }
@@ -11405,7 +11405,7 @@ UNIV_INTERN
 void
 ha_innobase::set_partition_owner_stats(ha_statistics *stats)
 {
-  ha_partition_stats= stats;
+	ha_partition_stats= stats;
 }
 
 /************************************************************//**

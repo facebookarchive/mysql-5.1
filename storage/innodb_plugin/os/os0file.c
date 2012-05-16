@@ -3891,20 +3891,20 @@ os_aio(
 					elapsed_secs, &end_timer, &start_timer);
 			}
 
-      ulint page_type= fil_page_get_type(buf);
-      if (FIL_PAGE_TYPE_BLOB == page_type ||
-          FIL_PAGE_TYPE_ZBLOB == page_type ||
-          FIL_PAGE_TYPE_ZBLOB2 == page_type)
-      {
-			  /* Per fil_space_t counters */
-        os_io_perf_update_all(&(io_perf2->read_blob), n,
-          elapsed_secs, &end_timer, &start_timer);
-        if (table_io_perf) {
-          /* Per table counters */
-          os_io_perf_update_all(&(table_io_perf->read_blob), n,
-            elapsed_secs, &end_timer, &start_timer);
-        }
-      }
+			ulint page_type= fil_page_get_type(buf);
+			if (FIL_PAGE_TYPE_BLOB == page_type ||
+					FIL_PAGE_TYPE_ZBLOB == page_type ||
+					FIL_PAGE_TYPE_ZBLOB2 == page_type)
+			{
+				/* Per fil_space_t counters */
+				os_io_perf_update_all(&(io_perf2->read_blob), n,
+					elapsed_secs, &end_timer, &start_timer);
+				if (table_io_perf) {
+					/* Per table counters */
+					os_io_perf_update_all(&(table_io_perf->read_blob), n,
+						elapsed_secs, &end_timer, &start_timer);
+				}
+			}
 
 		} else {
 			my_io_perf_t *perf;

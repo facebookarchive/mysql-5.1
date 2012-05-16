@@ -587,7 +587,7 @@ btr_rec_copy_externally_stored_field(
 	ulint		no,	/*!< in: field number */
 	ulint*		len,	/*!< out: length of the field */
 	mem_heap_t*	heap,	/*!< in: mem heap */
-  trx_t* trx); /*!< in: transaction handle */
+	trx_t* trx); /*!< in: transaction handle */
 /*******************************************************************//**
 Flags the data tuple fields that are marked as extern storage in the
 update vector.  We use this function to remember which fields we must
