@@ -2281,10 +2281,13 @@ already_dropped:
 	mutex_enter(&kernel_mutex);
 
 	row_mysql_drop_done++;
+
+	if (srv_error_log_spam) {
 	ut_print_timestamp(stderr);
 	fputs("  InnoDB: Dropped table ", stderr);
 	ut_print_name(stderr, NULL, TRUE, drop->table_name);
 	fputs(" in background drop queue.\n", stderr);
+	}
 
 	mem_free(drop->table_name);
 
@@ -3242,6 +3245,7 @@ check_next_foreign:
 		added = row_add_table_to_background_drop_list(table->name);
 
 		if (added) {
+			if (srv_error_log_spam) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: MySQL is"
 			      " trying to drop table ", stderr);
@@ -3255,6 +3259,7 @@ check_next_foreign:
 			}
 			fputs( " Adding the table to the background drop queue.\n",
 			      stderr);
+			}
 
 			/* We return DB_SUCCESS to MySQL though the drop will
 			happen lazily later */

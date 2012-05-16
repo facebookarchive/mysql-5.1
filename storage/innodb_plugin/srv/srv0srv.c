@@ -182,6 +182,9 @@ UNIV_INTERN ulint	srv_uncache_table_batch	= 1000;
 /** Workaround to avoid assert from bugs.mysql.com/62037 */
 UNIV_INTERN my_bool	srv_b62037	= TRUE;
 
+/** Enables more messages in the db error log */
+UNIV_INTERN my_bool	srv_error_log_spam	= FALSE;
+
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
 /* if != 0, this tells the max size auto-extending may increase the

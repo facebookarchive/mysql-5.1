@@ -12531,6 +12531,11 @@ static MYSQL_SYSVAR_ULONG(lru_io_to_unzip_factor, srv_lru_io_to_unzip_factor,
   "cost of decompressing a database page. ",
   NULL, NULL, 50, 1, 1000000, 0);
 
+static MYSQL_SYSVAR_BOOL(error_log_spam, srv_error_log_spam,
+  PLUGIN_VAR_NOCMDARG,
+  "Enable more error log messages",
+  NULL, NULL, FALSE);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_BOOL(fail_ddl_drop_index, srv_fail_ddl_drop_index,
   PLUGIN_VAR_NOCMDARG,
@@ -12675,6 +12680,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(segment_reserve_factor),
   MYSQL_SYSVAR(zlib_wrap),
   MYSQL_SYSVAR(zlib_strategy),
+  MYSQL_SYSVAR(error_log_spam),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(fail_ddl_drop_index),
   MYSQL_SYSVAR(fail_ddl_rename_index),

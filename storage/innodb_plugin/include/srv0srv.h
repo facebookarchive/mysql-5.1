@@ -136,6 +136,8 @@ extern ulint	srv_uncache_table_batch;
 
 extern my_bool	srv_b62037;
 
+extern my_bool	srv_error_log_spam;
+
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
 extern char**	srv_log_group_home_dirs;
