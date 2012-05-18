@@ -1295,6 +1295,7 @@ end_thread:
 pthread_handler_t handle_one_connection(void *arg)
 {
   handle_one_connection_real(arg, false);
+  return 0;
 }
 
 /*
@@ -1335,6 +1336,7 @@ pthread_handler_t handle_one_raw_connection(void *arg)
   thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
 
   handle_one_connection_real(thd, true);
+  return 0;
 }
 
 
