@@ -2035,6 +2035,7 @@ void unlink_thd(THD *thd)
   if(thd != NULL)
   {
     thd->unlink();
+    thd->add_status_to_global_status();
   }
   DBUG_VOID_RETURN;
 }

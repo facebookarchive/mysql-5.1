@@ -2069,6 +2069,8 @@ public:
   */
   Parser_state *m_parser_state;
 
+  my_bool status_added_to_global_status;
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *work_part_info;
 #endif
@@ -2081,6 +2083,7 @@ public:
   THD();
   ~THD();
 
+  void add_status_to_global_status();
   void init(void);
   /*
     Initialize memory roots necessary for query processing and (!)
