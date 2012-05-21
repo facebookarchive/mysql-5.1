@@ -1746,6 +1746,7 @@ fil_init(
 
 	my_io_perf_init(&io_perf_doublewrite.read);
 	my_io_perf_init(&io_perf_doublewrite.write);
+	my_io_perf_init(&io_perf_doublewrite.read_blob);
 	memset(&comp_stat_doublewrite, 0, sizeof(comp_stat_doublewrite));
 }
 
