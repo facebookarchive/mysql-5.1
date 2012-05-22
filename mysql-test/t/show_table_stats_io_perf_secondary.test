@@ -1,0 +1,34 @@
+source include/not_embedded.inc;
+source include/have_innodb.inc;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1 (a int not null primary key, b int) engine=innodb;
+create index SECONDARY on t1(b);
+
+insert into t1 values (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6);
+
+# Clear innodb page cache so the read stats can be deterministic
+flush tables t1 with memory cache;
+select count(*) from t1;
+flush tables t1 with memory cache;
+flush statistics;
+
+select * from t1 where b=1;
+
+select
+IO_READ_BYTES, IO_READ_REQUESTS, IO_READ_SLOW_IOS,
+IO_READ_BYTES_PRIMARY, IO_READ_REQUESTS_PRIMARY, IO_READ_SLOW_IOS_PRIMARY,
+IO_READ_BYTES_SECONDARY, IO_READ_REQUESTS_SECONDARY, IO_READ_SLOW_IOS_SECONDARY
+from information_schema.table_statistics where table_name like 't1%';
+
+select
+DISK_READ_BYTES, DISK_READ_REQUESTS,
+DISK_READ_BYTES_PRIMARY, DISK_READ_REQUESTS_PRIMARY,
+DISK_READ_BYTES_SECONDARY, DISK_READ_REQUESTS_SECONDARY
+from information_schema.user_statistics where
+USER_NAME=substring_index(user(),'@',1);
+
+drop table t1;

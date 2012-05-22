@@ -1608,11 +1608,14 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond);
 typedef void (*table_stats_cb)(const char *db, const char *table,
                                my_io_perf_t* r, my_io_perf_t* w,
                                my_io_perf_t* r_blob,
+                               my_io_perf_t* r_primary,
+                               my_io_perf_t* r_secondary,
                                comp_stat_t* comp_stat, int n_lru,
                                const char *engine);
 void fill_table_stats_cb(const char *db, const char *table,
                          my_io_perf_t *r, my_io_perf_t *w,
-                         my_io_perf_t *r_blob, int n_lru,
+                         my_io_perf_t *r_blob, my_io_perf_t *r_primary,
+                         my_io_perf_t *r_secondary, int n_lru,
                          const char *engine);
 
 int fill_index_stats(THD *thd, TABLE_LIST *tables, COND *cond);

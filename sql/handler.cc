@@ -2409,6 +2409,8 @@ void ha_statistics::reset_table_stats()
   my_io_perf_init(&table_io_perf_read);
   my_io_perf_init(&table_io_perf_write);
   my_io_perf_init(&table_io_perf_read_blob);
+  my_io_perf_init(&table_io_perf_read_primary);
+  my_io_perf_init(&table_io_perf_read_secondary);
 }
 
 
@@ -2418,7 +2420,9 @@ bool ha_statistics::has_table_stats()
           rows_inserted || rows_updated || rows_deleted ||
           table_io_perf_read.requests ||
           table_io_perf_write.requests ||
-          table_io_perf_read_blob.requests);
+          table_io_perf_read_blob.requests ||
+          table_io_perf_read_primary.requests ||
+          table_io_perf_read_secondary.requests);
 }
 
 
@@ -4779,6 +4783,10 @@ void handler::update_global_table_stats(THD *thd, uint keys_dirtied)
     my_io_perf_sum(&thd->io_perf_read, &stats.table_io_perf_read);
     my_io_perf_sum(&thd->io_perf_write, &stats.table_io_perf_write);
     my_io_perf_sum(&thd->io_perf_read_blob, &stats.table_io_perf_read_blob);
+    my_io_perf_sum(&thd->io_perf_read_primary,
+                   &stats.table_io_perf_read_primary);
+    my_io_perf_sum(&thd->io_perf_read_secondary,
+                   &stats.table_io_perf_read_secondary);
 
     thd->status_var.read_requests = thd->io_perf_read.requests;
     thd->status_var.read_seconds =

@@ -744,6 +744,8 @@ struct handlerton
    void (*update_table_stats)(void (*cb)(const char *db, const char *tbl,
                                          my_io_perf_t *r, my_io_perf_t *w,
                                          my_io_perf_t *r_blob,
+                                         my_io_perf_t *r_primary,
+                                         my_io_perf_t *r_secondary,
                                          comp_stat_t* comp_stat, int n_lru,
                                          const char *engine));
 
@@ -1102,6 +1104,10 @@ public:
   my_io_perf_t table_io_perf_read;/* per table IO perf counters */
   my_io_perf_t table_io_perf_write;/* per table IO perf counters */
   my_io_perf_t table_io_perf_read_blob;/* per table IO perf counters for blob */
+  my_io_perf_t table_io_perf_read_primary;/* per table IO perf counters for
+                                             primary index */
+  my_io_perf_t table_io_perf_read_secondary;/* per table IO perf counters for
+                                               secondary index */
   my_atomic_bigint index_inserts;   /* per table secondary index inserts */
 
   /* Count row reads by access type */
@@ -2140,6 +2146,8 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);
 void ha_get_table_stats(void (*cb)(const char* db, const char* tbl,
                                    my_io_perf_t* r, my_io_perf_t* w,
                                    my_io_perf_t* r_blob,
+                                   my_io_perf_t* r_primary,
+                                   my_io_perf_t* r_secondary,
                                    comp_stat_t* comp_stat, int n_lru,
                                    const char* engine));
 

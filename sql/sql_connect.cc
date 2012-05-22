@@ -1401,6 +1401,8 @@ void init_user_stats(USER_STATS *user_stats)
 
   my_io_perf_init(&(user_stats->io_perf_read));
   my_io_perf_init(&(user_stats->io_perf_read_blob));
+  my_io_perf_init(&(user_stats->io_perf_read_primary));
+  my_io_perf_init(&(user_stats->io_perf_read_secondary));
 
   user_stats->binlog_bytes_written= 0;
   user_stats->binlog_events_skip_set= 0;
@@ -1456,9 +1458,12 @@ update_user_stats_after_statement(USER_STATS *us,
                                   bool is_other_command,
                                   bool is_xid_event,
                                   my_io_perf_t *start_perf_read,
-                                  my_io_perf_t *start_perf_read_blob)
+                                  my_io_perf_t *start_perf_read_blob,
+                                  my_io_perf_t *start_perf_read_primary,
+                                  my_io_perf_t *start_perf_read_secondary)
 {
-  my_io_perf_t diff_io_perf, diff_io_perf_blob;
+  my_io_perf_t diff_io_perf, diff_io_perf_blob,
+               diff_io_perf_primary, diff_io_perf_secondary;
   my_atomic_bigint wall_microsecs= (my_atomic_bigint)
       (wall_seconds * 1000000.0);
 
@@ -1485,7 +1490,15 @@ update_user_stats_after_statement(USER_STATS *us,
     my_io_perf_sum_atomic_helper(&(us->io_perf_read), &diff_io_perf);
 
     my_io_perf_diff(&diff_io_perf_blob, &thd->io_perf_read_blob, start_perf_read_blob);
+    my_io_perf_diff(&diff_io_perf_primary, &thd->io_perf_read_primary,
+                    start_perf_read_primary);
+    my_io_perf_diff(&diff_io_perf_secondary, &thd->io_perf_read_secondary,
+                    start_perf_read_secondary);
     my_io_perf_sum_atomic_helper(&(us->io_perf_read_blob), &diff_io_perf_blob);
+    my_io_perf_sum_atomic_helper(&(us->io_perf_read_primary),
+                                 &diff_io_perf_primary);
+    my_io_perf_sum_atomic_helper(&(us->io_perf_read_secondary),
+                                 &diff_io_perf_secondary);
   }
   else
   {
@@ -1532,6 +1545,14 @@ fill_one_user_stats(TABLE *table, USER_CONN *uc, USER_STATS* us,
   table->field[f++]->store(us->io_perf_read_blob.requests, TRUE);
   table->field[f++]->store(us->io_perf_read_blob.svc_usecs, TRUE);
   table->field[f++]->store(us->io_perf_read_blob.wait_usecs, TRUE);
+  table->field[f++]->store(us->io_perf_read_primary.bytes, TRUE);
+  table->field[f++]->store(us->io_perf_read_primary.requests, TRUE);
+  table->field[f++]->store(us->io_perf_read_primary.svc_usecs, TRUE);
+  table->field[f++]->store(us->io_perf_read_primary.wait_usecs, TRUE);
+  table->field[f++]->store(us->io_perf_read_secondary.bytes, TRUE);
+  table->field[f++]->store(us->io_perf_read_secondary.requests, TRUE);
+  table->field[f++]->store(us->io_perf_read_secondary.svc_usecs, TRUE);
+  table->field[f++]->store(us->io_perf_read_secondary.wait_usecs, TRUE);
   table->field[f++]->store(us->errors_access_denied, TRUE);
   table->field[f++]->store(us->errors_total, TRUE);
   table->field[f++]->store(us->keys_dirtied, TRUE);

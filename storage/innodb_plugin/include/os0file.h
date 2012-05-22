@@ -37,6 +37,7 @@ Created 10/21/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "my_perf.h"
+#include "ut0byte.h"
 
 #ifndef __WIN__
 #include <dirent.h>
@@ -245,6 +246,8 @@ struct os_io_perf2_struct {
 	my_io_perf_t	read;
 	my_io_perf_t	write;
 	my_io_perf_t	read_blob;
+	my_io_perf_t	read_primary;
+	my_io_perf_t	read_secondary;
 };
 typedef struct os_io_perf2_struct os_io_perf2_t;
 
@@ -254,6 +257,8 @@ struct os_io_table_perf_struct {
 	my_io_perf_t	read;			/*!< sync read */
 	my_io_perf_t	write;			/*!< sync write */
 	my_io_perf_t	read_blob;	/*!< sync read for blob */
+	my_io_perf_t	read_primary;	/*!< sync read for primary index */
+	my_io_perf_t	read_secondary;/*!< sync read for secondary index */
 	longlong      	index_inserts;		/*!< secondary index inserts */
 };
 typedef struct os_io_table_perf_struct os_io_table_perf_t;
@@ -717,6 +722,7 @@ os_aio(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
+	dulint*	primary_index_id,/*!< in: index_id of primary index */
 	os_io_perf2_t*	io_perf2,/*!< in: per fil_space_t performance
 				   counters */
 	os_io_table_perf_t* table_io_perf);

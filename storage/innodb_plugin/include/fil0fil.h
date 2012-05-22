@@ -273,6 +273,7 @@ struct fil_space_struct {
 	ibool		used;	/*!< cleared by fil_update_table_stats
 				and set by fil_io */
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
+	dulint		primary_index_id;/*!< index_id of the primary index */
 };
 
 /** Value of fil_space_struct::magic_n */
@@ -842,6 +843,7 @@ fil_update_table_stats(
 	/* per-table stats callback */
 	void (*cb)(const char* db, const char* tbl,
 			 my_io_perf_t *r, my_io_perf_t *w, my_io_perf_t *r_blob,
+			 my_io_perf_t *r_primary, my_io_perf_t *r_secondary,
 			 comp_stat_t *comp_stat, int n_lru, const char* engine));
 
 /********************************************************************//**

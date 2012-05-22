@@ -268,11 +268,16 @@ fil_update_table_stats_one_cell(
 	my_io_perf_t*	read_arr,	/*!< in: buffer for read stats */
 	my_io_perf_t*	write_arr,	/*!< in: buffer for write stats */
 	my_io_perf_t*	read_arr_blob,	/*!< in: buffer for read stats for blob */
+	my_io_perf_t*	read_arr_primary,	/*!< in: buffer for read stats for
+										primary index */
+	my_io_perf_t*	read_arr_secondary,	/*!< in: buffer for read stats for
+										secondary index */
 	comp_stat_t*	comp_stat_arr, /*!< in: buffer for compression stats */
 	int*		n_lru_arr,	/*!< in: buffer for n_lru stats */
 	ulint		max_per_cell,	/*!< in: size of buffers */
 	void		(*cb)(const char* db, const char* tbl,
 						my_io_perf_t *r, my_io_perf_t *w, my_io_perf_t *r_blob,
+						my_io_perf_t *r_primary, my_io_perf_t *r_secondary,
 						comp_stat_t* comp_stat, int n_lru, const char* engine),
 	char*		db_name_buf,	/*!< in: buffer for db names */
 	char*		table_name_buf)	/*!< in: buffer for table names */
@@ -304,6 +309,8 @@ fil_update_table_stats_one_cell(
 			read_arr[found] = space->io_perf2.read;
 			write_arr[found] = space->io_perf2.write;
 			read_arr_blob[found] = space->io_perf2.read_blob;
+			read_arr_primary[found] = space->io_perf2.read_primary;
+			read_arr_secondary[found] = space->io_perf2.read_secondary;
 			comp_stat_arr[found] = space->comp_stat;
 			n_lru_arr[found] = space->n_lru;
 
@@ -328,6 +335,8 @@ fil_update_table_stats_one_cell(
 			 &(read_arr[report]),
 			 &(write_arr[report]),
 			 &(read_arr_blob[report]),
+			 &(read_arr_primary[report]),
+			 &(read_arr_secondary[report]),
 			 &(comp_stat_arr[report]),
 			 n_lru_arr[report],
 			 "InnoDB");
@@ -343,6 +352,7 @@ fil_update_table_stats(
 	/* per-table stats callback */
 	void (*cb)(const char* db, const char* tbl,
 			 my_io_perf_t *r, my_io_perf_t *w, my_io_perf_t *r_blob,
+			 my_io_perf_t *r_primary, my_io_perf_t *r_secondary,
 			 comp_stat_t* comp_stat, int n_lru, const char* engine))
 {
 	ulint		n_cells;
@@ -351,6 +361,8 @@ fil_update_table_stats(
 	my_io_perf_t*	read_arr;
 	my_io_perf_t*	write_arr;
 	my_io_perf_t*	read_arr_blob;
+	my_io_perf_t*	read_arr_primary;
+	my_io_perf_t*	read_arr_secondary;
 	comp_stat_t*	comp_stat_arr;
 	int*		n_lru_arr;
 	char*		db_name_buf;
@@ -417,6 +429,10 @@ fil_update_table_stats(
 	write_arr = (my_io_perf_t*) ut_malloc(sizeof(my_io_perf_t) * max_per_cell);
 	read_arr_blob = (my_io_perf_t*) ut_malloc(
 																			sizeof(my_io_perf_t) * max_per_cell);
+	read_arr_primary = (my_io_perf_t*) ut_malloc(
+																			sizeof(my_io_perf_t) * max_per_cell);
+	read_arr_secondary = (my_io_perf_t*) ut_malloc(
+																			sizeof(my_io_perf_t) * max_per_cell);
 	comp_stat_arr = (comp_stat_t*) ut_malloc(
 																			sizeof(comp_stat_t) * max_per_cell);
 	db_name_buf = (char*) ut_malloc((FN_LEN+1) * max_per_cell);
@@ -431,6 +447,10 @@ fil_update_table_stats(
 			ut_free(write_arr);
 		if (read_arr_blob)
 			ut_free(read_arr_blob);
+		if (read_arr_primary)
+			ut_free(read_arr_primary);
+		if (read_arr_secondary)
+			ut_free(read_arr_secondary);
 		if (comp_stat_arr)
 			ut_free(comp_stat_arr);
 		if (db_name_buf)
@@ -447,13 +467,16 @@ fil_update_table_stats(
 
 	for (n = 0; n < n_cells; ++n) {
 		fil_update_table_stats_one_cell(
-			n, read_arr, write_arr, read_arr_blob, comp_stat_arr, n_lru_arr,
-			max_per_cell, cb, db_name_buf, table_name_buf);
+			n, read_arr, write_arr, read_arr_blob, read_arr_primary,
+			read_arr_secondary, comp_stat_arr, n_lru_arr, max_per_cell, cb,
+			db_name_buf, table_name_buf);
 	}
 
 	ut_free(read_arr);
 	ut_free(write_arr);
 	ut_free(read_arr_blob);
+	ut_free(read_arr_primary);
+	ut_free(read_arr_secondary);
 	ut_free(comp_stat_arr);
 	ut_free(table_name_buf);
 	ut_free(db_name_buf);
@@ -465,6 +488,8 @@ fil_update_table_stats(
 		 &io_perf_doublewrite.read,
 		 &io_perf_doublewrite.write,
 		 &io_perf_doublewrite.read_blob,
+		 &io_perf_doublewrite.read_primary,
+		 &io_perf_doublewrite.read_secondary,
 		 &comp_stat_doublewrite,
 		 0 /* n_lru */,
 		 "InnoDB");
@@ -1428,6 +1453,8 @@ try_again:
 	my_io_perf_init(&(space->io_perf2.read));
 	my_io_perf_init(&(space->io_perf2.write));
 	my_io_perf_init(&(space->io_perf2.read_blob));
+	my_io_perf_init(&(space->io_perf2.read_primary));
+	my_io_perf_init(&(space->io_perf2.read_secondary));
 	memset(&(space->comp_stat), 0, sizeof space->comp_stat);
 	space->n_lru = 0;
 
@@ -1743,6 +1770,8 @@ fil_init(
 	my_io_perf_init(&io_perf_doublewrite.read);
 	my_io_perf_init(&io_perf_doublewrite.write);
 	my_io_perf_init(&io_perf_doublewrite.read_blob);
+	my_io_perf_init(&io_perf_doublewrite.read_primary);
+	my_io_perf_init(&io_perf_doublewrite.read_secondary);
 	memset(&comp_stat_doublewrite, 0, sizeof(comp_stat_doublewrite));
 }
 
@@ -4968,7 +4997,11 @@ fil_extend_space_to_desired_size(
 				 node->name, node->handle, buf,
 				 offset_low, offset_high,
 				 page_size * n_pages,
-				 NULL, NULL, &space->io_perf2, NULL);
+				 NULL, NULL,
+				 /* We do not collect primary and secondary index IO stats for system
+				 table space */
+				 TRX_SYS_SPACE == space->id ? NULL : &space->primary_index_id,
+								 &space->io_perf2, NULL);
 #endif
 		mutex_enter(&fil_system->mutex);
 
@@ -5506,10 +5539,13 @@ _fil_io(
 #else
 	/* Queue the aio request */
 	ret = os_aio(type, mode | io_flags, node->name, node->handle, buf,
-		     offset_low, offset_high, len, node, message,
-		     (io_flags & OS_AIO_DOUBLE_WRITE)
+				 offset_low, offset_high, len, node, message,
+				 /* We do not collect primary and secondary index IO stats for system
+				 table space */
+						 TRX_SYS_SPACE == space->id ? NULL : &space->primary_index_id,
+				 (io_flags & OS_AIO_DOUBLE_WRITE)
 			? &io_perf_doublewrite : &space->io_perf2,
-		     table_io_perf);
+				 table_io_perf);
 #endif
 	ut_a(ret);
 

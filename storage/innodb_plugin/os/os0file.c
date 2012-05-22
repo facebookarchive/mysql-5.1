@@ -38,6 +38,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
+#include "btr0btr.h"
 #include "m_string.h"
 #include "my_sys.h"
 #ifndef UNIV_HOTBACKUP
@@ -3817,6 +3818,7 @@ os_aio(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
+	dulint*	primary_index_id,/*!< in: index_id of primary index */
 	os_io_perf2_t*	io_perf2,/*!< in: per fil_space_t perf counters */
 	os_io_table_perf_t* table_io_perf)/*!< in/out: counts table IO stats
 				for IS.user_statistics only for sync
@@ -3837,6 +3839,7 @@ os_aio(
 	ulint		wake_later;
 	ulint		is_log_write;
 	ulint		is_double_write;
+	dulint		index_id;
 
 	ut_ad(file);
 	ut_ad(buf);
@@ -3893,21 +3896,40 @@ os_aio(
 					elapsed_secs, &end_timer, &start_timer);
 			}
 
+			/* Handle type spacific page IO stats */
 			ulint page_type= fil_page_get_type(buf);
-			if (FIL_PAGE_TYPE_BLOB == page_type ||
+			my_io_perf_t* space_index_io_perf= NULL;
+			my_io_perf_t* table_index_io_perf= NULL;
+			if (primary_index_id && FIL_PAGE_INDEX == page_type)
+			{
+				index_id= btr_page_get_index_id((uchar*)buf);
+				if (0 == ut_dulint_cmp(index_id, *primary_index_id))
+				{
+					space_index_io_perf= &io_perf2->read_primary;
+					table_index_io_perf= &table_io_perf->read_primary;
+				} else {
+					space_index_io_perf= &io_perf2->read_secondary;
+					table_index_io_perf= &table_io_perf->read_secondary;
+				}
+			}
+			else if (FIL_PAGE_TYPE_BLOB == page_type ||
 					FIL_PAGE_TYPE_ZBLOB == page_type ||
 					FIL_PAGE_TYPE_ZBLOB2 == page_type)
 			{
+				space_index_io_perf= &io_perf2->read_blob;
+				table_index_io_perf= &table_io_perf->read_blob;
+			}
+			if (space_index_io_perf != NULL && table_index_io_perf != NULL)
+			{
 				/* Per fil_space_t counters */
-				os_io_perf_update_all(&(io_perf2->read_blob), n,
-					elapsed_secs, &end_timer, &start_timer);
-				if (table_io_perf) {
-					/* Per table counters */
-					os_io_perf_update_all(&(table_io_perf->read_blob), n,
+				os_io_perf_update_all(space_index_io_perf, n,
 						elapsed_secs, &end_timer, &start_timer);
+				if (table_io_perf) {
+						/* Per table counters */
+						os_io_perf_update_all(table_index_io_perf, n,
+								elapsed_secs, &end_timer, &start_timer);
 				}
 			}
-
 		} else {
 			my_io_perf_t *perf;
 
