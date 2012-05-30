@@ -352,6 +352,12 @@ extern ulint	srv_lock_deadlocks;
 /** Number of lock wait timeouts */
 extern ulint	srv_lock_wait_timeouts;
 
+/** Number times purge skipped a row because the table had been dropped */
+extern ulint  srv_drop_purge_skip_row;
+	
+/** Number times ibuf merges skipped a row because the table had been dropped */
+extern ulint  srv_drop_ibuf_skip_row;
+	
 /** Count as "slow" file read, write and fsync requests that take this long */
 extern ulint	srv_io_slow_usecs;
 
@@ -368,6 +374,23 @@ extern my_bool	srv_fail_ddl_rename_table1;
 extern my_bool	srv_fail_ddl_rename_table2;
 extern my_bool	srv_fail_ddl_truncate_table;
 #endif
+
+#ifdef UNIV_DEBUG
+/** Allow innodb_buffer_pool_size to be small for debug-only tests */
+extern ulint  srv_min_buf_pool_div32;
+#define SRV_MIN_BUF_POOL_DIV32  srv_min_buf_pool_div32
+#else
+#define SRV_MIN_BUF_POOL_DIV32  64
+#endif
+	
+#ifdef UNIV_DEBUG
+/** Support disabling insert buffer merges during testing */
+extern my_bool  srv_allow_ibuf_merges;
+#define SRV_ALLOW_IBUF_MERGES  srv_allow_ibuf_merges
+#else
+#define SRV_ALLOW_IBUF_MERGES  TRUE
+#endif
+
 
 /** Main background thread does flushes for fuzzy checkpoint */
 extern my_bool	srv_background_checkpoint;
@@ -1090,6 +1113,8 @@ struct export_var_struct{
 	ulint 		innodb_malloc_cache_misses_decompress;
 	ulint 		innodb_malloc_cache_block_size_compress;
 	ulint 		innodb_malloc_cache_block_size_decompress;
+	ulint		innodb_drop_purge_skip_row;
+	ulint		innodb_drop_ibuf_skip_row;
 };
 
 /** The server system struct */

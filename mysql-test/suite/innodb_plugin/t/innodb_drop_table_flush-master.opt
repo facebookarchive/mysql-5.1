@@ -1,0 +1,1 @@
+--innodb_background_thread_interval_usecs=10000  --innodb_file_per_table --innodb_file_format=barracuda --innodb_buffer_pool_size=5M --innodb_buffer_pool_min_pages_div32=7 --force-restart

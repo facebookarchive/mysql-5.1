@@ -2271,6 +2271,9 @@ ibuf_contract_for_n_pages(
 	ulint	n_bytes;
 	ulint	n_pag2;
 
+	if (!SRV_ALLOW_IBUF_MERGES)
+		return 0;
+
 	while (sum_pages < n_pages) {
 		n_bytes = ibuf_contract_ext(&n_pag2, sync);
 

@@ -1098,10 +1098,10 @@ buf_pool_init(void)
 		return(NULL);
 	}
 
-	if (ut_2_power_up(chunk->size / 32) < 64) {
+	if (ut_2_power_up(chunk->size / 32) < SRV_MIN_BUF_POOL_DIV32) {
 		fprintf(stderr,
-			"InnoDB: buffer pool needs more than %d pages\n",
-			(int) buf_pool->curr_size);
+			"InnoDB: buffer pool needs %d and has %d pages\n",
+			32 * (int)SRV_MIN_BUF_POOL_DIV32, (int) chunk->size);
 
 		mem_free(chunk);
 		mem_free(buf_pool);
@@ -3675,6 +3675,9 @@ buf_validate(void)
 					ut_a(rw_lock_is_locked(&block->lock,
 							       RW_LOCK_EX));
 					break;
+
+				case BUF_IO_PIN:
+					break;
 				}
 
 				n_lru++;
@@ -3709,6 +3712,7 @@ buf_validate(void)
 		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
 		switch (buf_page_get_io_fix(b)) {
 		case BUF_IO_NONE:
+		case BUF_IO_PIN:
 			/* All clean blocks should be I/O-unfixed. */
 			break;
 		case BUF_IO_READ:
@@ -3743,6 +3747,7 @@ buf_validate(void)
 			switch (buf_page_get_io_fix(b)) {
 			case BUF_IO_NONE:
 			case BUF_IO_READ:
+			case BUF_IO_PIN:
 				break;
 
 			case BUF_IO_WRITE:

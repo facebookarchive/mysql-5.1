@@ -719,6 +719,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.drop_table_phase1_secs,            SHOW_DOUBLE},
   {"drop_table_phase2_seconds",
   (char*) &export_vars.drop_table_phase2_secs,            SHOW_DOUBLE},
+  {"drop_table_purge_skipped_row",
+  (char*) &export_vars.innodb_drop_purge_skip_row,        SHOW_LONG},
+  {"drop_table_ibuf_skipped_row",
+  (char*) &export_vars.innodb_drop_ibuf_skip_row,         SHOW_LONG},
   {"have_atomic_builtins",
   (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
   {"ibuf_merged_records",
@@ -12597,6 +12601,17 @@ static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   PLUGIN_VAR_RQCMDARG,
   "Debug flags for InnoDB to limit TRX_RSEG_N_SLOTS for trx_rsegf_undo_find_free()",
   NULL, NULL, 0, 0, 1024, 0);
+
+static MYSQL_SYSVAR_ULONG(buffer_pool_min_pages_div32, srv_min_buf_pool_div32,
+  PLUGIN_VAR_RQCMDARG,
+  "Minimum number of pages div 32. Allows small pool to be used for tests.",
+  NULL, NULL, 64, 1, 64, 0);
+	
+static MYSQL_SYSVAR_BOOL(allow_ibuf_merges, srv_allow_ibuf_merges,
+  PLUGIN_VAR_NOCMDARG,
+  "Allow insert buffer merges (for testing)",
+  NULL, NULL, TRUE);
+
 #endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -12716,6 +12731,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(fail_ddl_rename_table2),
   MYSQL_SYSVAR(fail_ddl_truncate_table),
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
+  MYSQL_SYSVAR(buffer_pool_min_pages_div32),
+  MYSQL_SYSVAR(allow_ibuf_merges),
 #endif
   NULL
 };

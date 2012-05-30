@@ -1,0 +1,26 @@
+call mtr.add_suppression("InnoDB: Warning: Small buffer pool size.*");
+call mtr.add_suppression("InnoDB: Error: trying to do.*");
+drop table if exists t1;
+drop table if exists t2;
+set global innodb_background_checkpoint=0;
+create table t1(i int primary key auto_increment, c char(128)) engine=innodb;
+insert into t1 values (null, 'foobar');
+insert into t1 select null, 'foobar' from t1;
+insert into t1 select null, 'foobar' from t1;
+insert into t1 select null, 'foobar' from t1;
+insert into t1 select null, 'foobar' from t1;
+insert into t1 select null, 'foobar' from t1;
+insert into t1 select null, 'foobar' from t1;
+insert into t1 select null, 'foobar' from t1;
+insert into t1 select null, 'foobar' from t1;
+select innodb_buffer_pool_pages from information_schema.table_statistics where table_name = 't1';
+innodb_buffer_pool_pages	8
+drop table t1;
+Allow dirty page writes to be done
+set global innodb_background_checkpoint=1;
+Load a new table to force pages from the dropped table out of the LRU
+create table t2(i int primary key auto_increment, b char(250), c char(250), d char(250)) engine=innodb;
+load data infile '../../std_data/innodb_drop_table_ibuf.dat' into table t2 fields terminated by ',';
+flush statistics;
+select innodb_buffer_pool_pages from information_schema.table_statistics where table_name = 't1';
+drop table t2;
