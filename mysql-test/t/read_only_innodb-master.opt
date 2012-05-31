@@ -1,0 +1,1 @@
+--default-storage-engine=innodb --slow-query-log --log-output=TABLE,FILE
