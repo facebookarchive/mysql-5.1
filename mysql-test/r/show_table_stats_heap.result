@@ -9,7 +9,7 @@ p1	CREATE TABLE `p1` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show create table s1;
 Table	Create Table
 s1	CREATE TABLE `s1` (
@@ -17,8 +17,8 @@ s1	CREATE TABLE `s1` (
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`),
   KEY `bx` (`b`) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
-insert into src values 
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+insert into src values
 (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),
 (10,10),(11,11),(12,12),(13,13),(14,14),(15,15),(16,16),(17,17),(18,18),(19,19),
 (20,20),(21,21),(22,12),(23,23),(24,24),(25,25),(26,26),(27,27),(28,28),(29,29);
@@ -28,23 +28,23 @@ Test insert
 flush statistics;
 insert into p1 values (1,1), (2,2);
 select TABLE_SCHEMA,TABLE_NAME,TABLE_ENGINE,ROWS_INSERTED,ROWS_UPDATED,ROWS_DELETED,ROWS_READ,ROWS_REQUESTED,ROWS_INDEX_FIRST,ROWS_INDEX_NEXT,IO_INDEX_INSERTS
-from information_schema.table_statistics order by table_schema, table_name;
+from information_schema.table_statistics where table_engine = 'ENGINE' order by table_schema, table_name;
 TABLE_SCHEMA	TABLE_NAME	TABLE_ENGINE	ROWS_INSERTED	ROWS_UPDATED	ROWS_DELETED	ROWS_READ	ROWS_REQUESTED	ROWS_INDEX_FIRST	ROWS_INDEX_NEXT	IO_INDEX_INSERTS
-test	p1	MEMORY	2	0	0	0	0	0	0	0
+test	p1	ENGINE	2	0	0	0	0	0	0	0
 select TABLE_SCHEMA,TABLE_NAME,TABLE_ENGINE,ROWS_INSERTED,ROWS_UPDATED,ROWS_DELETED,ROWS_READ,ROWS_REQUESTED,ROWS_INDEX_FIRST,ROWS_INDEX_NEXT,IO_INDEX_INSERTS
 from information_schema.table_statistics where table_name = 'p1';
 TABLE_SCHEMA	TABLE_NAME	TABLE_ENGINE	ROWS_INSERTED	ROWS_UPDATED	ROWS_DELETED	ROWS_READ	ROWS_REQUESTED	ROWS_INDEX_FIRST	ROWS_INDEX_NEXT	IO_INDEX_INSERTS
-test	p1	MEMORY	2	0	0	0	0	0	0	0
+test	p1	ENGINE	2	0	0	0	0	0	0	0
 select TABLE_SCHEMA,TABLE_NAME,TABLE_ENGINE,ROWS_INSERTED,ROWS_UPDATED,ROWS_DELETED,ROWS_READ,ROWS_REQUESTED,ROWS_INDEX_FIRST,ROWS_INDEX_NEXT,IO_INDEX_INSERTS
 from information_schema.table_statistics where table_name like 'p%' order by ROWS_INSERTED;
 TABLE_SCHEMA	TABLE_NAME	TABLE_ENGINE	ROWS_INSERTED	ROWS_UPDATED	ROWS_DELETED	ROWS_READ	ROWS_REQUESTED	ROWS_INDEX_FIRST	ROWS_INDEX_NEXT	IO_INDEX_INSERTS
-test	p1	MEMORY	2	0	0	0	0	0	0	0
+test	p1	ENGINE	2	0	0	0	0	0	0	0
 select 'should be 0,2,0,0', Rows_read,Rows_inserted,Rows_updated,Rows_deleted from information_schema.table_statistics where table_name = 'p1';
 should be 0,2,0,0	Rows_read	Rows_inserted	Rows_updated	Rows_deleted
 should be 0,2,0,0	0	2	0	0
 select Table_Engine from information_schema.table_statistics where table_name = 'p1';
 Table_Engine
-MEMORY
+ENGINE
 ""
 Test delete
 ""
