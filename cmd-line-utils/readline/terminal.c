@@ -25,6 +25,8 @@
 #  include "config_readline.h"
 #endif
 
+#include "blind_fwrite.h"
+
 #include <sys/types.h>
 #include "posixstat.h"
 #include <fcntl.h>
@@ -621,7 +623,7 @@ _rl_output_some_chars (string, count)
      const char *string;
      int count;
 {
-  fwrite (string, 1, count, _rl_out_stream);
+  blind_fwrite (string, 1, count, _rl_out_stream);
 }
 
 /* Move the cursor back. */

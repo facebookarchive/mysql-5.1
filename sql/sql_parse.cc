@@ -8869,8 +8869,9 @@ int admission_control_enter(THD* thd, my_bool wait)
         DEBUG_SYNC(thd, "admission_control_enter_waiting");
       }
 
-      int err= pthread_cond_timedwait(&(uc->query_condvar), &(uc->query_mutex),
-                                      &abstime);
+      DBUG_ONLY int err=
+        pthread_cond_timedwait(&(uc->query_condvar),
+                               &(uc->query_mutex), &abstime);
       DBUG_ASSERT(err == 0 || err == EINTR || err == ETIME || err == ETIMEDOUT);
     }
 

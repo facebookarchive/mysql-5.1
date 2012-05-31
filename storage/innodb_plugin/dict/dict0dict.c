@@ -5122,14 +5122,6 @@ padding_algo_tree_success(
 
 static
 void
-padding_algo_tree_print_node(const ib_rbt_node_t* node) {
-	const padding_algo_tree_node_t* node_ptr;
-	node_ptr = rbt_value(padding_algo_tree_node_t, node);
-	fprintf(stderr, "%lu(%lu) ", node_ptr->page_size, node_ptr->ind);
-}
-
-static
-void
 padding_algo_tree_fail(
 	padding_algo_tree_t *state,
 	ulint page_size)

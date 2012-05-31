@@ -48,6 +48,8 @@ on 1/27/1998 */
 #include "lock0lock.h"
 #include "eval0eval.h"
 
+#include "blind_fwrite.h"
+
 #ifdef UNIV_SQL_DEBUG
 /** If the following is set TRUE, the lexer will print the SQL string
 as it tokenizes it */
@@ -1812,7 +1814,7 @@ pars_get_lex_chars(
 			len = 5;
 		}
 
-		fwrite(pars_sym_tab_global->sql_string
+		blind_fwrite(pars_sym_tab_global->sql_string
 		       + pars_sym_tab_global->next_char_pos,
 		       1, len, stderr);
 	}

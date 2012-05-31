@@ -3332,7 +3332,7 @@ fil_open_single_table_tablespace(
 		ulint	i;
 		int		len;
 		ib_uint64_t	current_lsn;
-		ulint		size_low, size_high, size, free_limit;
+		ulint		size_low, size_high, free_limit;
 		ib_int64_t	size_bytes, free_limit_bytes;
 		dict_table_t*	table;
 		dict_index_t*	index;
@@ -3499,7 +3499,6 @@ fil_open_single_table_tablespace(
 			root_page[i] = mach_read_from_4(page + (i + 1) * 512 + 8);
 		}
 
-skip_info:
 		if (info_file != -1) {
 			os_file_close(info_file);
 			info_file = -1;
@@ -3838,7 +3837,6 @@ skip_write:
   	ut_free(buf2);
 	buf2 = NULL;
 
-regular_import:
 	if (UNIV_UNLIKELY(space_id != id
 			  || space_flags != (flags & ~(~0 << DICT_TF_BITS)))) {
 		ut_print_timestamp(stderr);
@@ -3879,7 +3877,6 @@ skip_check:
 		ulint		page_no;
 		ulint		zip_size;
 		ulint		height;
-		ulint		root_height = 0;
 		rec_t*		node_ptr;
 		dict_table_t*	table;
 		dict_index_t*	index;
@@ -3917,7 +3914,6 @@ skip_check:
 
 			if (height == ULINT_UNDEFINED) {
 				height = btr_page_get_level(page, &mtr);
-				root_height = height;
 			}
 
 			if (height == 0) {

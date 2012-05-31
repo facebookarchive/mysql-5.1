@@ -1091,7 +1091,6 @@ btr_cur_optimistic_insert(
 	ibool		reorg;
 	ibool		inherit;
 	ulint		zip_size;
-	ulint		zip_ssize;
 	ulint		rec_size;
 	ulint		err;
 
@@ -1101,7 +1100,6 @@ btr_cur_optimistic_insert(
 	page = buf_block_get_frame(block);
 	index = cursor->index;
 	zip_size = buf_block_get_zip_size(block);
-	zip_ssize = buf_block_get_zip_ssize(block);
 #ifdef UNIV_DEBUG_VALGRIND
 	if (zip_size) {
 		UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);

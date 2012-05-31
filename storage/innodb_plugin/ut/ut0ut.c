@@ -46,6 +46,8 @@ Created 5/11/1994 Heikki Tuuri
 # include "mysql_com.h" /* NAME_LEN */
 #endif /* UNIV_HOTBACKUP */
 
+#include "blind_fwrite.h"
+
 /** A constant to prevent the compiler from optimizing ut_delay() away. */
 UNIV_INTERN ibool	ut_always_false	= FALSE;
 
@@ -553,7 +555,7 @@ ut_print_namel(
 				       trx ? trx->mysql_thd : NULL,
 				       table_id);
 
-	fwrite(buf, 1, bufend - buf, f);
+	blind_fwrite(buf, 1, bufend - buf, f);
 }
 
 /**********************************************************************//**
@@ -574,7 +576,7 @@ ut_copy_file(
 			? (size_t) len
 			: sizeof buf;
 		size_t	size = fread(buf, 1, maxs, src);
-		fwrite(buf, 1, size, dest);
+		blind_fwrite(buf, 1, size, dest);
 		len -= (long) size;
 		if (size < maxs) {
 			break;

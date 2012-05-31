@@ -65,6 +65,8 @@ extern int errno;
 #include "xmalloc.h"
 #include "rlprivate.h"
 
+#include "blind_fwrite.h"
+
 #ifdef __STDC__
 typedef int QSFUNC (const void *, const void *);
 #else
@@ -673,7 +675,7 @@ fnprint (to_print)
 	      w = wcwidth (wc);
 	      width = (w >= 0) ? w : 1;
 	    }
-	  fwrite (s, 1, tlen, rl_outstream);
+	  blind_fwrite (s, 1, tlen, rl_outstream);
 	  s += tlen;
 	  printed_len += width;
 #else
@@ -1839,7 +1841,10 @@ rl_username_completion_function (text, state)
 #else /* !__WIN32__ && !__OPENNT) */
   static char *username = (char *)NULL;
   static struct passwd *entry;
-  static int namelen, first_char, first_char_loc;
+#if defined (HAVE_GETPWENT)
+  static int namelen = 0;
+#endif
+  static int first_char, first_char_loc;
   char *value;
 
   if (state == 0)
@@ -1850,7 +1855,9 @@ rl_username_completion_function (text, state)
       first_char_loc = first_char == '~';
 
       username = savestring (&text[first_char_loc]);
+#if defined (HAVE_GETPWENT)
       namelen = strlen (username);
+#endif
       setpwent ();
     }
 

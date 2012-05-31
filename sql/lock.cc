@@ -693,7 +693,7 @@ TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
                                       TABLE_LIST *haystack)
 {
   MYSQL_LOCK            *mylock;
-  TABLE                 **lock_tables;
+  DBUG_ONLY TABLE       **lock_tables;
   TABLE                 *table;
   TABLE                 *table2;
   THR_LOCK_DATA         **lock_locks;

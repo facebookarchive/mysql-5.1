@@ -495,7 +495,7 @@ ut_print_namel(
 				       trx ? trx->mysql_thd : NULL,
 				       table_id);
 
-	fwrite(buf, 1, bufend - buf, f);
+	blind_fwrite(buf, 1, bufend - buf, f);
 }
 
 /**************************************************************************
@@ -516,7 +516,7 @@ ut_copy_file(
 			? (size_t) len
 			: sizeof buf;
 		size_t	size = fread(buf, 1, maxs, src);
-		fwrite(buf, 1, size, dest);
+		blind_fwrite(buf, 1, size, dest);
 		len -= (long) size;
 		if (size < maxs) {
 			break;

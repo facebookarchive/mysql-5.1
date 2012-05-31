@@ -1813,7 +1813,7 @@ pars_get_lex_chars(
 			len = 5;
 		}
 
-		fwrite(pars_sym_tab_global->sql_string
+		blind_fwrite(pars_sym_tab_global->sql_string
 		       + pars_sym_tab_global->next_char_pos,
 		       1, len, stderr);
 	}

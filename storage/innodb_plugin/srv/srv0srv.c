@@ -3205,7 +3205,6 @@ srv_master_thread(
 	ulint		n_bytes_archived;
 	ulint		n_tables_to_drop;
 	ulint		n_ios;
-	ulint		n_ios_old;
 	ulint		n_ios_very_old;
 	ulint		n_pend_ios;
 	ibool		skip_sleep	= FALSE;
@@ -3259,8 +3258,6 @@ loop:
 	for (i = 0; i < 10; i++) {
 		my_fast_timer_t	loop_timer;
 
-		n_ios_old = log_sys->n_log_ios + buf_pool->stat.n_pages_read
-			+ buf_pool->stat.n_pages_written;
 		srv_main_thread_op_info = "sleeping";
 		srv_main_1_second_loops++;
 

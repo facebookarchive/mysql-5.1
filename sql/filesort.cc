@@ -28,6 +28,8 @@
 #include <m_ctype.h>
 #include "sql_sort.h"
 
+#include "blind_fwrite.h"
+
 #ifndef THREAD
 #define SKIP_DBUG_IN_FILESORT
 #endif
@@ -438,16 +440,16 @@ static void dbug_print_record(TABLE *table, bool print_rowid)
     Field *field=  *pfield;
 
     if (field->is_null())
-      fwrite("NULL", sizeof(char), 4, DBUG_FILE);
+      blind_fwrite("NULL", sizeof(char), 4, DBUG_FILE);
    
     if (field->type() == MYSQL_TYPE_BIT)
       (void) field->val_int_as_str(&tmp, 1);
     else
       field->val_str(&tmp);
 
-    fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
+    blind_fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
     if (pfield[1])
-      fwrite(", ", sizeof(char), 2, DBUG_FILE);
+      blind_fwrite(", ", sizeof(char), 2, DBUG_FILE);
   }
   fprintf(DBUG_FILE, ")");
   if (print_rowid)
@@ -823,7 +825,7 @@ static void make_sortkey(register SORTPARAM *param,
         if (sort_field->need_strxnfrm)
         {
           char *from=(char*) res->ptr();
-          uint tmp_length;
+          DBUG_ONLY uint tmp_length;
           if ((uchar*) from == to)
           {
             set_if_smaller(length,sort_field->length);

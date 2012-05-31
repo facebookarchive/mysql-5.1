@@ -48,6 +48,8 @@ Created June 2005 by Marko Makela
 # define buf_LRU_stat_inc_unzip()			((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
+#include "blind_fwrite.h"
+
 #ifndef UNIV_HOTBACKUP
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
 UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
@@ -726,7 +728,7 @@ page_zip_compress_deflate(
 		ut_print_buf(stderr, strm->next_in, strm->avail_in);
 	}
 	if (UNIV_LIKELY_NULL(logfile)) {
-		fwrite(strm->next_in, 1, strm->avail_in, logfile);
+		blind_fwrite(strm->next_in, 1, strm->avail_in, logfile);
 	}
 	status = deflate(strm, flush);
 	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
@@ -1272,7 +1274,7 @@ page_zip_compress(
 
 		if (logfile) {
 			/* Write the uncompressed page to the log. */
-			fwrite(page, 1, UNIV_PAGE_SIZE, logfile);
+			blind_fwrite(page, 1, UNIV_PAGE_SIZE, logfile);
 			/* Record the compressed size as zero.
 			This will be overwritten at successful exit. */
 			putc(0, logfile);
@@ -1535,7 +1537,7 @@ err_exit:
 		byte sz[4];
 		mach_write_to_4(sz, c_stream.total_out);
 		fseek(logfile, UNIV_PAGE_SIZE, SEEK_SET);
-		fwrite(sz, 1, sizeof sz, logfile);
+		blind_fwrite(sz, 1, sizeof sz, logfile);
 		fclose(logfile);
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */

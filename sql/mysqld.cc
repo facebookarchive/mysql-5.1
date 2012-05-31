@@ -1019,7 +1019,9 @@ static void init_mcc();
 #ifndef EMBEDDED_LIBRARY
 static void usage(void);
 static void start_signal_handler(void);
+#if defined(SIGNALS_DONT_BREAK_READ) && !defined(EMBEDDED_LIBRARY)
 static void close_server_sock();
+#endif
 static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static void create_pid_file();
@@ -1176,6 +1178,7 @@ static void close_connections(void)
 }
 
 
+#if defined(SIGNALS_DONT_BREAK_READ) && !defined(EMBEDDED_LIBRARY)
 static void close_server_sock()
 {
 #ifdef HAVE_CLOSE_SERVER_SOCK
@@ -1215,6 +1218,7 @@ static void close_server_sock()
   DBUG_VOID_RETURN;
 #endif
 }
+#endif
 
 #endif /*EMBEDDED_LIBRARY*/
 
@@ -5570,6 +5574,8 @@ void create_thread_to_handle_connection(THD *thd)
   @param[in,out] thd    Thread handle of future thread.
 */
 
+#ifndef EMBEDDED_LIBRARY
+#if defined(__NT__) || defined(HAVE_SMEM)
 static void create_new_thread(THD *thd)
 {
   NET *net=&thd->net;
@@ -5623,6 +5629,8 @@ static void create_new_thread(THD *thd)
 
   DBUG_VOID_RETURN;
 }
+#endif
+#endif
 
 /*
   It will create a new thread, and will create and init THD and network

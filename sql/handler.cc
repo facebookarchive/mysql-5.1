@@ -1378,7 +1378,7 @@ int ha_commit_one_phase(THD *thd, bool all, bool async)
 #ifdef USING_TRANSACTIONS
   if (ha_info)
   {
-    bool group_commit_done= FALSE;
+    DBUG_ONLY bool group_commit_done= FALSE;
 
     DEBUG_SYNC(thd, "before_commit");
 

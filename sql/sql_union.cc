@@ -173,7 +173,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   SELECT_LEX *sl, *first_sl= first_select();
   select_result *tmp_result;
   bool is_union_select;
-  TABLE *empty_table= 0;
+  DBUG_ONLY TABLE *empty_table= 0;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   describe= test(additional_options & SELECT_DESCRIBE);

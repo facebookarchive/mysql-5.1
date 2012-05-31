@@ -6521,7 +6521,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint fast_alter_partition= 0;
   bool partition_changed= FALSE;
 #endif
-  bool need_lock_for_indexes= TRUE;
+  DBUG_ONLY bool need_lock_for_indexes= TRUE;
   KEY  *key_info_buffer;
   uint index_drop_count= 0;
   uint *index_drop_buffer= NULL;

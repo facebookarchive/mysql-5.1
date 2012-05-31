@@ -93,6 +93,8 @@ extern FILE *_db_fp_(void);
 
 #endif /* C++ */
 
+#define DBUG_ONLY
+#define DBUG_ABORT()                abort()
 #define DBUG_LEAVE \
         DBUG_VIOLATION_HELPER_LEAVE; \
 	_db_return_ (__LINE__, &_db_func_, &_db_file_, &_db_level_)
@@ -126,6 +128,8 @@ extern FILE *_db_fp_(void);
 #define IF_DBUG(A) A
 #else						/* No debugger */
 
+#define DBUG_ONLY                   __attribute__((unused))
+#define DBUG_ABORT()                do { } while(0)
 #define DBUG_ENTER(a1)
 #define DBUG_LEAVE
 #define DBUG_VIOLATION_HELPER_LEAVE

@@ -170,12 +170,12 @@ public:
    */
   max_sliding_window(int capacity, NumericValue interval,
       NumericValue update_rate_by_interval)
-    : window_interval_(interval),
+    : value_array_(new circular_buffer<T> (capacity)),
+      interval_array_(new circular_buffer<NumericValue> (capacity)),
+      window_interval_(interval),
       update_rate_ (update_rate_by_interval),
       max_val_since_last_update_ (0),
-      last_interval_start_ (0),
-      value_array_(new circular_buffer<T> (capacity)),
-      interval_array_(new circular_buffer<NumericValue> (capacity))
+      last_interval_start_ (0)
   {
   }
 

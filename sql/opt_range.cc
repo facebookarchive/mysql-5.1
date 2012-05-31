@@ -70,6 +70,8 @@
 #include "sql_select.h"
 #include "my_atomic.h"
 
+#include "blind_fwrite.h"
+
 #ifndef EXTRA_DEBUG
 #define test_rb_tree(A,B) {}
 #define test_use_count(A) {}
@@ -11379,7 +11381,7 @@ print_key(KEY_PART *key_part, const uchar *key, uint used_length)
     {
       if (*key)
       {
-	fwrite("NULL",sizeof(char),4,DBUG_FILE);
+	blind_fwrite("NULL",sizeof(char),4,DBUG_FILE);
 	continue;
       }
       key++;					// Skip null byte
@@ -11390,7 +11392,7 @@ print_key(KEY_PART *key_part, const uchar *key, uint used_length)
       (void) field->val_int_as_str(&tmp, 1);
     else
       field->val_str(&tmp);
-    fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
+    blind_fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
     if (key+store_length < key_end)
       fputc('/',DBUG_FILE);
   }

@@ -593,7 +593,7 @@ terminate_slave_thread(THD *thd,
 
   while (*slave_running)                        // Should always be true
   {
-    int error;
+    DBUG_ONLY int error;
     DBUG_PRINT("loop", ("killing slave thread"));
 
     pthread_mutex_lock(&thd->LOCK_thd_data);

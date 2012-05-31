@@ -22,7 +22,6 @@
 #include "runtime.hpp"
 #include "file.hpp"
 
-
 namespace TaoCrypt {
 
 
@@ -100,7 +99,10 @@ FileSink::~FileSink()
 // fill source from file sink
 void FileSink::put(Source& source)
 {
-    fwrite(source.get_buffer(), 1, source.size(), file_);
+    if (fwrite(source.get_buffer(), 1, source.size(), file_) != source.size())
+    {
+        // This code ignores this error.
+    }
 }
 
 

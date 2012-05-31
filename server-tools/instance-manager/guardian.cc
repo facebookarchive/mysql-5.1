@@ -440,7 +440,7 @@ void Guardian::stop_instances()
 
     /* Request mysqld to stop. */
 
-    bool instance_stopped= FALSE;
+    DBUG_ONLY bool instance_stopped= FALSE;
 
     for (int cur_attempt= 0; cur_attempt < NUM_STOP_ATTEMPTS; ++cur_attempt)
     {

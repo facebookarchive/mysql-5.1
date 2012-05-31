@@ -4440,12 +4440,6 @@ static int do_flush_tables_read_lock(MYSQL *mysql_con)
                                     "FLUSH TABLES WITH READ LOCK") );
 }
 
-
-static int do_unlock_tables(MYSQL *mysql_con)
-{
-  return mysql_query_with_error_report(mysql_con, 0, "UNLOCK TABLES");
-}
-
 static int get_bin_log_name(MYSQL *mysql_con,
                             char* buff_log_name, uint buff_len)
 {

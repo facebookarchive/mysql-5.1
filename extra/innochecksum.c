@@ -24,8 +24,12 @@
 */
 
 /* needed to have access to 64 bit file functions */
+#ifndef _LARGEFILE_SOURCE
 #define _LARGEFILE_SOURCE
+#endif
+#ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE
+#endif
 
 #define _XOPEN_SOURCE 600 /* needed to include getopt.h on some platforms and get posix_fadvise */
 

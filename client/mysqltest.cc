@@ -51,6 +51,8 @@
 #include <signal.h>
 #include <my_stacktrace.h>
 
+#include "blind_fwrite.h"
+
 #ifdef __WIN__
 #include <crtdbg.h>
 #define SIGNAL_FMT "exception 0x%x"
@@ -669,7 +671,7 @@ public:
     }
 
     while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0)
-      fwrite(buf, 1, bytes, stderr);
+      blind_fwrite(buf, 1, bytes, stderr);
 
     if (!lines)
     {
@@ -5135,7 +5137,12 @@ void do_connect(struct st_command *command)
   int con_port= opt_port;
   char *con_options;
   my_bool con_ssl= 0, con_compress= 0;
-  my_bool con_pipe= 0, con_shm= 0;
+#ifdef __WIN__
+  my_bool con_pipe= 0;
+#endif
+#ifdef HAVE_SMEM
+  my_bool con_shm= 0;
+#endif
   struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
@@ -5219,10 +5226,14 @@ void do_connect(struct st_command *command)
       con_ssl= 1;
     else if (!strncmp(con_options, "COMPRESS", 8))
       con_compress= 1;
+#ifdef __WIN__
     else if (!strncmp(con_options, "PIPE", 4))
       con_pipe= 1;
+#endif
+#ifdef HAVE_SMEM
     else if (!strncmp(con_options, "SHM", 3))
       con_shm= 1;
+#endif
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);

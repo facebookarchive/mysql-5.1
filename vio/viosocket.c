@@ -465,7 +465,7 @@ my_bool vio_is_connected(Vio *vio)
 void vio_timeout_ms(Vio *vio, uint which, uint64 timeout_ms)
 {
 #if defined(SO_SNDTIMEO) && defined(SO_RCVTIMEO)
-  int r;
+  DBUG_ONLY int r;
   DBUG_ENTER("vio_timeout_ms");
 
   {
