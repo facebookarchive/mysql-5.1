@@ -24,11 +24,10 @@ SET DEBUG_SYNC='now WAIT_FOR post_write_sleep';
 SET DEBUG_SYNC='in_sleep_func SIGNAL i_am_sleeping2';
 SET DEBUG='d,ac_sleep_stall';
 select sleep(1);
+SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping2';
 select queries_running, queries_waiting from information_schema.user_statistics where user_name='adminc';
 queries_running	queries_waiting
 2	0
-SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping2';
-kill 4;
 SET DEBUG_SYNC='now SIGNAL post_write_wake';
 select unix_timestamp() into @start_time;
 select 1;

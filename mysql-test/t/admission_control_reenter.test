@@ -56,9 +56,11 @@ send select sleep(1);
 
 # Kill ac2. It will loop in admission_control_enter because ac1 and ac4 are running
 connection default;
-select queries_running, queries_waiting from information_schema.user_statistics where user_name='adminc';
 SET DEBUG_SYNC='now WAIT_FOR i_am_sleeping2';
+select queries_running, queries_waiting from information_schema.user_statistics where user_name='adminc';
+--disable_query_log
 eval kill $id2;
+--enable_query_log
 SET DEBUG_SYNC='now SIGNAL post_write_wake';
 
 # confirm this doesn't wait too long
