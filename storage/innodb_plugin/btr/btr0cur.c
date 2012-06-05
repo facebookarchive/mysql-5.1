@@ -4776,7 +4776,8 @@ btr_copy_zblob_prefix(
 		d_stream->avail_in = zip_size - offset;
 
 		if (!inflate_inited) {
-			inflate_inited = page_zip_init_d_stream(d_stream, BTR_CUR_BLOB_WBITS);
+			inflate_inited = page_zip_init_d_stream(d_stream, BTR_CUR_BLOB_WBITS,
+			                                        FALSE);
 			ut_a(inflate_inited);
 		}
 

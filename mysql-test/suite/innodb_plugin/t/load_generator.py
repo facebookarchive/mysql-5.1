@@ -9,11 +9,18 @@ import threading
 import time
 
 LG_TMP_DIR = '/tmp/load_generator'
-
+INCOMPRESSIBLE_BLOB = None
 
 def sha1(x):
   return hashlib.sha1(str(x)).hexdigest()
 
+def get_incompressible_blob():
+  global INCOMPRESSIBLE_BLOB
+  if not INCOMPRESSIBLE_BLOB:
+    INCOMPRESSIBLE_BLOB = ''
+    for i in xrange(500):
+      INCOMPRESSIBLE_BLOB += hashlib.sha1('%d' % i).hexdigest()
+  return INCOMPRESSIBLE_BLOB
 
 def populate_table(con, num_records_before, do_blob, log):
   cur = con.cursor()
@@ -23,9 +30,10 @@ def populate_table(con, num_records_before, do_blob, log):
       cur.execute("INSERT INTO t1(id,msg) VALUES (NULL, '%s')" % (sha1(i) * 6))
   else:
     for i in xrange(num_records_before):
+      x3 = 'z'.ljust(random.randint(1, 9000), 'x') if random.randint(0, 25) > 0 else get_incompressible_blob()
       cur.execute("""
-INSERT INTO t1(id,x1,x2,x3,msg) VALUES (NULL, 'x1', 'x2', LPAD('z', %d, 'x'), '%s')
-""" % (random.randint(1, 9000), sha1(i) * 6))
+INSERT INTO t1(id,x1,x2,x3,msg) VALUES (NULL, 'x1', 'x2', '%s', '%s')
+""" % (x3, sha1(i) * 6))
 
   con.commit()
 
@@ -146,43 +154,47 @@ class Worker(threading.Thread):
         cur.execute("SET GLOBAL innodb_zlib_wrap=1-@@innodb_zlib_wrap");
       try:
         stmt = None
+        blob = 'a'.ljust(self.rand.randint(1, 9000), 'b') if self.rand.randint(0, 25) > 0 else get_incompressible_blob()
+        blob1 = '1'.ljust(self.rand.randint(1, 9000), '2') if self.rand.randint(0, 25) > 0 else get_incompressible_blob()
+        blob2 = '2'.ljust(self.rand.randint(1, 9000), '3') if self.rand.randint(0, 25) > 0 else get_incompressible_blob()
+        blob3 = '3'.ljust(self.rand.randint(1, 9000), '4') if self.rand.randint(0, 25) > 0 else get_incompressible_blob()
         if insert_or_update:
           cur.execute("SELECT * FROM t1 WHERE id=%d" % idx)
           res = cur.fetchone()
           if res:
             r = self.rand.randint(0,3)
             if r == 0:
-              stmt = "UPDATE t1 SET msg='%s', x1=LPAD('a', %d, 'b') WHERE id=%d" % (
-                      msg, self.rand.randint(1, 9000), idx)
+              stmt = "UPDATE t1 SET msg='%s', x1='%s' WHERE id=%d" % (
+                      msg, blob, idx)
             elif r == 1:
-              stmt = "UPDATE t1 SET msg='%s', x2=LPAD('a', %d, 'b') WHERE id=%d" % (
-                      msg, self.rand.randint(1, 9000), idx)
+              stmt = "UPDATE t1 SET msg='%s', x2='%s' WHERE id=%d" % (
+                      msg, blob, idx)
             elif r == 2:
               stmt = """
-INSERT INTO t1 (msg, id, x1) VALUES ('%s', %d, LPAD('a', %d, 'b'))
+INSERT INTO t1 (msg, id, x1) VALUES ('%s', %d, '%s')
 ON DUPLICATE KEY UPDATE msg=VALUES(msg), id=VALUES(id), x1=VALUES(x1)""" % (
-msg, idx, self.rand.randint(1, 9000))
+msg, idx, blob)
             elif r == 3:
               stmt = """
-INSERT INTO t1 (msg, id, x2) VALUES ('%s', %d, LPAD('a', %d, 'b'))
+INSERT INTO t1 (msg, id, x2) VALUES ('%s', %d, '%s')
 ON DUPLICATE KEY UPDATE msg=VALUES(msg), id=VALUES(id), x2=VALUES(x2)""" % (
-msg, idx, self.rand.randint(1, 9000))
+msg, idx, blob)
             self.num_updates += 1
           else:
             r = self.rand.randint(0,2)
             if r == 0:
               stmt = """
-INSERT INTO t1(id,x1,x2,x3,msg) VALUES (%d, LPAD('1',%d,'2'), LPAD('2',%d,'3'), LPAD('3',%d,'4'), '%s')
-""" % (idx, self.rand.randint(1, 9000), self.rand.randint(1, 9000), self.rand.randint(1, 9000), msg)
+INSERT INTO t1(id,x1,x2,x3,msg) VALUES (%d, '%s', '%s', '%s', '%s')
+""" % (idx, blob1, blob2, blob3, msg)
             elif r == 1:
               stmt = """
-INSERT INTO t1(id,x1,x2,x3,msg) VALUES (%d, LPAD('1',%d,'2'), LPAD('2',%d,'3'), LPAD('3',%d,'4'), '%s')
+INSERT INTO t1(id,x1,x2,x3,msg) VALUES (%d, '%s', '%s', '%s', '%s')
 ON DUPLICATE KEY UPDATE msg=VALUES(msg), id=VALUES(id), x1=VALUES(x1), x2=VALUES(x2), x3=VALUES(x3)
-""" % (idx, self.rand.randint(1, 9000), self.rand.randint(1, 9000), self.rand.randint(1, 9000), msg)
+""" % (idx, blob1, blob2, blob3, msg)
             else:
               stmt = """
-INSERT INTO t1(id,x1,x2,x3,msg) VALUES (NULL, LPAD('1',%d,'2'), LPAD('2',%d,'3'), LPAD('3',%d,'4'), '%s')
-""" % (self.rand.randint(1, 9000), self.rand.randint(1, 9000), self.rand.randint(1, 9000), msg)
+INSERT INTO t1(id,x1,x2,x3,msg) VALUES (NULL, '%s', '%s', '%s', '%s')
+""" % (blob1, blob2, blob3, msg)
 
             self.num_inserts += 1
         else:

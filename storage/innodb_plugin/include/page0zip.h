@@ -584,7 +584,8 @@ UNIV_INTERN
 ibool
 page_zip_init_d_stream(
 	z_stream* strm,
-	ulint window_bits);
+	ulint window_bits,
+	ibool read_zlib_header);
 
 #ifndef UNIV_HOTBACKUP
 /** Check if a pointer to an uncompressed page matches a compressed page.

@@ -2992,7 +2992,8 @@ UNIV_INTERN
 ibool
 page_zip_init_d_stream(
 	z_stream* strm,
-	ulint window_bits)
+	ulint window_bits,
+	ibool read_zlib_header)
 {
 	Bytef* next_in = strm->next_in;
 	Bytef* next_out = strm->next_out;
@@ -3003,6 +3004,7 @@ page_zip_init_d_stream(
 		/* initialization must always succeed regardless of window_bits */
 		ut_error;
 	}
+
 	/* Try decoding zlib header assuming adler32. */
 	if (inflate(strm, Z_BLOCK) == Z_OK)
 		return TRUE;
@@ -3011,14 +3013,16 @@ page_zip_init_d_stream(
 	strm->next_out = next_out;
 	strm->avail_in = avail_in;
 	strm->avail_out = avail_out;
+
 	if (UNIV_UNLIKELY(inflateReset2(strm, -window_bits) != Z_OK)) {
 		ut_error;
 	}
-	/* Decode again the zlib header. */
-	if (UNIV_LIKELY(inflate(strm, Z_BLOCK) == Z_OK)) {
-		return TRUE;
+
+	if (read_zlib_header) {
+		/* Decode again the zlib header. */
+		return inflate(strm, Z_BLOCK) == Z_OK;
 	}
-	return FALSE;
+	return TRUE;
 }
 
 /**********************************************************************//**
@@ -3140,7 +3144,8 @@ zlib_error:
 	d_stream.next_out = page + PAGE_ZIP_START;
 	d_stream.avail_out = UNIV_PAGE_SIZE - PAGE_ZIP_START;
 
-	if (UNIV_UNLIKELY(!page_zip_init_d_stream(&d_stream, UNIV_PAGE_SIZE_SHIFT))) {
+	if (UNIV_UNLIKELY(!page_zip_init_d_stream(&d_stream, UNIV_PAGE_SIZE_SHIFT,
+	                                          TRUE))) {
 		page_zip_fail(("page_zip_decompress:"
 		       " 1 inflate(Z_BLOCK)=%s\n", d_stream.msg));
 		goto zlib_error;
