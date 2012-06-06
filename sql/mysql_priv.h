@@ -2188,6 +2188,8 @@ extern ulong binlog_fsync_slow;
 
 extern ulong rpl_event_buffer_size;
 
+extern ulong rpl_read_size;
+
 /*
   Excuse me for doing this. This is a global variable exported by the
   InnoDB plugin. It is the maximum number of transaction slots that

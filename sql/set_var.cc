@@ -637,6 +637,8 @@ static sys_var_bool_ptr sys_rpl_transaction_enabled(&vars, "rpl_transaction_enab
 static sys_var_long_ptr	sys_rpl_event_buffer_size(&vars, "rpl_event_buffer_size",
  				     	          &rpl_event_buffer_size);
 
+static sys_var_long_ptr	sys_rpl_read_size(&vars, "rpl_read_size", &rpl_read_size);
+
 static sys_var_long_ptr	sys_log_query_sample_rate(&vars, "log_query_sample_rate",
  				     	          &opt_log_query_sample_rate);
 

@@ -1,0 +1,60 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop table if exists t1;
+create table t1(i int, t longtext);
+show global variables like "rpl_read_size";
+Variable_name	Value
+rpl_read_size	8192
+set global rpl_read_size = 4097;
+Warnings:
+Warning	1292	Truncated incorrect rpl_read_size value: '4097'
+show global variables like "rpl_read_size";
+Variable_name	Value
+rpl_read_size	8192
+set global rpl_read_size = 8095;
+Warnings:
+Warning	1292	Truncated incorrect rpl_read_size value: '8095'
+show global variables like "rpl_read_size";
+Variable_name	Value
+rpl_read_size	8192
+set global rpl_read_size = 8098;
+Warnings:
+Warning	1292	Truncated incorrect rpl_read_size value: '8098'
+show global variables like "rpl_read_size";
+Variable_name	Value
+rpl_read_size	8192
+set global rpl_read_size = default;
+show global variables like "rpl_read_size";
+Variable_name	Value
+rpl_read_size	8192
+set global rpl_read_size = default;
+show global variables like "rpl_read_size";
+Variable_name	Value
+rpl_read_size	8192
+increase buffer and then make slave reconnect to use larger buffer
+set global rpl_read_size = 1048576;
+show global variables like "rpl_read_size";
+Variable_name	Value
+rpl_read_size	1048576
+set global rpl_read_size = 1048576;
+show global variables like "rpl_read_size";
+Variable_name	Value
+rpl_read_size	1048576
+stop slave;
+start slave;
+insert into t1 values (0, "");
+select i, length(t) from t1;
+i	length(t)
+0	0
+1	70000
+select i, length(t) from t1;
+i	length(t)
+0	0
+1	70000
+set global rpl_read_size = default;
+set global rpl_read_size = default;
+drop table t1;

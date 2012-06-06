@@ -1,0 +1,63 @@
+#
+# test rpl_read_size my.cnf variable
+#
+
+--source include/master-slave.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1(i int, t longtext);
+
+show global variables like "rpl_read_size";
+
+set global rpl_read_size = 4097;
+show global variables like "rpl_read_size";
+
+set global rpl_read_size = 8095;
+show global variables like "rpl_read_size";
+
+set global rpl_read_size = 8098;
+show global variables like "rpl_read_size";
+
+set global rpl_read_size = default;
+show global variables like "rpl_read_size";
+
+set global rpl_read_size = default;
+show global variables like "rpl_read_size";
+
+--echo increase buffer and then make slave reconnect to use larger buffer
+set global rpl_read_size = 1048576;
+show global variables like "rpl_read_size";
+
+connection slave;
+
+set global rpl_read_size = 1048576;
+show global variables like "rpl_read_size";
+stop slave;
+start slave;
+--source include/wait_for_slave_to_start.inc
+
+connection master;
+
+insert into t1 values (0, "");
+
+let $x=`select lpad("foo", 70000, "bar")`;
+
+--disable_query_log
+eval insert into t1 values (1, "$x");
+--enable_query_log
+
+select i, length(t) from t1;
+
+sync_slave_with_master;
+
+connection slave;
+select i, length(t) from t1;
+set global rpl_read_size = default;
+
+connection master;
+set global rpl_read_size = default;
+drop table t1;
+sync_slave_with_master;

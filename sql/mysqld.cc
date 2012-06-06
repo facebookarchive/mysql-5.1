@@ -725,6 +725,9 @@ ulong group_commit_min_size= 8;
 /* Size for preallocated replication event buffer */
 ulong rpl_event_buffer_size;
 
+/* Size for IO_CACHE buffer for binlog & relay log */
+ulong rpl_read_size;
+
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -6327,6 +6330,7 @@ enum options_mysqld
   OPT_NET_COMPRESSION_LEVEL,
   OPT_RPL_TRANSACTION_ENABLED,
   OPT_RPL_EVENT_BUFFER_SIZE,
+  OPT_RPL_READ_SIZE,
   OPT_FORCE_BINLOG_ORDER,
   OPT_ALLOW_HINT_TO_MISSING_INDEX,
   OPT_ADMISSION_CONTROL,
@@ -8049,6 +8053,14 @@ thread is in the relay logs.",
    16*1024,        /* the minimum size */
    128*1024*1024,  /* the maximum size */
    0, 1, 0},
+  {"rpl_read_size", OPT_RPL_READ_SIZE,
+   "The size for reads done from the binlog and relay log.",
+   &rpl_read_size, &rpl_read_size,
+   0, GET_ULONG, REQUIRED_ARG,
+   IO_SIZE * 2,    /* the default size */
+   IO_SIZE * 2,    /* the minimum size */
+   8*1024*1024,    /* the maximum size */
+   0, IO_SIZE, 0},
   {"process_can_disable_bin_log", OPT_PROCESS_CAN_DISABLE_BIN_LOG,
    "The PROCESS privilege is sufficient to set sql_log_bin=0",
    &process_can_disable_bin_log, &process_can_disable_bin_log,
@@ -9068,6 +9080,8 @@ static int mysql_init_variables(void)
   group_commit_hang_log_secs= 2;
 
   rpl_event_buffer_size= 1024 * 1024;
+
+  rpl_read_size= IO_SIZE * 2;
 
   /* Character sets */
   system_charset_info= &my_charset_utf8_general_ci;
