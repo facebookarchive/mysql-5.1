@@ -5,9 +5,6 @@
 --source include/have_innodb.inc
 --source include/master-slave.inc
 
-# Don't test in Debug mode, for now.  See Task #1067014
---source include/have_nodebug.inc
-
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
