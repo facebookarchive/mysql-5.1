@@ -5,8 +5,7 @@
 # Reinvoke the threads.
 
 # create the directory for temporary log files.
---exec rm -rf /tmp/load_generator
---exec mkdir /tmp/load_generator
+--exec mkdir -p $MYSQL_TMP_DIR/load_generator
 
 --connection master
 SELECT @@innodb_file_format_check;
@@ -45,14 +44,14 @@ while ($num_crashes)
     let $exec =
 python suite/innodb_plugin/t/load_generator.py $pid_file $kill_db_after
 $num_records  $num_workers $num_transactions $user $master_host $MASTER_MYPORT
-$table 1 $max_rows;
+$table 1 $max_rows $MYSQL_TMP_DIR/load_generator;
   }
   if (!$use_blob)
   {
     let $exec =
 python suite/innodb_plugin/t/load_generator.py $pid_file $kill_db_after
 $num_records  $num_workers $num_transactions $user $master_host $MASTER_MYPORT
-$table 0 $max_rows;
+$table 0 $max_rows $MYSQL_TMP_DIR/load_generator;
   }
 
   exec $exec;
@@ -86,7 +85,7 @@ $table 0 $max_rows;
     let $msg =
 The checksums of table t1 for master and slave do not match for $crash_num th
 crash. This may happen if there is a corrupt recovery log or a bug in crash
-recovery. You can take a look at the logs in /tmp/load_generator to see the
+recovery. You can take a look at the logs in $MYSQL_TMP_DIR/load_generator to see the
 queries issued before the crash.;
     echo $msg;
 
@@ -123,4 +122,4 @@ SET GLOBAL innodb_file_format_check = "Antelope";
 --disable_query_log
 eval SET GLOBAL innodb_zlib_wrap=$zlib_wrap_save;
 --enable_query_log
---exec rm -rf /tmp/load_generator
+# --exec rm -rf $MYSQL_TMP_DIR/load_generator

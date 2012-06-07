@@ -8,7 +8,6 @@ import sys
 import threading
 import time
 
-LG_TMP_DIR = '/tmp/load_generator'
 INCOMPRESSIBLE_BLOB = None
 
 def sha1(x):
@@ -228,6 +227,8 @@ INSERT INTO t1(id,x1,x2,x3,msg) VALUES (NULL, '%s', '%s', '%s', '%s')
 
 
 if  __name__ == '__main__':
+  global LG_TMP_DIR
+
   pid_file = sys.argv[1]
   kill_db_after = int(sys.argv[2])
   num_records_before = int(sys.argv[3])
@@ -239,6 +240,7 @@ if  __name__ == '__main__':
   db = sys.argv[9]
   do_blob = int(sys.argv[10])
   max_id = int(sys.argv[11])
+  LG_TMP_DIR = sys.argv[12]
   workers = []
   server_pid = int(open(pid_file).read())
   log = open('/%s/main.log' % LG_TMP_DIR, 'a')
