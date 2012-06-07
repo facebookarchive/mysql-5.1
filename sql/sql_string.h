@@ -212,6 +212,15 @@ public:
   bool realloc(uint32 arg_length);
   inline void shrink(uint32 arg_length)		// Shrink buffer
   {
+    if (!alloced)
+    {
+      /*
+        Either the buffer is NULL or this class doesn't own the
+        buffer memory and cannot shrink it.
+      */
+      return;
+    }
+
     if (arg_length < Alloced_length)
     {
       char *new_ptr;

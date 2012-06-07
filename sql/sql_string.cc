@@ -520,6 +520,15 @@ bool String::append(IO_CACHE* file, uint32 arg_length)
 {
   if (realloc(str_length+arg_length))
     return TRUE;
+
+  DBUG_EXECUTE_IF("inject_log_read_trunc",
+                  { if (arg_length > 1000)
+                    {
+                      shrink(str_length);
+                      file->error= 0;
+                      return TRUE;
+                    } });
+
   if (my_b_read(file, (uchar*) Ptr + str_length, arg_length))
   {
     shrink(str_length);

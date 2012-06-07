@@ -19,11 +19,13 @@ select length(f1), md5(f1) from t1 order by length(f1);
 length(f1)	md5(f1)
 10000	0d0c9c4db6953fee9e03f528cafd7d3e
 20000	2d0580be1e7272df1c79b31ebe4d259d
+70000	cfd2a8f79ae38d406abe7c81bd4ad571
 100000	09bfb3d92f4ec0691eec3644563f3ef4
 select length(f1), md5(f1) from t1 order by length(f1);
 length(f1)	md5(f1)
 10000	0d0c9c4db6953fee9e03f528cafd7d3e
 20000	2d0580be1e7272df1c79b31ebe4d259d
+70000	cfd2a8f79ae38d406abe7c81bd4ad571
 100000	09bfb3d92f4ec0691eec3644563f3ef4
 ==== clean up ====
 DROP TABLE t1;

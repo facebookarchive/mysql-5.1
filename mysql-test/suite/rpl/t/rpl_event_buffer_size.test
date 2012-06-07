@@ -28,6 +28,12 @@ INSERT INTO t1(f1) VALUES(REPEAT('a', 10000));
 INSERT INTO t1(f1) VALUES(REPEAT('b', 20000));
 INSERT INTO t1(f1) VALUES(REPEAT('b', 100000));
 
+let $x=`select lpad("foo", 70000, "bar")`;
+
+--disable_query_log
+eval insert into t1 values ("$x");
+--enable_query_log
+
 select length(f1), md5(f1) from t1 order by length(f1);
 
 sync_slave_with_master;

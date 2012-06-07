@@ -1,0 +1,55 @@
+#
+# Tests for bugs with rpl_event_buffer_size
+#
+
+--source include/master-slave.inc
+--source include/have_debug.inc
+
+call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log:");
+
+disable_warnings;
+drop table if exists t1;
+enable_warnings;
+
+connection slave;
+--source include/stop_slave.inc
+
+connection master;
+create table t1(i int primary key, t text) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1, "");
+
+--echo Failure injection occurs for event larger than 1000 bytes
+
+let $x=`select lpad("f", 2000, "b")`;
+--disable_query_log
+eval insert into t1 values (2, "$x");
+--enable_query_log
+
+SET GLOBAL debug="d,inject_log_read_trunc";
+
+--echo mysql_binlog_send on master will inject error
+
+connection slave;
+--source include/start_slave.inc
+--sleep 1
+stop slave;
+
+--echo now the large event can be sent to the slave
+
+connection master;
+SET GLOBAL debug="reset";
+
+connection slave;
+--source include/start_slave.inc
+
+connection master;
+sync_slave_with_master;
+
+connection slave;
+select i, length(t) from t1 order by i;
+
+--echo ==== clean up ====
+connection master;
+DROP TABLE t1;
+
+sync_slave_with_master;

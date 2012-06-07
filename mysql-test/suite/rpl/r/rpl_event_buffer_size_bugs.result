@@ -1,0 +1,25 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log:");
+drop table if exists t1;
+include/stop_slave.inc
+create table t1(i int primary key, t text) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1, "");
+Failure injection occurs for event larger than 1000 bytes
+SET GLOBAL debug="d,inject_log_read_trunc";
+mysql_binlog_send on master will inject error
+include/start_slave.inc
+stop slave;
+now the large event can be sent to the slave
+SET GLOBAL debug="reset";
+include/start_slave.inc
+select i, length(t) from t1 order by i;
+i	length(t)
+1	0
+2	2000
+==== clean up ====
+DROP TABLE t1;
