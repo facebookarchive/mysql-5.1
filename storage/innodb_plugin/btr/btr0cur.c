@@ -4789,10 +4789,22 @@ btr_copy_zblob_prefix(
 			}
 			break;
 		case Z_STREAM_END:
-			if (next_page_no == FIL_NULL) {
-				goto end_of_blob;
+#ifdef UNIV_DEBUG
+			if (next_page_no != FIL_NULL) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr, "  InnoDB: Decompression stream ended before going "
+				                "through all of the external pages allocated for this "
+				                "blob. This is likely because of a zlib bug that "
+				                "requires more space than necessary during compression."
+				                " As a result, the next blob page must be empty except "
+			                  "for the header. space id = %lu, page no = "
+				                "%lu, next page no = %lu.\n",
+				                (ulong) space_id, (ulong) page_no,
+				                (ulong) next_page_no);
 			}
-			/* fall through */
+#endif
+			goto end_of_blob;
+			break;
 		default:
 inflate_error:
 			ut_print_timestamp(stderr);
@@ -4801,7 +4813,7 @@ inflate_error:
 				" compressed BLOB"
 				" page %lu space %lu returned %d (%s)\n",
 				(ulong) page_no, (ulong) space_id,
-				err, d_stream->msg);
+				err, d_stream->msg ? d_stream->msg : "");
 		case Z_BUF_ERROR:
 			goto end_of_blob;
 		}
@@ -4999,6 +5011,19 @@ btr_copy_externally_stored_field(
 										zip_size,
 										space_id,
 										page_no, offset, trx);
+
+	if (*len != local_len + extern_len) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+		        "  InnoDB: Possible blob truncation. Expected length"
+		        " of the blob is %lu but read %lu bytes."
+		        " space id = %lu, page no = %lu.\n",
+		        local_len + extern_len,
+		        *len,
+		        space_id,
+		        page_no);
+		ut_ad(0);
+	}
 
 	return(buf);
 }
