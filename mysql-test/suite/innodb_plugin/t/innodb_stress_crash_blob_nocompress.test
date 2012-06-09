@@ -14,9 +14,11 @@ DROP TABLE IF EXISTS t1;
 
 # create the actual table
 CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY,
-                msg VARCHAR(255),
-                x1 text, x2 text, x3 text,
-                KEY msg_i(msg))
+                msg_prefix VARCHAR(255),
+                msg longtext,
+                msg_length int,
+                msg_checksum varchar(128),
+                KEY msg_i(msg_prefix))
 ENGINE=INNODB;
 
 let $use_blob=1;

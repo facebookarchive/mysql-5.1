@@ -10,6 +10,11 @@
 --connection master
 SELECT @@innodb_file_format_check;
 
+--disable_warnings
+drop table if exists errors;
+--enable_warnings
+create table errors(msg text) engine=innodb;
+
 --connection slave
 SELECT @@innodb_file_format_check;
 
@@ -70,12 +75,10 @@ $table 0 $max_rows $MYSQL_TMP_DIR/load_generator;
   --echo Checksum master
   let $master_checksum = query_get_value(CHECKSUM TABLE t1, Checksum, 1);
 
-  connection slave;
-  stop slave;
-  start slave;
+  # if sync_slave_with_master had a configurable timeout this would not be needed
+  let $slave_sync_timeout = 7200;
+  --source include/wait_for_slave_to_sync_with_master.inc
 
-  connection master;
-  sync_slave_with_master;
   connection slave;
   --echo Checksum slave
   let $slave_checksum=query_get_value(CHECKSUM TABLE t1, Checksum, 1);
@@ -112,6 +115,9 @@ SELECT @@innodb_file_format_check;
 --connection master
 SELECT @@innodb_file_format_check;
 
+select * from errors limit 1000;
+
+DROP TABLE errors;
 DROP TABLE t1;
 sync_slave_with_master;
 connection master;

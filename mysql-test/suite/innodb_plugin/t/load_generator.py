@@ -7,35 +7,71 @@ import signal
 import sys
 import threading
 import time
+import string
 
-INCOMPRESSIBLE_BLOB = None
+CHARS = string.letters + string.digits
 
 def sha1(x):
   return hashlib.sha1(str(x)).hexdigest()
 
-def get_incompressible_blob():
-  global INCOMPRESSIBLE_BLOB
-  if not INCOMPRESSIBLE_BLOB:
-    INCOMPRESSIBLE_BLOB = ''
-    for i in xrange(500):
-      INCOMPRESSIBLE_BLOB += hashlib.sha1('%d' % i).hexdigest()
-  return INCOMPRESSIBLE_BLOB
+def get_msg(do_blob):
+  if do_blob:  
+    blob_length = random.randint(1, 24000)
+  else:
+    blob_length = random.randint(1, 255)
+
+  if random.randint(1, 2) == 1:
+    # blob that cannot be compressed (well, compresses to 85% of original size)
+    return ''.join([random.choice(CHARS) for x in xrange(blob_length)])
+  else:
+    # blob that can be compressed
+    return random.choice(CHARS) * blob_length
 
 def populate_table(con, num_records_before, do_blob, log):
   cur = con.cursor()
+  stmt = None
 
-  if not do_blob:
+  try:
     for i in xrange(num_records_before):
-      cur.execute("INSERT INTO t1(id,msg) VALUES (NULL, '%s')" % (sha1(i) * 6))
-  else:
-    for i in xrange(num_records_before):
-      x3 = 'z'.ljust(random.randint(1, 9000), 'x') if random.randint(0, 25) > 0 else get_incompressible_blob()
-      cur.execute("""
-INSERT INTO t1(id,x1,x2,x3,msg) VALUES (NULL, 'x1', 'x2', '%s', '%s')
-""" % (x3, sha1(i) * 6))
+      msg = get_msg(do_blob)
+      # print >> log, "length is %d, complen is %d" % (len(msg), len(zlib.compress(msg, 6)))
+      stmt = """
+INSERT INTO t1(id,msg_prefix,msg,msg_length,msg_checksum) VALUES (NULL,'%s','%s',%d,'%s')
+""" % (msg[0:255], msg, len(msg), sha1(msg))
+      cur.execute(stmt)
 
-  con.commit()
+    con.commit()
+    return True
 
+  except MySQLdb.Error, e:
+    print >> log, "cannot insert (%s) for statement (%s)" % (e, stmt)
+    return False
+
+def get_update(msg, idx):
+  return """
+UPDATE t1 SET msg_prefix='%s',msg='%s',msg_length=%d,msg_checksum='%s' WHERE id=%d""" % (
+msg[0:255], msg, len(msg), sha1(msg), idx)
+
+def get_insert_on_dup(msg, idx):
+  return """
+INSERT INTO t1 (msg_prefix,msg,msg_length,msg_checksum,id) VALUES ('%s','%s',%d,%s,%d)
+ON DUPLICATE KEY UPDATE
+msg_prefix=VALUES(msg_prefix),
+msg=VALUES(msg),
+msg_length=VALUES(msg_length),
+msg_checksum=VALUES(msg_checksum),
+id=VALUES(id)""" % (
+msg[0:255], msg, len(msg), sha1(msg), idx)
+
+def get_insert(msg, idx):
+  return """
+INSERT INTO t1 (msg_prefix,msg,msg_length,msg_checksum,id) VALUES ('%s','%s',%d,'%s',%d)""" % (
+msg[0:255], msg, len(msg), sha1(msg), idx)
+
+def get_insert_null(msg):
+  return """
+INSERT INTO t1 (msg_prefix,msg,msg_length,msg_checksum,id) VALUES ('%s','%s',%d,'%s',NULL)""" % (
+msg[0:255], msg, len(msg), sha1(msg))
 
 class Worker(threading.Thread):
   global LG_TMP_DIR
@@ -66,15 +102,43 @@ class Worker(threading.Thread):
         self.loop_num, time.time() - self.start_time + self.time_spent)
     self.log.close()
 
+  def validate_msg(self, msg_prefix, msg, msg_length, msg_checksum, idx):
+
+    prefix_match = msg_prefix == msg[0:255]
+
+    checksum = sha1(msg)
+    checksum_match = checksum == msg_checksum
+
+    len_match = len(msg) == msg_length
+
+    if not prefix_match or not checksum_match or not len_match:
+      errmsg = "id(%d), length(%s,%d,%d), checksum(%s,%s,%s) prefix(%s,%s,%s)" % (
+          idx,
+          len_match, len(msg), msg_length,
+          checksum_match, checksum, msg_checksum,
+          prefix_match, msg_prefix, msg[0:255])
+      print >> self.log, errmsg
+
+      cursor = self.con.cursor()
+      cursor.execute("INSERT INTO errors VALUES('%s')" % errmsg)
+      cursor.execute("COMMIT")
+      raise Exception('validate_msg failed')
+    else:
+      print >> self.log, "Validated for length(%d) and id(%d)" % (msg_length, idx)
+
   def run(self):
     try:
-      if not do_blob:
-        self.runme()
-        print >> self.log, "ok, no blob"
-      else:
-        self.runme_blob()
-        print >> self.log, "ok, blob"
+      self.runme()
+      print >> self.log, "ok, with do_blob %s" % self.do_blob
     except Exception, e:
+
+      try:
+        cursor = self.con.cursor()
+        cursor.execute("INSERT INTO errors VALUES('%s')" % e)
+        cursor.execute("COMMIT")
+      except MySQLdb.Error, e2:
+        print >> self.log, "caught while inserting error (%s)" % e2
+
       print >> self.log, "caught (%s)" % e
     finally:
       self.finish()
@@ -88,29 +152,34 @@ class Worker(threading.Thread):
     while not self.num_xactions or (self.loop_num < self.num_xactions):
       idx = self.rand.randint(0, self.max_id)
       insert_or_update = self.rand.randint(0, 3)
-      msg = sha1("%d%d" % (idx, self.loop_num))
       self.loop_num += 1
       if self.rand.randint(0, 36) == 0:
         cur.execute("SET GLOBAL innodb_zlib_wrap=1-@@innodb_zlib_wrap");
       try:
         stmt = None
+
+        msg = get_msg(self.do_blob)
+
+        cur.execute("SELECT msg_prefix,msg,msg_length,msg_checksum FROM t1 WHERE id=%d" % idx)
+        res = cur.fetchone()
+        if res:
+          self.validate_msg(res[0], res[1], res[2], res[3], idx)
+
         if insert_or_update:
-          cur.execute("SELECT * FROM t1 WHERE id=%d" % idx)
-          res = cur.fetchone()
           if res:
             if self.rand.randint(0, 1):
-              stmt = "UPDATE t1 SET msg='%s' WHERE id=%d" % (msg, idx)
+              stmt = get_update(msg, idx)
             else:
-              stmt = "INSERT INTO t1 (msg,id) VALUES ('%s', %d) ON DUPLICATE KEY UPDATE msg=VALUES(msg), id=VALUES(id)" % (msg, idx)
+              stmt = get_insert_on_dup(msg, idx)
             self.num_updates += 1
           else:
             r = self.rand.randint(0, 2)
             if r == 0:
-              stmt = "INSERT INTO t1(id,msg) VALUES (%d,'%s')" % (idx, msg)
+              stmt = get_insert(msg, idx)
             elif r == 1:
-              stmt = "INSERT INTO t1 (msg,id) VALUES ('%s', %d) ON DUPLICATE KEY UPDATE msg=VALUES(msg), id=VALUES(id)" % (msg, idx)
+              stmt = get_insert_on_dup(msg, idx)
             else:
-              stmt = "INSERT INTO t1 (msg,id) VALUES ('%s', NULL)" % msg
+              stmt = get_insert_null(msg)
             self.num_inserts += 1
         else:
           stmt = "DELETE FROM t1 WHERE id=%d" % idx
@@ -141,91 +210,6 @@ class Worker(threading.Thread):
     except Exception, e:
       print >> self.log, "commit error %s" % e
 
-  def runme_blob(self):
-    self.start_time = time.time()
-    cur = self.con.cursor()
-    while not self.num_xactions or (self.loop_num < self.num_xactions):
-      idx = self.rand.randint(0, self.max_id)
-      insert_or_update = self.rand.randint(0, 3)
-      msg = sha1("%d%d" % (idx, self.loop_num))
-      self.loop_num += 1
-      if self.rand.randint(0, 36) == 0:
-        cur.execute("SET GLOBAL innodb_zlib_wrap=1-@@innodb_zlib_wrap");
-      try:
-        stmt = None
-        blob = 'a'.ljust(self.rand.randint(1, 9000), 'b') if self.rand.randint(0, 25) > 0 else get_incompressible_blob()
-        blob1 = '1'.ljust(self.rand.randint(1, 9000), '2') if self.rand.randint(0, 25) > 0 else get_incompressible_blob()
-        blob2 = '2'.ljust(self.rand.randint(1, 9000), '3') if self.rand.randint(0, 25) > 0 else get_incompressible_blob()
-        blob3 = '3'.ljust(self.rand.randint(1, 9000), '4') if self.rand.randint(0, 25) > 0 else get_incompressible_blob()
-        if insert_or_update:
-          cur.execute("SELECT * FROM t1 WHERE id=%d" % idx)
-          res = cur.fetchone()
-          if res:
-            r = self.rand.randint(0,3)
-            if r == 0:
-              stmt = "UPDATE t1 SET msg='%s', x1='%s' WHERE id=%d" % (
-                      msg, blob, idx)
-            elif r == 1:
-              stmt = "UPDATE t1 SET msg='%s', x2='%s' WHERE id=%d" % (
-                      msg, blob, idx)
-            elif r == 2:
-              stmt = """
-INSERT INTO t1 (msg, id, x1) VALUES ('%s', %d, '%s')
-ON DUPLICATE KEY UPDATE msg=VALUES(msg), id=VALUES(id), x1=VALUES(x1)""" % (
-msg, idx, blob)
-            elif r == 3:
-              stmt = """
-INSERT INTO t1 (msg, id, x2) VALUES ('%s', %d, '%s')
-ON DUPLICATE KEY UPDATE msg=VALUES(msg), id=VALUES(id), x2=VALUES(x2)""" % (
-msg, idx, blob)
-            self.num_updates += 1
-          else:
-            r = self.rand.randint(0,2)
-            if r == 0:
-              stmt = """
-INSERT INTO t1(id,x1,x2,x3,msg) VALUES (%d, '%s', '%s', '%s', '%s')
-""" % (idx, blob1, blob2, blob3, msg)
-            elif r == 1:
-              stmt = """
-INSERT INTO t1(id,x1,x2,x3,msg) VALUES (%d, '%s', '%s', '%s', '%s')
-ON DUPLICATE KEY UPDATE msg=VALUES(msg), id=VALUES(id), x1=VALUES(x1), x2=VALUES(x2), x3=VALUES(x3)
-""" % (idx, blob1, blob2, blob3, msg)
-            else:
-              stmt = """
-INSERT INTO t1(id,x1,x2,x3,msg) VALUES (NULL, '%s', '%s', '%s', '%s')
-""" % (blob1, blob2, blob3, msg)
-
-            self.num_inserts += 1
-        else:
-          stmt = "DELETE FROM t1 WHERE id=%d" % idx
-          self.num_deletes += 1
-        cur.execute(stmt)
-
-        if (self.loop_num % 100) == 0:
-          print >> self.log, "Thread %d loop_num %d: %s" % (self.xid,
-                                                            self.loop_num,
-                                                            stmt)
-
-        # 30% commit, 10% rollback, 60% don't end the trx
-        r = self.rand.randint(1,10)
-        if r < 4:
-          self.con.commit()
-        elif r == 4:
-          self.con.rollback()
-
-      except MySQLdb.Error, e:
-        if e.args[0] == 2006:  # server is killed
-          print >> self.log, "mysqld down, transaction %d" % self.xid
-          return
-        else:
-          print >> self.log, "mysql error for stmt(%s) %s" % (stmt, e)
-
-    try:
-      self.con.commit()
-    except Exception, e:
-      print >> self.log, "commit error %s" % e
-
-
 if  __name__ == '__main__':
   global LG_TMP_DIR
 
@@ -253,7 +237,8 @@ if  __name__ == '__main__':
   if num_records_before:
     print >> log, "populate table do_blob is %d" % do_blob
     con = MySQLdb.connect(user=user, host=host, port=port, db=db)
-    populate_table(con, num_records_before, do_blob, log)
+    if not populate_table(con, num_records_before, do_blob, log):
+      sys.exit(1)
     con.close()
 
   print >> log, "start %d threads" % num_workers

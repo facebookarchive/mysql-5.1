@@ -2,7 +2,6 @@
 --innodb-file-per-table
 --innodb_file_format='Barracuda'
 --innodb_file_format_check=ON
---innodb_background_checkpoint=OFF
---sync_binlog=100
+--sync_binlog=10
 --innodb_flush_log_at_trx_commit=2
 --force-restart
