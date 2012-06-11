@@ -690,9 +690,6 @@ UNIV_INTERN ulint	srv_main_thread_id		= 0;
 /* Should prepare_commit_mutex be aquired before writing to binlog? */
 UNIV_INTERN my_bool	innobase_prepare_commit_mutex	= TRUE;
 
-/** Release locks in prepare step */
-UNIV_INTERN my_bool	innobase_release_locks_early	= FALSE;
-
 /** See the sync_checkpoint_limit user variable declaration in ha_innodb.cc */
 UNIV_INTERN ulint	srv_sync_checkpoint_limit	= 0;
 

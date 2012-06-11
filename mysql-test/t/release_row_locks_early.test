@@ -1,4 +1,6 @@
 ################################################################################
+# This used to test innodb_release_locks_early. That feature was removed
+# but there is one test that doesn't use the feature.
 ################################################################################
 
 # requirements
@@ -32,117 +34,8 @@ SET GLOBAL group_commit_min_size=2;
 
 ################################################################################
 echo "";
-echo Verify that release early works with group commit for transactions that;
-echo modify different rows;
-echo "";
-################################################################################
-# nuke binlogs and sync points
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL sync_binlog=1;
-SET GLOBAL force_binlog_order=1;
-SET GLOBAL innodb_release_locks_early=1;
-
---connection c1
---echo connection c1
-BEGIN;
-UPDATE t1 SET a=10 WHERE k=1;
-SET DEBUG_SYNC='after_prepare1 SIGNAL c1_prepared WAIT_FOR c2_prepared TIMEOUT 3';
---send COMMIT
-
-  --connection c2
-  --echo connection c2
-  BEGIN;
-  SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
-  UPDATE t1 SET a=20 WHERE k=2;
-  SET DEBUG_SYNC='after_prepare1 SIGNAL c2_prepared';
-  COMMIT;
-
---connection c1
---echo connection c1
---reap;
-select * from t1 where k=1;
-select * from t1 where k=2;
-
-################################################################################
-echo "";
-echo Verify first transaction commits when the second does rollback;
-echo after modifying the same row and release early is enabled;
-echo "";
-################################################################################
-# nuke binlogs and sync points
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL sync_binlog=1;
-SET GLOBAL force_binlog_order=1;
-SET GLOBAL innodb_release_locks_early=1;
-
---connection c1
---echo connection c1
-BEGIN;
-UPDATE t1 SET a=11 WHERE k=1;
-SET DEBUG_SYNC='before_commit_fast SIGNAL c1_ready WAIT_FOR c2_rollback TIMEOUT 4';
---send COMMIT
-
-  --connection c2
-  --echo connection c2
-  SET DEBUG_SYNC='now WAIT_FOR c1_ready TIMEOUT 3';
-  BEGIN;
-  SELECT * FROM t1 WHERE k=1;
-  UPDATE t1 SET a=21 WHERE k=1;
-  SELECT * FROM t1 WHERE k=1;
-  ROLLBACK;
-  SET DEBUG_SYNC='now SIGNAL c2_rollback';
-
---connection c1
---echo connection c1
---reap;
-select * from t1 where k=1;
-
-################################################################################
-echo "";
-echo Verify no timeout occurs after modifying the same row and release early;
-echo is enabled;
-echo "";
-################################################################################
-# nuke binlogs and sync points
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL sync_binlog=1;
-SET GLOBAL force_binlog_order=1;
-SET GLOBAL innodb_release_locks_early=1;
-
---connection c1
---echo connection c1
-BEGIN;
-UPDATE t1 SET a=11 WHERE k=1;
-SET DEBUG_SYNC='before_commit_fast SIGNAL c1_ready WAIT_FOR c2_ready TIMEOUT 3';
---send COMMIT;
-
-  --connection c2
-  --echo connection c2
-  BEGIN;
-  SET DEBUG_SYNC='now WAIT_FOR c1_ready TIMEOUT 3';
-  SELECT * FROM t1 WHERE k=1;
-  UPDATE t1 SET a=21 WHERE k=1;
-  SET DEBUG_SYNC='after_prepare1 SIGNAL c2_ready';
-  COMMIT;
-
---connection c1
---echo connection c1
---reap;
-select * from t1 where k=1;
-
-################################################################################
-echo "";
 echo Verify that a timeout occurs in c1 for group commit when the transactions;
-echo modify the same row and release early is disabled;
+echo modify the same row 
 echo "";
 ################################################################################
 # nuke binlogs and sync points
@@ -152,7 +45,6 @@ SET DEBUG_SYNC= 'RESET';
 SET GLOBAL innodb_prepare_commit_mutex=0;
 SET GLOBAL sync_binlog=1;
 SET GLOBAL force_binlog_order=1;
-SET GLOBAL innodb_release_locks_early=0;
 
 --connection c1
 --echo connection c1
@@ -169,46 +61,6 @@ SET DEBUG_SYNC='after_prepare1 SIGNAL c1_prepared WAIT_FOR c2_prepared TIMEOUT 3
   UPDATE t1 SET a=21 WHERE k=1;
   SET DEBUG_SYNC='after_prepare1 SIGNAL c2_prepared';
   COMMIT;
-
---connection c1
---echo connection c1
---reap;
-select * from t1 where k=1;
-
-################################################################################
-echo "";
-echo Verify no timeout occurs after incrementing the same row and release early;
-echo is enabled;
-echo "";
-################################################################################
-# nuke binlogs and sync points
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL sync_binlog=1;
-SET GLOBAL force_binlog_order=1;
-SET GLOBAL innodb_release_locks_early=1;
-
-select * from t1 where k=1;
-
---connection c1
---echo connection c1
-BEGIN;
-UPDATE t1 SET a=a+1 WHERE k=1;
-SET DEBUG_SYNC='before_commit_fast SIGNAL c1_ready WAIT_FOR c2_ready TIMEOUT 3';
---send COMMIT;
-
-  --connection c2
-  --echo connection c2
-  BEGIN;
-  SET DEBUG_SYNC='now WAIT_FOR c1_ready TIMEOUT 3';
-  SELECT * FROM t1 WHERE k=1;
-  UPDATE t1 SET a=a+1 WHERE k=1;
-  SELECT * FROM t1 WHERE k=1;
-  SET DEBUG_SYNC='after_prepare1 SIGNAL c2_ready';
-  COMMIT;
-  SELECT * FROM t1 WHERE k=1;
 
 --connection c1
 --echo connection c1
@@ -223,7 +75,6 @@ echo "";
 SET DEBUG_SYNC= 'RESET';
 SET GLOBAL force_binlog_order=1;
 SET GLOBAL innodb_prepare_commit_mutex=1;
-SET GLOBAL innodb_release_locks_early=0;
 SET GLOBAL group_commit_timeout_usecs=1000;
 SET GLOBAL group_commit_min_size=8;
 SET GLOBAL sync_binlog=0;

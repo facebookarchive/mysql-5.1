@@ -8,102 +8,14 @@ INSERT INTO t1 (k, a, b, c) VALUES (4, 0, 0, 0);
 SET GLOBAL group_commit_timeout_usecs=90000;
 SET GLOBAL group_commit_min_size=2;
 ""
-Verify that release early works with group commit for transactions that
-modify different rows
-""
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL sync_binlog=1;
-SET GLOBAL force_binlog_order=1;
-SET GLOBAL innodb_release_locks_early=1;
-connection c1
-BEGIN;
-UPDATE t1 SET a=10 WHERE k=1;
-SET DEBUG_SYNC='after_prepare1 SIGNAL c1_prepared WAIT_FOR c2_prepared TIMEOUT 3';
-COMMIT;
-connection c2
-BEGIN;
-SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
-UPDATE t1 SET a=20 WHERE k=2;
-SET DEBUG_SYNC='after_prepare1 SIGNAL c2_prepared';
-COMMIT;
-connection c1
-select * from t1 where k=1;
-k	a	b	c
-1	10	0	0
-select * from t1 where k=2;
-k	a	b	c
-2	20	0	0
-""
-Verify first transaction commits when the second does rollback
-after modifying the same row and release early is enabled
-""
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL sync_binlog=1;
-SET GLOBAL force_binlog_order=1;
-SET GLOBAL innodb_release_locks_early=1;
-connection c1
-BEGIN;
-UPDATE t1 SET a=11 WHERE k=1;
-SET DEBUG_SYNC='before_commit_fast SIGNAL c1_ready WAIT_FOR c2_rollback TIMEOUT 4';
-COMMIT;
-connection c2
-SET DEBUG_SYNC='now WAIT_FOR c1_ready TIMEOUT 3';
-BEGIN;
-SELECT * FROM t1 WHERE k=1;
-k	a	b	c
-1	10	0	0
-UPDATE t1 SET a=21 WHERE k=1;
-SELECT * FROM t1 WHERE k=1;
-k	a	b	c
-1	21	0	0
-ROLLBACK;
-SET DEBUG_SYNC='now SIGNAL c2_rollback';
-connection c1
-select * from t1 where k=1;
-k	a	b	c
-1	11	0	0
-""
-Verify no timeout occurs after modifying the same row and release early
-is enabled
-""
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL sync_binlog=1;
-SET GLOBAL force_binlog_order=1;
-SET GLOBAL innodb_release_locks_early=1;
-connection c1
-BEGIN;
-UPDATE t1 SET a=11 WHERE k=1;
-SET DEBUG_SYNC='before_commit_fast SIGNAL c1_ready WAIT_FOR c2_ready TIMEOUT 3';
-COMMIT;;
-connection c2
-BEGIN;
-SET DEBUG_SYNC='now WAIT_FOR c1_ready TIMEOUT 3';
-SELECT * FROM t1 WHERE k=1;
-k	a	b	c
-1	11	0	0
-UPDATE t1 SET a=21 WHERE k=1;
-SET DEBUG_SYNC='after_prepare1 SIGNAL c2_ready';
-COMMIT;
-connection c1
-select * from t1 where k=1;
-k	a	b	c
-1	21	0	0
-""
 Verify that a timeout occurs in c1 for group commit when the transactions
-modify the same row and release early is disabled
-""
+modify the same row 
+echo ""
 RESET MASTER;
 SET DEBUG_SYNC= 'RESET';
 SET GLOBAL innodb_prepare_commit_mutex=0;
 SET GLOBAL sync_binlog=1;
 SET GLOBAL force_binlog_order=1;
-SET GLOBAL innodb_release_locks_early=0;
 connection c1
 BEGIN;
 UPDATE t1 SET a=11 WHERE k=1;
@@ -114,7 +26,7 @@ BEGIN;
 SET DEBUG_SYNC='now WAIT_FOR c1_prepared TIMEOUT 3';
 SELECT * FROM t1 WHERE k=1;
 k	a	b	c
-1	21	0	0
+1	0	0	0
 UPDATE t1 SET a=21 WHERE k=1;
 SET DEBUG_SYNC='after_prepare1 SIGNAL c2_prepared';
 COMMIT;
@@ -125,49 +37,11 @@ select * from t1 where k=1;
 k	a	b	c
 1	21	0	0
 ""
-Verify no timeout occurs after incrementing the same row and release early
-is enabled
-""
-RESET MASTER;
-SET DEBUG_SYNC= 'RESET';
-SET GLOBAL innodb_prepare_commit_mutex=0;
-SET GLOBAL sync_binlog=1;
-SET GLOBAL force_binlog_order=1;
-SET GLOBAL innodb_release_locks_early=1;
-select * from t1 where k=1;
-k	a	b	c
-1	21	0	0
-connection c1
-BEGIN;
-UPDATE t1 SET a=a+1 WHERE k=1;
-SET DEBUG_SYNC='before_commit_fast SIGNAL c1_ready WAIT_FOR c2_ready TIMEOUT 3';
-COMMIT;;
-connection c2
-BEGIN;
-SET DEBUG_SYNC='now WAIT_FOR c1_ready TIMEOUT 3';
-SELECT * FROM t1 WHERE k=1;
-k	a	b	c
-1	21	0	0
-UPDATE t1 SET a=a+1 WHERE k=1;
-SELECT * FROM t1 WHERE k=1;
-k	a	b	c
-1	23	0	0
-SET DEBUG_SYNC='after_prepare1 SIGNAL c2_ready';
-COMMIT;
-SELECT * FROM t1 WHERE k=1;
-k	a	b	c
-1	23	0	0
-connection c1
-select * from t1 where k=1;
-k	a	b	c
-1	23	0	0
-""
 cleanup
 ""
 SET DEBUG_SYNC= 'RESET';
 SET GLOBAL force_binlog_order=1;
 SET GLOBAL innodb_prepare_commit_mutex=1;
-SET GLOBAL innodb_release_locks_early=0;
 SET GLOBAL group_commit_timeout_usecs=1000;
 SET GLOBAL group_commit_min_size=8;
 SET GLOBAL sync_binlog=0;

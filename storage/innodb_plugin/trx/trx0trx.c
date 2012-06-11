@@ -581,7 +581,7 @@ trx_lists_init_at_db_start(void)
 
 					if (srv_force_recovery == 0) {
 
-						trx->conc_state = TRX_PREPARED_UNRELEASED;
+						trx->conc_state = TRX_PREPARED;
 					} else {
 						fprintf(stderr,
 							"InnoDB: Since"
@@ -659,7 +659,7 @@ trx_lists_init_at_db_start(void)
 						if (srv_force_recovery == 0) {
 
 							trx->conc_state
-								= TRX_PREPARED_UNRELEASED;
+								= TRX_PREPARED;
 						} else {
 							fprintf(stderr,
 								"InnoDB: Since"
@@ -969,7 +969,7 @@ trx_commit_off_kernel(
 	}
 
 	ut_ad(trx->conc_state == TRX_ACTIVE
-	      || trx_is_prepared(trx->conc_state));
+	      || trx->conc_state == TRX_PREPARED);
 	ut_ad(mutex_own(&kernel_mutex));
 
 	/* The following assignment makes the transaction committed in memory
@@ -1818,12 +1818,8 @@ trx_print(
 		fprintf(f, ", ACTIVE %lu sec",
 			(ulong)difftime(time(NULL), trx->start_time));
 		break;
-	case TRX_PREPARED_UNRELEASED:
+	case TRX_PREPARED:
 		fprintf(f, ", ACTIVE (PREPARED) %lu sec",
-			(ulong)difftime(time(NULL), trx->start_time));
-		break;
-	case TRX_PREPARED_RELEASED:
-		fprintf(f, ", ACTIVE (PREPARED_RELEASED) %lu sec",
 			(ulong)difftime(time(NULL), trx->start_time));
 		break;
 	case TRX_COMMITTED_IN_MEMORY:
@@ -2033,7 +2029,7 @@ trx_prepare_off_kernel(
 	ut_ad(mutex_own(&kernel_mutex));
 
 	/*--------------------------------------*/
-	trx->conc_state = TRX_PREPARED_UNRELEASED;
+	trx->conc_state = TRX_PREPARED;
 	/*--------------------------------------*/
 
 	if (lsn) {
@@ -2142,7 +2138,7 @@ trx_recover_for_mysql(
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 	while (trx) {
-		if (trx_is_prepared(trx->conc_state)) {
+		if (trx->conc_state == TRX_PREPARED) {
 			xid_list[count] = trx->xid;
 
 			if (count == 0) {
@@ -2228,7 +2224,7 @@ trx_get_trx_by_xid(
 	mutex_exit(&kernel_mutex);
 
 	if (trx) {
-		if (!trx_is_prepared(trx->conc_state)) {
+		if (trx->conc_state != TRX_PREPARED) {
 
 			return(NULL);
 		}

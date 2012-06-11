@@ -567,8 +567,7 @@ loop:
 
 		switch (trx->conc_state) {
 		case TRX_NOT_STARTED:
-		case TRX_PREPARED_RELEASED:
-		case TRX_PREPARED_UNRELEASED:
+		case TRX_PREPARED:
 			continue;
 
 		case TRX_COMMITTED_IN_MEMORY:

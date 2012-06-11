@@ -3109,7 +3109,7 @@ innobase_commit_low(
 		return;
 	}
 
-	if (!trx_is_prepared(trx->conc_state))
+	if (trx->conc_state != TRX_PREPARED)
 		innobase_set_tx_replication_state(trx);
 
 	trx_commit_for_mysql(trx);
@@ -3284,7 +3284,7 @@ innobase_really_commit(
 	}
 
 	if (group) {
-		ut_a(trx_is_prepared(trx->conc_state));
+		ut_a(trx->conc_state == TRX_PREPARED);
 
 		if (trx->active_trans != 1 && trx->active_trans != 0) {
 			sql_print_error("trx->active_trans = %d and trx->conc_state = %d\n",
@@ -3415,16 +3415,6 @@ innobase_is_ordered_commit(
 {
 	trx_t*		trx = check_trx_exists(thd);
 
-	/* It is safe to release locks early because the transaction has been written
-	to the binlog when this function is called. */
-
-	if (innobase_release_locks_early && trx->conc_state == TRX_PREPARED_UNRELEASED) {
-		mutex_enter(&kernel_mutex);
-		lock_release_off_kernel(trx);
-		trx->conc_state = TRX_PREPARED_RELEASED;
-		mutex_exit(&kernel_mutex);
-	}
-
 	/* If prepare_commit_mutex was not locked then this is eligible
 	for group commit. ha_commit_trans and innobase_xa_prepare have
 	different logic for when real prepare is done as innobase_xa_prepare
@@ -3432,7 +3422,7 @@ innobase_is_ordered_commit(
 	that if the transaction was prepared, then innobase_xa_prepare
 	did a prepare and this is good for group commit. */
 
-	return (trx->active_trans != 2 && trx_is_prepared(trx->conc_state));
+	return (trx->active_trans != 2 && trx->conc_state == TRX_PREPARED);
 }
 
 /*****************************************************************//**
@@ -3485,14 +3475,6 @@ innobase_rollback(
 	release it now before a possibly lengthy rollback */
 
 	row_unlock_table_autoinc_for_mysql(trx);
-
-	// if transaction has already released locks, it is too late to rollback
-	if (trx->conc_state == TRX_PREPARED_RELEASED
-	    && UT_LIST_GET_LEN(trx->trx_locks) == 0) {
-		const char *s = "Rollback after releasing locks! errno=%d, dberr=%d";
-		sql_print_error(s, errno, trx->error_state);
-		ut_error;
-	}
 
 	if (all
 		|| !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
@@ -12457,11 +12439,6 @@ static MYSQL_SYSVAR_UINT(zlib_strategy, page_zip_zlib_strategy,
   "this per table which should be more useful.",
   NULL, NULL, 0, 0, 4, 0);
 
-static MYSQL_SYSVAR_BOOL(release_locks_early, innobase_release_locks_early,
-  PLUGIN_VAR_NOCMDARG,
-  "Release row locks in the prepare stage instead of in the commit stage",
-  NULL, NULL, FALSE);
-
 static MYSQL_SYSVAR_ULONG(expand_import, srv_expand_import,
   PLUGIN_VAR_RQCMDARG,
   "Enable/Disable converting automatically *.ibd files when import tablespace.",
@@ -12702,7 +12679,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(adaptive_hash_latch_cache),
   MYSQL_SYSVAR(compression_level),
   MYSQL_SYSVAR(prepare_commit_mutex),
-  MYSQL_SYSVAR(release_locks_early),
   MYSQL_SYSVAR(expand_import),
   MYSQL_SYSVAR(merge_sort_block_size),
   MYSQL_SYSVAR(sync_checkpoint_limit),

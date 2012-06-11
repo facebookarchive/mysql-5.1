@@ -4654,7 +4654,7 @@ lock_table_queue_validate(
 
 	while (lock) {
 		ut_a(((lock->trx)->conc_state == TRX_ACTIVE)
-		     || trx_is_prepared((lock->trx)->conc_state)
+		     || ((lock->trx)->conc_state == TRX_PREPARED)
 		     || ((lock->trx)->conc_state == TRX_COMMITTED_IN_MEMORY));
 
 		if (!lock_get_wait(lock)) {
@@ -4705,8 +4705,7 @@ lock_rec_queue_validate(
 		while (lock) {
 			switch(lock->trx->conc_state) {
 			case TRX_ACTIVE:
-			case TRX_PREPARED_RELEASED:
-			case TRX_PREPARED_UNRELEASED:
+			case TRX_PREPARED:
 			case TRX_COMMITTED_IN_MEMORY:
 				break;
 			default:
@@ -4792,7 +4791,7 @@ lock_rec_queue_validate(
 
 	while (lock) {
 		ut_a(lock->trx->conc_state == TRX_ACTIVE
-		     || trx_is_prepared(lock->trx->conc_state)
+		     || lock->trx->conc_state == TRX_PREPARED
 		     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
 		ut_a(trx_in_trx_list(lock->trx));
 
@@ -4880,7 +4879,7 @@ loop:
 
 	ut_a(trx_in_trx_list(lock->trx));
 	ut_a(lock->trx->conc_state == TRX_ACTIVE
-	     || trx_is_prepared(lock->trx->conc_state)
+	     || lock->trx->conc_state == TRX_PREPARED
 	     || lock->trx->conc_state == TRX_COMMITTED_IN_MEMORY);
 
 # ifdef UNIV_SYNC_DEBUG

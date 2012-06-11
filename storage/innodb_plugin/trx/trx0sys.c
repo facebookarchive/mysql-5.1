@@ -1201,7 +1201,7 @@ trx_sys_init_at_db_start(void)
 
 		for (;;) {
 
-			if (!trx_is_prepared(trx->conc_state)) {
+			if (trx->conc_state != TRX_PREPARED) {
 				rows_to_undo += ut_conv_dulint_to_longlong(
 					trx->undo_no);
 			}
