@@ -2656,9 +2656,10 @@ mysql_execute_command(THD *thd,
       const char* crosss_db_log_prefix = "CROSS_SHARD_QUERY: ";
       size_t prefix_len = strlen(crosss_db_log_prefix);
       size_t log_len = prefix_len + thd->query_length();
-      char* cross_db_query_log = (char *)my_malloc(log_len, MYF(MY_WME));
-      strcpy(cross_db_query_log, crosss_db_log_prefix);
-      strcpy(cross_db_query_log + prefix_len, thd->query());
+      char* cross_db_query_log = (char *)my_malloc(log_len + 1, MYF(MY_WME));
+      memcpy(cross_db_query_log, crosss_db_log_prefix, prefix_len);
+      memcpy(cross_db_query_log + prefix_len, thd->query(), thd->query_length());
+      cross_db_query_log[log_len] = 0;
       slow_log_print(thd, cross_db_query_log, log_len,
                      thd->current_utime(), &(thd->status_var));
       my_free(cross_db_query_log, MYF(0));
