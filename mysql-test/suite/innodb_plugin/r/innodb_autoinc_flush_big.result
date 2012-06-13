@@ -1,0 +1,17 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (p INT PRIMARY KEY AUTO_INCREMENT, worker INT, count INT) ENGINE=InnoDB;
+Insert 1000 rows
+set global read_only=1;
+Checksum master
+stop slave;
+start slave;
+Checksum slave
+set global read_only=0;
+DROP TABLE t1;
+set global innodb_file_format_check=Antelope;

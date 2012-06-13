@@ -1,0 +1,18 @@
+#
+# Stress tests for autoinc inserts concurrent with set readonly
+#
+
+--source include/have_innodb.inc
+--source include/master-slave.inc
+--source include/have_debug.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (p INT PRIMARY KEY AUTO_INCREMENT, worker INT, count INT) ENGINE=InnoDB;
+
+--let $num_workers = 2
+--let $test_seconds = 10
+
+--source suite/innodb_plugin/include/innodb_autoinc_flush.inc
