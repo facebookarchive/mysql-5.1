@@ -74,7 +74,7 @@ select VARIABLE_VALUE into @ulen from information_schema.global_status
 where VARIABLE_NAME = 'INNODB_BUFFER_POOL_PAGES_UNZIP_LRU';
 
 --disable_query_log
-select (@ulen / @dlen) >= 0.08 as large_enough, (@ulen / @dlen) <= 0.12 as small_enough;
+select (@ulen / @dlen) >= 0.05 as large_enough, (@ulen / @dlen) <= 0.30 as small_enough;
 --enable_query_log
 
 --echo # Confirm that the unzip_LRU to LRU ratio is about 20%
@@ -90,7 +90,7 @@ select VARIABLE_VALUE into @ulen from information_schema.global_status
 where VARIABLE_NAME = 'INNODB_BUFFER_POOL_PAGES_UNZIP_LRU';
 
 --disable_query_log
-select (@ulen / @dlen) >= 0.18 as large_enough, (@ulen / @dlen) <= 0.22 as small_enough;
+select (@ulen / @dlen) >= 0.15 as large_enough, (@ulen / @dlen) <= 0.40 as small_enough;
 --enable_query_log
 
 --echo # Cleanup
