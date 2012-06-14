@@ -68,8 +68,11 @@ UNLOCK TABLES;
 DELETE from t1;
 FLUSH STATUS;
 connection con1;
-INSERT INTO t1 (a) select sleep(1) ;
+INSERT INTO t1 (a) select sleep(2) ;
 connection default;
+SELECT sleep(1);
+sleep(1)
+0
 set global read_only=1;
 connection con1
 # Check if the query is done. Expected a=0

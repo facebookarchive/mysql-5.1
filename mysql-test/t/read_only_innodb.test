@@ -116,10 +116,11 @@ FLUSH STATUS;
 
 --echo connection con1;
 connection con1;
-send INSERT INTO t1 (a) select sleep(1) ;
+send INSERT INTO t1 (a) select sleep(2) ;
 
 --echo connection default;
 connection default;
+SELECT sleep(1);
 set global read_only=1;
 
 --echo connection con1
