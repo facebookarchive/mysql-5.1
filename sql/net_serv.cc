@@ -671,6 +671,14 @@ net_real_write(NET *net,const uchar *packet, size_t len)
 		  my_progname);
 #endif /* EXTRA_DEBUG */
       }
+
+#if defined(NO_ALARM) && !defined(__WIN__)
+      if (interrupted && retry_count++ < net->retry_count)
+      {
+        continue;
+      }
+#endif /* defined(NO_ALARM) && !defined(__WIN__) */
+
 #if defined(THREAD_SAFE_CLIENT) && !defined(MYSQL_SERVER)
       if (vio_errno(net->vio) == SOCKET_EINTR)
       {
@@ -881,6 +889,14 @@ my_real_read(NET *net, size_t *complen)
 	    }
 	  }
 #endif /* (!defined(__WIN__) || defined(MYSQL_SERVER) */
+
+#if defined(NO_ALARM) && (!defined(__WIN__) || defined(MYSQL_SERVER))
+          if (interrupted && retry_count++ < net->retry_count)
+          {
+            continue;
+          }
+#endif /* defined(NO_ALARM) && (!defined(__WIN__) || defined(MYSQL_SERVER)) */
+
 	  if (thr_alarm_in_use(&alarmed) && !thr_got_alarm(&alarmed) &&
 	      interrupted)
 	  {					/* Probably in MIT threads */
