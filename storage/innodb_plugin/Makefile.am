@@ -336,11 +336,6 @@ ha_innodb_plugin_la_CXXFLAGS=	$(AM_CXXFLAGS) $(INNODB_DYNAMIC_CFLAGS)
 ha_innodb_plugin_la_CFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
 ha_innodb_plugin_la_SOURCES=	$(libinnobase_a_SOURCES)
 
-if !NO_MEMCACHE
-INCLUDES +=             -I@LIBMEMCACHE@/include
-DEFS +=                 -DLIBMEMCACHE
-endif
-
 EXTRA_DIST=		CMakeLists.txt plug.in \
 			pars/make_bison.sh pars/make_flex.sh \
 			pars/pars0grm.y pars/pars0lex.l

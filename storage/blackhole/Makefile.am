@@ -46,12 +46,6 @@ libblackhole_a_CXXFLAGS=$(AM_CXXFLAGS)
 libblackhole_a_CFLAGS =	$(AM_CFLAGS)
 libblackhole_a_SOURCES=	ha_blackhole.cc
 
-if !NO_MEMCACHE
-INCLUDES +=             -I@LIBMEMCACHE@/include
-DEFS +=                 -DLIBMEMCACHE
-endif
-
-
 EXTRA_DIST =		CMakeLists.txt plug.in
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -49,8 +49,6 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-@NO_MEMCACHE_FALSE@am__append_1 = -I@LIBMEMCACHE@/include
-@NO_MEMCACHE_FALSE@am__append_2 = -DLIBMEMCACHE
 subdir = storage/myisammrg
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in

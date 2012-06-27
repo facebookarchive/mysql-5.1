@@ -51,8 +51,6 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-@NO_MEMCACHE_FALSE@am__append_1 = -I@LIBMEMCACHE@/include
-@NO_MEMCACHE_FALSE@am__append_2 = -DLIBMEMCACHE
 bin_PROGRAMS = myisamchk$(EXEEXT) myisamlog$(EXEEXT) \
 	myisampack$(EXEEXT) myisam_ftdump$(EXEEXT)
 noinst_PROGRAMS = mi_test1$(EXEEXT) mi_test2$(EXEEXT) \

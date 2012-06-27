@@ -158,10 +158,6 @@ static bool sys_update_slow_log_path(THD *thd, set_var * var);
 static void sys_default_slow_log_path(THD *thd, enum_var_type type);
 static uchar *get_myisam_mmap_size(THD *thd);
 
-#ifdef LIBMEMCACHE
-static void fb_libmcc_set_server_retry_tmo(THD *thd, enum_var_type type);
-#endif
-
 /*
   Variable definition list
 
@@ -960,33 +956,6 @@ static sys_var_readonly    sys_repl_report_port(&vars, "report_port", OPT_GLOBAL
 
 sys_var_thd_bool  sys_keep_files_on_create(&vars, "keep_files_on_create", 
                                            &SV::keep_files_on_create);
-
-#ifdef LIBMEMCACHE
-static sys_var_bool_ptr sys_fb_libmcc_verbose(&vars, "fb_libmcc_verbose",
-                          &opt_fb_libmcc_verbose);
-static sys_var_long_ptr sys_fb_libmcc_server_retry_tmo_ms(&vars,
-                          "fb_libmcc_server_retry_tmo_ms",
-                          &opt_fb_libmcc_server_retry_tmo_ms,
-                          fb_libmcc_set_server_retry_tmo);
-static sys_var_const sys_fb_enable_memcache(&vars, "fb_enable_memcache",
-                                            OPT_GLOBAL, SHOW_BOOL,
-                                            (uchar*) &opt_fb_enable_memcache);
-static sys_var_const sys_fb_always_dirty(&vars, "fb_always_dirty",
-                                         OPT_GLOBAL, SHOW_BOOL,
-                                         (uchar*) &opt_fb_always_dirty);
-static sys_var_const sys_fb_libmcc_tmo_ms(&vars, "fb_libmcc_timeout_ms",
-                                          OPT_GLOBAL, SHOW_INT,
-                                          (uchar*) &opt_fb_libmcc_tmo_ms);
-static sys_var_const sys_libmcc_warn_ms(&vars, "fb_libmcc_warn_ms",
-                                        OPT_GLOBAL, SHOW_INT,
-                                        (uchar*) &opt_fb_libmcc_warn_ms);
-static sys_var_const sys_fb_mcproxy_port(&vars, "fb_mcproxy_port",
-                                         OPT_GLOBAL, SHOW_INT,
-                                         (uchar*) &opt_fb_mcproxy_port);
-static sys_var_const sys_fb_mcproxy_server(&vars, "fb_mcproxy_server",
-                                           OPT_GLOBAL, SHOW_CHAR_PTR,
-                                           (uchar*) &opt_fb_mcproxy_server);
-#endif
 
 /* Read only variables */
 
@@ -4535,15 +4504,6 @@ bool sys_var_trust_routine_creators::update(THD *thd, set_var *var)
   warn_deprecated(thd);
   return sys_var_bool_ptr::update(thd, var);
 }
-
-#ifdef LIBMEMCACHE
-static void fb_libmcc_set_server_retry_tmo(THD *thd, enum_var_type type)
-{
-  (void) pthread_mutex_lock(&LOCK_memcache_call);
-  mcc_set_server_retry_tmo(mcHandle, opt_fb_libmcc_server_retry_tmo_ms);
-  (void) pthread_mutex_unlock(&LOCK_memcache_call);
-}
-#endif
 
 bool sys_var_opt_readonly::update(THD *thd, set_var *var)
 {

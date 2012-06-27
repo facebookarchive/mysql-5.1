@@ -1972,10 +1972,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
-#ifdef LIBMEMCACHE
-  thd->mcHandle = mcHandle;
-#endif
-
   DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
                   simulate_error|= (1 << SLAVE_THD_IO););
   DBUG_EXECUTE_IF("simulate_sql_slave_error_on_init",

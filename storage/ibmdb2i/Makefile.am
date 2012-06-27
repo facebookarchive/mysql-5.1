@@ -48,12 +48,6 @@ libibmdb2i_a_CXXFLAGS =	$(AM_CXXFLAGS)
 libibmdb2i_a_CFLAGS =	$(AM_CFLAGS)
 libibmdb2i_a_SOURCES=	$(ha_ibmdb2i_la_SOURCES)
 
-if !NO_MEMCACHE
-INCLUDES +=             -I@LIBMEMCACHE@/include
-DEFS +=                 -DLIBMEMCACHE
-endif
-
-
 EXTRA_DIST =		CMakeLists.txt plug.in
 # Don't update the files from bitkeeper
 %::SCCS/s.%

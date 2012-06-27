@@ -1327,9 +1327,6 @@ pthread_handler_t handle_one_raw_connection(void *arg)
   */
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 
-#ifdef LIBMEMCACHE
-  thd->mcHandle = mcHandle;
-#endif
   pthread_mutex_unlock(&LOCK_thread_count);
 
   DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));

@@ -102,11 +102,6 @@ libmyisam_a_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
 			rt_index.c rt_key.c rt_mbr.c rt_split.c sp_key.c
 CLEANFILES =		test?.MY? FT?.MY? isam.log mi_test_all rt_test.MY? sp_test.MY?
 
-if !NO_MEMCACHE
-INCLUDES +=             -I@LIBMEMCACHE@/include
-DEFS +=                 -DLIBMEMCACHE
-endif
-
 # Move to automake rules ?
 prolint:;	plparse -b -u -hF1 "-width(0,0)" "-format=%f:%l:\s%t:%n\s%m" \
 		"-elib(????)" "+elib(?3??)" my.lnt $(nisam_SOURCES)

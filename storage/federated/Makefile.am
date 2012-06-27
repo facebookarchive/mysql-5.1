@@ -46,12 +46,6 @@ libfederated_a_CXXFLAGS =	$(AM_CXXFLAGS)
 libfederated_a_CFLAGS =	$(AM_CFLAGS)
 libfederated_a_SOURCES=	ha_federated.cc
 
-if !NO_MEMCACHE
-INCLUDES +=             -I@LIBMEMCACHE@/include
-DEFS +=                 -DLIBMEMCACHE
-endif
-
-
 EXTRA_DIST =		CMakeLists.txt plug.in
 # Don't update the files from bitkeeper
 %::SCCS/s.%

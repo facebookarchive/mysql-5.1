@@ -64,12 +64,6 @@ archive_reader_LDADD =	$(top_builddir)/mysys/libmysys.a \
 			@ZLIB_LIBS@
 archive_reader_LDFLAGS = @NOINST_LDFLAGS@
 
-if !NO_MEMCACHE
-INCLUDES +=             -I@LIBMEMCACHE@/include
-DEFS +=                 -DLIBMEMCACHE
-endif
-
-
 EXTRA_DIST =		CMakeLists.txt plug.in
 # Don't update the files from bitkeeper
 %::SCCS/s.%
