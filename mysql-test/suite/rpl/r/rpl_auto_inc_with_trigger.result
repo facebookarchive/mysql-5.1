@@ -1,0 +1,22 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (id int auto_increment primary key, a int) engine=innodb;
+create table t2 (id int  primary key, a int) engine=innodb;
+create trigger t_ai after insert on t1 for each row insert into t2 set id = new.id, a = new.a;
+create table tmp_list(id int, val_list text);
+COMMIT;
+select count(*) from t1;
+count(*)
+4009
+select count(*) from t1;
+count(*)
+4009
+drop trigger t_ai;
+drop table t2;
+drop table t1;
+drop table tmp_list;
+drop procedure t1_one_inserts;

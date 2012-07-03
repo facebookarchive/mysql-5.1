@@ -1,0 +1,82 @@
+--source include/master-slave.inc
+--source include/have_binlog_format_statement.inc
+--source include/have_innodb.inc
+
+connection master;
+create table t1 (id int auto_increment primary key, a int) engine=innodb;
+create table t2 (id int  primary key, a int) engine=innodb;
+create trigger t_ai after insert on t1 for each row insert into t2 set id = new.id, a = new.a;
+
+--sync_slave_with_master
+
+connection master;
+create table tmp_list(id int, val_list text);
+
+--disable_query_log
+insert into tmp_list(id, val_list) values (1, "(11000");
+insert into tmp_list(id, val_list) values (2, "(21000");
+let count = 2000;
+while ($count)
+{
+  dec $count;
+  eval update tmp_list set val_list= CONCAT(val_list, "),(", "11", "$count") where id=1;
+  eval update tmp_list set val_list= CONCAT(val_list, "),(", "21", "$count") where id=2;
+}
+eval update tmp_list set val_list= CONCAT(val_list, ")") where id=1;
+eval update tmp_list set val_list= CONCAT(val_list, ")") where id=2;
+--enable_query_log
+
+let $val_list = query_get_value("select val_list from tmp_list where id=1",val_list, 1);
+
+--disable_query_log
+delimiter //;
+eval create procedure t1_one_inserts()
+begin
+  DECLARE sleep_to INT;
+  insert into t1(a) values (1);
+  select sleep(0.01) into sleep_to;
+  insert into t1(a) values (2);
+  select sleep(0.01) into sleep_to;
+  insert into t1(a) values $val_list;
+  select sleep(0.01) into sleep_to;
+  insert into t1(a) values (3);
+  select sleep(0.01) into sleep_to;
+  insert into t1(a) values (4);
+  select sleep(0.02) into sleep_to;
+  insert into t1(a) values (5);
+  select sleep(0.02) into sleep_to;
+  insert into t1(a) values (6);
+  select sleep(0.02) into sleep_to;
+  insert into t1(a) values (7);
+end//
+delimiter ;//
+
+send call t1_one_inserts();
+
+--enable_query_log
+
+connection master1;
+
+let $val_list = query_get_value("select val_list from tmp_list where id=2",val_list, 1);
+--disable_query_log
+eval insert into t1(a) values $val_list;
+--enable_query_log
+
+connection master;
+reap;
+COMMIT;
+
+select count(*) from t1;
+--sync_slave_with_master
+select count(*) from t1;
+
+connection master;
+drop trigger t_ai;
+drop table t2;
+drop table t1;
+drop table tmp_list;
+drop procedure t1_one_inserts;
+
+--sync_slave_with_master
+
+connection master;
