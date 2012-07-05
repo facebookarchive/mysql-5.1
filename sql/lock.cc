@@ -241,7 +241,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
     if (!(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) &&
         write_lock_used &&
         opt_readonly &&
-        !(thd->security_ctx->master_access & SUPER_ACL) &&
+        (!(thd->security_ctx->master_access & SUPER_ACL) || opt_super_readonly) &&
         !thd->slave_thread)
     {
       /*
@@ -251,7 +251,14 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
       reset_lock_data(sql_lock);
       my_free((uchar*) sql_lock, MYF(0));
       sql_lock=0;
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      if (opt_super_readonly)
+      {
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only (super)");
+      }
+      else
+      {
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      }
       break;
     }
 

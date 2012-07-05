@@ -981,7 +981,7 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
     ((ulong)(thd->security_ctx->master_access & SUPER_ACL) ==
      (ulong)SUPER_ACL);
 
-  if (user_is_super)
+  if (user_is_super && (!opt_super_readonly))
     DBUG_RETURN(FALSE);
 
   if (!(sql_command_flags[lex->sql_command] & CF_CHANGES_DATA))
@@ -2636,7 +2636,14 @@ mysql_execute_command(THD *thd,
     */
     if (deny_updates_if_read_only_option(thd, all_tables))
     {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      if (opt_super_readonly)
+      {
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only (super)");
+      }
+      else
+      {
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      }
       DBUG_RETURN(-1);
     }
 
@@ -3676,10 +3683,17 @@ end_with_restore_list:
       if (res)
         break;
       if (opt_readonly &&
-	  !(thd->security_ctx->master_access & SUPER_ACL) &&
+	  (!(thd->security_ctx->master_access & SUPER_ACL) || opt_super_readonly) &&
 	  some_non_temp_table_to_be_updated(thd, all_tables))
       {
-	my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+        if (opt_super_readonly)
+        {
+          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only (super)");
+        }
+        else
+        {
+          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+        }
 	break;
       }
 #ifdef HAVE_REPLICATION

@@ -516,6 +516,7 @@ static sys_var_const            sys_protocol_version(&vars, "protocol_version",
 static sys_var_thd_ulong	sys_read_buff_size(&vars, "read_buffer_size",
 					   &SV::read_buff_size);
 static sys_var_opt_readonly	sys_readonly(&vars, "read_only", &opt_readonly);
+static sys_var_opt_super_readonly	sys_super_readonly(&vars, "super_read_only", &opt_super_readonly);
 static sys_var_thd_ulong	sys_read_rnd_buff_size(&vars, "read_rnd_buffer_size",
 					       &SV::read_rnd_buff_size);
 static sys_var_thd_ulong	sys_div_precincrement(&vars, "div_precision_increment",
@@ -4505,7 +4506,7 @@ bool sys_var_trust_routine_creators::update(THD *thd, set_var *var)
   return sys_var_bool_ptr::update(thd, var);
 }
 
-bool sys_var_opt_readonly::update(THD *thd, set_var *var)
+bool sys_var_opt_readonly::set_value(THD *thd, set_var *var, my_bool super)
 {
   bool result;
 
@@ -4518,17 +4519,13 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
     DBUG_RETURN(true);
   }
 
-  if (thd->global_read_lock)
-  {
+  bool need_lock = !thd->global_read_lock;
     /*
-      This connection already holds the global read lock.
+      Check if this connection already holds the global read lock.
       This can be the case with:
       - FLUSH TABLES WITH READ LOCK
       - SET GLOBAL READ_ONLY = 1
     */
-    result= sys_var_bool_ptr::update(thd, var);
-    DBUG_RETURN(result);
-  }
 
   /*
     Perform a 'FLUSH TABLES WITH READ LOCK'.
@@ -4541,33 +4538,61 @@ bool sys_var_opt_readonly::update(THD *thd, set_var *var)
     [3] prevents transactions from being committed.
   */
 
-  if (lock_global_read_lock(thd))
-    DBUG_RETURN(true);
+  if (need_lock)
+  {
+    if (lock_global_read_lock(thd))
+      DBUG_RETURN(true);
 
-  /*
-    This call will be blocked by any connection holding a READ or WRITE lock.
-    Ideally, we want to wait only for pending WRITE locks, but since:
-    con 1> LOCK TABLE T FOR READ;
-    con 2> LOCK TABLE T FOR WRITE; (blocked by con 1)
-    con 3> SET GLOBAL READ ONLY=1; (blocked by con 2)
-    can cause to wait on a read lock, it's required for the client application
-    to unlock everything, and acceptable for the server to wait on all locks.
-  */
-  if ((result= close_cached_tables_set_readonly(thd)))
-    goto end_with_read_lock;
+    /*
+      This call will be blocked by any connection holding a READ or WRITE lock.
+      Ideally, we want to wait only for pending WRITE locks, but since:
+      con 1> LOCK TABLE T FOR READ;
+      con 2> LOCK TABLE T FOR WRITE; (blocked by con 1)
+      con 3> SET GLOBAL READ ONLY=1; (blocked by con 2)
+      can cause to wait on a read lock, it's required for the client application
+      to unlock everything, and acceptable for the server to wait on all locks.
+    */
+    if ((result= close_cached_tables_set_readonly(thd)))
+      goto end_with_read_lock;
 
-  if ((result= make_global_read_lock_block_commit(thd)))
-    goto end_with_read_lock;
+    if ((result= make_global_read_lock_block_commit(thd)))
+      goto end_with_read_lock;
+  }
 
-  /* Change the opt_readonly system variable, safe because the lock is held */
-  result= sys_var_bool_ptr::update(thd, var);
+  /* Change the opt_readonly/opt_super_readonly system variables, safe because the lock is held */
+  if (!super) // If setting read_only
+  {
+    result = sys_var_bool_ptr::update(thd, var);
+
+    // If setting it to zero, also set super_read_only to zero
+    if (!result && !var->save_result.ulong_value)
+    {
+      result = sys_super_readonly.set_value(thd, var);
+    }
+  }
+  else // If setting super_read_only
+  {
+    result = sys_super_readonly.set_value(thd, var);
+    if (!result && var->save_result.ulong_value)
+    {
+      // If setting it to one, also set read_only to one
+      result = sys_var_bool_ptr::update(thd, var);
+    }
+  }
 
 end_with_read_lock:
   /* Release the lock */
-  unlock_global_read_lock(thd);
+  if (need_lock)
+  {
+    unlock_global_read_lock(thd);
+  }
   DBUG_RETURN(result);
 }
 
+bool sys_var_opt_super_readonly::update(THD *thd, set_var *var)
+{
+  return sys_readonly.set_value(thd, var, true);
+}
 
 #ifndef DBUG_OFF
 /* even session variable here requires SUPER, because of -#o,file */

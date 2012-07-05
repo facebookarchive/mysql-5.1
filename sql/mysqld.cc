@@ -569,7 +569,7 @@ extern TYPELIB ndb_distribution_typelib;
 extern const char *opt_ndb_distribution;
 extern enum ndb_distribution opt_ndb_distribution_id;
 #endif
-my_bool opt_readonly, use_temp_pool, relay_log_purge;
+my_bool opt_readonly, opt_super_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
 char* opt_secure_file_priv= 0;

@@ -1220,10 +1220,17 @@ int ha_commit_trans(THD *thd, bool all, bool async)
 
     if (rw_trans &&
         opt_readonly &&
-        !(thd->security_ctx->master_access & SUPER_ACL) &&
+        (!(thd->security_ctx->master_access & SUPER_ACL) || opt_super_readonly) &&
         !thd->slave_thread)
     {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      if (opt_super_readonly)
+      {
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only (super)");
+      }
+      else
+      {
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      }
       ha_rollback_trans(thd, all);
       error= 1;
       goto end;
