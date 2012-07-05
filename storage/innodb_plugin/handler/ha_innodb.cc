@@ -12497,6 +12497,13 @@ static MYSQL_SYSVAR_ULONG(use_purge_thread, srv_use_purge_thread,
   "Number of purge devoted threads. #### over 1 is EXPERIMENTAL ####",
   NULL, NULL, 0, 0, UNIV_MAX_PARALLELISM, 0);
 
+static MYSQL_SYSVAR_BOOL(enable_slave_update_table_stats,
+  srv_enable_slave_update_table_stats,
+  PLUGIN_VAR_NOCMDARG,
+  "If false, the replication slave thread will not do table stats updates. "
+  "By default it is set to false",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_BOOL(drop_table_phase1, srv_drop_table_phase1,
   PLUGIN_VAR_NOCMDARG,
   "If enabled this calls buf_LRU_drop_page_hash_for_tablespace to "
@@ -12695,6 +12702,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(merge_sort_block_size),
   MYSQL_SYSVAR(sync_checkpoint_limit),
   MYSQL_SYSVAR(use_purge_thread),
+  MYSQL_SYSVAR(enable_slave_update_table_stats),
   MYSQL_SYSVAR(drop_table_phase1),
   MYSQL_SYSVAR(uncache_table_batch),
   MYSQL_SYSVAR(fake_changes),

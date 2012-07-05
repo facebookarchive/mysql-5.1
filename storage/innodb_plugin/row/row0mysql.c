@@ -53,6 +53,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "buf0lru.h"
 #include "buf0flu.h"
+#include "ha_prototypes.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -872,6 +873,11 @@ row_update_statistics_if_needed(
 	counter = table->stat_modified_counter;
 
 	table->stat_modified_counter = counter + 1;
+
+	if (thd_is_replication_slave_thread(trx->mysql_thd) &&
+	    !srv_enable_slave_update_table_stats) {
+		return;
+	}
 
 	/* Calculate new statistics if 1 / 16 of table has been modified
 	since the last time a statistics batch was run, or if

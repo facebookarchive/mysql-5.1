@@ -155,6 +155,10 @@ UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 
 UNIV_INTERN ulint	srv_use_purge_thread = 0;
 
+/** If false, there will be no table stats update from the replication
+slave thread. */
+UNIV_INTERN my_bool	srv_enable_slave_update_table_stats = FALSE;
+
 /** When TRUE then get S locks rather than X locks on rows
 when innodb_fake_changes is set for a transaction. When FALSE
 do not get row locks. */

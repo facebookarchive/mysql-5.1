@@ -124,6 +124,8 @@ extern ulint*	srv_data_file_is_raw_partition;
 
 extern ulint	srv_use_purge_thread;
 
+extern my_bool	srv_enable_slave_update_table_stats;
+
 extern my_bool     srv_drop_table_phase1;
 extern double      srv_drop_table_phase1_secs;
 extern double      srv_drop_table_phase2_secs;
