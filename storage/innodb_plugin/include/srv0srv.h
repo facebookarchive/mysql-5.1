@@ -213,6 +213,7 @@ extern ulint	srv_max_dirty_pages_pct;
 extern ulint	srv_force_recovery;
 extern ulong	srv_thread_concurrency;
 extern my_bool	srv_thread_lifo;
+extern my_bool	srv_prefix_index_cluster_optimization;
 
 extern ulint	srv_max_n_threads;
 
@@ -515,6 +516,9 @@ extern ulint srv_sec_rec_read_sees;
 
 /** Number of times secondary index block visibility check was done */
 extern ulint srv_sec_rec_read_check;
+
+/** Number of times secondary index lookup triggered cluster lookup */
+extern ulint srv_sec_rec_cluster_reads;
 
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
@@ -1030,6 +1034,8 @@ struct export_var_struct{
 
 	ulint innodb_sec_rec_read_sees;		/*!< srv_sec_rec_read_sees */
 	ulint innodb_sec_rec_read_check;	/*!< srv_sec_rec_read_check */
+	ulint innodb_sec_rec_cluster_reads;     /*!< srv_sec_rec_cluster_reads  */
+
 	/* The following are per-page size stats from page_zip_stat */
 	ulint		zip1024_compressed;
 	ulint		zip1024_compressed_ok;

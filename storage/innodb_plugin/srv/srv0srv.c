@@ -559,6 +559,9 @@ ulong	srv_thread_fifo_waited = 0;
 /* Number of times a thread was scheduled to run by the LIFO policy. */
 ulong	srv_thread_lifo_scheduled = 0;
 
+/* Enable or disable the prefix optimization. Disabled by default. */
+my_bool		srv_prefix_index_cluster_optimization = 0;
+
 /* When != 0, detect deadlocks for row-lock waits */
 my_bool	srv_deadlock_detect = 1;
 
@@ -731,6 +734,9 @@ ulint	srv_sec_rec_read_sees	= 0;
 
 /** Number of times secondary index block visibility check was done */
 ulint	srv_sec_rec_read_check	= 0;
+
+/** Number of times secondary index lookup triggered cluster lookup */
+ulint	srv_sec_rec_cluster_reads = 0;
 
 /* This is only ever touched by the master thread. It records the
 time when the last flush of log file has happened. The master
@@ -2581,6 +2587,7 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_sec_rec_read_sees = srv_sec_rec_read_sees;
 	export_vars.innodb_sec_rec_read_check = srv_sec_rec_read_check;
+	export_vars.innodb_sec_rec_cluster_reads = srv_sec_rec_cluster_reads;
 
 	export_vars.innodb_preflush_async_limit = log_sys->max_modified_age_async;
 	export_vars.innodb_preflush_sync_limit = log_sys->max_modified_age_sync;

@@ -859,7 +859,9 @@ ulint
 dict_index_get_nth_col_pos(
 /*=======================*/
 	const dict_index_t*	index,	/*!< in: index */
-	ulint			n);	/*!< in: column number */
+	ulint			n,      /*!< in: column number */
+        ulint*			prefix_col_pos); /*!< out: col num if prefix */
+
 /********************************************************************//**
 Returns TRUE if the index contains a column or a prefix of that column.
 @return	TRUE if contains the column or its prefix */

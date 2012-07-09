@@ -479,15 +479,22 @@ ulint
 dict_index_get_nth_col_pos(
 /*=======================*/
 	const dict_index_t*	index,	/*!< in: index */
-	ulint			n)	/*!< in: column number */
+	ulint			n,	/*!< in: column number */
+	ulint*			prefix_col_pos)	/*!< out: col num if prefix */
 {
 	const dict_field_t*	field;
 	const dict_col_t*	col;
 	ulint			pos;
+	ulint			prefixed_pos_dummy;
 	ulint			n_fields;
 
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	if (!prefix_col_pos) {
+		prefix_col_pos = &prefixed_pos_dummy;
+	}
+	*prefix_col_pos = ULINT_UNDEFINED;
 
 	col = dict_table_get_nth_col(index->table, n);
 
@@ -501,9 +508,12 @@ dict_index_get_nth_col_pos(
 	for (pos = 0; pos < n_fields; pos++) {
 		field = dict_index_get_nth_field(index, pos);
 
-		if (col == field->col && field->prefix_len == 0) {
+		if (col == field->col) {
+			*prefix_col_pos = pos;
 
-			return(pos);
+			if (field->prefix_len == 0) {
+				return(pos);
+			}
 		}
 	}
 
@@ -634,7 +644,7 @@ dict_table_get_nth_col_pos(
 	ulint			n)	/*!< in: column number */
 {
 	return(dict_index_get_nth_col_pos(dict_table_get_first_index(table),
-					  n));
+					  n, NULL));
 }
 
 /********************************************************************//**

@@ -887,6 +887,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_sec_rec_read_check,         SHOW_LONG},
   {"secondary_index_record_read_sees",
   (char*) &export_vars.innodb_sec_rec_read_sees,          SHOW_LONG},
+  {"secondary_index_triggered_cluster_reads",
+  (char*) &export_vars.innodb_sec_rec_cluster_reads,      SHOW_LONG},
   {"srv_checkpoint_seconds",
   (char*) &export_vars.innodb_srv_checkpoint_secs,        SHOW_DOUBLE},
   {"srv_background_checkpoint_seconds",
@@ -5525,6 +5527,7 @@ build_template(
 	'fields'. */
 	for (i = 0; i < n_fields; i++) {
 		templ = prebuilt->mysql_template + n_requested_fields;
+		templ->rec_field_is_prefix = FALSE;
 		field = table->field[i];
 
 		if (UNIV_LIKELY(templ_type == ROW_MYSQL_REC_FIELDS)) {
@@ -5575,11 +5578,29 @@ include_field:
 
 		if (index == clust_index) {
 			templ->rec_field_no = templ->clust_rec_field_no;
+			templ->rec_field_is_prefix = FALSE;
+			templ->rec_prefix_field_no = ULINT_UNDEFINED;
 		} else {
+			/* If we're in a secondary index, keep track
+			* of the original index position even if this
+			* is just a prefix index; we will use this
+			* later to avoid a cluster index lookup in
+			* some cases.*/
+
 			templ->rec_field_no = dict_index_get_nth_col_pos(
-								index, i);
+				index, i, &templ->rec_prefix_field_no);
 			if (templ->rec_field_no == ULINT_UNDEFINED) {
 				prebuilt->need_to_access_clustered = TRUE;
+
+				if (templ->rec_prefix_field_no !=
+				    ULINT_UNDEFINED) {
+					dict_field_t* field =
+						dict_index_get_nth_field(
+						    index,
+						    templ->rec_prefix_field_no);
+					templ->rec_field_is_prefix =
+						(field->prefix_len != 0);
+				}
 			}
 		}
 
@@ -12632,6 +12653,12 @@ static MYSQL_SYSVAR_BOOL(thread_lifo, srv_thread_lifo,
   " in addition to the FIFO scheduling that has always been used.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(prefix_index_cluster_optimization,
+  srv_prefix_index_cluster_optimization,
+  PLUGIN_VAR_OPCMDARG,
+  "Enable prefix optimization to sometimes avoid cluster index lookups.",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_BOOL(deadlock_detect, srv_deadlock_detect,
   PLUGIN_VAR_OPCMDARG,
   "Detect deadlocks when locks are acquired. Without this the row lock wait"
@@ -13004,6 +13031,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(retry_io_on_error),
   MYSQL_SYSVAR(read_ahead_linear),
   MYSQL_SYSVAR(thread_lifo),
+  MYSQL_SYSVAR(prefix_index_cluster_optimization),
   MYSQL_SYSVAR(deadlock_detect),
   MYSQL_SYSVAR(flush_neighbors_on_checkpoint),
   MYSQL_SYSVAR(flush_neighbors_for_lru),

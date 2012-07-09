@@ -613,7 +613,8 @@ dict_index_get_sys_col_pos(
 	}
 
 	return(dict_index_get_nth_col_pos(
-		       index, dict_table_get_sys_col_no(index->table, type)));
+		       index, dict_table_get_sys_col_no(index->table, type),
+		       NULL));
 }
 
 /*********************************************************************//**
