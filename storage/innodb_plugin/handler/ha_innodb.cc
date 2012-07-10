@@ -12098,18 +12098,6 @@ static MYSQL_SYSVAR_DOUBLE(segment_reserve_factor, fseg_reserve_factor,
   " use unused pages of the segment.",
   NULL, NULL, 0.01, 0.0003, 0.4, 0);
 
-static MYSQL_SYSVAR_ULONG(padding_tree_samples,
-  dict_padding_tree_samples, PLUGIN_VAR_OPCMDARG,
-  "Number of page size samples collected from pages that fail to compress to"
-  " determine the ideal page size that won't fail to compress.",
-  NULL, NULL, 200, 0, 1000, 0);
-
-static MYSQL_SYSVAR_ULONG(padding_tree_size,
-  dict_padding_tree_size, PLUGIN_VAR_OPCMDARG,
-  "Size of the red black tree for computing the average page size"
-  " for pages that fail to compress.",
-  NULL, NULL, 10, 0, 1000, 0);
-
 static MYSQL_SYSVAR_DOUBLE(padding_max_fail_rate,
   dict_padding_max_fail_rate, PLUGIN_VAR_OPCMDARG,
   "If the compression failure rate of a table is greater than this number"
@@ -12120,7 +12108,7 @@ static MYSQL_SYSVAR_DOUBLE(padding_max,
   dict_padding_max, PLUGIN_VAR_OPCMDARG,
   "This determines the maximum amount of empty space that can be  reserved on a"
   " page to make the page compressible as a fraction of the page size.",
-  NULL, NULL, 0.75, 0.0, 1.0, 0);
+  NULL, NULL, 0.5, 0.0, 1.0, 0);
 
 static MYSQL_SYSVAR_UINT(padding_algo, dict_padding_algo,
   PLUGIN_VAR_OPCMDARG,
@@ -12647,8 +12635,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif /* UNIV_LOG_ARCHIVE */
   MYSQL_SYSVAR(log_buffer_size),
   MYSQL_SYSVAR(log_compressed_pages),
-  MYSQL_SYSVAR(padding_tree_samples),
-  MYSQL_SYSVAR(padding_tree_size),
   MYSQL_SYSVAR(padding_max_fail_rate),
   MYSQL_SYSVAR(padding_max),
   MYSQL_SYSVAR(padding_algo),

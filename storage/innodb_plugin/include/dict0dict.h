@@ -45,17 +45,9 @@ Created 1/8/1996 Heikki Tuuri
 # include "sync0rw.h"
 
 #define PADDING_ALGO_NONE 0
-#define PADDING_ALGO_TREE 1
-#define PADDING_ALGO_LINEAR 2
-#define PADDING_ALGO_MAX 2 /* should be the max value padding algo can be */
+#define PADDING_ALGO_LINEAR 1
+#define PADDING_ALGO_MAX 1 /* should be the max value padding algo can be */
 
-/** Number of page size samples collected from pages that fail to compress to
-determine the ideal page size that won't fail to compress. Used by the
-PADDING_ALGO_TREE algorithm */
-extern ulint dict_padding_tree_samples;
-/** Size of the red black tree for computing the average page size
-for pages that fail to compress. Used by the PADDING_ALGO_TREE algorithm */
-extern ulint dict_padding_tree_size;
 /** If the compression failure rate of a table is greater than this number
  then the padding will continue to increase even after
 dict_padding_tree_samples. Used by all padding algorithms. */

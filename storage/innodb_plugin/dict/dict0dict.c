@@ -5015,198 +5015,11 @@ We pad uncompressed pages of compressed tables to reduce compression failures
 and improve performance */
 UNIV_INTERN double dict_padding_max_fail_rate = 0.05;
 /* max compression failure rate we are willing to tolerate */
-UNIV_INTERN double dict_padding_max = .75;
+UNIV_INTERN double dict_padding_max = .5;
 /* the max percentage of page that can be reserved for padding */
 UNIV_INTERN uint dict_padding_algo = PADDING_ALGO_LINEAR;
 /* padding algorithm to be used. Current options: PADDING_ALGO_NONE
 (no padding), PADDING_ALGO_TREE (see below), PADDING_ALGO_LINEAR (see below). */
-
-/**********************************************************************//**
-PADDING ALGORITHM BASED ON A TREE OF PAGE SIZES THAT FAILED TO COMPRESS
-
-The amount of data placed on a page is determined by considering the N
-smallest pages that fail to compress and taking the median of those page
-sizes.
-
-There are three variables: innodb_padding_tree_samples,
-innodb_padding_tree_size, and innodb_padding_max_fail_rate.
-
-The exact value for the pad is computed as follows:
-1. pad = 0 for the first N compression failures where N is the maximum of
-padding_tree_size and padding_tree_samples/5.
-2. pad = (UNIV_PAGE_SIZE - (page size of the root node)) after the first
-N compression failures where N is defined in 1 and before
-padding_tree_samples compression failures.
-3. If after padding_tree_samples compression failures the failure rate is
-not more than padding_max_fail_rate, then pad is finalized and set to what it
-happens to be during the padding_tree_samples th compression
-failure. We free the tree used to store the page sizes that failed to compress.
-4. If the failure rate did not reach the desired level after
-padding_tree_samples compression failures, we reset the counters, but keep
-the tree and go back to step 1. */
-UNIV_INTERN ulint dict_padding_tree_samples = 200;
-UNIV_INTERN ulint dict_padding_tree_size = 10;
-typedef struct padding_algo_tree_st {
-	ib_rbt_t		*tree;
-	os_fast_mutex_t	mutex;
-	ulint		num_compressed;
-	ulint		num_compressed_fail;
-	ulint		max_page_size;
-	ulint		max_page_size_final;
-	ulint		max_ind;
-} padding_algo_tree_t;
-
-typedef struct padding_algo_tree_node_st {
-	ulint	page_size;	/* size of the page failed to compress */
-	ulint	ind;	/* the rank at which it was inserted into tree */
-} padding_algo_tree_node_t;
-
-static
-int
-padding_algo_tree_cmp(
-	const void*	p1,
-	const void*	p2)
-{
-	const padding_algo_tree_node_t* n1;
-	const padding_algo_tree_node_t* n2;
-	n1 = p1;
-	n2 = p2;
-	if (n1->page_size == n2->page_size)
-		return n1->ind - n2->ind;
-
-	return n1->page_size - n2->page_size;
-}
-
-static
-void*
-padding_algo_tree_create(void)
-{
-	padding_algo_tree_t* state = ut_malloc(sizeof(padding_algo_tree_t));
-	os_fast_mutex_init(&state->mutex);
-	state->tree = rbt_create(sizeof(padding_algo_tree_node_t),
-	                         padding_algo_tree_cmp);
-	state->num_compressed = 0;
-	state->num_compressed_fail = 0;
-	state->max_page_size = UNIV_PAGE_SIZE;
-	state->max_page_size_final = 0;
-	state->max_ind = 0;
-	return state;
-}
-
-static
-ulint
-padding_algo_tree_max_page_size(
-	padding_algo_tree_t* state)
-{
-	ulint ret;
-	/* If the algorithm hits a singularity case and gets very small pages
-  that fail to compress, then we may not be using the pages efficiently.
-  In order to account for this case and prevent catastrophes, we force the
-  max value for padding to be UNIV_PAGE_SIZE * dict_padding_max.
-	This works nicely for the secondary indexes of the tables that may inflate
-	after compression. */
-	if (dict_padding_tree_size == 0)
-		return UNIV_PAGE_SIZE;
-	if (state->max_page_size_final) {
-		return state->max_page_size_final;
-	}
-	os_fast_mutex_lock(&state->mutex);
-	ret = state->max_page_size;
-	os_fast_mutex_unlock(&state->mutex);
-	return ret;
-}
-
-static
-void
-padding_algo_tree_success(
-	padding_algo_tree_t* state,
-	ulint page_size)
-{
-	if (!state->max_page_size_final) {
-		os_fast_mutex_lock(&state->mutex);
-		++state->num_compressed;
-		os_fast_mutex_unlock(&state->mutex);
-	}
-}
-
-static
-void
-padding_algo_tree_fail(
-	padding_algo_tree_t *state,
-	ulint page_size)
-{
-	padding_algo_tree_node_t fail_node, *n;
-	ulint old_tree_size;
-	/* do not continue storing page sizes if final max page size is set */
-	if (dict_padding_tree_samples == 0
-	    || dict_padding_tree_size == 0
-	    || state->max_page_size_final)
-		return;
-	os_fast_mutex_lock(&state->mutex);
-	if (state->max_page_size_final) {
-		os_fast_mutex_unlock(&state->mutex);
-		return;
-	}
-	fail_node.page_size = page_size;
-	fail_node.ind = ++state->max_ind;
-	++state->num_compressed_fail;
-	++state->num_compressed;
-	old_tree_size = rbt_size(state->tree);
-	if (old_tree_size >= dict_padding_tree_size) {
-		rbt_remove_last_and_insert(state->tree, &fail_node, &fail_node);
-		/* uncomment this to print the page sizes in state->tree in order */
-		/* rbt_print_in_order(state->tree, padding_algo_tree_print_node); */
-		/* Make sure that the size of the tree did not change */
-		ut_ad(rbt_size(state->tree) == old_tree_size);
-		while (rbt_size(state->tree) > dict_padding_tree_size) {
-			ut_free(rbt_remove_node(state->tree, rbt_last(state->tree)));
-		}
-	} else {
-		rbt_insert(state->tree, &fail_node, &fail_node);
-	}
-	if ((rbt_size(state->tree) < dict_padding_tree_size)
-	    || (state->num_compressed_fail < dict_padding_tree_samples / 5)) {
-		state->max_page_size = UNIV_PAGE_SIZE;
-	} else {
-		/* because state->tree is a balanced binary search tree, the root has
-		   the median value for the page sizes stored in the tree */
-		n = rbt_value(padding_algo_tree_node_t, rbt_root(state->tree));
-		state->max_page_size = n->page_size - (UNIV_PAGE_SIZE >> 7);
-	}
-
-	if (state->num_compressed_fail >= dict_padding_tree_samples) {
-		double failure_rate = (double)state->num_compressed_fail/
-		                      (double)state->num_compressed;
-		/* add 1e-6 to RHS to avoid double precision problems
-		when max_fail_rate = 0.0 */
-		if (failure_rate > dict_padding_max_fail_rate + 1e-6) {
-			/* If we have not reached a desired failure rate we continue to collect
-			   samples and adjust padding without touching the tree */
-			state->num_compressed_fail = 0;
-			state->num_compressed = 0;
-		} else {
-			state->max_page_size_final = state->max_page_size;
-			/* we no longer need the tree */
-			rbt_free(state->tree);
-			state->tree = NULL;
-		}
-	}
-	os_fast_mutex_unlock(&state->mutex);
-}
-
-static
-void
-padding_algo_tree_free(
-	padding_algo_tree_t *state)
-{
-	if (state->tree) {
-		os_fast_mutex_lock(&state->mutex);
-		rbt_free(state->tree);
-		os_fast_mutex_unlock(&state->mutex);
-	}
-	os_fast_mutex_free(&state->mutex);
-	ut_free(state);
-}
 
 /**********************************************************************//**
 PADDING ALGORITHM BASED ON LINEAR INCREASE OF PADDING
@@ -5281,12 +5094,17 @@ padding_algo_linear_update(
 		if ((state->pad > 0)
 		    && (state->rounds_successful
 		        > dict_padding_linear_successful_rounds_max)) {
-			state->pad -= dict_padding_linear_increment;
+			if (state->pad > dict_padding_linear_increment) {
+				state->pad -= dict_padding_linear_increment;
+			} else {
+				state->pad = 0;
+			}
 			state->rounds_successful = 0;
 		}
 	} else {
 		state->rounds_successful = 0;
-		state->pad += dict_padding_linear_increment;
+		state->pad = ut_min(state->pad + dict_padding_linear_increment,
+		                    dict_padding_max * UNIV_PAGE_SIZE);
 	}
 }
 
@@ -5335,8 +5153,6 @@ dict_padding_state_create(
 	switch (type) {
 	case PADDING_ALGO_NONE:
 		return NULL;
-	case PADDING_ALGO_TREE:
-		return padding_algo_tree_create();
 	case PADDING_ALGO_LINEAR:
 		return padding_algo_linear_create();
 	default:
@@ -5355,9 +5171,6 @@ dict_padding_state_free(
 	switch (type) {
 	case PADDING_ALGO_NONE:
 		return;
-	case PADDING_ALGO_TREE:
-		padding_algo_tree_free((padding_algo_tree_t*)state);
-		return;
 	case PADDING_ALGO_LINEAR:
 		padding_algo_linear_free((padding_algo_linear_t*)state);
 		return;
@@ -5375,10 +5188,6 @@ dict_index_comp_success(dict_index_t* index, ulint page_size)
 {
 	switch (index->padding_algo) {
 	case PADDING_ALGO_NONE:
-		return;
-	case PADDING_ALGO_TREE:
-		padding_algo_tree_success((padding_algo_tree_t*)index->padding_state,
-		                          page_size);
 		return;
 	case PADDING_ALGO_LINEAR:
 		padding_algo_linear_success((padding_algo_linear_t*)index->padding_state,
@@ -5402,10 +5211,6 @@ dict_index_comp_fail(
 	switch (index->padding_algo) {
 	case PADDING_ALGO_NONE:
 		return;
-	case PADDING_ALGO_TREE:
-		padding_algo_tree_fail((padding_algo_tree_t*)index->padding_state,
-		                       page_size);
-		return;
 	case PADDING_ALGO_LINEAR:
 		padding_algo_linear_fail((padding_algo_linear_t*)index->padding_state,
 		                         page_size);
@@ -5426,10 +5231,6 @@ dict_index_comp_max_page_size(dict_index_t* index) {
 	switch (index->padding_algo) {
 	case PADDING_ALGO_NONE:
 		ret = UNIV_PAGE_SIZE;
-		break;
-	case PADDING_ALGO_TREE:
-		ret = padding_algo_tree_max_page_size(
-		        (padding_algo_tree_t*)index->padding_state);
 		break;
 	case PADDING_ALGO_LINEAR:
 		ret = padding_algo_linear_max_page_size(
