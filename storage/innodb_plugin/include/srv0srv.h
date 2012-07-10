@@ -140,6 +140,8 @@ extern my_bool	srv_b62037;
 
 extern my_bool	srv_error_log_spam;
 
+extern ulint	srv_no_undo_slot_free;
+
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
 extern char**	srv_log_group_home_dirs;
@@ -1114,6 +1116,7 @@ struct export_var_struct{
 	ulint 		innodb_malloc_cache_block_size_decompress;
 	ulint		innodb_drop_purge_skip_row;
 	ulint		innodb_drop_ibuf_skip_row;
+	ulint		no_undo_slot_free;
 };
 
 /** The server system struct */

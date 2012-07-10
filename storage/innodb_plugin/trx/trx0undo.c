@@ -445,12 +445,16 @@ trx_undo_seg_create(
 	slot_no = trx_rsegf_undo_find_free(rseg_hdr, mtr);
 
 	if (slot_no == ULINT_UNDEFINED) {
+		++srv_no_undo_slot_free;
+
+		if (srv_error_log_spam) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Warning: cannot find a free slot for"
 			" an undo log. Do you have too\n"
 			"InnoDB: many active transactions"
 			" running concurrently?\n");
+		}
 
 		return(DB_TOO_MANY_CONCURRENT_TRXS);
 	}

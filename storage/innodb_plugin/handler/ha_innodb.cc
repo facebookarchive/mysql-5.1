@@ -1084,6 +1084,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_malloc_cache_block_size_compress, SHOW_LONG},
   {"malloc_cache_block_size_decompress",
   (char*) &export_vars.innodb_malloc_cache_block_size_decompress, SHOW_LONG},
+  {"no_undo_slot_free",
+  (char*) &export_vars.no_undo_slot_free, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 

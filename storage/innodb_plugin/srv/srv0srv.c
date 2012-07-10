@@ -189,6 +189,9 @@ UNIV_INTERN my_bool	srv_b62037	= TRUE;
 /** Enables more messages in the db error log */
 UNIV_INTERN my_bool	srv_error_log_spam	= FALSE;
 
+/** Counts when an undo slot is not free */
+UNIV_INTERN ulint	srv_no_undo_slot_free	= 0;
+
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
 /* if != 0, this tells the max size auto-extending may increase the
@@ -2578,6 +2581,8 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_preflush_async_limit = log_sys->max_modified_age_async;
 	export_vars.innodb_preflush_sync_limit = log_sys->max_modified_age_sync;
+
+	export_vars.no_undo_slot_free = srv_no_undo_slot_free;
 
 	if (!lsn_oldest) {
 		export_vars.innodb_preflush_async_margin =
