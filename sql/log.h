@@ -425,7 +425,8 @@ public:
   int log_xid(THD *thd, my_xid xid, bool async, handlerton *ht, int32 pending,
               bool *full);
   void unlog(ulong cookie, my_xid xid, bool log_was_full);
-  int recover(IO_CACHE *log, Format_description_log_event *fdle);
+  int recover(IO_CACHE *log, Format_description_log_event *fdle,
+              my_off_t *valid_pos);
 #if !defined(MYSQL_CLIENT)
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event);
   int remove_pending_rows_event(THD *thd);

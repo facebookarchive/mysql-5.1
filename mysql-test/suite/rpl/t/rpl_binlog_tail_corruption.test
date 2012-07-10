@@ -1,0 +1,59 @@
+# Because this test intentionally crashes the server valgrind
+# reports lots of leaked memory. Thus, exclude it from running
+# under valgrind.
+# --source include/not_valgrind.inc
+
+--source include/have_debug.inc
+--source include/have_innodb.inc
+--source include/master-slave.inc
+
+call mtr.add_suppression("Error in Log_event::read_log_event..: 'read error', data_len: [0-9]+, event_type: [0-9]+");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
+
+create table t1 (a int primary key) engine=innodb;
+
+sync_slave_with_master;
+--source include/stop_slave.inc
+
+# Turn on option which will corrupt the tail of the binlog
+connection master;
+set global debug="d,corrupt_binlog_tail";
+
+# Let test know the master is going to crash
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Issue transaction which will be corrupted
+begin;
+insert into t1 values (0);
+insert into t1 values (1);
+insert into t1 values (2);
+--error 2013
+commit;
+
+# Re-start master, running crash recovery
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+# Re-issue the transaction which corrupted the binlog
+begin;
+insert into t1 values (0);
+insert into t1 values (1);
+insert into t1 values (2);
+commit;
+
+# Verify slave does not hit any replication errors
+save_master_pos;
+connection slave;
+--source include/start_slave.inc
+sync_with_master;
+
+# Cleanup
+--connection default
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+connection master;
+drop table t1;
+# We'll need the below line when we upgrade to a newer 5.1 build.
+# --source include/rpl_end.inc

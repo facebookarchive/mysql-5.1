@@ -5379,8 +5379,14 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log)
     }
 
     /* Write data to the binary log file */
+    DBUG_EXECUTE_IF("corrupt_binlog_tail", length/= 2;);
     if (my_b_write(&log_file, cache->read_pos, length))
       return ER_ERROR_ON_WRITE;
+    DBUG_EXECUTE_IF("corrupt_binlog_tail",
+                    {
+                      flush_io_cache(&log_file);
+                      abort();
+                    });
     cache->read_pos=cache->read_end;		// Mark buffer used up
   } while ((length= my_b_fill(cache)));
 
@@ -6954,6 +6960,9 @@ int TC_LOG_BINLOG::open(const char *opt_name)
     Log_event  *ev=0;
     Format_description_log_event fdle(BINLOG_VERSION);
     char        log_name[FN_REFLEN];
+    my_off_t    valid_pos= 0;
+    my_off_t    binlog_size;
+    MY_STAT     s;
 
     if (! fdle.is_valid())
       goto err;
@@ -6972,15 +6981,26 @@ int TC_LOG_BINLOG::open(const char *opt_name)
     if ((file= open_binlog(&log, log_name, &errmsg)) < 0)
     {
       sql_print_error("%s", errmsg);
+      error= 1;
       goto err;
     }
+
+    if (!my_stat(log_name, &s, MYF(0)))
+    {
+      sql_print_error("my_stat failed on %s with errno %d",
+                      log_name, my_errno);
+      error= 1;
+      goto err;
+    }
+    binlog_size= s.st_size;
 
     if ((ev= Log_event::read_log_event(&log, 0, &fdle, NULL)) &&
         ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
         ev->flags & LOG_EVENT_BINLOG_IN_USE_F)
     {
       sql_print_information("Recovering after a crash using %s", opt_name);
-      error= recover(&log, (Format_description_log_event *)ev);
+      valid_pos= my_b_tell(&log);
+      error= recover(&log, (Format_description_log_event *)ev, &valid_pos);
     }
     else
       error=0;
@@ -6991,6 +7011,50 @@ int TC_LOG_BINLOG::open(const char *opt_name)
 
     if (error)
       goto err;
+
+    /* Trim the crashed binlog file to last valid transaction
+       or event (non-transaction) base on valid_pos. */
+    if (valid_pos > 0)
+    {
+      if ((file= my_open(log_name, O_RDWR | O_BINARY, MYF(MY_WME))) < 0)
+      {
+        sql_print_error("Failed to open the crashed binlog file "
+                        "when master server is recovering it.");
+        return -1;
+      }
+
+      /* Change binlog file size to valid_pos */
+      if (valid_pos < binlog_size)
+      {
+        if (my_chsize(file, valid_pos, 0, MYF(MY_WME)))
+        {
+          sql_print_error("Failed to trim the crashed binlog file "
+                          "when master server is recovering it.");
+          my_close(file, MYF(MY_WME));
+          return -1;
+        }
+        else
+        {
+          sql_print_information("Crashed binlog file %s size is %llu, "
+                                "but recovered up to %llu. Binlog trimmed to %llu bytes.",
+                                log_name, binlog_size, valid_pos, valid_pos);
+        }
+      }
+
+      /* Clear LOG_EVENT_BINLOG_IN_USE_F */
+      my_off_t offset= BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
+      uchar flags= 0;
+      if (my_pwrite(file, &flags, 1, offset, MYF(0)) != 1)
+      {
+        sql_print_error("Failed to clear LOG_EVENT_BINLOG_IN_USE_F "
+                        "for the crashed binlog file when master "
+                        "server is recovering it.");
+        my_close(file, MYF(MY_WME));
+        return -1;
+      }
+
+      my_close(file, MYF(MY_WME));
+    } //end if
   }
 
 err:
@@ -7040,12 +7104,18 @@ void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid, bool log_was_full)
   rotate_and_purge(0, log_was_full);     // as ::write() did not rotate
 }
 
-int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
+int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
+                           my_off_t *valid_pos)
 {
   Log_event  *ev;
   HASH xids;
   MEM_ROOT mem_root;
-
+  /*
+    The flag is used for handling the case that a transaction
+    is partially written to the binlog.
+  */
+  bool in_transaction= FALSE;
+ 
   if (! fdle->is_valid() ||
       hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
                 sizeof(my_xid), 0, 0, MYF(0)))
@@ -7057,14 +7127,61 @@ int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
 
   while ((ev= Log_event::read_log_event(log,0,fdle,NULL)) && ev->is_valid())
   {
-    if (ev->get_type_code() == XID_EVENT)
+    if (ev->get_type_code() == QUERY_EVENT &&
+        !strcmp(((Query_log_event*)ev)->query, "BEGIN"))
+      in_transaction= TRUE;
+    
+    if (ev->get_type_code() == QUERY_EVENT &&
+        !strcmp(((Query_log_event*)ev)->query, "COMMIT"))
     {
+      DBUG_ASSERT(in_transaction == TRUE);
+      in_transaction= FALSE;
+    }
+    else if (ev->get_type_code() == XID_EVENT)
+    {
+      /* MEMCACHED_RESOLVE: currently binlog from memcached,
+         might not have MySQL transaction marks, so quote this assert
+         out first. Will reinstate later.
+         DBUG_ASSERT(in_transaction == TRUE);
+      */
+      in_transaction= FALSE;
       Xid_log_event *xev=(Xid_log_event *)ev;
       uchar *x= (uchar *) memdup_root(&mem_root, (uchar*) &xev->xid,
                                       sizeof(xev->xid));
       if (!x || my_hash_insert(&xids, x))
         goto err2;
     }
+
+    /*
+      Recorded valid position for the crashed binlog file
+      which did not contain incorrect events. The following
+      positions increase the variable valid_pos:
+      
+      1 -
+        ...
+        <---> HERE IS VALID <--->
+        BEGIN
+        ...
+        COMMIT
+        ...
+
+      2 -
+        ...
+        <---> HERE IS VALID <--->
+        DDL/UTILITY
+        ...
+
+      In other words, the following positions do not increase
+      the variable valid_pos:
+
+      1 -
+        BEGIN
+        <---> HERE IS VALID <--->
+        ...
+    */
+    if (!log->error && !in_transaction)
+      *valid_pos= my_b_tell(log);
+
     delete ev;
   }
 
