@@ -11,24 +11,13 @@ CREATE TABLE t2(id INT PRIMARY KEY, msg varchar(255))
 ENGINE=INNODB
 ROW_FORMAT=COMPRESSED
 KEY_BLOCK_SIZE=2;
-SET GLOBAL innodb_padding_algo = 2;
-CREATE TABLE t3(id INT PRIMARY KEY, msg varchar(255))
-ENGINE=INNODB
-ROW_FORMAT=COMPRESSED
-KEY_BLOCK_SIZE=2;
 Table	Checksum
 test.t1	453064056
 Table	Checksum
 test.t2	453064056
-Table	Checksum
-test.t3	453064056
 nopad_is_bad
 1
-tree_is_better_than_nopad
-1
 linear_is_better_than_nopad
-1
-tree_comp_fail_rate_is_ok
 1
 linear_comp_fail_rate_is_ok
 1

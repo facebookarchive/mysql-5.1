@@ -1,4 +1,0 @@
---innodb-file-per-table
---innodb_file_format='Barracuda'
---innodb_file_format_check=ON
---innodb_padding_algo=1

@@ -9,7 +9,7 @@
 --let $file_format_check_save = `SELECT @@innodb_file_format_check`
 --let $padding_algo_save = `SELECT @@innodb_padding_algo`
 --disable_warnings
-DROP TABLE IF EXISTS t1, t2, t3;
+DROP TABLE IF EXISTS t1, t2;
 SET GLOBAL INNODB_FILE_FORMAT = 'Barracuda';
 --enable_warnings
 
@@ -41,7 +41,7 @@ VALUES ($idx, REPEAT(PASSWORD($idx), 5));
 }
 SELECT (compress_ops_ok - @ok_before)/(compress_ops - @ops_before) into @nopad FROM information_schema.table_statistics WHERE table_name='t1';
 --enable_query_log
-# tree padding
+# linear padding
 SET GLOBAL innodb_padding_algo = 1;
 CREATE TABLE t2(id INT PRIMARY KEY, msg varchar(255))
 ENGINE=INNODB
@@ -61,48 +61,23 @@ VALUES ($idx, REPEAT(PASSWORD($idx), 5));
   dec $num_rows;
   inc $idx;
 }
-SELECT (compress_ops_ok - @ok_before)/(compress_ops - @ops_before) into @tree FROM information_schema.table_statistics WHERE table_name='t2';
---enable_query_log
-# linear padding
-SET GLOBAL innodb_padding_algo = 2;
-CREATE TABLE t3(id INT PRIMARY KEY, msg varchar(255))
-ENGINE=INNODB
-ROW_FORMAT=COMPRESSED
-KEY_BLOCK_SIZE=2;
-let $idx = 1;
-let $num_rows = $num_inserts;
---disable_query_log
-while ($num_rows) {
-  eval
-INSERT INTO t3(id, msg)
-VALUES ($idx, REPEAT(PASSWORD($idx), 5));
-  if (`SELECT $num_rows = 2000`) {
-    SELECT compress_ops_ok INTO @ok_before FROM information_schema.table_statistics WHERE table_name='t3';
-    SELECT compress_ops INTO @ops_before FROM information_schema.table_statistics WHERE table_name='t3';
-  }
-  dec $num_rows;
-  inc $idx;
-}
-SELECT (compress_ops_ok - @ok_before)/(compress_ops - @ops_before) into @linear FROM information_schema.table_statistics WHERE table_name='t3';
+SELECT (compress_ops_ok - @ok_before)/(compress_ops - @ops_before) into @linear FROM information_schema.table_statistics WHERE table_name='t2';
 --enable_result_log
 CHECKSUM TABLE t1;
 CHECKSUM TABLE t2;
-CHECKSUM TABLE t3;
 
 # uncomment this line to print the padding values.
-# select table_name,compress_padding,compress_ops_ok,compress_ops,compress_ops_ok/compress_ops from information_schema.table_statistics where table_name='t1' or table_name='t2' or table_name='t3' order by table_name;
+# select table_name,compress_padding,compress_ops_ok,compress_ops,compress_ops_ok/compress_ops from information_schema.table_statistics where table_name='t1' or table_name='t2' order by table_name;
 # uncomment this line to print the compression success rate by each algorithm
-# select @nopad, @tree, @linear;
+# select @nopad, @linear;
 
 # success rate comparison
 SELECT @nopad < 0.8 as nopad_is_bad;
-SELECT @nopad < @tree as tree_is_better_than_nopad;
 SELECT @nopad < @linear as linear_is_better_than_nopad;
-SELECT abs(1 - @tree - @@innodb_padding_max_fail_rate) < 0.1 as tree_comp_fail_rate_is_ok;
 SELECT abs(1 - @linear - @@innodb_padding_max_fail_rate) < 0.1 as linear_comp_fail_rate_is_ok;
 --disable_result_log
 # final cleanup
-DROP TABLE t1, t2, t3;
+DROP TABLE t1, t2;
 # restore innodb_file_format and innodb_file_format_check
 eval SET GLOBAL innodb_file_format = \"$file_format_save\";
 eval SET GLOBAL innodb_file_format_check = \"$file_format_check_save\";
