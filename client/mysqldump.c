@@ -47,6 +47,7 @@
 #include <m_ctype.h>
 #include <hash.h>
 #include <stdarg.h>
+#include <my_list.h>
 
 #include "client_priv.h"
 #include "mysql.h"
@@ -141,6 +142,8 @@ static uint opt_protocol= 0;
 
 static my_bool server_supports_sql_no_fcache= FALSE;
 
+static my_bool opt_innodb_optimize_keys= FALSE;
+
 /*
 Dynamic_string wrapper functions. In this file use these
 wrappers, they will terminate the process if there is
@@ -185,6 +188,8 @@ TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
                                   "", compatible_mode_names, NULL};
 
 HASH ignore_table;
+
+LIST *skipped_keys_list;
 
 static struct my_option my_long_options[] =
 {
@@ -281,20 +286,20 @@ static struct my_option my_long_options[] =
    &extended_insert, &extended_insert, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
-   "Fields in the output file are terminated by the given string.", 
-   &fields_terminated, &fields_terminated, 0, 
+   "Fields in the output file are terminated by the given string.",
+   &fields_terminated, &fields_terminated, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-enclosed-by", OPT_ENC,
-   "Fields in the output file are enclosed by the given character.", 
-   &enclosed, &enclosed, 0, 
+   "Fields in the output file are enclosed by the given character.",
+   &enclosed, &enclosed, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
   {"fields-optionally-enclosed-by", OPT_O_ENC,
-   "Fields in the output file are optionally enclosed by the given character.", 
-   &opt_enclosed, &opt_enclosed, 0, 
+   "Fields in the output file are optionally enclosed by the given character.",
+   &opt_enclosed, &opt_enclosed, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
-  {"fields-escaped-by", OPT_ESC, 
+  {"fields-escaped-by", OPT_ESC,
    "Fields in the output file are escaped by the given character.",
-   &escaped, &escaped, 0, 
+   &escaped, &escaped, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"first-slave", OPT_FIRST_SLAVE, "Deprecated, renamed to --lock-all-tables.",
    &opt_lock_all_tables, &opt_lock_all_tables, 0, GET_BOOL, NO_ARG,
@@ -332,10 +337,15 @@ static struct my_option my_long_options[] =
    "be specified with both database and table names, e.g., "
    "--ignore-table=database.table.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   {"innodb-optimize-keys", OPT_INNODB_OPTIMIZE_KEYS,
+    "Use InnoDB fast index creation by creating secondary indexes after "
+    "dumping the data.",
+    &opt_innodb_optimize_keys, &opt_innodb_optimize_keys, 0, GET_BOOL, NO_ARG,
+    0, 0, 0, 0, 0, 0},
   {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
    &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"lines-terminated-by", OPT_LTB, 
+  {"lines-terminated-by", OPT_LTB,
    "Lines in the output file are terminated by the given string.",
    &lines_terminated, &lines_terminated, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -361,12 +371,12 @@ static struct my_option my_long_options[] =
    "Option automatically turns --lock-tables off.",
    &opt_master_data, &opt_master_data, 0,
    GET_UINT, OPT_ARG, 0, 0, MYSQL_OPT_MASTER_DATA_COMMENTED_SQL, 0, 0, 0},
-  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, 
+  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "The maximum packet length to send to or receive from server.",
     &opt_max_allowed_packet, &opt_max_allowed_packet, 0,
     GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096,
    (longlong) 2L*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
-  {"net_buffer_length", OPT_NET_BUFFER_LENGTH, 
+  {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
    "The buffer size for TCP/IP and socket communication.",
     &opt_net_buffer_length, &opt_net_buffer_length, 0,
     GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
@@ -379,7 +389,7 @@ static struct my_option my_long_options[] =
    "Suppress the CREATE DATABASE ... IF EXISTS statement that normally is "
    "output for each dumped database if --all-databases or --databases is "
    "given.",
-   &opt_create_db, &opt_create_db, 0, 
+   &opt_create_db, &opt_create_db, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-create-info", 't', "Don't write table creation info.",
    &opt_no_create_info, &opt_no_create_info, 0, GET_BOOL,
@@ -404,7 +414,7 @@ static struct my_option my_long_options[] =
   {"port", 'P', "Port number to use for connection.", &opt_mysql_port,
    &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
-  {"protocol", OPT_MYSQL_PROTOCOL, 
+  {"protocol", OPT_MYSQL_PROTOCOL,
    "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q', "Don't buffer query, dump directly to stdout.",
@@ -456,7 +466,7 @@ static struct my_option my_long_options[] =
    "Disable --opt. Disables --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
-   &opt_mysql_unix_port, &opt_mysql_unix_port, 0, 
+   &opt_mysql_unix_port, &opt_mysql_unix_port, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"tab",'T',
@@ -519,6 +529,7 @@ static int dump_tablespaces_for_databases(char** databases);
 static int dump_tablespaces(char* ts_where);
 static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
                           ...);
+static void add_keys_back_table(char *opt_quoted_table);
 
 #include <help_start.h>
 
@@ -605,7 +616,7 @@ static void write_header(FILE *sql_file, char *db_name)
   {
     fputs("<?xml version=\"1.0\"?>\n", sql_file);
     /*
-      Schema reference.  Allows use of xsi:nil for NULL values and 
+      Schema reference.  Allows use of xsi:nil for NULL values and
       xsi:type to define an element's data type.
     */
     fputs("<mysqldump ", sql_file);
@@ -994,7 +1005,7 @@ static void DB_error(MYSQL *mysql_arg, const char *when)
     error_num   - process return value
     fmt_reason  - a format string for use by my_vsnprintf.
     ...         - variable arguments for above fmt_reason string
-  
+
   DESCRIPTION
     This call prints out the formatted error message to stderr and then
     terminates the process.
@@ -1023,15 +1034,15 @@ static void die(int error_num, const char* fmt_reason, ...)
     error_num   - process return value
     fmt_reason  - a format string for use by my_vsnprintf.
     ...         - variable arguments for above fmt_reason string
-  
+
   DESCRIPTION
     This call prints out the formatted error message to stderr and then
     terminates the process, unless the --force command line option is used.
-    
+
     This call should be used for non-fatal errors (such as database
     errors) that the code may still be able to continue to the next unit
     of work.
-    
+
 */
 static void maybe_die(int error_num, const char* fmt_reason, ...)
 {
@@ -1529,7 +1540,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
 
     /* Don't switch charsets for 4.1 and earlier.  (bug#34192). */
     server_supports_switching_charsets= FALSE;
-  } 
+  }
 
   /* Check to see if we support SQL_NO_FCACHE on this server. */
   if (mysql_query(mysql, "SELECT SQL_NO_FCACHE NOW()") == 0)
@@ -1745,7 +1756,7 @@ static void print_quoted_xml(FILE *xml_file, const char *str, ulong len,
   Print xml tag. Optionally add attribute(s).
 
   SYNOPSIS
-    print_xml_tag(xml_file, sbeg, send, tag_name, first_attribute_name, 
+    print_xml_tag(xml_file, sbeg, send, tag_name, first_attribute_name,
                     ..., attribute_name_n, attribute_value_n, NullS)
     xml_file              - output file
     sbeg                  - line beginning
@@ -1760,7 +1771,7 @@ static void print_quoted_xml(FILE *xml_file, const char *str, ulong len,
     Print XML tag with any number of attribute="value" pairs to the xml_file.
 
     Format is:
-      sbeg<tag_name first_attribute_name="first_attribute_value" ... 
+      sbeg<tag_name first_attribute_name="first_attribute_value" ...
       attribute_name_n="attribute_value_n">send
   NOTE
     Additional arguments must be present in attribute/value pairs.
@@ -1770,8 +1781,8 @@ static void print_quoted_xml(FILE *xml_file, const char *str, ulong len,
 */
 
 static void print_xml_tag(FILE * xml_file, const char* sbeg,
-                          const char* line_end, 
-                          const char* tag_name, 
+                          const char* line_end,
+                          const char* tag_name,
                           const char* first_attribute_name, ...)
 {
   va_list arg_list;
@@ -1779,7 +1790,7 @@ static void print_xml_tag(FILE * xml_file, const char* sbeg,
 
   fputs(sbeg, xml_file);
   fputc('<', xml_file);
-  fputs(tag_name, xml_file);  
+  fputs(tag_name, xml_file);
 
   va_start(arg_list, first_attribute_name);
   attribute_name= first_attribute_name;
@@ -1789,9 +1800,9 @@ static void print_xml_tag(FILE * xml_file, const char* sbeg,
     DBUG_ASSERT(attribute_value != NullS);
 
     fputc(' ', xml_file);
-    fputs(attribute_name, xml_file);    
+    fputs(attribute_name, xml_file);
     fputc('\"', xml_file);
-    
+
     print_quoted_xml(xml_file, attribute_value, strlen(attribute_value), 0);
     fputc('\"', xml_file);
 
@@ -2019,10 +2030,10 @@ static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
 
 /*
  create_delimiter
- Generate a new (null-terminated) string that does not exist in  query 
+ Generate a new (null-terminated) string that does not exist in  query
  and is therefore suitable for use as a query delimiter.  Store this
  delimiter in  delimiter_buff .
- 
+
  This is quite simple in that it doesn't even try to parse statements as an
  interpreter would.  It merely returns a string that is not in the query, which
  is much more than adequate for constructing a delimiter.
@@ -2031,15 +2042,15 @@ static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
    ptr to the delimiter  on Success
    NULL                  on Failure
 */
-static char *create_delimiter(char *query, char *delimiter_buff, 
-                              int delimiter_max_size) 
+static char *create_delimiter(char *query, char *delimiter_buff,
+                              int delimiter_max_size)
 {
   int proposed_length;
   char *presence;
 
   delimiter_buff[0]= ';';  /* start with one semicolon, and */
 
-  for (proposed_length= 2; proposed_length < delimiter_max_size; 
+  for (proposed_length= 2; proposed_length < delimiter_max_size;
       delimiter_max_size++) {
 
     delimiter_buff[proposed_length-1]= ';';  /* add semicolons, until */
@@ -2118,7 +2129,7 @@ static uint dump_events_for_db(char *db)
     {
       event_name= quote_name(event_list_row[1], name_buff, 0);
       DBUG_PRINT("info", ("retrieving CREATE EVENT for %s", name_buff));
-      my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE EVENT %s", 
+      my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE EVENT %s",
           event_name);
 
       if (mysql_query_with_error_report(mysql, &event_res, query_buff))
@@ -2140,7 +2151,7 @@ static uint dump_events_for_db(char *db)
         if (strlen(row[3]) != 0)
         {
           if (opt_drop)
-            fprintf(sql_file, "/*!50106 DROP EVENT IF EXISTS %s */%s\n", 
+            fprintf(sql_file, "/*!50106 DROP EVENT IF EXISTS %s */%s\n",
                 event_name, delimiter);
 
           if (create_delimiter(row[3], delimiter, sizeof(delimiter)) == NULL)
@@ -2449,6 +2460,190 @@ static uint dump_routines_for_db(char *db)
 }
 
 /*
+  Parse the specified key definition string and check if the key indexes
+  any of the columns from ignored_columns.
+*/
+static my_bool contains_ignored_column(HASH *ignored_columns, char *keydef)
+{
+  char *leftp, *rightp;
+
+  if ((leftp = strchr(keydef, '(')) &&
+      (rightp = strchr(leftp, ')')) &&
+      rightp > leftp + 3 &&                      /* (`...`) */
+      leftp[1] == '`' &&
+      rightp[-1] == '`' &&
+      my_hash_search(ignored_columns, (uchar *) leftp + 2, rightp - leftp - 3))
+    return TRUE;
+
+  return FALSE;
+}
+
+
+/*
+  Remove secondary/foreign key definitions from a given SHOW CREATE TABLE string
+  and store them into a temporary list to be used later.
+
+  SYNOPSIS
+    skip_secondary_keys()
+    create_str                SHOW CREATE TABLE output
+    has_pk                    TRUE, if the table has PRIMARY KEY
+                              (or UNIQUE key on non-nullable columns)
+
+
+  DESCRIPTION
+
+    Stores all lines starting with "KEY" or "UNIQUE KEY"
+    into skipped_keys_list and removes them from the input string.
+    Ignoring FOREIGN KEYS constraints when creating the table is ok, because
+    mysqldump sets foreign_key_checks to 0 anyway.
+*/
+
+static void skip_secondary_keys(char *create_str, my_bool has_pk)
+{
+  char *ptr, *strend;
+  char *last_comma = NULL;
+  HASH ignored_columns;
+  my_bool pk_processed= FALSE;
+
+  if (hash_init(&ignored_columns, charset_info, 16, 0, 0,
+                (hash_get_key) get_table_key,
+                (hash_free_key) free_table_ent, 0))
+    exit(EX_EOM);
+
+  strend= create_str + strlen(create_str);
+
+  ptr= create_str;
+  while (*ptr)
+  {
+    char *tmp, *orig_ptr, c;
+    my_bool is_unique= FALSE;
+
+    orig_ptr= ptr;
+    /* Skip leading whitespace */
+    while (*ptr && my_isspace(charset_info, *ptr))
+      ptr++;
+
+    /* Read the next line */
+    for (tmp= ptr; *tmp != '\n' && *tmp != '\0'; tmp++);
+
+    c= *tmp;
+    *tmp= '\0'; /* so strstr() only processes the current line */
+
+    /* Is it a secondary index definition? */
+    if (c == '\n' &&
+        (((is_unique= !strncmp(ptr, "UNIQUE KEY ", sizeof("UNIQUE KEY ")-1)) &&
+          (pk_processed || !has_pk)) ||
+         !strncmp(ptr, "KEY ", sizeof("KEY ") - 1)) &&
+        !contains_ignored_column(&ignored_columns, ptr))
+    {
+      char *data, *end= tmp - 1;
+
+      /* Remove the trailing comma */
+      if (*end == ',')
+        end--;
+      data= my_strndup(ptr, end - ptr + 1, MYF(MY_FAE));
+      skipped_keys_list= list_cons(data, skipped_keys_list);
+
+      memmove(orig_ptr, tmp + 1, strend - tmp);
+      ptr= orig_ptr;
+      strend-= tmp + 1 - ptr;
+
+      /* Remove the comma on the previos line */
+      if (last_comma != NULL)
+      {
+        *last_comma= ' ';
+      }
+    }
+    else
+    {
+      char *end;
+
+      if (last_comma != NULL && *ptr != ')')
+      {
+        /*
+          It's not the last line of CREATE TABLE, so we have skipped a key
+          definition. We have to restore the last removed comma.
+        */
+        *last_comma= ',';
+      }
+
+      if ((has_pk && is_unique && !pk_processed) ||
+          !strncmp(ptr, "PRIMARY KEY ", sizeof("PRIMARY KEY ") - 1))
+        pk_processed= TRUE;
+
+      if (strstr(ptr, "AUTO_INCREMENT") && *ptr == '`')
+      {
+        /*
+          If a secondary key is defined on this column later,
+          it cannot be skipped, as CREATE TABLE would fail on import.
+        */
+        for (end= ptr + 1; *end != '`' && *end != '\0'; end++);
+        if (*end == '`' && end > ptr + 1 &&
+            my_hash_insert(&ignored_columns,
+                           (uchar *) my_strndup(ptr + 1,
+                                                end - ptr - 1, MYF(0))))
+        {
+          exit(EX_EOM);
+        }
+      }
+
+      *tmp= c;
+
+      if (tmp[-1] == ',')
+        last_comma= tmp - 1;
+      ptr= (*tmp == '\0') ? tmp : tmp + 1;
+    }
+  }
+
+  my_hash_free(&ignored_columns);
+}
+
+/*
+  Check if the table has a primary key defined either explicitly or
+  implicitly (i.e. a unique key on non-nullable columns).
+
+  SYNOPSIS
+    my_bool has_primary_key(const char *table_name)
+
+    table_name  quoted table name
+
+  RETURNS     TRUE if the table has a primary key
+
+  DESCRIPTION
+*/
+
+static my_bool has_primary_key(const char *table_name)
+{
+  MYSQL_RES  *res= NULL;
+  MYSQL_ROW  row;
+  char query_buff[QUERY_LENGTH];
+  my_bool has_pk= TRUE;
+
+  my_snprintf(query_buff, sizeof(query_buff),
+              "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE "
+              "TABLE_SCHEMA=DATABASE() AND TABLE_NAME='%s' AND "
+              "COLUMN_KEY='PRI'", table_name);
+  if (mysql_query(mysql, query_buff) || !(res= mysql_store_result(mysql)) ||
+      !(row= mysql_fetch_row(res)))
+  {
+    fprintf(stderr, "Warning: Couldn't determine if table %s has a "
+            "primary key (%s). "
+            "--innodb-optimize-keys may work inefficiently.\n",
+            table_name, mysql_error(mysql));
+    goto cleanup;
+  }
+
+  has_pk= atoi(row[0]) > 0;
+
+cleanup:
+  if (res)
+    mysql_free_result(res);
+
+  return has_pk;
+}
+
+
+/*
   get_table_structure -- retrievs database structure, prints out corresponding
   CREATE statement and fills out insert_pat if the table is the type we will
   be dumping.
@@ -2485,6 +2680,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   int        len;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
+  my_bool    has_pk= FALSE;
   DBUG_ENTER("get_table_structure");
   DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
 
@@ -2525,6 +2721,9 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
+
+  if (opt_innodb_optimize_keys && !strcmp(table_type, "InnoDB"))
+    has_pk= has_primary_key(table);
 
   if (opt_order_by_primary)
     order_by= primary_key_fields(result_table);
@@ -2681,6 +2880,9 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       row= mysql_fetch_row(result);
 
+      if (opt_innodb_optimize_keys && !strcmp(table_type, "InnoDB"))
+        skip_secondary_keys(row[1], has_pk);
+
       fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
               "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
               "/*!40101 SET character_set_client = utf8 */;\n"
@@ -2771,7 +2973,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       if (!opt_xml)
         fprintf(sql_file, "CREATE TABLE %s (\n", result_table);
       else
-        print_xml_tag(sql_file, "\t", "\n", "table_structure", "name=", table, 
+        print_xml_tag(sql_file, "\t", "\n", "table_structure", "name=", table,
                 NullS);
       check_io(sql_file);
     }
@@ -3248,7 +3450,7 @@ static void add_load_option(DYNAMIC_STRING *str, const char *option,
   }
 
   dynstr_append_checked(str, option);
-  
+
   if (strncmp(option_value, "0x", sizeof("0x")-1) == 0)
   {
     /* It's a hex constant, don't escape */
@@ -3271,7 +3473,7 @@ static void add_load_option(DYNAMIC_STRING *str, const char *option,
 
 static void field_escape(DYNAMIC_STRING* in, const char *from)
 {
-  uint end_backslashes= 0; 
+  uint end_backslashes= 0;
 
   dynstr_append_checked(in, "'");
 
@@ -3295,7 +3497,7 @@ static void field_escape(DYNAMIC_STRING* in, const char *from)
   /* Add missing backslashes if user has specified odd number of backs.*/
   if (end_backslashes)
     dynstr_append_checked(in, "\\");
-  
+
   dynstr_append_checked(in, "'");
 }
 
@@ -3355,11 +3557,15 @@ static void dump_table(char *table, char *db)
   if (strcmp(table_type, "VIEW") == 0)
     DBUG_VOID_RETURN;
 
+  result_table= quote_name(table,table_buff, 1);
+  opt_quoted_table= quote_name(table, table_buff2, 0);
+
   /* Check --no-data flag */
   if (opt_no_data)
   {
     verbose_msg("-- Skipping dump data for table '%s', --no-data was used\n",
                 table);
+    add_keys_back_table(opt_quoted_table);
     DBUG_VOID_RETURN;
   }
 
@@ -3396,9 +3602,6 @@ static void dump_table(char *table, char *db)
     DBUG_VOID_RETURN;
   }
 
-  result_table= quote_name(table,table_buff, 1);
-  opt_quoted_table= quote_name(table, table_buff2, 0);
-
   verbose_msg("-- Sending SELECT query...\n");
 
   init_dynamic_string_checked(&query_string, "", 1024, 1024);
@@ -3411,7 +3614,7 @@ static void dump_table(char *table, char *db)
       Convert the path to native os format
       and resolve to the full filepath.
     */
-    convert_dirname(tmp_path,path,NullS);    
+    convert_dirname(tmp_path,path,NullS);
     my_load_path(tmp_path, tmp_path, NULL);
     fn_format(filename, table, tmp_path, ".txt", MYF(MY_UNPACK_FILENAME));
 
@@ -3440,7 +3643,7 @@ static void dump_table(char *table, char *db)
 
     if (fields_terminated || enclosed || opt_enclosed || escaped)
       dynstr_append_checked(&query_string, " FIELDS");
-    
+
     add_load_option(&query_string, " TERMINATED BY ", fields_terminated);
     add_load_option(&query_string, " ENCLOSED BY ", enclosed);
     add_load_option(&query_string, " OPTIONALLY ENCLOSED BY ", opt_enclosed);
@@ -3474,7 +3677,6 @@ static void dump_table(char *table, char *db)
     print_comment(md_result_file, 0,
                   "\n--\n-- Dumping data for table %s\n--\n",
               result_table);
-    
     dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ ");
     if (server_supports_sql_no_fcache)
     {
@@ -3486,7 +3688,6 @@ static void dump_table(char *table, char *db)
     if (where)
     {
       print_comment(md_result_file, 0, "-- WHERE:  %s\n", where);
-      
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
     }
@@ -3687,7 +3888,7 @@ static void dump_table(char *table, char *db)
                 }
                 else
                 {
-                  print_xml_tag(md_result_file, "\t\t", "", "field", "name=", 
+                  print_xml_tag(md_result_file, "\t\t", "", "field", "name=",
                                 field->name, NullS);
                   print_quoted_xml(md_result_file, row[i], length, 0);
                 }
@@ -3797,6 +3998,8 @@ static void dump_table(char *table, char *db)
       goto err;
     }
 
+    add_keys_back_table(opt_quoted_table);
+
     /* Moved enable keys to before unlock per bug 15977 */
     if (opt_disable_keys)
     {
@@ -3824,6 +4027,30 @@ err:
   maybe_exit(error);
   DBUG_VOID_RETURN;
 } /* dump_table */
+
+
+static void add_keys_back_table(char *opt_quoted_table) {
+    /* Perform delayed secondary index creation for --innodb-optimize-keys */
+    if (skipped_keys_list)
+    {
+      uint keys;
+      skipped_keys_list= list_reverse(skipped_keys_list);
+      fprintf(md_result_file, "ALTER TABLE %s ", opt_quoted_table);
+      for (keys= list_length(skipped_keys_list); keys > 0; keys--)
+      {
+        LIST *node= skipped_keys_list;
+        char *def= node->data;
+
+        fprintf(md_result_file, "ADD %s%s", def, (keys > 1) ? ", " : ";\n");
+
+        skipped_keys_list= list_delete(skipped_keys_list, node);
+        my_free(def, MYF(0));
+        my_free(node, MYF(0));
+      }
+
+      DBUG_ASSERT(skipped_keys_list == NULL);
+    }
+}
 
 
 static char *getTableName(int reset)
@@ -4652,9 +4879,9 @@ static int do_flush_tables_read_lock(MYSQL *mysql_con)
     update starts between the two FLUSHes, we have that bad stall.
   */
   return
-    ( mysql_query_with_error_report(mysql_con, 0, 
-                                    ((opt_master_data != 0) ? 
-                                        "FLUSH /*!40101 LOCAL */ TABLES" : 
+    ( mysql_query_with_error_report(mysql_con, 0,
+                                    ((opt_master_data != 0) ?
+                                        "FLUSH /*!40101 LOCAL */ TABLES" :
                                         "FLUSH TABLES")) ||
       mysql_query_with_error_report(mysql_con, 0,
                                     "FLUSH TABLES WITH READ LOCK") );
