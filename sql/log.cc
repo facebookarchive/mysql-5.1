@@ -7035,9 +7035,16 @@ int TC_LOG_BINLOG::open(const char *opt_name)
         }
         else
         {
-          sql_print_information("Crashed binlog file %s size is %llu, "
-                                "but recovered up to %llu. Binlog trimmed to %llu bytes.",
-                                log_name, binlog_size, valid_pos, valid_pos);
+          char buff1[22];
+          char buff2[22];
+          char buff3[22];
+          sql_print_information("Crashed binlog file %s size is %s, "
+                                "but recovered up to %s. Binlog trimmed "
+                                "to %s bytes.",
+                                log_name,
+                                llstr(binlog_size, buff1),
+                                llstr(valid_pos, buff2), 
+                                llstr(valid_pos, buff3));
         }
       }
 
