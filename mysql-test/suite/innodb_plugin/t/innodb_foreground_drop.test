@@ -20,7 +20,7 @@ insert into t select null from t;
 insert into t select null from t;
 
 connect (con1,localhost,root,,);
-send select sum(t1.i + t2.i) from t as t1, t as t2;
+send select sum(t1.i + t2.i + sleep(if(t1.i = 1024 && t2.i = 1024, 15, 0))) as Q from t as t1, t as t2;
 
 # DROP table will block on the query
 connection default;

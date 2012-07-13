@@ -10,12 +10,12 @@ insert into t select null from t;
 insert into t select null from t;
 insert into t select null from t;
 insert into t select null from t;
-select sum(t1.i + t2.i) from t as t1, t as t2;
+select sum(t1.i + t2.i + sleep(if(t1.i = 1024 && t2.i = 1024, 15, 0))) as Q from t as t1, t as t2;
 select INFO from information_schema.processlist where INFO like "%sum%" and INFO not like "%INFO%";
 INFO
-select sum(t1.i + t2.i) from t as t1, t as t2
+select sum(t1.i + t2.i + sleep(if(t1.i = 1024 && t2.i = 1024, 15, 0))) as Q from t as t1, t as t2
 drop table t;
 select INFO from information_schema.processlist where INFO like "%sum%" and INFO not like "%INFO%";
 INFO
-sum(t1.i + t2.i)
+Q
 14228488192
