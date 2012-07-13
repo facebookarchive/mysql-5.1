@@ -7043,7 +7043,7 @@ int TC_LOG_BINLOG::open(const char *opt_name)
                                 "to %s bytes.",
                                 log_name,
                                 llstr(binlog_size, buff1),
-                                llstr(valid_pos, buff2), 
+                                llstr(valid_pos, buff2),
                                 llstr(valid_pos, buff3));
         }
       }
