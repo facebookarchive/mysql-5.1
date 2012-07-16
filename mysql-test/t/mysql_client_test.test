@@ -1,5 +1,6 @@
 # This test should work in embedded server after we fix mysqltest
 -- source include/not_embedded.inc
+-- source include/have_nodebug.inc
 
 SET @old_general_log= @@global.general_log;
 SET @old_slow_query_log= @@global.slow_query_log;
