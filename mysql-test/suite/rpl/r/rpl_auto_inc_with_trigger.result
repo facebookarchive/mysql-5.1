@@ -16,3 +16,4 @@ drop table t2;
 drop table t1;
 drop table tmp_list;
 drop procedure t1_one_inserts;
+include/rpl_end.inc

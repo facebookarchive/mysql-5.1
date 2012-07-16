@@ -16,3 +16,5 @@ CREATE TABLE t1 (p INT PRIMARY KEY AUTO_INCREMENT, worker INT, count INT) ENGINE
 --let $test_seconds = 10
 
 --source suite/innodb_plugin/include/innodb_autoinc_flush.inc
+
+--source include/rpl_end.inc

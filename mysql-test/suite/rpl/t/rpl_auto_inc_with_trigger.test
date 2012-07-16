@@ -80,3 +80,5 @@ drop procedure t1_one_inserts;
 --sync_slave_with_master
 
 connection master;
+
+--source include/rpl_end.inc
