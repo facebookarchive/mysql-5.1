@@ -30,9 +30,15 @@ SET GLOBAL debug="d,inject_log_read_trunc";
 --echo mysql_binlog_send on master will inject error
 
 connection slave;
---source include/start_slave.inc
---sleep 1
-stop slave;
+# Do not call include/start_slave.inc as there is a race. The IO thread
+# may start, hit the error and exit faster than start_slave.inc notices
+# that the thread ever started and thus time out waiting for it. Instead,
+# call 'start slave' directly and use the sql thread having started as an
+# indicator that it is safe to look for the io thread having hit the error.
+start slave;
+--source include/wait_for_slave_sql_to_start.inc
+--source include/wait_for_slave_io_to_stop.inc
+stop slave sql_thread;
 
 --echo now the large event can be sent to the slave
 
