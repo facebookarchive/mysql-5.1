@@ -13,7 +13,7 @@ call mtr.add_suppression("Group commit: .* start waiting for ticket.*");
 --enable_query_log
 
 # make sure warning is printed on first timeout
-SET GLOBAL group_commit_hang_log_seconds=1;
+SET GLOBAL group_commit_hang_log_seconds=30;
 
 select variable_value into @fslow1 from information_schema.global_status where variable_name='Binlog_fsync_slow';
 

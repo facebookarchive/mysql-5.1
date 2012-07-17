@@ -708,8 +708,16 @@ ulonglong binlog_fsync_enough_pending= 0;
 ulonglong binlog_fsync_not_too_many_waiting= 0;
 ulonglong binlog_bytes_written= 0;
 
-ulong group_commit_hang_disable_secs= 60;
-ulong group_commit_hang_log_secs= 2;
+#ifdef ENABLED_DEBUG_SYNC
+#define GC_DISABLE_SECS 1800
+#define GC_HANG_SECS 60
+#else
+#define GC_DISABLE_SECS 60
+#define GC_HANG_SECS 2
+#endif
+
+ulong group_commit_hang_disable_secs= GC_DISABLE_SECS;
+ulong group_commit_hang_log_secs= GC_HANG_SECS;
 
 my_bool opt_log_slow_extra;
 
@@ -7670,12 +7678,12 @@ thread is in the relay logs.",
    "to InnoDB transaction log when group commit was used. Group commit is "
    "disabled when this has been exceeded.",
    &group_commit_hang_disable_secs, &group_commit_hang_disable_secs,
-   0, GET_ULONG, REQUIRED_ARG, 60, 10, 600, 0, 1, 0},
+   0, GET_ULONG, REQUIRED_ARG, GC_DISABLE_SECS, 10, 1800, 0, 1, 0},
   {"group_commit_hang_log_seconds", OPT_GROUP_COMMIT_HANG_LOG_SECS,
    "Write a warning to the mysqld error log for transactions that wait this "
    "long to write changes to the InnoDB transaction log when group commit was used.",
    &group_commit_hang_log_secs, &group_commit_hang_log_secs,
-   0, GET_ULONG, REQUIRED_ARG, 2, 1, 600, 0, 1, 0},
+   0, GET_ULONG, REQUIRED_ARG, GC_HANG_SECS, 1, 600, 0, 1, 0},
   {"group_commit_timeout_usecs", OPT_GROUP_COMMIT_TIMEOUT_USECS,
    "Maximum time in usecs to wait for group commit. Transactions ignore this "
    "unless group commit (innodb_prepare_commit_mutex) is on and the "
@@ -8867,8 +8875,8 @@ static int mysql_init_variables(void)
   group_commit_min_size= 8;
   group_commit_timeout_usecs= 1000;
 
-  group_commit_hang_disable_secs= 60;
-  group_commit_hang_log_secs= 2;
+  group_commit_hang_disable_secs= GC_DISABLE_SECS;
+  group_commit_hang_log_secs= GC_HANG_SECS;
 
   rpl_event_buffer_size= 1024 * 1024;
 

@@ -9,7 +9,9 @@
 # confirm the variables exist
 SET GLOBAL group_commit_hang_log_seconds = default;
 SET GLOBAL group_commit_hang_disable_seconds = default;
+--replace_regex /[0-9]+/#/
 SHOW GLOBAL VARIABLES like "group_commit_hang_log_seconds";
+--replace_regex /[0-9]+/#/
 SHOW GLOBAL VARIABLES like "group_commit_hang_disable_seconds";
 
 # setup
