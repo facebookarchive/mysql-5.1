@@ -183,9 +183,6 @@ UNIV_INTERN double	srv_drop_table_phase2_secs	= 0;
 have been checked in buf_LRU_free_tablespace */
 UNIV_INTERN ulint	srv_uncache_table_batch	= 1000;
 
-/** Workaround to avoid assert from bugs.mysql.com/62037 */
-UNIV_INTERN my_bool	srv_b62037	= TRUE;
-
 /** Enables more messages in the db error log */
 UNIV_INTERN my_bool	srv_error_log_spam	= FALSE;
 

@@ -4533,11 +4533,6 @@ requires_clust_rec:
 				isolation level or when rolling back a
 				recovered transaction. Rollback
 				happens at a lower level, not here. */
-				if (srv_b62037 && trx->isolation_level
-				     != TRX_ISO_READ_UNCOMMITTED) {
-					err = DB_NO_REFERENCED_ROW;
-					goto lock_wait_or_error;
-				}
 				ut_a(trx->isolation_level
 				     == TRX_ISO_READ_UNCOMMITTED);
 				goto next_rec;

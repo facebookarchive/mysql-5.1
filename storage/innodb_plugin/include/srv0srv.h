@@ -136,8 +136,6 @@ extern ulint	srv_read_wait_usecs;
 
 extern ulint	srv_uncache_table_batch;
 
-extern my_bool	srv_b62037;
-
 extern my_bool	srv_error_log_spam;
 
 extern ulint	srv_no_undo_slot_free;
