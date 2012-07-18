@@ -34,6 +34,12 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <zlib.h>
+#include <string.h>
+
+#undef max
+#undef min
+
+#include <map>
 
 /* all of these ripped from InnoDB code from MySQL 4.0.22 */
 #define UT_HASH_RANDOM_MASK     1463735687
@@ -61,11 +67,51 @@
 #define FIL_PAGE_TYPE_ZBLOB	11	/*!< First compressed BLOB page */
 #define FIL_PAGE_TYPE_ZBLOB2	12	/*!< Subsequent compressed BLOB page */
 
+#define	PAGE_LEVEL	 26	/* level of the node in an index tree; the
+				leaf level is the level 0.  This field should
+				not be written to after page creation. */
+#define	PAGE_N_RECS	 16	/* number of user records on the page */
 #define PAGE_INDEX_ID    28   
+#define	PAGE_HEAP_TOP	 2	/* pointer to record heap top */
+#define	PAGE_N_HEAP	 4	/* number of records in the heap,
+				bit 15=flag: new-style compact page format */
+#define	PAGE_FREE	 6	/* pointer to start of page free record list */
+#define	PAGE_GARBAGE	 8	/* number of bytes in deleted records */
+
 
 #define FSEG_PAGE_DATA          FIL_PAGE_DATA
+#define FSEG_HEADER_SIZE	10	/*!< Length of the file system
+					header, in bytes */
 #define PAGE_HEADER     	FSEG_PAGE_DATA
 #define TRX_UNDO_PAGE_HDR       FSEG_PAGE_DATA
+
+
+#define REC_N_NEW_EXTRA_BYTES   5
+#define REC_N_OLD_EXTRA_BYTES   6
+
+/*----*/
+#define PAGE_DATA	(PAGE_HEADER + 36 + 2 * FSEG_HEADER_SIZE)
+				/* start of data on the page */
+
+#define PAGE_OLD_INFIMUM	(PAGE_DATA + 1 + REC_N_OLD_EXTRA_BYTES)
+				/* offset of the page infimum record on an
+				old-style page */
+#define PAGE_OLD_SUPREMUM	(PAGE_DATA + 2 + 2 * REC_N_OLD_EXTRA_BYTES + 8)
+				/* offset of the page supremum record on an
+				old-style page */
+#define PAGE_OLD_SUPREMUM_END (PAGE_OLD_SUPREMUM + 9)
+				/* offset of the page supremum record end on
+				an old-style page */
+#define PAGE_NEW_INFIMUM	(PAGE_DATA + REC_N_NEW_EXTRA_BYTES)
+				/* offset of the page infimum record on a
+				new-style compact page */
+#define PAGE_NEW_SUPREMUM	(PAGE_DATA + 2 * REC_N_NEW_EXTRA_BYTES + 8)
+				/* offset of the page supremum record on a
+				new-style compact page */
+#define PAGE_NEW_SUPREMUM_END (PAGE_NEW_SUPREMUM + 8)
+				/* offset of the page supremum record end on
+				a new-style compact page */
+/*-----------------------------*/
 
 #define FIL_ADDR_SIZE 6
 #define FLST_NODE_SIZE          (2 * FIL_ADDR_SIZE)
@@ -108,8 +154,8 @@ typedef unsigned int uint32;
 typedef unsigned long ulong;
 typedef unsigned int ib_uint32_t;
 
-void my_init_cpu_optimizations();
-uint32 my_fast_crc32(const uchar* data, ulong length);
+extern "C" void my_init_cpu_optimizations();
+extern "C" uint32 my_fast_crc32(const uchar* data, ulong length);
 
 /** Type definition for a 64-bit unsigned integer, which works also
 in 32-bit machines. NOTE! Access the fields only with the accessor
@@ -146,8 +192,23 @@ int n_fil_page_type_other;
 
 int n_fil_page_max_index_id;
 
-#define MAX_INDEX_ID 10000000
-unsigned long long index_ids[MAX_INDEX_ID];
+#define MAX_DATA_BYTES_PER_PAGE 16384
+#define SIZE_RANGES_FOR_PAGE 10
+
+struct per_index_stats {
+  unsigned long long pages;
+  unsigned long long leaf_pages;
+  unsigned long long total_n_recs;
+  unsigned long long total_data_bytes;
+  unsigned long long pages_in_size_range[SIZE_RANGES_FOR_PAGE+2]; /*!< first element for empty pages, last element for pages with more than MAX_DATA_BYTES_PER_PAGE */
+  per_index_stats():pages(0), leaf_pages(0), total_n_recs(0),
+		    total_data_bytes(0)
+    {
+      memset(pages_in_size_range, 0, sizeof(pages_in_size_range));
+    }
+};
+
+std::map<unsigned long long, per_index_stats> index_ids;
 
 /*******************************************************//**
 Gets the high-order 32 bits of a dulint.
@@ -201,7 +262,7 @@ ut_dulint_create(
 }
 
 /* innodb function in name; modified slightly to not have the ASM version (lots of #ifs that didn't apply) */
-ulint mach_read_from_4(uchar *b)
+ulint mach_read_from_4(const uchar *b)
 {
   return( ((ulint)(b[0]) << 24)
           + ((ulint)(b[1]) << 16)
@@ -217,7 +278,7 @@ bytes. The most significant byte is at the lowest address.
 ulint
 mach_read_from_2(
 /*=============*/
-	uchar*	b)	/*!< in: pointer to 2 bytes */
+	const uchar*	b)	/*!< in: pointer to 2 bytes */
 {
 	return( ((ulint)(b[0]) << 8)
 		+ (ulint)(b[1])
@@ -231,7 +292,7 @@ bytes. The most significant byte is at the lowest address.
 dulint
 mach_read_from_8(
 /*=============*/
-	uchar*	b)	/*!< in: pointer to 8 bytes */
+	const uchar*	b)	/*!< in: pointer to 8 bytes */
 {
 	ulint	high;
 	ulint	low;
@@ -240,6 +301,67 @@ mach_read_from_8(
 	low = mach_read_from_4(b + 4);
 
 	return(ut_dulint_create(high, low));
+}
+
+/*************************************************************//**
+Reads the given header field. */
+ulint
+page_header_get_field(
+/*==================*/
+	const uchar*	page,	/*!< in: page */
+	ulint		field)	/*!< in: PAGE_LEVEL, ... */
+{
+	return(mach_read_from_2(page + PAGE_HEADER + field));
+}
+
+
+ulint
+page_get_n_recs(
+/*============*/
+	const uchar*	page)	/*!< in: index page */
+{
+	return(page_header_get_field(page, PAGE_N_RECS));
+}
+
+
+/************************************************************//**
+Determine whether the page is in new-style compact format.
+@return nonzero if the page is in compact format, zero if it is in
+old-style format */
+ulint
+page_is_comp(
+/*=========*/
+	const uchar*	page)	/*!< in: index page */
+{
+	return (page_header_get_field(page, PAGE_N_HEAP) & 0x8000) != 0;
+}
+
+/************************************************************//**
+Returns the sum of the sizes of the records in the record list, excluding
+the infimum and supremum records.
+@return data in bytes */
+ulint
+page_get_data_size(
+/*===============*/
+	const uchar*   page)   /*!< in: index page */
+{
+	ulint   ret;
+
+	ret = (ulint)(page_header_get_field(page, PAGE_HEAP_TOP)
+		- (page_is_comp(page)
+		   ? PAGE_NEW_SUPREMUM_END
+		   : PAGE_OLD_SUPREMUM_END)
+		- page_header_get_field(page, PAGE_GARBAGE));
+
+	return(ret);
+}
+
+ulint
+page_get_page_no(
+/*=============*/
+	const uchar*	page)	/*!< in: page */
+{
+	return(mach_read_from_4(page + FIL_PAGE_OFFSET));
 }
 
 /*********************************************************************//**
@@ -307,7 +429,7 @@ page_zip_calc_checksum_old(
 {
 	/* Exclude FIL_PAGE_SPACE_OR_CHKSUM, FIL_PAGE_LSN,
 	and FIL_PAGE_FILE_FLUSH_LSN from the checksum. */
-	const Bytef*	s	= data;
+	const Bytef*	s	= (const Bytef*)data;
 	uLong		adler;
 
 	adler = adler32(0L, s + FIL_PAGE_OFFSET,
@@ -331,7 +453,7 @@ page_zip_calc_checksum_fast(
 	/* Exclude FIL_PAGE_SPACE_OR_CHKSUM, FIL_PAGE_LSN,
 	and FIL_PAGE_FILE_FLUSH_LSN from the checksum. */
 
-	const Bytef*	s	= data;
+	const Bytef*	s	= (const Bytef*)data;
 	ib_uint32_t crc32;
 
 	/* nizam: This is compatible with 5.6 page_zip_calc_checksum() */
@@ -412,22 +534,57 @@ buf_calc_page_old_checksum(
     return(checksum);
 }
 
+unsigned char
+page_is_leaf(
+/*=========*/
+	const uchar*	page)	/*!< in: page */
+{
+	return(!*(const unsigned short*) (page + (PAGE_HEADER + PAGE_LEVEL)));
+}
+
+
 void
 parse_page(
 /*=======*/
-	uchar* page) /* in: buffer page */
+	uchar* page,  /* in: buffer page */
+	int per_page_details) /* in: print out per-page details */
 {
 	unsigned long long id;
 	ulint x;
+	ulint n_recs;
+	ulint page_no;
+	ulint data_bytes;
+	int is_leaf;
+	int size_range_id;
+
+	n_recs = page_get_n_recs(page);
+	page_no = page_get_page_no(page);
+	data_bytes = page_get_data_size(page);
+	is_leaf = page_is_leaf(page);
+	size_range_id = (data_bytes * SIZE_RANGES_FOR_PAGE
+                         + MAX_DATA_BYTES_PER_PAGE - 1) / MAX_DATA_BYTES_PER_PAGE;
+	if (size_range_id > SIZE_RANGES_FOR_PAGE + 1) {
+	  /* data_bytes is bigger than MAX_DATA_BYTES_PER_PAGE */
+	  size_range_id = SIZE_RANGES_FOR_PAGE + 1;
+	}
 
 	switch (fil_page_get_type(page)) {
 	case FIL_PAGE_INDEX:
 		n_fil_page_index++;
 		id = ut_dulint_to_ull(btr_page_get_index_id(page));
-		if (id < MAX_INDEX_ID)
-			index_ids[id]++;
-		else
-			n_fil_page_max_index_id++;
+		if (per_page_details) {
+			printf("index %Lu page %lu leaf %u n_recs %lu data_bytes %lu\n",
+			       id, page_no, is_leaf, n_recs, data_bytes);
+		}
+		/* update per-index statistics */
+		if (index_ids.count(id) == 0) {
+		  index_ids.insert(std::make_pair(id, per_index_stats()));
+		}
+		index_ids[id].pages++;
+		if (is_leaf) index_ids[id].leaf_pages++;
+		index_ids[id].total_n_recs += n_recs;
+		index_ids[id].total_data_bytes += data_bytes;
+		index_ids[id].pages_in_size_range[size_range_id] ++;
 		break;
 	case FIL_PAGE_UNDO_LOG:
 		n_fil_page_undo_log++;
@@ -513,10 +670,25 @@ print_stats()
 		n_undo_state_cached, n_undo_state_to_free,
 		n_undo_state_to_purge, n_undo_state_prepared, n_undo_state_other);
 
-	printf("#pages\tindex_id\n");
-	for (i=0; i < MAX_INDEX_ID; i++) {
-		if (index_ids[i])
-			printf("%lld\t%lld\n", index_ids[i], i);
+	printf("index_id\t#pages\t\t#leaf_pages\t#recs_per_page\t#bytes_per_page\n");
+	for (std::map<unsigned long long, per_index_stats>::const_iterator it
+	       = index_ids.begin(); it != index_ids.end(); it++) {
+	  const per_index_stats& index = it->second;
+	  printf("%lld\t\t%lld\t\t%lld\t\t%lld\t\t%lld\n",
+		 it->first, index.pages, index.leaf_pages,
+		 index.total_n_recs / index.pages,
+		 index.total_data_bytes / index.pages);
+	}
+	printf("\n");
+	printf("index_id\tpage_data_bytes_histgram(empty,...,oversized)\n");
+	for (std::map<unsigned long long, per_index_stats>::const_iterator it
+	       = index_ids.begin(); it != index_ids.end(); it++) {
+	  printf("%lld\t", it->first);
+	  const per_index_stats& index = it->second;
+	  for (i = 0; i < SIZE_RANGES_FOR_PAGE+2; i++) {
+	    printf("\t%lld", index.pages_in_size_range[i]);
+	  }
+	  printf("\n");
 	}
 }
 
@@ -579,7 +751,7 @@ int checksum_match(uchar* p, ulint page_no, ulint page_size, int compressed, int
 
 int find_page_size(FILE *f, ulint *page_size, int *compressed, int debug)
 {
-  uchar *p = malloc(PAGE_ZIP_MIN_SIZE); /* buffer to read data */
+  uchar *p = (uchar*)malloc(PAGE_ZIP_MIN_SIZE); /* buffer to read data */
   ulint psize;
   int bytes;
   ulint flags;
@@ -623,7 +795,7 @@ int find_page_size(FILE *f, ulint *page_size, int *compressed, int debug)
   for (psize = 1024; psize < (1024 << 7); psize <<= 1) {
     if (debug)
       printf("checking if page_size is %luK\n", psize >> 10);
-    p = realloc(p, psize);
+    p = (uchar*)realloc(p, psize);
     bytes= fread(p, 1, psize, f);
     rewind(f);
 
@@ -664,6 +836,7 @@ int main(int argc, char **argv)
   off_t offset= 0;
   int just_count= 0;          /* if true, just print page count */
   int verbose= 0;
+  int per_page_details= 0;
   int debug= 0;
   int c;
   int fd;
@@ -672,12 +845,15 @@ int main(int argc, char **argv)
   ulint page_size = 0;
 
   /* remove arguments */
-  while ((c= getopt(argc, argv, "cvds:e:p:ub:")) != -1)
+  while ((c= getopt(argc, argv, "cvids:e:p:ub:")) != -1)
   {
     switch (c)
     {
     case 'v':
       verbose= 1;
+      break;
+    case 'i':
+      per_page_details= 1;
       break;
     case 'c':
       just_count= 1;
@@ -730,13 +906,14 @@ int main(int argc, char **argv)
   if (optind >= argc)
   {
     printf("InnoDB offline file checksum utility.\n");
-    printf("usage: %s [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v] [-d] <filename>\n", argv[0]);
+    printf("usage: %s [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v] [-d] [-i] <filename>\n", argv[0]);
     printf("\t-c\tprint the count of pages in the file\n");
     printf("\t-s n\tstart on this page number (0 based)\n");
     printf("\t-e n\tend at this page number (0 based)\n");
     printf("\t-p n\tcheck only this page (0 based)\n");
     printf("\t-v\tverbose (prints progress every 5 seconds)\n");
     printf("\t-d\tdebug mode (prints checksums for each page)\n");
+    printf("\t-i\tprint per-page details\n");
     return 1;
   }
 
@@ -850,7 +1027,7 @@ int main(int argc, char **argv)
       continue;
     }
 
-    parse_page(p);
+    parse_page(p, per_page_details);
 
     /* progress printing */
     if (verbose)
@@ -872,3 +1049,17 @@ int main(int argc, char **argv)
   return 0;
 }
 
+
+/* These are to make compilation work with -fno-implicit-templates */
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
+template void std::_Rb_tree<unsigned long long, std::pair<unsigned long long const, per_index_stats>, std::_Select1st<std::pair<unsigned long long const, per_index_stats> >, std::less<unsigned long long>, std::allocator<std::pair<unsigned long long const, per_index_stats> > >::_M_erase(std::_Rb_tree_node<std::pair<unsigned long long const, per_index_stats> >*);
+template std::_Rb_tree_iterator<std::pair<unsigned long long const, per_index_stats> > std::_Rb_tree<unsigned long long, std::pair<unsigned long long const, per_index_stats>, std::_Select1st<std::pair<unsigned long long const, per_index_stats> >, std::less<unsigned long long>, std::allocator<std::pair<unsigned long long const, per_index_stats> > >::_M_insert_unique_<std::pair<unsigned long long const, per_index_stats> >(std::_Rb_tree_const_iterator<std::pair<unsigned long long const, per_index_stats> >, std::pair<unsigned long long const, per_index_stats>&&);
+template std::_Rb_tree_iterator<std::pair<unsigned long long const, per_index_stats> > std::_Rb_tree<unsigned long long, std::pair<unsigned long long const, per_index_stats>, std::_Select1st<std::pair<unsigned long long const, per_index_stats> >, std::less<unsigned long long>, std::allocator<std::pair<unsigned long long const, per_index_stats> > >::_M_insert_<std::pair<unsigned long long const, per_index_stats> >(std::_Rb_tree_node_base const*, std::_Rb_tree_node_base const*, std::pair<unsigned long long const, per_index_stats>&&);
+template std::pair<std::_Rb_tree_iterator<std::pair<unsigned long long const, per_index_stats> >, bool> std::_Rb_tree<unsigned long long, std::pair<unsigned long long const, per_index_stats>, std::_Select1st<std::pair<unsigned long long const, per_index_stats> >, std::less<unsigned long long>, std::allocator<std::pair<unsigned long long const, per_index_stats> > >::_M_insert_unique<std::pair<unsigned long long const, per_index_stats> >(std::pair<unsigned long long const, per_index_stats>&&);
+template std::map<unsigned long long, per_index_stats>::iterator std::_Rb_tree<unsigned long long, std::pair<unsigned long long const, per_index_stats>, std::_Select1st<std::pair<unsigned long long const, per_index_stats> >, std::less<unsigned long long>, std::allocator<std::pair<unsigned long long const, per_index_stats> > >::_M_lower_bound(std::_Rb_tree_node<std::pair<unsigned long long const, per_index_stats> >*, std::_Rb_tree_node<std::pair<unsigned long long const, per_index_stats> >*, unsigned long long const&);
+template std::map<unsigned long long, per_index_stats>::const_iterator std::_Rb_tree<unsigned long long, std::pair<unsigned long long const, per_index_stats>, std::_Select1st<std::pair<unsigned long long const, per_index_stats> >, std::less<unsigned long long>, std::allocator<std::pair<unsigned long long const, per_index_stats> > >::find(unsigned long long const&) const;
+template std::pair<std::_Rb_tree_iterator<std::pair<unsigned long long const, per_index_stats> >, bool> std::_Rb_tree<unsigned long long, std::pair<unsigned long long const, per_index_stats>, std::_Select1st<std::pair<unsigned long long const, per_index_stats> >, std::less<unsigned long long>, std::allocator<std::pair<unsigned long long const, per_index_stats> > >::_M_insert_unique<std::pair<unsigned long long, per_index_stats> >(std::pair<unsigned long long, per_index_stats>&&);
+template std::map<unsigned long long, per_index_stats>::const_iterator std::_Rb_tree<unsigned long long, std::pair<unsigned long long const, per_index_stats>, std::_Select1st<std::pair<unsigned long long const, per_index_stats> >, std::less<unsigned long long>, std::allocator<std::pair<unsigned long long const, per_index_stats> > >::_M_lower_bound(std::_Rb_tree_node<std::pair<unsigned long long const, per_index_stats> > const*, std::_Rb_tree_node<std::pair<unsigned long long const, per_index_stats> > const*, unsigned long long const&) const;
+template std::_Rb_tree_iterator<std::pair<unsigned long long const, per_index_stats> > std::_Rb_tree<unsigned long long, std::pair<unsigned long long const, per_index_stats>, std::_Select1st<std::pair<unsigned long long const, per_index_stats> >, std::less<unsigned long long>, std::allocator<std::pair<unsigned long long const, per_index_stats> > >::_M_insert_<std::pair<unsigned long long, per_index_stats> >(std::_Rb_tree_node_base const*, std::_Rb_tree_node_base const*, std::pair<unsigned long long, per_index_stats>&&);
+
+#endif

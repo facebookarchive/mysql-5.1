@@ -47,6 +47,7 @@ bin_PROGRAMS =		replace perror resolveip my_print_defaults \
 # "innochecksum" should be switched
 if BUILD_INNODB_TOOLS
 bin_PROGRAMS += innochecksum
+innochecksum_SOURCES = innochecksum.cc
 endif
 
 noinst_PROGRAMS =	charset2html
