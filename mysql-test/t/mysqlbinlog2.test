@@ -42,23 +42,43 @@ select "--- Local --" as "";
 #
 let $MYSQLD_DATADIR= `select @@datadir`;
 --exec $MYSQL_BINLOG --short-form --base64-output=never $MYSQLD_DATADIR/master-bin.000001 
+--disable_query_log
+select "--- same as above with streaming input --" as "";
+--enable_query_log
+--exec cat $MYSQLD_DATADIR/master-bin.000001 | $MYSQL_BINLOG --short-form --base64-output=never -
 
 --disable_query_log
 select "--- offset --" as "";
 --enable_query_log
 --exec $MYSQL_BINLOG --short-form --offset=2 $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log
+select "--- offset with streaming input --" as "";
+--enable_query_log
+--exec cat $MYSQLD_DATADIR/master-bin.000001 | $MYSQL_BINLOG --short-form --offset=2 -
+--disable_query_log
 select "--- start-position --" as "";
 --enable_query_log
 --exec $MYSQL_BINLOG --short-form --start-position=608 $MYSQLD_DATADIR/master-bin.000001 
+--disable_query_log
+select "--- start-position with streaming input --" as "";
+--enable_query_log
+--exec cat $MYSQLD_DATADIR/master-bin.000001 | $MYSQL_BINLOG --short-form --start-position=608 -
 --disable_query_log
 select "--- stop-position --" as "";
 --enable_query_log
 --exec $MYSQL_BINLOG --short-form --stop-position=608 $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log
+select "--- stop-position with streaming input--" as "";
+--enable_query_log
+--exec cat $MYSQLD_DATADIR/master-bin.000001 | $MYSQL_BINLOG --short-form --stop-position=608 -
+--disable_query_log
 select "--- start and stop positions ---" as "";
 --enable_query_log
 --exec $MYSQL_BINLOG --short-form --start-position=608 --stop-position 725 $MYSQLD_DATADIR/master-bin.000001 
+--disable_query_log
+select "--- start and stop positions with streaming input---" as "";
+--enable_query_log
+--exec cat $MYSQLD_DATADIR/master-bin.000001 | $MYSQL_BINLOG --short-form --start-position=608 --stop-position 725 -
 --disable_query_log
 select "--- start-datetime --" as "";
 --enable_query_log

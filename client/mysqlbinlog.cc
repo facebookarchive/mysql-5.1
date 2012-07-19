@@ -1859,6 +1859,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   determining how to print.
 
   @param[in] logname Name of input binlog.
+  @param[in] stream_file   Used to indicate that file is a stream and
+                           therefore can't seek back and forth
 
   @retval ERROR_STOP An error occurred - the program should terminate.
   @retval OK_CONTINUE No error, the program should continue.
@@ -1867,7 +1869,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 */
 static Exit_status check_header(IO_CACHE* file,
                                 PRINT_EVENT_INFO *print_event_info,
-                                const char* logname)
+                                const char* logname,
+                                bool stream_file)
 {
   uchar header[BIN_LOG_HEADER_SIZE];
   uchar buf[PROBE_HEADER_LEN];
@@ -1881,7 +1884,18 @@ static Exit_status check_header(IO_CACHE* file,
   }
 
   pos= my_b_tell(file);
-  my_b_seek(file, (my_off_t)0);
+  if (!stream_file)
+  {
+    // seek to the start
+    my_b_seek(file, (my_off_t)0);
+  }
+  else if (pos != (my_off_t)0)
+  {
+    // if stream file and not already at start of file, we are out of luck
+    error("Cannot rewind to header in a stream.");
+    return ERROR_STOP;
+  }
+
   if (my_b_read(file, header, sizeof(header)))
   {
     error("Failed reading header; probably an empty file.");
@@ -1891,6 +1905,75 @@ static Exit_status check_header(IO_CACHE* file,
   {
     error("File is not a binary log file.");
     return ERROR_STOP;
+  }
+
+  /*
+     The rest of this function tries to figure out binlog format etc by reading
+     some events. We have two codepaths based on whether it is streaming file
+     or not. This is because we cannot go back and forth in a stream. Since the
+     streaming file only needs to be supported for 5.0+ formats, the code for
+     streaming path is simpler than the non-streaming case that handles all
+     formats.
+  */
+  if (stream_file)
+  {
+    for (;;)
+    {
+      pos= my_b_tell(file);
+
+      if (pos >= start_position)
+      {
+        return OK_CONTINUE;
+      }
+
+      Log_event *ev;
+      if (!(ev= Log_event::read_log_event(file, glob_description_event)))
+      {
+        if (file->error)
+        {
+          error("Could not read a log_event at offset %llu;"
+                " this could be a log format error or read error.",
+                (ulonglong)pos);
+          return ERROR_STOP;
+        }
+        // EOF
+        return OK_CONTINUE;
+      }
+
+      if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
+      {
+        delete ev;
+        ev = NULL;
+        continue;
+      }
+
+      Format_description_log_event *new_description_event =
+        static_cast<Format_description_log_event *>(ev);
+
+      if (opt_base64_output_mode == BASE64_OUTPUT_AUTO
+          || opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
+      {
+        /*
+          process_event will delete *description_event and set it to
+          the new one, so we should not do it ourselves in this
+          case.
+        */
+        Exit_status retval= process_event(print_event_info,
+                                          new_description_event, pos,
+                                          logname);
+        if (retval != OK_CONTINUE)
+          return retval;
+      }
+      else
+      {
+        delete glob_description_event;
+        glob_description_event= new_description_event;
+      }
+
+
+    }
+
+    return OK_CONTINUE;
   }
 
   /*
@@ -2047,7 +2130,8 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       my_close(fd, MYF(MY_WME));
       return ERROR_STOP;
     }
-    if ((retval= check_header(file, print_event_info, logname)) != OK_CONTINUE)
+    if ((retval= check_header(file, print_event_info, logname, FALSE)) 
+        != OK_CONTINUE)
       goto end;
   }
   else
@@ -2074,23 +2158,9 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       error("Failed to init IO cache.");
       return ERROR_STOP;
     }
-    if ((retval= check_header(file, print_event_info, logname)) != OK_CONTINUE)
+    if ((retval= check_header(file, print_event_info, logname, TRUE)) 
+        != OK_CONTINUE)
       goto end;
-    if (start_position)
-    {
-      /* skip 'start_position' characters from stdin */
-      uchar buff[IO_SIZE];
-      my_off_t length,tmp;
-      for (length= start_position_mot ; length > 0 ; length-=tmp)
-      {
-	tmp=min(length,sizeof(buff));
-	if (my_b_read(file, buff, (uint) tmp))
-        {
-          error("Failed reading from file.");
-          goto err;
-        }
-      }
-    }
   }
 
   if (!glob_description_event || !glob_description_event->is_valid())
