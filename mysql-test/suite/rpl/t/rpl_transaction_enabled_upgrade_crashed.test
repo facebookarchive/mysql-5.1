@@ -1,0 +1,95 @@
+#
+# Test starting a mysqld binary which reads and stores 2 blocks of replication
+# data in InnoDB's system header with data files written by an old binary
+# which only stored one and where the previous server crashed at a very
+# inopportune moment.
+#
+
+source include/have_innodb.inc;
+source include/have_debug.inc;
+source include/master-slave.inc;
+
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+call mtr.add_suppression(".*Rollback done for prepared transaction because its XID was not in the binlog\..*");
+call mtr.add_suppression("Failed to initialize the master info structure");
+call mtr.add_suppression("init_relay_log_info: slave state mismatch between InnoDB and relay-log.info: will use InnoDB data\.");
+
+CREATE TABLE t1(a int primary key) engine=innodb;
+insert into t1 values(10);
+sync_slave_with_master;
+
+show variables like 'innodb_old_rpl_transaction';
+show variables like 'log_slave_updates';
+
+# Setup the mysqld to crash at certain point
+SET GLOBAL debug="d,crash_before_writing_xid";
+
+# And also to wait to restart
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+
+# Issue transaction which will crash the slave
+connection master;
+insert into t1 values(11);
+
+# Wait for the slave to crash
+connection slave;
+--source include/wait_until_disconnected.inc
+
+# Restart the slave with the 2 block replication state functionality
+--enable_reconnect
+--exec echo "restart:--skip-innodb-old-rpl-transaction" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--source include/wait_until_connected_again.inc
+
+show variables like 'innodb_old_rpl_transaction';
+
+# Slave should fail to start because crash recovery did a rollback but the
+# prepared replication block in InnoDB's system header does not contain
+# valid data
+--error ER_MASTER_INFO
+start slave;
+
+# Begin cleaning up
+stop slave;
+drop table t1;
+
+connection master;
+drop table t1;
+reset master;
+
+connection slave;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--source include/wait_until_connected_again.inc
+
+reset slave;
+start slave;
+
+# Ensure slave is replicating again
+connection master;
+CREATE TABLE t1(a int primary key) engine=innodb;
+insert into t1 values(12);
+select * from t1;
+
+sync_slave_with_master;
+select * from t1;
+
+SET GLOBAL INNODB_FILE_FORMAT_CHECK=`ANTELOPE`;
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+
+connection server_2;
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--source include/rpl_end.inc

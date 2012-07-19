@@ -150,7 +150,7 @@ int init_relay_log_info(Relay_log_info* rli,
     /* data structure initialization */
     rli->relay_log.set_master_info(active_mi);
 
-    if (innobase_get_mysql_relay_log_pos() == RPL_BAD_POS)
+    if (innobase_get_mysql_relay_log_pos(FALSE) == RPL_BAD_POS)
     {
       sql_print_information("init_relay_log_info: no adjustment"
                             " from InnoDB because slave state not valid");
@@ -159,6 +159,36 @@ int init_relay_log_info(Relay_log_info* rli,
     {
       const char *name;
       char llbuf1[22], llbuf2[22];
+      /*
+        If crash recovery rolled back a prepared transaction, then we want
+        to use the replication state for the last committed transaction, which
+        is earlier in the replication stream. If recovery did not do a rollback
+        then use the replication state for the prepared transaction in case
+        there was a transaction written to the bin log but left as prepared
+        in InnoDB.
+       */
+      my_bool prepared= !xa_recovery_did_rollback;
+
+      sql_print_information("init_relay_log_info: prepared slave state from "
+                            "InnoDB: relay-log['%s'(%s)], master-log['%s'(%s)]",
+                            innobase_get_mysql_relay_log_name(TRUE),
+                            llstr(innobase_get_mysql_relay_log_pos(TRUE),
+                                  llbuf1),
+                            innobase_get_mysql_master_log_name(TRUE),
+                            llstr(innobase_get_mysql_master_log_pos(TRUE),
+                                  llbuf2));
+      sql_print_information("init_relay_log_info: committed slave state from "
+                            "InnoDB: relay-log['%s'(%s)], master-log['%s'(%s)]",
+                            innobase_get_mysql_relay_log_name(FALSE),
+                            llstr(innobase_get_mysql_relay_log_pos(FALSE),
+                                  llbuf1),
+                            innobase_get_mysql_master_log_name(FALSE),
+                            llstr(innobase_get_mysql_master_log_pos(FALSE),
+                                  llbuf2));
+      sql_print_information("init_relay_log_info: will use %s because crash "
+                            "recovery %s do a rollback.",
+                            prepared ? "prepared" : "committed",
+                            prepared ? "did not" : "did");
 
       /*
          update_master_info() might truncate relay-log to avoid re-appending
@@ -167,29 +197,28 @@ int init_relay_log_info(Relay_log_info* rli,
          get confused.  We read the commit information in InnoDB transaction log
          to make sure that truncation would not operate before the point.
        */
-      name = innobase_get_mysql_relay_log_name();
+      name = innobase_get_mysql_relay_log_name(prepared);
       strmake(group_relay_log_name, name, strlen(name));
-      group_relay_log_pos = innobase_get_mysql_relay_log_pos();
+      group_relay_log_pos = innobase_get_mysql_relay_log_pos(prepared);
 
-      name = innobase_get_mysql_master_log_name();
+      name = innobase_get_mysql_master_log_name(prepared);
       strmake(group_master_log_name, name, strlen(name));
-      group_master_log_pos = innobase_get_mysql_master_log_pos();
-
-      sql_print_information("init_relay_log_info: slave state from InnoDB: "
-                            "relay-log['%s'(%s)], master-log['%s'(%s)]",
-                            group_relay_log_name,
-                            llstr(group_relay_log_pos, llbuf1),
-                            group_master_log_name,
-                            llstr(group_master_log_pos, llbuf2));
+      group_master_log_pos = innobase_get_mysql_master_log_pos(prepared);
     }
 
-    if (xa_recovery_did_rollback)
+    if (xa_recovery_did_rollback && (
+#ifndef DBUG_OFF
+          innobase_using_old_rpl_transaction() ||
+#endif
+          innobase_get_mysql_relay_log_pos(TRUE) == RPL_BAD_POS))
     {
       /*
-        rpl_transaction_enabled state in InnoDB won't get updated for the rollback
-        but rollback will be done to InnoDB for a prepared transaction that did not
-        have its XID in the binlog. If it continued from here, InnoDB would lose the
-        last transaction on rollback but slave SQL thread would skip it. Sorry.
+        A transaction was prepared in InnoDB but its XID was not in the binlog
+        so it was rolled back during crash recovery. Unfortunately this
+        slave does not have the prepared rpl_transaction_enabled state in
+        InnoDB (because the InnoDB sys table was written with a previous version
+        of the server which didn't have support for it.). Thus, if it continued
+        from here, the slave SQL thread would skip the transaction. Sorry.
       */
       const char* emsg=
           "Rollback done for prepared transaction because its XID was not "

@@ -12,14 +12,11 @@ insert into t1 values(10);
 COMMIT;
 insert into t1 values(11);
 start slave;
-ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
-delete from t1;
-reset master;
 insert into t1 values (12);
-delete from t1;
 show global status like "Xa_recovery_rollback";
 Variable_name	Value
 Xa_recovery_rollback	1
+stop slave;
 change master to master_host='127.0.0.1',master_port=#, master_user='root';
 show global status like "Xa_recovery_rollback";
 Variable_name	Value
@@ -27,6 +24,8 @@ Xa_recovery_rollback	0
 start slave;
 select * from t1;
 a
+10
+11
 12
 SET GLOBAL INNODB_FILE_FORMAT_CHECK=`ANTELOPE`;
 drop table t1;

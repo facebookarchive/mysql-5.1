@@ -2260,11 +2260,15 @@ extern ulong relay_io_connected;
  * the slave may concurrently update them. They can be called after
  * innobase_read_mysql_slave_state has been called. */
 /* @{ */
-const char *innobase_get_mysql_relay_log_name();
-ulonglong innobase_get_mysql_relay_log_pos();
-const char *innobase_get_mysql_master_log_name();
-ulonglong innobase_get_mysql_master_log_pos();
+const char *innobase_get_mysql_relay_log_name(my_bool prepared);
+ulonglong innobase_get_mysql_relay_log_pos(my_bool prepared);
+const char *innobase_get_mysql_master_log_name(my_bool prepared);
+ulonglong innobase_get_mysql_master_log_pos(my_bool prepared);
 /* @} */
+
+#ifndef DBUG_OFF
+my_bool innobase_using_old_rpl_transaction();
+#endif
 
 /** Returns != 0 when the InnoDB plugin has been initialized. */
 SHOW_COMP_OPTION innobase_have_innodb();

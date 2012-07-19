@@ -1,17 +1,16 @@
 include/master-slave.inc
 [connection master]
 drop table if exists t1;
-call mtr.add_suppression(".*");
 CREATE TABLE t1(a int primary key) engine=innodb;
-show variables like 'log_slave_updates';
-Variable_name	Value
-log_slave_updates	ON
-SET GLOBAL debug="d,crash_before_writing_xid";
-BEGIN;
 insert into t1 values(10);
-COMMIT;
-insert into t1 values(11);
+show variables like 'innodb_old_rpl_transaction';
+Variable_name	Value
+innodb_old_rpl_transaction	ON
+show variables like 'innodb_old_rpl_transaction';
+Variable_name	Value
+innodb_old_rpl_transaction	OFF
 start slave;
+insert into t1 values(11);
 select * from t1;
 a
 10
@@ -20,6 +19,7 @@ select * from t1;
 a
 10
 11
+start slave;
 SET GLOBAL INNODB_FILE_FORMAT_CHECK=`ANTELOPE`;
 DROP TABLE t1;
-stop slave;
+include/rpl_end.inc

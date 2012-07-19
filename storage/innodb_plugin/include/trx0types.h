@@ -64,6 +64,8 @@ typedef struct roll_node_struct	roll_node_t;
 typedef struct commit_node_struct commit_node_t;
 /** SAVEPOINT command node in a query graph */
 typedef struct trx_named_savept_struct trx_named_savept_t;
+/** rpl_transaction_enabled information */
+typedef struct trx_sys_mysql_replication_struct trx_sys_mysql_replication_t;
 /* @} */
 
 /** Rollback contexts */

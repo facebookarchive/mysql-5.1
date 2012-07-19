@@ -4708,8 +4708,8 @@ static Log_event* next_event(Relay_log_info* rli)
          * tranaction spans more than a single relay log. Don't purge in
          * that case.
          */
-        if ((strlen(innobase_get_mysql_relay_log_name()) > 0 &&
-             innobase_get_mysql_relay_log_pos() != RPL_BAD_POS))
+        if ((strlen(innobase_get_mysql_relay_log_name(FALSE)) > 0 &&
+             innobase_get_mysql_relay_log_pos(FALSE) != RPL_BAD_POS))
         {
           DBUG_EXECUTE_IF("pause_sql_thread_before_purge", sleep(1););
 
@@ -4718,7 +4718,7 @@ static Log_event* next_event(Relay_log_info* rli)
           /* Delete all files before InnoDB's current one. */
           int purge_res=
               rli->relay_log.purge_logs(
-                  innobase_get_mysql_relay_log_name(),
+                  innobase_get_mysql_relay_log_name(FALSE),
                   /*included*/0,
                   /*need_mutex*/0,
                   /*need_update_threads*/0,

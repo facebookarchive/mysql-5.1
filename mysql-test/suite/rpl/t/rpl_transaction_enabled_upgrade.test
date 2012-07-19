@@ -1,0 +1,62 @@
+#
+# Test starting a mysqld binary which reads and stores 2 blocks of replication
+# data in InnoDB's system header with data files written by an old binary
+# which only stored one.
+#
+
+source include/have_innodb.inc;
+source include/have_debug.inc;
+source include/master-slave.inc;
+
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1(a int primary key) engine=innodb;
+insert into t1 values(10);
+sync_slave_with_master;
+
+show variables like 'innodb_old_rpl_transaction';
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+--enable_reconnect
+--exec echo "restart:--skip-innodb-old-rpl-transaction" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--source include/wait_until_connected_again.inc
+
+show variables like 'innodb_old_rpl_transaction';
+
+start slave;
+
+connection master;
+insert into t1 values(11);
+select * from t1;
+
+sync_slave_with_master;
+select * from t1;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--source include/wait_until_connected_again.inc
+
+start slave;
+
+SET GLOBAL INNODB_FILE_FORMAT_CHECK=`ANTELOPE`;
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+
+connection server_2;
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--source include/rpl_end.inc

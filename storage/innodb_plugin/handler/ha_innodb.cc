@@ -11075,40 +11075,62 @@ ha_innobase::get_mysql_bin_log_pos()
 }
 
 UNIV_INTERN
-char*
-innobase_get_mysql_relay_log_name()
-/*===============================*/
-		/* out: pointer to buffer for relay log name */
+const char*
+innobase_get_mysql_relay_log_name(
+/*==============================*/
+	my_bool	prepared)		/*!< in: want the prepard block? */
+		/* out: pointer to the buffer for relay log name */
 {
-	return(trx_sys_mysql_relay_log_name);
+	const trx_sys_mysql_replication_t* trx_rpl =
+		trx_sys_get_mysql_replication_for_read(prepared);
+	return(trx_rpl->relay_log_name);
 }
 
 UNIV_INTERN
 ulonglong
-innobase_get_mysql_relay_log_pos()
-/*==============================*/
+innobase_get_mysql_relay_log_pos(
+/*=============================*/
+	my_bool	prepared)		/*!< in: want the prepard block? */
 		/* out: relay log position */
 {
-	return(trx_sys_mysql_relay_log_pos);
+	const trx_sys_mysql_replication_t* trx_rpl =
+		trx_sys_get_mysql_replication_for_read(prepared);
+	return(trx_rpl->relay_log_pos);
 }
 
 UNIV_INTERN
-char*
-innobase_get_mysql_master_log_name()
-/*================================*/
+const char*
+innobase_get_mysql_master_log_name(
+/*===============================*/
+	my_bool	prepared)		/*!< in: want the prepard block? */
 		/* out: pointer to buffer for master log name */
 {
-	return(trx_sys_mysql_master_log_name);
+	const trx_sys_mysql_replication_t* trx_rpl =
+		trx_sys_get_mysql_replication_for_read(prepared);
+	return(trx_rpl->master_log_name);
 }
 
 UNIV_INTERN
 ulonglong
-innobase_get_mysql_master_log_pos()
-/*===============================*/
+innobase_get_mysql_master_log_pos(
+/*==============================*/
+	my_bool	prepared)		/*!< in: want the prepard block? */
 		/* out: master log position */
 {
-	return(trx_sys_mysql_master_log_pos);
+	const trx_sys_mysql_replication_t* trx_rpl =
+		trx_sys_get_mysql_replication_for_read(prepared);
+	return(trx_rpl->master_log_pos);
 }
+
+#ifdef UNIV_DEBUG
+UNIV_INTERN
+my_bool
+innobase_using_old_rpl_transaction()
+/*================================*/
+{
+	return trx_old_rpl_transaction;
+}
+#endif
 
 UNIV_INTERN
 int
@@ -11185,6 +11207,8 @@ innobase_set_mysql_slave_state(
 {
 	char buf1[22], buf2[22];
 	mtr_t mtr;
+	const trx_sys_mysql_replication_t* trx_rpl =
+		trx_sys_get_mysql_replication_for_read(FALSE);
 
 	if (!innodb_hton_ptr ||
             innodb_hton_ptr->state != SHOW_OPTION_YES ||
@@ -11195,22 +11219,22 @@ innobase_set_mysql_slave_state(
 
 	sql_print_information("InnoDB changed master log from "
 		"'%s' position %s to '%s' position %s",
-		trx_sys_mysql_master_log_name,
-		llstr((longlong)trx_sys_mysql_master_log_pos, buf1),
+		trx_rpl->master_log_name,
+		llstr((longlong)trx_rpl->master_log_pos, buf1),
 		master_log_name,
 		llstr((longlong)master_log_pos, buf2));
 
 	sql_print_information("InnoDB changed relay log from "
 		"'%s' position %s to '%s' position %s",
-		trx_sys_mysql_relay_log_name,
-		llstr((longlong)trx_sys_mysql_relay_log_pos, buf1),
+		trx_rpl->relay_log_name,
+		llstr((longlong)trx_rpl->relay_log_pos, buf1),
 		relay_log_name,
 		llstr((longlong)relay_log_pos, buf2));
 
 	mtr_start(&mtr);
-	trx_sys_update_slave_state(relay_log_name, relay_log_pos,
+	trx_sys_update_slave_state(FALSE, relay_log_name, relay_log_pos,
 				master_log_name, master_log_pos,
-				TRX_SYS_MYSQL_RELAY_INFO, &mtr, NULL, TRUE);
+				&mtr, NULL, TRUE);
 	mtr_commit(&mtr);
 	/* TODO: return 0 */
 }
@@ -12891,6 +12915,11 @@ static MYSQL_SYSVAR_BOOL(allow_ibuf_merges, srv_allow_ibuf_merges,
   "Allow insert buffer merges (for testing)",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(old_rpl_transaction, trx_old_rpl_transaction,
+  PLUGIN_VAR_NOCMDARG,
+  "Use the old rpl_transaction_enabled behavior of only storing one block.",
+  NULL, NULL, FALSE);
+
 #endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -13014,6 +13043,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
   MYSQL_SYSVAR(buffer_pool_min_pages_div32),
   MYSQL_SYSVAR(allow_ibuf_merges),
+  MYSQL_SYSVAR(old_rpl_transaction),
 #endif /* UNIV_DEBUG */
   NULL
 };

@@ -1,0 +1,1 @@
+--rpl-transaction-enabled --sync-binlog=1 --innodb-flush-log-at-trx-commit=1 --skip-core-file --innodb-old-rpl-transaction --force-restart

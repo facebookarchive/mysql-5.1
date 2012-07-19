@@ -41,27 +41,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0types.h"
 #include "page0types.h"
 
-/** In a MySQL replication slave, in crash recovery we store the master log
-file name and position here. */
-/* @{ */
-/** Master binlog file name */
-extern char		trx_sys_mysql_master_log_name[];
-/** Master binlog file position.  We have successfully got the updates
-up to this position.  -1 means that no crash recovery was needed, or
-there was no master log position info inside InnoDB.*/
-extern ib_int64_t	trx_sys_mysql_master_log_pos;
-/* @} */
-
-/** Used for rpl_transaction_enabled to store relay log offset.
-@see trx_sys_mysql_master_name
-*/
-/* ${ */
-/** Relay log file name */
-extern char		trx_sys_mysql_relay_log_name[];
-/** Relay log offset */
-extern ib_int64_t	trx_sys_mysql_relay_log_pos;
-/* @} */
-
 /** If this MySQL server uses binary logging, after InnoDB has been inited
 and if it has done a crash recovery, we store the binlog file name and position
 here. */
@@ -327,6 +306,29 @@ trx_sys_update_mysql_binlog_offset(
 	mtr_t*		mtr,	/*!< in: mtr */
 	trx_sysf_t**	sys_header_ptr);/* out: fetched and locked here, may
 				be used by trx_sys_update_slave_state */
+/********************************************************************//**
+Abstraction for rpl_transaction_enabled since there is another flag,
+trx_old_rpl_transaction, which may change the number of replication blocks
+tracked and stored in the system header. */
+UNIV_INTERN
+const trx_sys_mysql_replication_t*
+trx_sys_get_mysql_replication_for_read(
+/*===================================*/
+	ibool		prepare);	/*!< in: want prepared block? */
+					/*!< out: slot to use */
+/********************************************************************//**
+Abstraction for rpl_transaction_enabled since there is another flag,
+trx_old_rpl_transaction, which may change the number of replication blocks
+tracked and stored in the system header. If num_slots == 2, then the first
+is the commit block and the second is the prepare block. */
+UNIV_INTERN
+void
+trx_sys_get_mysql_replication_for_write(
+/*====================================*/
+	uint*		num_slots,	/*!< out: number of slots to use */
+	trx_sys_mysql_replication_t**	trx_rpl,
+					/*!< out: array of slots to use */
+	ibool		prepare);	/*!< in: prepare code path? */
 /*****************************************************************//**
 In a MySQL replication slave updates the latest relay log and master
 log position up to which replication has proceeded. */
@@ -334,12 +336,11 @@ UNIV_INTERN
 void
 trx_sys_update_slave_state(
 /*=======================*/
+	ibool		prepare,	/* in: update only prepared? */
 	const char*	relaylog_name,	/* in: relay-log file name */
 	ib_int64_t	relaylog_pos,	/* in: position in relay-log file */
 	const char*	masterlog_name,	/* in: relay-log file name */
 	ib_int64_t	masterlog_pos,	/* in: position in relay-log file */
-	ulint		field,		/* in: offset of the MySQL log info
-					field in the trx sys header */
 	mtr_t*		mtr,		/* in: mtr */
 	trx_sysf_t*	sys_header,	/* in: fetched and locked by
 					trx_sys_update_mysql_binlog_offset */
@@ -542,8 +543,12 @@ All relay-log information should end at offset 520.
 */
 /* @{ */
 
-/** The offset of the MySQL replication info in the trx system header.
-Contains the same fields as TRX_SYS_MYSQL_LOG_INFO. */
+/** The offset of the prepared MySQL replication info in the trx system
+header. Contains the same fields as TRX_SYS_MYSQL_LOG_INFO. */
+#define TRX_SYS_MYSQL_RELAY_INFO_PREPARED (UNIV_PAGE_SIZE - 3000)
+
+/** The offset of the committed MySQL replication info in the trx system
+header. Contains the same fields as TRX_SYS_MYSQL_LOG_INFO. */
 #define TRX_SYS_MYSQL_RELAY_INFO	(UNIV_PAGE_SIZE - 2000)
 
 #define	TRX_SYS_MYSQL_RELAYLOG_MAGIC_N_FLD  0
@@ -580,8 +585,8 @@ Contains the same fields as TRX_SYS_MYSQL_LOG_INFO. */
 /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
 #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
 
-#if UNIV_PAGE_SIZE < 4096
-# error "UNIV_PAGE_SIZE < 4096"
+#if UNIV_PAGE_SIZE < 5120
+# error "UNIV_PAGE_SIZE < 5120"
 #endif
 
 /** High 4 bytes of the offset within that file */
@@ -721,6 +726,29 @@ struct trx_sys_struct{
 					/*!< List of read views sorted
 					on trx no, biggest first */
 };
+
+/** In a MySQL replication slave, in crash recovery we store the master and
+relay logs file names and positions here. */
+struct trx_sys_mysql_replication_struct{
+	char		master_log_name[TRX_SYS_MYSQL_RELAY_NAME_LEN];
+					/*!< Master binlog file name */
+	ib_int64_t	master_log_pos;	/*!< Master binlog file position.  We
+					have successfully got the updates up to
+					this position. -1 means that no crash
+					recovery was needed, or there was no
+					master log position info inside
+					InnoDB.*/
+	char		relay_log_name[TRX_SYS_MYSQL_RELAY_NAME_LEN];
+					/*!< Relay log file name */
+	ib_int64_t	relay_log_pos;	/*!< Relay log offset */
+	uint		offset;		/*!< Offset in the system header */
+};
+
+#ifdef UNIV_DEBUG
+/** Use the old style rpl_transaction_enabled which only stored one block of
+replication information in the system header. */
+extern UNIV_INTERN my_bool  trx_old_rpl_transaction;
+#endif
 
 /** When a trx id which is zero modulo this number (which must be a power of
 two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system

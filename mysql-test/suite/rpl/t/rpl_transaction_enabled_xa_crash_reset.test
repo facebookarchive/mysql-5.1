@@ -48,17 +48,14 @@ connection slave;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
---error ER_MASTER_INFO
 start slave;
 
 connection master;
-delete from t1;
-reset master;
 insert into t1 values (12);
 
 connection slave;
-delete from t1;
 show global status like "Xa_recovery_rollback";
+stop slave;
 --replace_regex /master_port=[0-9]+,/master_port=#,/
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
 show global status like "Xa_recovery_rollback";

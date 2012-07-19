@@ -1,0 +1,40 @@
+include/master-slave.inc
+[connection master]
+drop table if exists t1;
+call mtr.add_suppression(".*Rollback done for prepared transaction because its XID was not in the binlog\..*");
+call mtr.add_suppression("Failed to initialize the master info structure");
+call mtr.add_suppression("init_relay_log_info: slave state mismatch between InnoDB and relay-log.info: will use InnoDB data\.");
+CREATE TABLE t1(a int primary key) engine=innodb;
+insert into t1 values(10);
+show variables like 'innodb_old_rpl_transaction';
+Variable_name	Value
+innodb_old_rpl_transaction	ON
+show variables like 'log_slave_updates';
+Variable_name	Value
+log_slave_updates	ON
+SET GLOBAL debug="d,crash_before_writing_xid";
+insert into t1 values(11);
+show variables like 'innodb_old_rpl_transaction';
+Variable_name	Value
+innodb_old_rpl_transaction	OFF
+start slave;
+ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
+stop slave;
+Warnings:
+Note	1255	Slave already has been stopped
+drop table t1;
+drop table t1;
+reset master;
+reset slave;
+start slave;
+CREATE TABLE t1(a int primary key) engine=innodb;
+insert into t1 values(12);
+select * from t1;
+a
+12
+select * from t1;
+a
+12
+SET GLOBAL INNODB_FILE_FORMAT_CHECK=`ANTELOPE`;
+DROP TABLE t1;
+include/rpl_end.inc
