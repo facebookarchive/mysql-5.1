@@ -165,7 +165,7 @@ typedef	byte	fseg_inode_t;
 
 #define FSEG_MAGIC_N_VALUE	97937874
 
-double fseg_reserve_factor = 0.125;	/* If this value is x, then if
+double fseg_reserve_factor = 0.01;	/* If this value is x, then if
 					the number of unused but reserved
 					pages in a segment is less than
 					reserved pages * x, and there are
