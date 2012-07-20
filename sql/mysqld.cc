@@ -722,6 +722,7 @@ ulong group_commit_hang_log_secs= GC_HANG_SECS;
 my_bool opt_log_slow_extra;
 
 ulong opt_peak_lag_sample_rate;
+ulong opt_max_load_infile_size;
 
 my_bool rpl_transaction_enabled= FALSE;
 
@@ -6157,6 +6158,7 @@ enum options_mysqld
   OPT_LOG_DATAGRAM_USECS,
   OPT_LOG_SLOW_EXTRA,
   OPT_PEAK_LAG_SAMPLE_RATE,
+  OPT_MAX_LOAD_INFILE_SIZE,
   OPT_NET_COMPRESSION_LEVEL,
   OPT_RPL_TRANSACTION_ENABLED,
   OPT_RPL_EVENT_BUFFER_SIZE,
@@ -7849,6 +7851,11 @@ thread is in the relay logs.",
     "peak replication lag over some period",
     &opt_peak_lag_sample_rate, &opt_peak_lag_sample_rate,
     0, GET_ULONG, REQUIRED_ARG, 100, 1, ULONG_MAX, 0, 1, 0},
+   {"max_load_infile_size", OPT_MAX_LOAD_INFILE_SIZE,
+    "The size of the file being loaded using LOAD DATA INFILE can "
+    "not exceed the specified value in bytes",
+    &opt_max_load_infile_size, &opt_max_load_infile_size,
+    0, GET_ULONG, REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
 #ifdef HAVE_INNODB_BINLOG
   {"rpl_transaction_enabled", OPT_RPL_TRANSACTION_ENABLED,
    "Makes slave replication state mostly crash proof for InnoDB",
@@ -8867,6 +8874,8 @@ static int mysql_init_variables(void)
   opt_log_slow_extra= FALSE;
 
   opt_peak_lag_sample_rate= 100;
+
+  opt_max_load_infile_size=0;
 
   rpl_transaction_enabled= FALSE;
 

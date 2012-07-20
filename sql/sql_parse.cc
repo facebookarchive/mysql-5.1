@@ -38,6 +38,7 @@ my_atomic_bigint transaction_control_fails= 0;
 #include "events.h"
 #include "sql_trigger.h"
 #include "debug_sync.h"
+#include "mysql_priv.h"
 
 #ifdef HAVE_JEMALLOC
 #include "jemalloc/jemalloc.h"
@@ -4091,6 +4092,20 @@ end_with_restore_list:
     if (!thd->locked_tables &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
       goto error;
+
+
+    struct stat fileStat_struct;
+    if(!lex->local_file &&
+       stat(lex->exchange->file_name,&fileStat_struct) >= 0)
+    {
+      unsigned int sz = fileStat_struct.st_size;
+      ulong limit =  opt_max_load_infile_size;
+      if (limit > 0 && sz > limit)
+      {
+        my_error(ER_WRONG_USAGE, MYF(0), "Loading a file that is too large.");
+        goto error;
+      }
+    }
 
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
                     lex->update_list, lex->value_list, lex->duplicates,

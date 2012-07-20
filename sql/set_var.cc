@@ -1002,6 +1002,9 @@ static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                           &opt_slow_log, QUERY_LOG_SLOW);
 static sys_var_bool_ptr sys_log_datagram(&vars, "log_datagram", &log_datagram,
                                   setup_datagram_socket);
+/* Global variables which holds the max file size when files are loaded. */
+static sys_var_long_ptr sys_max_load_infile_size(&vars, "max_load_infile_size",
+                                                 &opt_max_load_infile_size);
 static sys_var_long_ptr sys_log_datagram_usecs(&vars, "log_datagram_usecs",
                                         &log_datagram_usecs);
 static sys_var_bool_ptr sys_log_slow_extra(&vars, "log_slow_extra", &opt_log_slow_extra);
