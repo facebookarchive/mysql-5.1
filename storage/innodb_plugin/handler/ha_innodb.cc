@@ -12381,13 +12381,22 @@ static MYSQL_SYSVAR_DOUBLE(padding_max_fail_rate,
   dict_padding_max_fail_rate, PLUGIN_VAR_OPCMDARG,
   "If the compression failure rate of a table is greater than this number"
   " InnoDB will continue to increase the padding size.",
-  NULL, NULL, 0.05, 0.01, 0.99, 0);
+  NULL, NULL, 0.1, 0.01, 0.99, 0);
 
 static MYSQL_SYSVAR_DOUBLE(padding_max,
   dict_padding_max, PLUGIN_VAR_OPCMDARG,
   "This determines the maximum amount of empty space that can be  reserved on a"
   " page to make the page compressible as a fraction of the page size.",
-  NULL, NULL, 0.5, 0.0, 1.0, 0);
+  NULL, NULL, 0.4, 0.0, 1.0, 0);
+
+static MYSQL_SYSVAR_UINT(padding_rounds_successful_max,
+  dict_padding_linear_successful_rounds_max,
+  PLUGIN_VAR_OPCMDARG,
+  "If the compression failure is lower than the desired rate for a fixed number"
+  " of consecutive rounds, then the padding is decreased by a fixed value. This"
+  " is done to prevent overshooting the padding value, and to accommodate the"
+  " possible change in data compressibility.",
+  NULL, NULL, 2, 1, 10, 0);
 
 static MYSQL_SYSVAR_UINT(padding_algo, dict_padding_algo,
   PLUGIN_VAR_OPCMDARG,
@@ -12931,6 +12940,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(padding_max_fail_rate),
   MYSQL_SYSVAR(padding_max),
   MYSQL_SYSVAR(padding_algo),
+  MYSQL_SYSVAR(padding_rounds_successful_max),
   MYSQL_SYSVAR(simulate_comp_failures),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),

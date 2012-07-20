@@ -5079,9 +5079,9 @@ dict_close(void)
 PADDING
 We pad uncompressed pages of compressed tables to reduce compression failures
 and improve performance */
-UNIV_INTERN double dict_padding_max_fail_rate = 0.05;
+UNIV_INTERN double dict_padding_max_fail_rate = 0.1;
 /* max compression failure rate we are willing to tolerate */
-UNIV_INTERN double dict_padding_max = .5;
+UNIV_INTERN double dict_padding_max = 0.4;
 /* the max percentage of page that can be reserved for padding */
 UNIV_INTERN uint dict_padding_algo = PADDING_ALGO_LINEAR;
 /* padding algorithm to be used. Current options: PADDING_ALGO_NONE
@@ -5100,7 +5100,7 @@ is done to prevent overshooting the padding value, and to accommodate the
 possible change in data compressibility.
 */
 ulint dict_padding_linear_round_len = 128;
-ulint dict_padding_linear_successful_rounds_max = 5;
+uint dict_padding_linear_successful_rounds_max = 2;
 ulint dict_padding_linear_increment = 128;
 
 typedef struct padding_algo_linear_st {

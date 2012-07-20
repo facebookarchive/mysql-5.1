@@ -58,7 +58,11 @@ padding algorithms. */
 extern double dict_padding_max;
 /** Current padding algorithm. */
 extern uint dict_padding_algo;
-
+/** If the compression failure is lower than the desired rate for a fixed number
+of consecutive rounds, then the padding is decreased by a fixed value. This
+is done to prevent overshooting the padding value, and to accommodate the
+possible change in data compressibility. */
+extern uint dict_padding_linear_successful_rounds_max;
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 UNIV_INTERN
