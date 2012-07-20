@@ -6,7 +6,7 @@
 --source include/master-slave.inc
 --source include/big_test.inc
 
-# Temporarily making this nodebug (Task #1215372)
+# Too heavy for testing in debug mode
 --source include/have_nodebug.inc
 
 --disable_warnings
