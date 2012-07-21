@@ -485,9 +485,6 @@ extern my_bool srv_flush_neighbors_on_checkpoint;
 /* When TRUE, flush dirty neighbor pages on LRU list flush (BUF_FLUSH_LRU). */
 extern my_bool srv_flush_neighbors_for_LRU;
 
-/* When TRUE, use buf_flush_free_margin_fast instead of buf_flush_free_margin */
-extern my_bool srv_fast_free_list;
-
 /* Option to retry reads and writes one time when they fail with EIO */
 extern my_bool srv_retry_io_on_error;
 

@@ -12702,13 +12702,6 @@ static MYSQL_SYSVAR_BOOL(flush_neighbors_for_lru,
   "Setting this to off might reduce buffer pool mutex contention.",
   NULL, NULL, TRUE);
 
-static MYSQL_SYSVAR_BOOL(fast_free_list,
-  srv_fast_free_list,
-  PLUGIN_VAR_NOCMDARG,
-  "Use (hopefully) faster code to move pages from the end of the LRU to the "
-  "free list. This replaces buf_flush_free_margin. ",
-  NULL, NULL, FALSE);
-
 static MYSQL_SYSVAR_BOOL(adaptive_hash_latch_cache,
   srv_adaptive_hash_latch_cache,
   PLUGIN_VAR_NOCMDARG,
@@ -12985,7 +12978,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(deadlock_detect),
   MYSQL_SYSVAR(flush_neighbors_on_checkpoint),
   MYSQL_SYSVAR(flush_neighbors_for_lru),
-  MYSQL_SYSVAR(fast_free_list),
   MYSQL_SYSVAR(background_checkpoint),
   MYSQL_SYSVAR(background_thread_interval_usecs),
   MYSQL_SYSVAR(adaptive_hash_latch_cache),

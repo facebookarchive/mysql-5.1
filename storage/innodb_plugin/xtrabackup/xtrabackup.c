@@ -2098,11 +2098,6 @@ mem_free_and_error:
 	//srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
 	srv_buf_pool_size = (ulint) xtrabackup_use_memory;
 #endif
-	// Without this, xtrabackup spends HUGE amount of time scanning
-	// buffer pool for finding pages to flush after processing every
-	// few log records or so.
-	srv_fast_free_list=1;
-
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
