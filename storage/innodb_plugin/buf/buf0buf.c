@@ -3115,7 +3115,7 @@ buf_pool_invalidate(void)
 	freed = TRUE;
 
 	while (freed) {
-		freed = buf_LRU_search_and_free_block(100);
+		freed = buf_LRU_search_and_free_block(100, NULL, FALSE);
 	}
 
 	buf_pool_mutex_enter();

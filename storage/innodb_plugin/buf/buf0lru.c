@@ -906,7 +906,7 @@ UNIV_INTERN
 ibool
 buf_LRU_search_and_free_block(
 /*==========================*/
-	ulint	n_iterations)	/*!< in: how many times this has been called
+	ulint	n_iterations,	/*!< in: how many times this has been called
 				repeatedly without result: a high value means
 				that we should search farther; if
 				n_iterations < 10, then we search
@@ -914,11 +914,17 @@ buf_LRU_search_and_free_block(
 				pages from the end of the LRU list; if
 				n_iterations < 5, then we will also search
 				n_iterations / 5 of the unzip_LRU list. */
+	buf_block_t**	block,	/*!< in/out: if block != NULL then this
+				can return a pointer to a free block. */
+	ibool		locked)	/*!< in: when TRUE the buffer pool mutex
+				is locked by the caller. Buffer pool mutex
+				is always unlocked when this returns. */
 {
 	ibool	freed = FALSE;
 	ulint	space_id = ULINT_UNDEFINED;
 
-	buf_pool_mutex_enter();
+	if (!locked)
+		buf_pool_mutex_enter();
 
 	freed = buf_LRU_free_from_unzip_LRU_list(n_iterations);
 
@@ -930,6 +936,11 @@ buf_LRU_search_and_free_block(
 		buf_pool->LRU_flush_ended = 0;
 	} else if (buf_pool->LRU_flush_ended > 0) {
 		buf_pool->LRU_flush_ended--;
+
+		if (block) {
+			/* Get a free block before releasing the buffer pool mutex */
+			*block = buf_LRU_get_free_only();
+		}
 	}
 
 	buf_pool_mutex_exit();
@@ -959,7 +970,7 @@ buf_LRU_try_free_flushed_blocks(void)
 
 		buf_pool_mutex_exit();
 
-		buf_LRU_search_and_free_block(1);
+		buf_LRU_search_and_free_block(1, NULL, FALSE);
 
 		buf_pool_mutex_enter();
 	}
@@ -1025,6 +1036,24 @@ buf_LRU_get_free_only(void)
 
 	return(block);
 }
+
+
+/******************************************************************//**
+Prepares a free block to be used. */
+static void
+buf_LRU_prepare_free_block(
+/*===================================*/
+	buf_block_t*	block,		/*!< in: free block to be used */
+	ibool		started_monitor,/*!< in: see caller */
+	ibool		mon_value_was)	/*!< in: see caller */
+{
+	memset(&block->page.zip, 0, sizeof block->page.zip);
+
+	if (started_monitor) {
+		srv_print_innodb_monitor = mon_value_was;
+	}
+}
+
 
 /******************************************************************//**
 Returns a free block from the buf_pool. The block is taken off the
@@ -1110,22 +1139,23 @@ loop:
 
 	/* If there is a block in the free list, take it */
 	block = buf_LRU_get_free_only();
-		buf_pool_mutex_exit();
 
 	if (block) {
-		memset(&block->page.zip, 0, sizeof block->page.zip);
-
-		if (started_monitor) {
-			srv_print_innodb_monitor = mon_value_was;
-		}
-
+		buf_pool_mutex_exit();
+		buf_LRU_prepare_free_block(block, started_monitor, mon_value_was);
 		return(block);
 	}
 
 	/* If no block was in the free list, search from the end of the LRU
-	list and try to free a block there */
+	list and try to free a block there. This function calls buf_pool_mutex_exit */
 
-	freed = buf_LRU_search_and_free_block(n_iterations);
+	freed = buf_LRU_search_and_free_block(n_iterations, &block, TRUE);
+
+	if (block) {
+		ut_a(freed);
+		buf_LRU_prepare_free_block(block, started_monitor, mon_value_was);
+		return block;
+	}
 
 	if (freed > 0) {
 		goto loop;

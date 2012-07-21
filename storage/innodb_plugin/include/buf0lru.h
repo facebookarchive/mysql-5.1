@@ -112,7 +112,7 @@ UNIV_INTERN
 ibool
 buf_LRU_search_and_free_block(
 /*==========================*/
-	ulint	n_iterations);	/*!< in: how many times this has been called
+	ulint	n_iterations,	/*!< in: how many times this has been called
 				repeatedly without result: a high value means
 				that we should search farther; if
 				n_iterations < 10, then we search
@@ -120,6 +120,12 @@ buf_LRU_search_and_free_block(
 				pages from the end of the LRU list; if
 				n_iterations < 5, then we will also search
 				n_iterations / 5 of the unzip_LRU list. */
+	buf_block_t**	block,	/*!< in/out: if block != NULL then this
+				can return a pointer to a free block. */
+	ibool		locked);/*!< in: when TRUE the buffer pool mutex
+				is locked by the caller. Buffer pool mutex
+				is always unlocked when this returns. */
+
 /******************************************************************//**
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL.
