@@ -13,3 +13,7 @@ kill                     : Bug#11748945 2008-12-03 HHunger need some changes to 
 read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exists
 main.log_tables-big      : Bug#11756699 2010-11-15 mattiasj report already exists
 query_cache_28249        : Bug#12584161 2011-11-17 joh      fails sporadically in 5.1 only
+federated.federated_plugin : FB db-eng - we don't use this feature
+main.mysqladmin            : FB db-eng - we don't use this feature
+main.mysqlhotcopy_archive  : FB db-eng - we don't use this feature
+main.mysqlhotcopy_myisam   : FB db-eng - we don't use this feature
