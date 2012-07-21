@@ -2409,6 +2409,7 @@ static void update_malloc_status()
 #endif
 }
 
+#ifdef HAVE_JEMALLOC
 static void get_jemalloc_status(void* mstat_arg, const char* status)
 {
   malloc_status* mstat= (malloc_status*) mstat_arg;
@@ -2420,6 +2421,7 @@ static void get_jemalloc_status(void* mstat_arg, const char* status)
   strcpy(mstat->cur, status);
   mstat->cur += status_len;
 }
+#endif
 
 static int show_memory_status(THD* thd)
 {
