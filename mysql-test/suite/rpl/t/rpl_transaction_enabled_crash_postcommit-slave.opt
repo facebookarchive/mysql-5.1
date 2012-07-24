@@ -1,1 +1,1 @@
---rpl-transaction-enabled --innodb-flush-log-at-trx-commit=1 --skip-core-file
+--rpl-transaction-enabled --innodb-flush-log-at-trx-commit=1 --skip-core-file --skip-log-slave-updates

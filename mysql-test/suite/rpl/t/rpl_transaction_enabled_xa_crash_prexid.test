@@ -21,6 +21,7 @@ sync_slave_with_master;
 
 # Setup the mysqld to crash at certain point
 connection slave;
+show variables like 'log_slave_updates';
 SET GLOBAL debug="d,crash_before_writing_xid";
 
 # Write file to make mysql-test-run.pl expect crash and restart

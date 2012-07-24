@@ -3,6 +3,9 @@ include/master-slave.inc
 drop table if exists t1;
 call mtr.add_suppression(".*");
 CREATE TABLE t1(a int primary key) engine=innodb;
+show variables like 'log_slave_updates';
+Variable_name	Value
+log_slave_updates	OFF
 SET GLOBAL debug="d,crash_commit_before_unlog";
 BEGIN;
 insert into t1 values(10);
