@@ -7,3 +7,4 @@
 --innodb_prepare_commit_mutex=0
 --force-restart
 --innodb_buffer_pool_size=512M
+--group_commit_min_size=2

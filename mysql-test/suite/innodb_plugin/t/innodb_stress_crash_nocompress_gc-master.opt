@@ -7,3 +7,4 @@
 --innodb_flush_log_at_trx_commit=2
 --innodb_prepare_commit_mutex=0
 --force-restart
+--group_commit_min_size=2
