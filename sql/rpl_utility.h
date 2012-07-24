@@ -22,15 +22,10 @@
 #error "Don't include this C++ header file from a non-C++ file!"
 #endif
 
-#include "circular_buffer.h"
 #include "mysql_priv.h"
 
 class Relay_log_info;
 
-/**
-  Maintains the peak lag value over the last N seconds.
- */
-typedef max_sliding_window<time_t, time_t> peak_lag_over_last_N_seconds;
 
 /**
   A table definition from the master.

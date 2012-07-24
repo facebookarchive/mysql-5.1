@@ -2238,7 +2238,10 @@ extern double binlog_fsync_ticketwait_secs;
 extern double binlog_fsync_total_secs;
 
 extern my_bool opt_log_slow_extra;
+
+extern ulong opt_peak_lag_time;
 extern ulong opt_peak_lag_sample_rate;
+
 extern ulong opt_max_load_infile_size;
 
 extern my_bool rpl_transaction_enabled;

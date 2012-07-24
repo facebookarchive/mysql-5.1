@@ -514,7 +514,6 @@ my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
-ulong opt_peak_lag_sample_interval;
 /*
   True if the bootstrap thread is running. Protected by LOCK_thread_count,
   just like thread_count.
@@ -721,7 +720,9 @@ ulong group_commit_hang_log_secs= GC_HANG_SECS;
 
 my_bool opt_log_slow_extra;
 
+ulong opt_peak_lag_time;
 ulong opt_peak_lag_sample_rate;
+
 ulong opt_max_load_infile_size;
 
 my_bool rpl_transaction_enabled= FALSE;
@@ -6157,6 +6158,7 @@ enum options_mysqld
   OPT_LOG_DATAGRAM,
   OPT_LOG_DATAGRAM_USECS,
   OPT_LOG_SLOW_EXTRA,
+  OPT_PEAK_LAG_TIME,
   OPT_PEAK_LAG_SAMPLE_RATE,
   OPT_MAX_LOAD_INFILE_SIZE,
   OPT_NET_COMPRESSION_LEVEL,
@@ -7846,9 +7848,13 @@ thread is in the relay logs.",
    "Print more attributes to the slow query log",
    &opt_log_slow_extra, &opt_log_slow_extra,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"peak_lag_time", OPT_PEAK_LAG_TIME,
+    "The time frame peak lag is measured within, in seconds.",
+    &opt_peak_lag_time, &opt_peak_lag_time,
+    0, GET_ULONG, REQUIRED_ARG, 60, 1, ULONG_MAX, 0, 1, 0},
    {"peak_lag_sample_rate", OPT_PEAK_LAG_SAMPLE_RATE,
-    "The rate of sampling replayed events on slave to determine the "
-    "peak replication lag over some period",
+    "The rate of sampling replayed events on slave to determine the peak "
+    "replication lag over some period.",
     &opt_peak_lag_sample_rate, &opt_peak_lag_sample_rate,
     0, GET_ULONG, REQUIRED_ARG, 100, 1, ULONG_MAX, 0, 1, 0},
    {"max_load_infile_size", OPT_MAX_LOAD_INFILE_SIZE,

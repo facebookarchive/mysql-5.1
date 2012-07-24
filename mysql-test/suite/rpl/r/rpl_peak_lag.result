@@ -1,19 +1,28 @@
 #
-# Check peak_lag_sample_rate
+# Check peak_lag_*
 #
 include/master-slave.inc
 [connection master]
 drop table if exists t1;
-Should be 100
-show global variables like "peak_lag_sample_rate";
+Should be 100, 60
+show global variables like "peak_lag_%";
 Variable_name	Value
 peak_lag_sample_rate	100
+peak_lag_time	60
+set global peak_lag_time=5;
 set global peak_lag_sample_rate=1;
-Should be 1
-show global variables like "peak_lag_sample_rate";
+Should be 1, 5
+show global variables like "peak_lag_%";
 Variable_name	Value
 peak_lag_sample_rate	1
+peak_lag_time	5
+#
+# Make sure it is initially zero
+#
 peak_lag should be zero, and is 0
+#
+# Make sure it tracks basic lag of 2-5 seconds
+#
 stop slave;
 CREATE TABLE t1 (id INT, v int);
 insert into t1 values (1,0);
@@ -21,16 +30,22 @@ insert into t1 values (2,0);
 start slave;
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_start.inc
+big_enough	small_enough
+1	1
+#
+# Make sure it goes away after the window is over
+#
 stop slave;
 insert into t1 values (3,0);
 start slave;
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_start.inc
-result
+small_enough
 1
 #
 # Cleanup
 #
 DROP TABLE t1;
-set global peak_lag_sample_rate=100;
+set global peak_lag_time=DEFAULT;
+set global peak_lag_sample_rate=DEFAULT;
 include/rpl_end.inc

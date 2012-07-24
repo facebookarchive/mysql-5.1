@@ -2378,7 +2378,8 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
     my_get_fast_timer(&init_timer);
 
     exec_res= ev->apply_event(rli);
-    if (exec_res == 0)
+    Log_event_type ev_type = ev->get_type_code();
+    if (exec_res == 0 && (ev_type == QUERY_EVENT || ev_type == XID_EVENT))
       rli->update_peak_lag(ev->when);
 
     double wall_seconds= my_fast_timer_diff_now(&init_timer, &init_timer);
