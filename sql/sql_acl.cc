@@ -6480,17 +6480,6 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 }
 
 
-/*****************************************************************************
-  Instantiate used templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List_iterator<LEX_COLUMN>;
-template class List_iterator<LEX_USER>;
-template class List<LEX_COLUMN>;
-template class List<LEX_USER>;
-#endif
-
 #endif /*NO_EMBEDDED_ACCESS_CHECKS */
 
 

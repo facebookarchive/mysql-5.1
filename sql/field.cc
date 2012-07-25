@@ -43,11 +43,6 @@
   Instansiate templates and static variables
 *****************************************************************************/
 
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<Create_field>;
-template class List_iterator<Create_field>;
-#endif
-
 uchar Field_null::null[1]={1};
 const char field_separator=',';
 

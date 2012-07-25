@@ -128,13 +128,3 @@ void unmap_file(mapped_files *map)
   VOID(pthread_mutex_unlock(&LOCK_mapped_file));
 #endif
 }
-
-/*****************************************************************************
-** Instansiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-/* Used templates */
-template class I_List<mapped_files>;
-template class I_List_iterator<mapped_files>;
-#endif

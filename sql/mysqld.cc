@@ -10383,18 +10383,3 @@ my_bool connection_recycle_callback(NET* net)
 ulong ndb_cache_check_time;
 ulong ndb_extra_logging;
 #endif
-
-/*****************************************************************************
-  Instantiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-/* Used templates */
-template class I_List<THD>;
-template class I_List_iterator<THD>;
-template class I_List<i_string>;
-template class I_List<i_string_pair>;
-template class I_List<NAMED_LIST>;
-template class I_List<Statement>;
-template class I_List_iterator<Statement>;
-#endif

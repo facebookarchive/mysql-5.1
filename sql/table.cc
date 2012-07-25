@@ -4875,12 +4875,3 @@ size_t max_row_length(TABLE *table, const uchar *data)
   }
   return length;
 }
-
-/*****************************************************************************
-** Instansiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<String>;
-template class List_iterator<String>;
-#endif

@@ -4730,12 +4730,3 @@ check_net_buffer_length(THD *thd,  set_var *var)
   return 0;
 }
 
-/****************************************************************************
-  Used templates
-****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<set_var_base>;
-template class List_iterator_fast<set_var_base>;
-template class I_List_iterator<NAMED_LIST>;
-#endif

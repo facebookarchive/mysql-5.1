@@ -344,9 +344,7 @@ case "$target_os" in
       CFLAGS="$CFLAGS -Kalloca"
       CXXFLAGS="$CFLAGS -Kalloca"
       # Use no_implicit for templates
-      CXXFLAGS="$CXXFLAGS -Tno_implicit"
-      AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
-        [1], [Defined by configure. Use explicit template instantiation.])
+      CXXFLAGS="$CXXFLAGS"
     fi
   ;;
 esac
@@ -368,9 +366,7 @@ then
   # We should use -Wno-invalid-offsetof flag to disable some warnings from gcc
   # regarding offset() usage in C++ which are done in a safe manner in the
   # server
-  CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
-  AC_DEFINE([HAVE_EXPLICIT_TEMPLATE_INSTANTIATION],
-    [1], [Defined by configure. Use explicit template instantiation.])
+  CXXFLAGS="$CXXFLAGS -fno-exceptions -fno-rtti"
 fi
 
 MYSQL_PROG_AR

@@ -297,9 +297,6 @@
 /* Define to 1 if you have the <execinfo.h> header file. */
 #undef HAVE_EXECINFO_H
 
-/* Defined by configure. Use explicit template instantiation. */
-#undef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-
 /* Define to 1 if you have the `fchmod' function. */
 #undef HAVE_FCHMOD
 
