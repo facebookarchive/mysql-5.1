@@ -1254,7 +1254,8 @@ page_zip_compress(
 	ullint udiff;
 	int comp_stat_page_size = 0;
 	ulint	space_id = page_get_space_id(page);
-	fil_space_t* space;
+	fil_stats_t*	stats;
+	mutex_t*	stats_mutex;
 	uint level;
 	uint wrap;
 	uint strategy;
@@ -1504,26 +1505,28 @@ err_exit:
 			zip_stat->compressed_secondary_usec += udiff;
 		}
 
-		mutex_enter(&fil_system->mutex);
-		space = fil_space_get_by_id(space_id);
-
-		if (space) {
-			++space->comp_stat.compressed;
+		stats = fil_get_stats_lock_mutex_by_id(space_id, &stats_mutex);
+		if (stats) {
+			++stats->comp_stat.compressed;
 			if (space_id)
-				space->comp_stat.page_size = comp_stat_page_size;
+				stats->comp_stat.page_size = comp_stat_page_size;
 
-		 	space->comp_stat.compressed_usec += udiff;
+		 	stats->comp_stat.compressed_usec += udiff;
 			if (dict_index_is_clust(index)) {
-				++space->comp_stat.compressed_primary;
-				space->comp_stat.compressed_primary_usec += udiff;
-				space->comp_stat.padding =
+				++stats->comp_stat.compressed_primary;
+				stats->comp_stat.compressed_primary_usec += udiff;
+				stats->comp_stat.padding =
 				  UNIV_PAGE_SIZE - dict_index_comp_max_page_size(index);
 			}
 		}
+		mutex_exit(stats_mutex);
+
+		/* This should be done after unlocking stats mutex. The padding code has
+		its own mutexes. */
+		
 		if (page_is_leaf(page)) {
 			dict_index_comp_fail(index, page_get_data_size(page));
 		}
-		mutex_exit(&fil_system->mutex);
 
 #endif /* !UNIV_HOTBACKUP */
 		return(FALSE);
@@ -1599,31 +1602,34 @@ err_exit:
 		zip_stat->compressed_secondary_ok_usec += udiff;
 	}
 
-	mutex_enter(&fil_system->mutex);
-	space = fil_space_get_by_id(space_id);
-
-	if (space) {
-		++space->comp_stat.compressed;
+	stats = fil_get_stats_lock_mutex_by_id(space_id, &stats_mutex);
+	if (stats) {
+		++stats->comp_stat.compressed;
 		if (space_id)
-			space->comp_stat.page_size = comp_stat_page_size;
+			stats->comp_stat.page_size = comp_stat_page_size;
 
-		++space->comp_stat.compressed_ok;
-		space->comp_stat.compressed_usec += udiff;
-		space->comp_stat.compressed_ok_usec += udiff;
+		++stats->comp_stat.compressed_ok;
+		stats->comp_stat.compressed_usec += udiff;
+		stats->comp_stat.compressed_ok_usec += udiff;
 		if (dict_index_is_clust(index)) {
-			++space->comp_stat.compressed_primary;
-			++space->comp_stat.compressed_primary_ok;
-			space->comp_stat.compressed_primary_usec += udiff;
-			space->comp_stat.compressed_primary_ok_usec += udiff;
+			++stats->comp_stat.compressed_primary;
+			++stats->comp_stat.compressed_primary_ok;
+			stats->comp_stat.compressed_primary_usec += udiff;
+			stats->comp_stat.compressed_primary_ok_usec += udiff;
 			/* only update the padding for table if this is the primary index */
-			space->comp_stat.padding =
+			stats->comp_stat.padding =
 			  UNIV_PAGE_SIZE - dict_index_comp_max_page_size(index);
 		}
 	}
+	mutex_exit(stats_mutex);
+
+	/* This should be done after unlocking stats mutex. The padding code has
+	its own mutex. */
+
 	if (page_is_leaf(page)) {
 		dict_index_comp_success(index, page_get_data_size(page));
 	}
-	mutex_exit(&fil_system->mutex);
+
 #endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);
@@ -3093,7 +3099,8 @@ page_zip_decompress(
 #ifndef UNIV_HOTBACKUP
 	my_fast_timer_t start;
 	ullint udiff;
-	fil_space_t* space;
+	fil_stats_t*	stats;
+	mutex_t*	stats_mutex;
 	int comp_stat_page_size;
 	page_zip_stat_t*	zip_stat = &page_zip_stat[page_zip->ssize - 1];
 
@@ -3286,15 +3293,14 @@ err_exit:
 
 	comp_stat_page_size = PAGE_ZIP_MIN_SIZE << (page_zip->ssize - 1);
 
-	mutex_enter(&fil_system->mutex);
-	space = fil_space_get_by_id(space_id);
-	if (space) {
-		++space->comp_stat.decompressed;
-		space->comp_stat.decompressed_usec += udiff;
+	stats = fil_get_stats_lock_mutex_by_id(space_id, &stats_mutex);
+	if (stats) {
+		++stats->comp_stat.decompressed;
+		stats->comp_stat.decompressed_usec += udiff;
 		if (space_id)
-			space->comp_stat.page_size = comp_stat_page_size;
+			stats->comp_stat.page_size = comp_stat_page_size;
 	}
-	mutex_exit(&fil_system->mutex);
+	mutex_exit(stats_mutex);
 
 #endif /* !UNIV_HOTBACKUP */
 

@@ -1235,9 +1235,15 @@ fail_err:
 	    && leaf
 	    && ((rec_size + page_get_data_size(page))
 	        >= dict_index_comp_max_page_size(index))) {
-		mutex_enter(&fil_system->mutex);
-		++fil_space_get_by_id(index->space)->comp_stat.padding_savings;
-		mutex_exit(&fil_system->mutex);
+		fil_stats_t*	stats;
+		mutex_t*	stats_mutex;
+
+		stats = fil_get_stats_lock_mutex_by_id(index->space, &stats_mutex);
+		if (stats) {
+			++stats->comp_stat.padding_savings;
+		}
+		mutex_exit(stats_mutex);
+
 		goto fail;
 	}
 #endif
@@ -1764,9 +1770,15 @@ btr_cur_update_alloc_zip(
 	    && page_is_leaf(page)
 	    && ((length + page_get_data_size(page))
 	        >= dict_index_comp_max_page_size(index))) {
-		mutex_enter(&fil_system->mutex);
-		++fil_space_get_by_id(index->space)->comp_stat.padding_savings;
-		mutex_exit(&fil_system->mutex);
+		fil_stats_t*	stats;
+		mutex_t*	stats_mutex;
+
+		stats = fil_get_stats_lock_mutex_by_id(index->space, &stats_mutex);
+		if (stats) {
+			++stats->comp_stat.padding_savings;
+		}
+		mutex_exit(stats_mutex);
+
 		return(FALSE);
 	}
 #endif

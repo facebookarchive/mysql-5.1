@@ -3333,9 +3333,15 @@ err_exit:
 	    && page_is_leaf(merge_page)
 	    && ((page_get_data_size(merge_page) + data_size)
 	        >= dict_index_comp_max_page_size(index))) {
-		mutex_enter(&fil_system->mutex);
-		++fil_space_get_by_id(space)->comp_stat.padding_savings;
-		mutex_exit(&fil_system->mutex);
+		fil_stats_t*	stats;
+		mutex_t*	stats_mutex;
+
+		stats = fil_get_stats_lock_mutex_by_id(space, &stats_mutex);
+		if (stats) {
+			++stats->comp_stat.padding_savings;
+		}
+		mutex_exit(stats_mutex);
+
 		goto err_exit;
 	}
 #endif
