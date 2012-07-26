@@ -587,6 +587,9 @@ parse_page(
 		index_ids[id].pages_in_size_range[size_range_id] ++;
 		break;
 	case FIL_PAGE_UNDO_LOG:
+		if (per_page_details) {
+			printf("FIL_PAGE_UNDO_LOG\n");
+		}
 		n_fil_page_undo_log++;
 		x = mach_read_from_2(page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_TYPE);
 		if (x == TRX_UNDO_INSERT)
@@ -607,37 +610,71 @@ parse_page(
 		}
 		break;
 	case FIL_PAGE_INODE:
+		if (per_page_details) {
+			printf("FIL_PAGE_INODE\n");
+		}
 		n_fil_page_inode++;
 		break;
 	case FIL_PAGE_IBUF_FREE_LIST:
+		if (per_page_details) {
+			printf("FIL_PAGE_IBUF_FREE_LIST\n");
+		}
 		n_fil_page_ibuf_free_list++;
 		break;
 	case FIL_PAGE_TYPE_ALLOCATED:
+		if (per_page_details) {
+			printf("FIL_PAGE_TYPE_ALLOCATED\n");
+		}
 		n_fil_page_type_allocated++;
 		break;
 	case FIL_PAGE_IBUF_BITMAP:
+		if (per_page_details) {
+			printf("FIL_PAGE_IBUF_BITMAP\n");
+		}
 		n_fil_page_ibuf_bitmap++;
 		break;
 	case FIL_PAGE_TYPE_SYS:
+		if (per_page_details) {
+			printf("FIL_PAGE_TYPE_SYS\n");
+		}
 		n_fil_page_type_sys++;
 		break;
 	case FIL_PAGE_TYPE_TRX_SYS:
+		if (per_page_details) {
+			printf("FIL_PAGE_TYPE_TRX_SYS\n");
+		}
 		n_fil_page_type_trx_sys++;
 		break;
 	case FIL_PAGE_TYPE_FSP_HDR:
+		if (per_page_details) {
+			printf("FIL_PAGE_TYPE_FSP_HDR\n");
+		}
 		n_fil_page_type_fsp_hdr++;
 		break;
 	case FIL_PAGE_TYPE_XDES:
+		if (per_page_details) {
+			printf("FIL_PAGE_TYPE_XDES\n");
+		}
 		n_fil_page_type_xdes++;
+/*		Can we find out the index id here? *** */
 		break;
 	case FIL_PAGE_TYPE_BLOB:
+		if (per_page_details) {
+			printf("FIL_PAGE_TYPE_BLOB\n");
+		}
 		n_fil_page_type_blob++;
 		break;
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
+		if (per_page_details) {
+			printf("FIL_PAGE_TYPE_ZBLOB/2\n");
+		}
 		n_fil_page_type_zblob++;
 		break;
 	default:
+		if (per_page_details) {
+			printf("FIL_PAGE_TYPE_OTHER\n");
+		}
 		n_fil_page_type_other++;
 	}
 }
@@ -1019,10 +1056,17 @@ int main(int argc, char **argv)
       return 0;
     }
 
+    if (per_page_details) {
+      printf("page %ld ", ct);
+    }
+
     ct++;
 
     if (!page_ok)
     {
+      if (per_page_details) {
+        printf("BAD_CHECKSUM\n");
+      }
       n_bad_checksum++;
       continue;
     }
