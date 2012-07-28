@@ -934,8 +934,10 @@ buf_LRU_search_and_free_block(
 
 	if (!freed) {
 		buf_pool->LRU_flush_ended = 0;
-	} else if (buf_pool->LRU_flush_ended > 0) {
-		buf_pool->LRU_flush_ended--;
+	} else {
+		if (buf_pool->LRU_flush_ended > 0) {
+			buf_pool->LRU_flush_ended--;
+		}
 
 		if (block) {
 			/* Get a free block before releasing the buffer pool mutex */
