@@ -50,6 +50,9 @@ SELECT 'con1 should still exist';
 # Close connection
 disconnect con1;
 
+# Fix a race in the test. On close of a connection, the server returns
+# control to the client prior to decrementing its current connection count.
+--sleep 0.5
 
 #
 # Test connection recycling works
