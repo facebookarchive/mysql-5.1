@@ -2243,6 +2243,7 @@ extern ulong opt_peak_lag_time;
 extern ulong opt_peak_lag_sample_rate;
 
 extern ulong opt_max_load_infile_size;
+extern my_bool opt_max_load_infile_block;
 
 extern my_bool rpl_transaction_enabled;
 

@@ -9,11 +9,13 @@
 drop table if exists t1, t2;
 --enable_warnings
 
+set global max_load_infile_block=TRUE;
 --echo The default of max_load_infile_size is 0, which means no file limit and the test should pass
 show global variables like "max_load_infile_size";
 
 create table t1 (a int, b int, c int);
 load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
+show warnings;
 SELECT * from t1;
 
 drop table if exists t1;
@@ -26,8 +28,9 @@ set global max_load_infile_size=1;
 show global variables like "max_load_infile_size";
 
 create table t1 (a int, b int, c int);
---error ER_WRONG_USAGE
+--error ER_OPTION_PREVENTS_STATEMENT
 load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
+show warnings;
 SELECT * from t1;
 
 drop table if exists t1;
@@ -40,6 +43,7 @@ show global variables like "max_load_infile_size";
 
 create table t1 (a int, b int, c int);
 load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
+show warnings;
 SELECT * from t1;
 
 drop table if exists t1;
@@ -52,8 +56,9 @@ set global max_load_infile_size=17;
 show global variables like "max_load_infile_size";
 
 create table t1 (a int, b int, c int);
---error ER_WRONG_USAGE
+--error ER_OPTION_PREVENTS_STATEMENT
 load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
+show warnings;
 SELECT * from t1;
 
 drop table if exists t1;
@@ -67,6 +72,7 @@ show global variables like "max_load_infile_size";
 
 create table t1 (a int, b int, c int);
 load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
+show warnings;
 SELECT * from t1;
 
 drop table if exists t1;
@@ -80,6 +86,22 @@ show global variables like "max_load_infile_size";
 
 create table t1 (a int, b int, c int);
 load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
+show warnings;
+SELECT * from t1;
+
+drop table if exists t1;
+
+
+--echo Start of load filesize test7 ...
+show global variables like "max_load_infile_size";
+set global max_load_infile_size=1;
+set global max_load_infile_block=FALSE;
+--echo maxfilesize should be 1, which means the test should fail and a warning should be shown
+show global variables like "max_load_infile_size";
+
+create table t1 (a int, b int, c int);
+load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
+show warnings;
 SELECT * from t1;
 
 drop table if exists t1;

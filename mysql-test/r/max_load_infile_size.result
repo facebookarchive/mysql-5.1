@@ -1,11 +1,14 @@
 Start of load filesize test1 ...
 drop table if exists t1, t2;
+set global max_load_infile_block=TRUE;
 The default of max_load_infile_size is 0, which means no file limit and the test should pass
 show global variables like "max_load_infile_size";
 Variable_name	Value
 max_load_infile_size	0
 create table t1 (a int, b int, c int);
 load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
+show warnings;
+Level	Code	Message
 SELECT * from t1;
 a	b	c
 1	2	3
@@ -23,7 +26,11 @@ Variable_name	Value
 max_load_infile_size	1
 create table t1 (a int, b int, c int);
 load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
-ERROR HY000: Incorrect usage of Loading a file that is too large. and H=
+ERROR HY000: The MySQL server is running with the innodb_max_load_infile_block option so it cannot execute this statement
+show warnings;
+Level	Code	Message
+Note	1290	The MySQL server is running with the innodb_max_load_infile_size option so it cannot execute this statement
+Error	1290	The MySQL server is running with the innodb_max_load_infile_block option so it cannot execute this statement
 SELECT * from t1;
 a	b	c
 drop table if exists t1;
@@ -38,6 +45,8 @@ Variable_name	Value
 max_load_infile_size	2000000
 create table t1 (a int, b int, c int);
 load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
+show warnings;
+Level	Code	Message
 SELECT * from t1;
 a	b	c
 1	2	3
@@ -55,7 +64,11 @@ Variable_name	Value
 max_load_infile_size	17
 create table t1 (a int, b int, c int);
 load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
-ERROR HY000: Incorrect usage of Loading a file that is too large. and H=
+ERROR HY000: The MySQL server is running with the innodb_max_load_infile_block option so it cannot execute this statement
+show warnings;
+Level	Code	Message
+Note	1290	The MySQL server is running with the innodb_max_load_infile_size option so it cannot execute this statement
+Error	1290	The MySQL server is running with the innodb_max_load_infile_block option so it cannot execute this statement
 SELECT * from t1;
 a	b	c
 drop table if exists t1;
@@ -70,6 +83,8 @@ Variable_name	Value
 max_load_infile_size	18
 create table t1 (a int, b int, c int);
 load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
+show warnings;
+Level	Code	Message
 SELECT * from t1;
 a	b	c
 1	2	3
@@ -87,6 +102,31 @@ Variable_name	Value
 max_load_infile_size	19
 create table t1 (a int, b int, c int);
 load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
+show warnings;
+Level	Code	Message
+SELECT * from t1;
+a	b	c
+1	2	3
+1	2	3
+1	2	3
+drop table if exists t1;
+Start of load filesize test7 ...
+show global variables like "max_load_infile_size";
+Variable_name	Value
+max_load_infile_size	19
+set global max_load_infile_size=1;
+set global max_load_infile_block=FALSE;
+maxfilesize should be 1, which means the test should fail and a warning should be shown
+show global variables like "max_load_infile_size";
+Variable_name	Value
+max_load_infile_size	1
+create table t1 (a int, b int, c int);
+load data infile '../../std_data/max_load_infile_size.dat' into table t1 fields terminated by ',';
+Warnings:
+Note	1290	The MySQL server is running with the innodb_max_load_infile_size option so it cannot execute this statement
+show warnings;
+Level	Code	Message
+Note	1290	The MySQL server is running with the innodb_max_load_infile_size option so it cannot execute this statement
 SELECT * from t1;
 a	b	c
 1	2	3

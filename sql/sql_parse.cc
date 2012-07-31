@@ -4102,8 +4102,16 @@ end_with_restore_list:
       ulong limit =  opt_max_load_infile_size;
       if (limit > 0 && sz > limit)
       {
-        my_error(ER_WRONG_USAGE, MYF(0), "Loading a file that is too large.");
-        goto error;
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                            ER_OPTION_PREVENTS_STATEMENT,
+                            ER(ER_OPTION_PREVENTS_STATEMENT),
+                            "innodb_max_load_infile_size");
+        if (opt_max_load_infile_block)
+        {
+          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), 
+                   "innodb_max_load_infile_block");
+          goto error;
+        }
       }
     }
 
