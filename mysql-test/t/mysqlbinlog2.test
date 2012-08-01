@@ -70,14 +70,16 @@ select "--- stop-position --" as "";
 --disable_query_log
 select "--- stop-position with streaming input--" as "";
 --enable_query_log
+--error 1
 --exec cat $MYSQLD_DATADIR/master-bin.000001 | $MYSQL_BINLOG --short-form --stop-position=608 -
 --disable_query_log
 select "--- start and stop positions ---" as "";
 --enable_query_log
 --exec $MYSQL_BINLOG --short-form --start-position=608 --stop-position 725 $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log
-select "--- start and stop positions with streaming input---" as "";
+select "--- start and stop positions with streaming input--" as "";
 --enable_query_log
+--error 1
 --exec cat $MYSQLD_DATADIR/master-bin.000001 | $MYSQL_BINLOG --short-form --start-position=608 --stop-position 725 -
 --disable_query_log
 select "--- start-datetime --" as "";
@@ -87,7 +89,6 @@ select "--- start-datetime --" as "";
 select "--- stop-datetime --" as "";
 --enable_query_log
 --exec $MYSQL_BINLOG --short-form "--stop-datetime=2020-01-21 15:32:24" $MYSQLD_DATADIR/master-bin.000001 
-
 --disable_query_log
 select "--- Local with 2 binlogs on command line --" as "";
 --enable_query_log
@@ -106,6 +107,10 @@ select "--- start-position --" as "";
 --enable_query_log
 --exec $MYSQL_BINLOG --short-form --start-position=608 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 --disable_query_log
+select "--- start-position with streaming input--" as "";
+--enable_query_log
+--exec cat $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002 | $MYSQL_BINLOG --short-form --start-position=608 -
+--disable_query_log
 select "--- stop-position --" as "";
 --enable_query_log
 --exec $MYSQL_BINLOG --short-form --stop-position=134 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
@@ -114,9 +119,19 @@ select "--- start-datetime --" as "";
 --enable_query_log
 --exec $MYSQL_BINLOG --short-form "--start-datetime=2020-01-21 15:32:24" $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 --disable_query_log
+select "--- start-datetime with streaming input --" as "";
+--enable_query_log
+--exec cat $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002 | $MYSQL_BINLOG --short-form "--start-datetime=2020-01-21 15:32:24" -
+
+--disable_query_log
 select "--- stop-datetime --" as "";
 --enable_query_log
 --exec $MYSQL_BINLOG --short-form "--stop-datetime=2020-01-21 15:32:24" $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
+--disable_query_log
+select "--- stop-datetime with streaming input --" as "";
+--enable_query_log
+--exec cat $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002 | $MYSQL_BINLOG --short-form "--stop-datetime=2020-01-21 15:32:24" -
+
 
 --disable_query_log
 select "--- Remote --" as "";

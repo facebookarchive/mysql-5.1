@@ -2270,6 +2270,13 @@ int main(int argc, char** argv)
     exit(1);
   }
 
+  if ((argc == 1) && (stop_position != (ulonglong)(~(my_off_t)0)) && 
+      (!strcmp(argv[0], "-")))
+  {
+    error("stop_position not allowed when input is STDIN");
+    exit(1);
+  }
+
   /* Check for argument conflicts and do any post-processing */
   if (args_post_process() == ERROR_STOP)
     exit(1);
