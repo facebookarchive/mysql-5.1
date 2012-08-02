@@ -1855,6 +1855,7 @@ loop:
 	switch (buf_block_get_state(block)) {
 		buf_page_t*	bpage;
 		ibool		success;
+		ulint		unused;
 
 	case BUF_BLOCK_FILE_PAGE:
 		break;
@@ -1890,7 +1891,8 @@ wait_until_unfixed:
 		buf_pool_mutex_exit();
 		mutex_exit(&buf_pool_zip_mutex);
 
-		block = buf_LRU_get_free_block();
+		unused = 0;
+		block = buf_LRU_get_free_block(&unused);
 		ut_a(block);
 
 		buf_pool_mutex_enter();
@@ -2529,7 +2531,8 @@ buf_page_init_for_read(
 	ib_int64_t	tablespace_version,/*!< in: prevents reading from a wrong
 				version of the tablespace in case we have done
 				DISCARD + IMPORT */
-	ulint		offset)	/*!< in: page number */
+	ulint		offset,	/*!< in: page number */
+	ulint*		nsearched)/*< out: #pages checked on the LRU */
 {
 	buf_block_t*	block;
 	buf_page_t*	bpage;
@@ -2565,7 +2568,7 @@ buf_page_init_for_read(
 	    && UNIV_LIKELY(!recv_recovery_is_on())) {
 		block = NULL;
 	} else {
-		block = buf_LRU_get_free_block();
+		block = buf_LRU_get_free_block(nsearched);
 		ut_ad(block);
 	}
 
@@ -2733,6 +2736,7 @@ buf_page_create(
 	buf_frame_t*	frame;
 	buf_block_t*	block;
 	buf_block_t*	free_block	= NULL;
+	ulint		nsearched	= 0;
 	my_fast_timer_t	timer;
 	my_get_fast_timer(&timer);
 
@@ -2740,7 +2744,7 @@ buf_page_create(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(space || !zip_size);
 
-	free_block = buf_LRU_get_free_block();
+	free_block = buf_LRU_get_free_block(&nsearched);
 
 	buf_pool_mutex_enter();
 
@@ -2833,7 +2837,7 @@ buf_page_create(
 	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(1, TRUE);
+	buf_flush_free_margin(TRUE, nsearched);
 
 	frame = block->frame;
 
@@ -3115,7 +3119,8 @@ buf_pool_invalidate(void)
 	freed = TRUE;
 
 	while (freed) {
-		freed = buf_LRU_search_and_free_block(100, NULL, FALSE);
+		ulint	unused	= 0;
+		freed = buf_LRU_search_and_free_block(100, NULL, FALSE, &unused);
 	}
 
 	buf_pool_mutex_enter();

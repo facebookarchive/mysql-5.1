@@ -122,9 +122,10 @@ buf_LRU_search_and_free_block(
 				n_iterations / 5 of the unzip_LRU list. */
 	buf_block_t**	block,	/*!< in/out: if block != NULL then this
 				can return a pointer to a free block. */
-	ibool		locked);/*!< in: when TRUE the buffer pool mutex
+	ibool		locked,/*!< in: when TRUE the buffer pool mutex
 				is locked by the caller. Buffer pool mutex
 				is always unlocked when this returns. */
+	ulint*		nsearched);/*!< out: #blocks checked in the common LRU. */
 
 /******************************************************************//**
 Returns a free block from the buf_pool.  The block is taken off the
@@ -141,8 +142,10 @@ LRU list to the free list.
 @return	the free control block, in state BUF_BLOCK_READY_FOR_USE */
 UNIV_INTERN
 buf_block_t*
-buf_LRU_get_free_block(void)
+buf_LRU_get_free_block(
 /*========================*/
+	ulint*	nsearched)	/*!< out: #blocks checked on the LRU to find
+				a free one */
 	__attribute__((warn_unused_result));
 
 /******************************************************************//**

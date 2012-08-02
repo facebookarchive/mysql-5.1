@@ -196,7 +196,7 @@ last data file size */
 UNIV_INTERN ulint	srv_last_file_size_max	= 0;
 /* If the last data file is auto-extended, we add this
 many pages to it at a time */
-UNIV_INTERN ulong	srv_auto_extend_increment = 8;
+UNIV_INTERN ulong	srv_auto_extend_increment = 16;
 UNIV_INTERN ulint*	srv_data_file_is_raw_partition = NULL;
 
 /* If the following is TRUE we do not allow inserts etc. This protects
@@ -421,6 +421,13 @@ UNIV_INTERN ulint	srv_io_slow_usecs	= 0;
 /** Count as "old" file read and write requests that wait this long in bg arrays 
 before getting scheduled */
 UNIV_INTERN ulint	srv_io_old_usecs	= 0;
+
+/** Set when fast-free list is enabled for buf_flush_free_margin */
+UNIV_INTERN my_bool	srv_fast_free_list	= FALSE;
+
+/** Number of pages that must be searched from the tail of the LRU for
+fast free-list algorithm to try and flush dirty pages. */
+UNIV_INTERN ulint	srv_fast_free_list_min	= 16;
 
 #ifdef UNIV_DEBUG
 /** Error injection */
@@ -3345,7 +3352,7 @@ loop:
 		log_free_check();
 		srv_checkpoint_secs += my_fast_timer_diff_now(&fast_timer, NULL);
 
- 		buf_flush_free_margin(BUF_FLUSH_FREE_BLOCK_MARGIN, FALSE);
+ 		buf_flush_free_margin(FALSE, 0);
 
 		if (!ibuf->empty) {
 			ulint ibuf_soft_limit;

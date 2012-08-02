@@ -340,6 +340,7 @@ buf_page_get_flush_type(
 	case BUF_FLUSH_LIST:
 		return(flush_type);
 	case BUF_FLUSH_N_TYPES:
+	case BUF_FLUSH_LRU_FAST:
 		break;
 	}
 	ut_error;
@@ -839,8 +840,9 @@ buf_block_alloc(void)
 /*=================*/
 {
 	buf_block_t*	block;
+	ulint		unused =	0;
 
-	block = buf_LRU_get_free_block();
+	block = buf_LRU_get_free_block(&unused);
 
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 

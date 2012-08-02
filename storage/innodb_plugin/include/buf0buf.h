@@ -1066,7 +1066,8 @@ buf_page_init_for_read(
 	ib_int64_t	tablespace_version,/*!< in: prevents reading from a wrong
 				version of the tablespace in case we have done
 				DISCARD + IMPORT */
-	ulint		offset);/*!< in: page number */
+	ulint		offset,/*!< in: page number */
+	ulint*		nsearched);/*< out: #pages checked on the LRU */
 /********************************************************************//**
 Completes an asynchronous read or write request of a file page to or from
 the buffer pool. */

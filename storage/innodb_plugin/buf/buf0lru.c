@@ -854,15 +854,24 @@ buf_LRU_free_from_common_LRU_list(
 				n_iterations < 10, then we search
 				n_iterations / 10 * buf_pool->curr_size
 				pages from the end of the LRU list */
-	ulint*	space_id)	/*!<: out: space_id for freed page */
+	ulint*	space_id,	/*!<: out: space_id for freed page */
+	ulint*	nsearched,	/*!< out: #blocks checked */
+	ulint	limit)		/*!< in: when not 0 search at most this number
+				of pages */
 {
 	buf_page_t*	bpage;
 	ulint		distance;
+	ulint		init_distance;
 
 	*space_id = ULINT_UNDEFINED;
 	ut_ad(buf_pool_mutex_own());
 
-	distance = 100 + (n_iterations * buf_pool->curr_size) / 10;
+	if (!limit)
+		distance = 100 + (n_iterations * buf_pool->curr_size) / 10;
+	else
+		distance = limit;
+
+	init_distance = distance;
 
 	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 	     UNIV_LIKELY(bpage != NULL) && UNIV_LIKELY(distance > 0);
@@ -892,10 +901,12 @@ buf_LRU_free_from_common_LRU_list(
 			if (!my_fast_timer_is_valid(&accessed)) {
 				++buf_pool->stat.n_ra_pages_evicted;
 			}
+			*nsearched = init_distance - distance + 1;
 			return(TRUE);
 		}
 	}
 
+	*nsearched = init_distance - distance + 1;
 	return(FALSE);
 }
 
@@ -916,12 +927,15 @@ buf_LRU_search_and_free_block(
 				n_iterations / 5 of the unzip_LRU list. */
 	buf_block_t**	block,	/*!< in/out: if block != NULL then this
 				can return a pointer to a free block. */
-	ibool		locked)	/*!< in: when TRUE the buffer pool mutex
+	ibool		locked,	/*!< in: when TRUE the buffer pool mutex
 				is locked by the caller. Buffer pool mutex
 				is always unlocked when this returns. */
+	ulint*		nsearched)/*!< out: #blocks checked in the common LRU */
 {
 	ibool	freed = FALSE;
 	ulint	space_id = ULINT_UNDEFINED;
+
+	ut_ad(*nsearched == 0);
 
 	if (!locked)
 		buf_pool_mutex_enter();
@@ -929,7 +943,20 @@ buf_LRU_search_and_free_block(
 	freed = buf_LRU_free_from_unzip_LRU_list(n_iterations);
 
 	if (!freed) {
-		freed = buf_LRU_free_from_common_LRU_list(n_iterations, &space_id);
+		/* Limit how far back from the LRU a search will be done when
+		innodb_fast_free_list is ON and this was called by
+		buf_LRU_get_free_block. Without a limit this can search too far
+		into the LRU. This is not needed when innodb_fast_free_list is
+		OFF because buf_flush_free_margin is always called after a free
+		page was allocated during a read and the reading thread will get
+		stuck in buf_flush_free_margin waiting for a flush to finish.
+		*/
+		ulint limit	= 0;
+		if (block && srv_fast_free_list && n_iterations == 1)
+			limit = BUF_LRU_FREE_SEARCH_LEN;
+
+		freed = buf_LRU_free_from_common_LRU_list(n_iterations, &space_id,
+				 			  nsearched, limit);
 	}
 
 	if (!freed) {
@@ -969,10 +996,11 @@ buf_LRU_try_free_flushed_blocks(void)
 	buf_pool_mutex_enter();
 
 	while (buf_pool->LRU_flush_ended > 0) {
+		ulint	unused	= 0;
 
 		buf_pool_mutex_exit();
 
-		buf_LRU_search_and_free_block(1, NULL, FALSE);
+		buf_LRU_search_and_free_block(1, NULL, FALSE, &unused);
 
 		buf_pool_mutex_enter();
 	}
@@ -1064,8 +1092,10 @@ LRU list to the free list.
 @return	the free control block, in state BUF_BLOCK_READY_FOR_USE */
 UNIV_INTERN
 buf_block_t*
-buf_LRU_get_free_block(void)
+buf_LRU_get_free_block(
 /*========================*/
+	ulint*	nsearched)	/*!< out: #blocks checked on the LRU to find
+				a free one */
 {
 	buf_block_t*	block		= NULL;
 	ibool		freed;
@@ -1151,7 +1181,8 @@ loop:
 	/* If no block was in the free list, search from the end of the LRU
 	list and try to free a block there. This function calls buf_pool_mutex_exit */
 
-	freed = buf_LRU_search_and_free_block(n_iterations, &block, TRUE);
+	*nsearched = 0;
+	freed = buf_LRU_search_and_free_block(n_iterations, &block, TRUE, nsearched);
 
 	if (block) {
 		ut_a(freed);
@@ -1199,7 +1230,12 @@ loop:
 
 	/* No free block was found: try to flush the LRU list */
 
-	buf_flush_free_margin(1, TRUE);
+	buf_flush_free_margin(TRUE, *nsearched);
+
+	/* Caller won't need to do work in buf_flush_free_margin because
+	it was just called above. */
+	*nsearched = 0;
+
 	++srv_buf_pool_wait_free;
 
 	os_aio_simulated_wake_handler_threads();
@@ -2564,6 +2600,8 @@ buf_LRU_file_restore(void)
 
 		/* now step forwards requesting consecutive pages */
 		while (current_record < sorted_records + length) {
+			ulint	unused	= 0;
+
 			if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
 				os_aio_simulated_wake_handler_threads();
 				goto end;
@@ -2587,7 +2625,7 @@ buf_LRU_file_restore(void)
 				ulint loop_usecs;
 
 				os_aio_simulated_wake_handler_threads();
-				buf_flush_free_margin(srv_io_capacity, FALSE);
+				buf_flush_free_margin(FALSE, 0);
 
 				loop_usecs = my_fast_timer_diff_now(&loop_timer, NULL) * 1000000.0;
 
@@ -2601,7 +2639,8 @@ buf_LRU_file_restore(void)
 			reads += buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
 						   | OS_AIO_SIMULATED_WAKE_LATER,
 						   space_id, zip_size, TRUE,
-						   tablespace_version, page_no, NULL);
+						   tablespace_version, page_no, NULL,
+						   &unused);
 			buf_LRU_stat_inc_io();
 
 			srv_lru_restore_loaded_pages++;
@@ -2619,7 +2658,7 @@ buf_LRU_file_restore(void)
 	}
 
 	os_aio_simulated_wake_handler_threads();
-	buf_flush_free_margin(srv_io_capacity, FALSE);
+	buf_flush_free_margin(FALSE, 0);
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,

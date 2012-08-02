@@ -60,7 +60,8 @@ buf_read_page_low(
 			use to stop dangling page reads from a tablespace
 			which we have DISCARDed + IMPORTed back */
 	ulint	offset,	/*!< in: page number */
-	trx_t*	trx);
+	trx_t*	trx,
+	ulint*	nsearched);/*!< out: #blocks searched on the LRU */
 /********************************************************************//**
 High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets

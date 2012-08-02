@@ -71,8 +71,9 @@ UNIV_INTERN
 void
 buf_flush_free_margin(
 /*==================*/
-	ulint		npages,		/*!< in: number of free pages needed */
-	ibool		foreground);	/*!< in: done from foreground thread */
+	ibool		foreground,	/*!< in: done from foreground thread */
+	ulint		nsearched);	/*!< in: #pages searched on the LRU
+					by the caller for a free page */
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Initializes a page for writing to the tablespace. */

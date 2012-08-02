@@ -48,6 +48,8 @@ enum buf_flush {
 	BUF_FLUSH_SINGLE_PAGE,		/*!< flush a single page */
 	BUF_FLUSH_LIST,			/*!< flush via the flush list
 					of dirty blocks */
+	BUF_FLUSH_LRU_FAST,		/*!< flush via the LRU list and used
+					the innodb_fast_free_list option */
 	BUF_FLUSH_N_TYPES		/*!< index of last element + 1  */
 };
 

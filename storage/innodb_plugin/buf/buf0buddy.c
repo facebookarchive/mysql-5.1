@@ -274,6 +274,7 @@ buf_buddy_alloc_low(
 			and buf_pool_mutex was temporarily released */
 {
 	buf_block_t*	block;
+	ulint		unused =	0;
 
 	ut_ad(lru);
 	ut_ad(buf_pool_mutex_own());
@@ -300,7 +301,7 @@ buf_buddy_alloc_low(
 
 	/* Try replacing an uncompressed page in the buffer pool. */
 	buf_pool_mutex_exit();
-	block = buf_LRU_get_free_block();
+	block = buf_LRU_get_free_block(&unused);
 	*lru = TRUE;
 	buf_pool_mutex_enter();
 

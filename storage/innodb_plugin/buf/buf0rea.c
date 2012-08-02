@@ -90,7 +90,8 @@ buf_read_page_low(
 			use to stop dangling page reads from a tablespace
 			which we have DISCARDed + IMPORTed back */
 	ulint	offset,	/*!< in: page number */
-	trx_t*	trx)
+	trx_t*	trx,
+	ulint*	nsearched)/*!< out: #blocks searched on the LRU */
 {
 	buf_page_t*	bpage;
 	ulint		wake_later;
@@ -134,7 +135,7 @@ buf_read_page_low(
 	pool for read, then DISCARD cannot proceed until the read has
 	completed */
 	bpage = buf_page_init_for_read(err, mode, space, zip_size, unzip,
-				       tablespace_version, offset);
+				       tablespace_version, offset, nsearched);
 	if (bpage == NULL) {
 
 		return(0);
@@ -303,6 +304,8 @@ read_ahead:
 	count = 0;
 
 	for (i = low; i < high; i++) {
+		ulint	unused	= 0;
+
 		/* It is only sensible to do read-ahead in the non-sync aio
 		mode: hence FALSE as the first parameter */
 
@@ -311,7 +314,7 @@ read_ahead:
 				&err, FALSE,
 				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
 				space, zip_size, FALSE,
-				tablespace_version, i, trx);
+				tablespace_version, i, trx, &unused);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -367,6 +370,7 @@ buf_read_page(
 	ib_int64_t	tablespace_version;
 	ulint		count;
 	ulint		err;
+	ulint		nsearched	= 0;
 
 	count = buf_read_ahead_random(space, zip_size, offset, trx);
 	srv_buf_pool_reads += count;
@@ -378,7 +382,8 @@ buf_read_page(
 
 	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
 				  zip_size, FALSE,
-				  tablespace_version, offset, trx);
+				  tablespace_version, offset, trx,
+				  &nsearched);
 	srv_buf_pool_reads += count;
 	if (err == DB_TABLESPACE_DELETED) {
 		ut_print_timestamp(stderr);
@@ -391,7 +396,7 @@ buf_read_page(
 	}
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(1, TRUE);
+	buf_flush_free_margin(TRUE, nsearched);
 
 	/* Increment number of I/O operations used for LRU policy. */
 	buf_LRU_stat_inc_io();
@@ -447,6 +452,7 @@ buf_read_ahead_linear(
 	ulint		low, high;
 	ulint		err;
 	ulint		i;
+	ulint		nsearched	= 0;
 	const ulint	buf_read_ahead_linear_area
 		= BUF_READ_AHEAD_LINEAR_AREA;
 	ulint		threshold;
@@ -659,7 +665,7 @@ buf_read_ahead_linear(
 				&err, FALSE,
 				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
 				space, zip_size, FALSE, tablespace_version, i,
-				trx);
+				trx, &nsearched);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -682,7 +688,7 @@ buf_read_ahead_linear(
 	if (count) {
 		/* Flush pages from the end of the LRU list if necessary */
 	
-		buf_flush_free_margin(count, TRUE);
+		buf_flush_free_margin(TRUE, nsearched);
 	}
 
 #ifdef UNIV_DEBUG
@@ -730,6 +736,7 @@ buf_read_ibuf_merge_pages(
 					in the arrays */
 {
 	ulint	i;
+	ulint	nsearched	= 0;
 
 	ut_ad(!ibuf_inside());
 #ifdef UNIV_IBUF_DEBUG
@@ -752,7 +759,7 @@ buf_read_ibuf_merge_pages(
 		buf_read_page_low(&err, sync && (i + 1 == n_stored),
 				  BUF_READ_ANY_PAGE, space_ids[i],
 				  zip_size, TRUE, space_versions[i],
-				  page_nos[i], NULL);
+				  page_nos[i], NULL, &nsearched);
 
 		if (UNIV_UNLIKELY(err == DB_TABLESPACE_DELETED)) {
 tablespace_deleted:
@@ -769,7 +776,7 @@ tablespace_deleted:
 	os_aio_simulated_wake_handler_threads();
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(n_stored, TRUE);
+	buf_flush_free_margin(TRUE, nsearched);
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
@@ -805,6 +812,7 @@ buf_read_recv_pages(
 	ulint		count;
 	ulint		err;
 	ulint		i;
+	ulint		nsearched	= 0;
 
 	zip_size = fil_space_get_zip_size(space);
 
@@ -850,20 +858,20 @@ buf_read_recv_pages(
 		if ((i + 1 == n_stored) && sync) {
 			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
 					  zip_size, TRUE, tablespace_version,
-					  page_nos[i], NULL);
+					  page_nos[i], NULL, &nsearched);
 		} else {
 			buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
 					  | OS_AIO_SIMULATED_WAKE_LATER,
 					  space, zip_size, TRUE,
 					  tablespace_version, page_nos[i],
-					  NULL);
+					  NULL, &nsearched);
 		}
 	}
 
 	os_aio_simulated_wake_handler_threads();
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(n_stored, TRUE);
+	buf_flush_free_margin(TRUE, nsearched);
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {

@@ -374,6 +374,9 @@ extern ulint	srv_io_slow_usecs;
 before getting scheduled */
 extern ulint	srv_io_old_usecs;
 
+extern my_bool	srv_fast_free_list;
+extern ulint	srv_fast_free_list_min;
+
 #ifdef UNIV_DEBUG
 /** Error injection */
 extern my_bool	srv_fail_ddl_drop_index;

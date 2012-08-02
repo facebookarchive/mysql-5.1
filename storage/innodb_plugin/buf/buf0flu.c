@@ -1381,6 +1381,16 @@ buf_flush_batch(
 	ulint		space;
 	ulint		offset;
 	ibool		flush_neighbors	= TRUE;
+	ulint		search_limit	= ULINT_MAX;
+	ulint		distance;
+
+	if (flush_type == BUF_FLUSH_LRU_FAST) {
+		/* For this type there is a limit both on the number of pages
+		flushed and the number of pages checked. */
+
+		flush_type = BUF_FLUSH_LRU;
+		search_limit = min_n;
+	}
 
 	if ((min_n == ULINT_MAX) && (lsn_limit != IB_ULONGLONG_MAX) &&
 		!srv_flush_neighbors_on_checkpoint) {
@@ -1422,11 +1432,19 @@ buf_flush_batch(
 
 	buf_pool->init_flush[flush_type] = TRUE;
 
+	distance = 0;
+
 	for (;;) {
 flush_next:
 		/* If we have flushed enough, leave the loop */
 		if (page_count >= min_n) {
 
+			break;
+		}
+
+		++distance;
+
+		if (distance > search_limit) {
 			break;
 		}
 
@@ -1476,6 +1494,7 @@ flush_next:
 					flush_neighbors);
 
 				buf_pool_mutex_enter();
+				distance = 0;
 				goto flush_next;
 
 			} else if (flush_type == BUF_FLUSH_LRU) {
@@ -1567,21 +1586,12 @@ and in the free list.
 LRU list */
 static
 ulint
-buf_flush_LRU_recommendation(
+buf_flush_LRU_recommendation(void)
 /*=========================*/
-	ulint	n_needed)	/*!< in: number of free pages needed */
 {
 	buf_page_t*	bpage;
 	ulint		n_replaceable;
 	ulint		distance	= 0;
-
-	if (UT_LIST_GET_LEN(buf_pool->free) >= n_needed) {
-
-		/* This does a dirty read of buf_pool->free. That is good
-		enough and reduces mutex contention on buf_pool->mutex. */
-
-		return 0;
-	}
 
 	buf_pool_mutex_enter();
 
@@ -1630,22 +1640,44 @@ UNIV_INTERN
 void
 buf_flush_free_margin(
 /*===================*/
-	ulint	npages,		/*!< in: number of free pages needed */
-	ibool	foreground)	/*!< in: done from foreground thread */
+	ibool	foreground,	/*!< in: done from foreground thread */
+	ulint	nsearched)	/*!< in: #blocks searched on the LRU
+				by the caller for a free page. */
 {
 	ulint	n_to_flush;
 	ulint	n_flushed;
 	my_fast_timer_t	start_time;
+	enum buf_flush	flush_type;
+
+	if (!srv_fast_free_list) {
+		n_to_flush = buf_flush_LRU_recommendation();
+		flush_type = BUF_FLUSH_LRU;
+	} else {
+		/* TODO(mcallaghan) -- add atomic check for concurrent calls */
+
+		/* Do nothing when called by a foreground thread and that
+		thread did not search too far into the LRU to find a page
+		to make free. Otherwise schedule writes for all dirty
+		pages within BUF_LRU_FREE_SEARCH_LEN entries from the
+		LRU end. This is more efficient than first calling
+		buf_flush_LRU_recommendation. */
+
+		if (foreground && nsearched < srv_fast_free_list_min) {
+			return;
+		}
+
+		n_to_flush = BUF_LRU_FREE_SEARCH_LEN;
+		flush_type = BUF_FLUSH_LRU_FAST;
+	}
 
 	my_get_fast_timer(&start_time);
-	n_to_flush = buf_flush_LRU_recommendation(npages);
 
 	if (n_to_flush > 0) {
-		n_flushed = buf_flush_batch(BUF_FLUSH_LRU, n_to_flush, 0);
+		n_flushed = buf_flush_batch(flush_type, n_to_flush, 0);
 		if (n_flushed == ULINT_UNDEFINED) {
 			/* There was an LRU type flush batch already running;
 			let us wait for it to end */
-
+	
 			buf_flush_wait_batch_end(BUF_FLUSH_LRU);
 		} else {
 			if (foreground) {

@@ -12896,6 +12896,17 @@ static MYSQL_SYSVAR_ULONG(aio_slow_usecs, srv_io_slow_usecs,
   "table stats.",
   NULL, NULL, 500000, 100000, 5000000, 0);
 
+static MYSQL_SYSVAR_BOOL(fast_free_list, srv_fast_free_list,
+  PLUGIN_VAR_NOCMDARG,
+  "Use a more efficient algorithm for finding free pages on the LRU",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_ULONG(fast_free_list_min, srv_fast_free_list_min,
+  PLUGIN_VAR_RQCMDARG,
+  "Try to flush dirty pages from the end of the LRU when this many pages "
+  "are checked from the tail of the LRU to find a clean page.",
+  NULL, NULL, 16, 1, 1000, 0);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_BOOL(fail_ddl_drop_index, srv_fail_ddl_drop_index,
   PLUGIN_VAR_NOCMDARG,
@@ -13061,6 +13072,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(error_log_spam),
   MYSQL_SYSVAR(aio_slow_usecs),
   MYSQL_SYSVAR(aio_old_usecs),
+  MYSQL_SYSVAR(fast_free_list),
+  MYSQL_SYSVAR(fast_free_list_min),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(fail_ddl_drop_index),
   MYSQL_SYSVAR(fail_ddl_rename_index),
