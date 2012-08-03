@@ -1,1 +1,0 @@
-`cat ../../mysql-src-root`/client/mysqladmin shutdown --socket=../mysql-test/var/tmp/master.sock --user=root
