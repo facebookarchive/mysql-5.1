@@ -303,5 +303,163 @@ SHOW TABLES IN connected_db;
 Tables_in_connected_db
 table_in_connected_db
 DROP DATABASE connected_db;
+create table t1(A varchar(10), B varchar(10), C varchar(10), D varchar(10), E varchar(10), F varchar(10));
+insert into t1 values('NULL', NULL, '', 'N', '\\N', '\\\\N');
+## Baseline
+<TABLE BORDER=1><TR><TH>A</TH><TH>B</TH><TH>C</TH><TH>D</TH><TH>E</TH><TH>F</TH></TR><TR><TD>NULL</TD><TD>NULL</TD><TD></TD><TD>N</TD><TD>\N</TD><TD>\\N</TD></TR></TABLE><?xml version="1.0"?>
+
+<resultset statement="select * from t1
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <row>
+	<field name="A">NULL</field>
+	<field name="B" xsi:nil="true" />
+	<field name="C"></field>
+	<field name="D">N</field>
+	<field name="E">\N</field>
+	<field name="F">\\N</field>
+  </row>
+</resultset>
+*************************** 1. row ***************************
+A: NULL
+B: NULL
+C: 
+D: N
+E: \N
+F: \\N
+NULL	NULL		N	\\N	\\\\N
++------+------+------+------+------+------+
+| A    | B    | C    | D    | E    | F    |
++------+------+------+------+------+------+
+| NULL | NULL |      | N    | \N   | \\N  |
++------+------+------+------+------+------+
+A	B	C	D	E	F
+NULL	NULL		N	\\N	\\\\N
+A	B	C	D	E	F
+NULL	NULL		N	\N	\\N
+## Can specify default
+<TABLE BORDER=1><TR><TH>A</TH><TH>B</TH><TH>C</TH><TH>D</TH><TH>E</TH><TH>F</TH></TR><TR><TD>NULL</TD><TD>NULL</TD><TD></TD><TD>N</TD><TD>\N</TD><TD>\\N</TD></TR></TABLE><?xml version="1.0"?>
+
+<resultset statement="select * from t1
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <row>
+	<field name="A">NULL</field>
+	<field name="B" xsi:nil="true" />
+	<field name="C"></field>
+	<field name="D">N</field>
+	<field name="E">\N</field>
+	<field name="F">\\N</field>
+  </row>
+</resultset>
+*************************** 1. row ***************************
+A: NULL
+B: NULL
+C: 
+D: N
+E: \N
+F: \\N
+NULL	NULL		N	\\N	\\\\N
++------+------+------+------+------+------+
+| A    | B    | C    | D    | E    | F    |
++------+------+------+------+------+------+
+| NULL | NULL |      | N    | \N   | \\N  |
++------+------+------+------+------+------+
+A	B	C	D	E	F
+NULL	NULL		N	\\N	\\\\N
+A	B	C	D	E	F
+NULL	NULL		N	\N	\\N
+## Typical substitution
+<TABLE BORDER=1><TR><TH>A</TH><TH>B</TH><TH>C</TH><TH>D</TH><TH>E</TH><TH>F</TH></TR><TR><TD>NULL</TD><TD>\N</TD><TD></TD><TD>N</TD><TD>\N</TD><TD>\\N</TD></TR></TABLE><?xml version="1.0"?>
+
+<resultset statement="select * from t1
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <row>
+	<field name="A">NULL</field>
+	<field name="B" xsi:nil="true" />
+	<field name="C"></field>
+	<field name="D">N</field>
+	<field name="E">\N</field>
+	<field name="F">\\N</field>
+  </row>
+</resultset>
+*************************** 1. row ***************************
+A: NULL
+B: \N
+C: 
+D: N
+E: \N
+F: \\N
+NULL	\N		N	\\N	\\\\N
++------+----+----+----+----+-----+
+| A    | B  | C  | D  | E  | F   |
++------+----+----+----+----+-----+
+| NULL | \N |    | N  | \N | \\N |
++------+----+----+----+----+-----+
+A	B	C	D	E	F
+NULL	\N		N	\\N	\\\\N
+A	B	C	D	E	F
+NULL	\N		N	\N	\\N
+## Empty
+<TABLE BORDER=1><TR><TH>A</TH><TH>B</TH><TH>C</TH><TH>D</TH><TH>E</TH><TH>F</TH></TR><TR><TD>NULL</TD><TD></TD><TD></TD><TD>N</TD><TD>\N</TD><TD>\\N</TD></TR></TABLE><?xml version="1.0"?>
+
+<resultset statement="select * from t1
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <row>
+	<field name="A">NULL</field>
+	<field name="B" xsi:nil="true" />
+	<field name="C"></field>
+	<field name="D">N</field>
+	<field name="E">\N</field>
+	<field name="F">\\N</field>
+  </row>
+</resultset>
+*************************** 1. row ***************************
+A: NULL
+B: 
+C: 
+D: N
+E: \N
+F: \\N
+NULL			N	\\N	\\\\N
++------+---+---+---+----+-----+
+| A    | B | C | D | E  | F   |
++------+---+---+---+----+-----+
+| NULL |   |   | N | \N | \\N |
++------+---+---+---+----+-----+
+A	B	C	D	E	F
+NULL			N	\\N	\\\\N
+A	B	C	D	E	F
+NULL			N	\N	\\N
+## Long string
+<TABLE BORDER=1><TR><TH>A</TH><TH>B</TH><TH>C</TH><TH>D</TH><TH>E</TH><TH>F</TH></TR><TR><TD>NULL</TD><TD>0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7</TD><TD></TD><TD>N</TD><TD>\N</TD><TD>\\N</TD></TR></TABLE><?xml version="1.0"?>
+
+<resultset statement="select * from t1
+" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <row>
+	<field name="A">NULL</field>
+	<field name="B" xsi:nil="true" />
+	<field name="C"></field>
+	<field name="D">N</field>
+	<field name="E">\N</field>
+	<field name="F">\\N</field>
+  </row>
+</resultset>
+*************************** 1. row ***************************
+A: NULL
+B: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7
+C: 
+D: N
+E: \N
+F: \\N
+NULL	0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7		N	\\N	\\\\N
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| A                                                                                                                                                                                                                                                                                                                      | B                                                                                                                                                                                                                                                                                                                      | C                                                                                                                                                                                                                                                                                                                      | D                                                                                                                                                                                                                                                                                                                      | E                                                                                                                                                                                                                                                                                                                      | F                                                                                                                                                                                                                                                                                                                      |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| NULL                                                                                                                                                                                                                                                                                                                   | 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7 |                                                                                                                                                                                                                                                                                                                        | N                                                                                                                                                                                                                                                                                                                      | \N                                                                                                                                                                                                                                                                                                                     | \\N                                                                                                                                                                                                                                                                                                                    |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+A	B	C	D	E	F
+NULL	0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7		N	\\N	\\\\N
+A	B	C	D	E	F
+NULL	0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7		N	\N	\\N
+drop table t1;
 
 End of tests

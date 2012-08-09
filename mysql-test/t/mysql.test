@@ -562,5 +562,53 @@ DROP DATABASE connected_db;
 --remove_file $MYSQLTEST_VARDIR/tmp/one_db_1.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/one_db_2.sql
 
+#
+# Testing --null_as=
+#
+create table t1(A varchar(10), B varchar(10), C varchar(10), D varchar(10), E varchar(10), F varchar(10));
+insert into t1 values('NULL', NULL, '', 'N', '\\N', '\\\\N');
+--echo ## Baseline
+--exec $MYSQL -e "use test; select * from t1" -H
+--exec $MYSQL -e "use test; select * from t1" -X
+--exec $MYSQL -e "use test; select * from t1" -E
+--exec $MYSQL -e "use test; select * from t1" -s
+--exec $MYSQL -e "use test; select * from t1" -t
+--exec $MYSQL -e "use test; select * from t1" -B
+--exec $MYSQL -e "use test; select * from t1" -B -r
+--echo ## Can specify default
+--exec $MYSQL --null_as="NULL" -e "use test; select * from t1" -H
+--exec $MYSQL --null_as="NULL" -e "use test; select * from t1" -X
+--exec $MYSQL --null_as="NULL" -e "use test; select * from t1" -E
+--exec $MYSQL --null_as="NULL" -e "use test; select * from t1" -s
+--exec $MYSQL --null_as="NULL" -e "use test; select * from t1" -t
+--exec $MYSQL --null_as="NULL" -e "use test; select * from t1" -B
+--exec $MYSQL --null_as="NULL" -e "use test; select * from t1" -B -r
+--echo ## Typical substitution
+--exec $MYSQL --null_as="\N" -e "use test; select * from t1" -H
+--exec $MYSQL --null_as="\N" -e "use test; select * from t1" -X
+--exec $MYSQL --null_as="\N" -e "use test; select * from t1" -E
+--exec $MYSQL --null_as="\N" -e "use test; select * from t1" -s
+--exec $MYSQL --null_as="\N" -e "use test; select * from t1" -t
+--exec $MYSQL --null_as="\N" -e "use test; select * from t1" -B
+--exec $MYSQL --null_as="\N" -e "use test; select * from t1" -B -r
+--echo ## Empty
+--exec $MYSQL --null_as="" -e "use test; select * from t1" -H
+--exec $MYSQL --null_as="" -e "use test; select * from t1" -X
+--exec $MYSQL --null_as="" -e "use test; select * from t1" -E
+--exec $MYSQL --null_as="" -e "use test; select * from t1" -s
+--exec $MYSQL --null_as="" -e "use test; select * from t1" -t
+--exec $MYSQL --null_as="" -e "use test; select * from t1" -B
+--exec $MYSQL --null_as="" -e "use test; select * from t1" -B -r
+--echo ## Long string
+--exec $MYSQL --null_as="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7" -e "use test; select * from t1" -H
+--exec $MYSQL --null_as="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7" -e "use test; select * from t1" -X
+--exec $MYSQL --null_as="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7" -e "use test; select * from t1" -E
+--exec $MYSQL --null_as="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7" -e "use test; select * from t1" -s
+--exec $MYSQL --null_as="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7" -e "use test; select * from t1" -t
+--exec $MYSQL --null_as="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7" -e "use test; select * from t1" -B
+--exec $MYSQL --null_as="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzN5lXW3pDedxS6ocYy71z9hZViKnLqCEaMtGbAP2Hmjgk8svrJwBFQUIf0O4RTuzyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA987654321084yz5dGwQLVRtOMWZa0PAlCrEpXTjq6Sc3uHUYfeBIxDbiF7nmhN2s1oKJgv9kCsPSe5JNDYLq4K8pHI3G6MbRZFn1UryTdwtxoEOfhgWkcz9uiaAlmVjQ2X0Bv7" -e "use test; select * from t1" -B -r
+drop table t1;
+
+
 --echo
 --echo End of tests

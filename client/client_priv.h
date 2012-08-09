@@ -97,5 +97,6 @@ enum options_client
   OPT_ALL,
   OPT_INNODB_OPTIMIZE_KEYS,
   OPT_TIMEOUT,
+  OPT_NULL_AS,
   OPT_MAX_CLIENT_OPTION
 };

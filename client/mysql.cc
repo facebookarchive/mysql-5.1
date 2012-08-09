@@ -189,6 +189,8 @@ static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
 static char delimiter[16]= DEFAULT_DELIMITER;
 static uint delimiter_length= 1;
+static char *null_value=0;
+static size_t null_value_length=0;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -1083,6 +1085,9 @@ int main(int argc,char *argv[])
 			     getenv("MYSQL_PS1") : 
 			     "mysql> ",MYF(MY_WME));
   current_prompt = my_strdup(default_prompt,MYF(MY_WME));
+  null_value = my_strdup("NULL",MYF(MY_WME));
+  null_value_length = strlen(null_value);
+
   prompt_counter=0;
 
   outfile[0]=0;			// no (default) outfile
@@ -1438,6 +1443,8 @@ static struct my_option my_long_options[] =
    &opt_local_infile, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"no-beep", 'b', "Turn off beep on error.", &opt_nobeep,
    &opt_nobeep, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0}, 
+  {"null_as", OPT_NULL_AS, "String to print when displaying NULL entries.",
+   &null_value, &null_value, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", &current_host,
    &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"html", 'H', "Produce HTML output.", &opt_html, &opt_html,
@@ -1722,6 +1729,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #else /*EMBEDDED_LIBRARY */
     printf("WARNING: --server-arg option not supported in this configuration.\n");
 #endif
+    break;
+  case OPT_NULL_AS:
+    null_value_length = strlen(null_value);
     break;
   case 'A':
     opt_rehash= 0;
@@ -3353,8 +3363,8 @@ print_table_data(MYSQL_RES *result)
       length=max(length,field->length);
     else
       length=max(length,field->max_length);
-    if (length < 4 && !IS_NOT_NULL(field->flags))
-      length=4;					// Room for "NULL"
+    if (length < null_value_length && !IS_NOT_NULL(field->flags))
+      length= null_value_length;			// Room for "NULL"
     field->max_length=length;
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
@@ -3401,10 +3411,10 @@ print_table_data(MYSQL_RES *result)
 
       if (cur[off] == NULL)
       {
-        buffer= "NULL";
-        data_length= 4;
-      } 
-      else 
+        buffer= null_value;
+        data_length= null_value_length;
+      }
+      else
       {
         buffer= cur[off];
         data_length= (uint) lengths[off];
@@ -3593,10 +3603,12 @@ print_table_data_vertically(MYSQL_RES *result)
           else
             tee_putc((int)*p, PAGER);
         }
-        tee_putc('\n', PAGER);
       }
       else
-        tee_fprintf(PAGER, "NULL\n");
+      {
+        tee_fputs(null_value, PAGER);
+      }
+      tee_putc('\n', PAGER);
     }
   }
 }
@@ -3660,7 +3672,7 @@ static void
 xmlencode_print(const char *src, uint length)
 {
   if (!src)
-    tee_fputs("NULL", PAGER);
+    tee_fputs(null_value, PAGER);
   else
   {
     for (const char *p = src; length; p++, length--)
@@ -3679,7 +3691,7 @@ static void
 safe_put_field(const char *pos,ulong length)
 {
   if (!pos)
-    tee_fputs("NULL", PAGER);
+    tee_fputs(null_value, PAGER);
   else
   {
     if (opt_raw_data)
