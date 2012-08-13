@@ -57,7 +57,7 @@ typedef struct st_key_part_info {	/* Info about a key part */
   uint	offset;				/* offset in record (from 0) */
   uint	null_offset;			/* Offset to null_bit in record */
   uint16 length;                        /* Length of keypart value in bytes */
-  /* 
+  /*
     Number of bytes required to store the keypart value. This may be
     different from the "length" field as it also counts
      - possible NULL-flag byte (see HA_KEY_NULL_LENGTH)
@@ -360,7 +360,7 @@ typedef struct st_index_stats {
   my_io_perf_t io_perf_read_blob;    /* Read IO performance counters for blob */
 } INDEX_STATS;
 
-/* 
+/*
   Maximum number of indexes for which stats are collected. Tables that have
   more use st_table_stats::indexes[MAX_INDEX_STATS-1] for the extra indexes.
 */
@@ -401,6 +401,7 @@ typedef struct st_table_stats {
   my_io_perf_t io_perf_read_secondary;  /* Read IO performance counters for
                                            secondary index */
   volatile my_atomic_bigint index_inserts;  /* Number of secondary index inserts. */
+  volatile my_atomic_bigint queries_empty;  /* Number of empty queries, exclude joins */
 
   /* LOCK_global_table_stats is locked when this is updated */
   int n_lru;                         /* #pages in InnoDB LRU */
@@ -529,7 +530,7 @@ private:
   uint                  elements; // number of elements
   void set_members(Discrete_interval *h, Discrete_interval *t,
                    Discrete_interval *c, uint el)
-  {  
+  {
     head= h;
     tail= t;
     current= c;

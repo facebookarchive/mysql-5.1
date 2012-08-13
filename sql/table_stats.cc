@@ -63,6 +63,7 @@ clear_table_stats_counters(TABLE_STATS* table_stats)
   my_io_perf_init(&table_stats->io_perf_read_primary);
   my_io_perf_init(&table_stats->io_perf_read_secondary);
   table_stats->index_inserts = 0;
+  table_stats->queries_empty = 0;
 	memset(&table_stats->comp_stat, 0, sizeof(table_stats->comp_stat));
 }
 
@@ -93,7 +94,7 @@ set_index_stats_names(TABLE_STATS *table_stats, TABLE *table)
 
     if (x == (MAX_INDEX_STATS - 1) && table->s->keys > MAX_INDEX_STATS)
       index_name = "STATS_OVERFLOW";
- 
+
     if (snprintf(table_stats->indexes[x].name, NAME_LEN+1, "%s",
                  index_name) < 0)
     {
@@ -251,7 +252,7 @@ get_table_stats(TABLE *table, handlerton *engine_type)
                                  table->s->table_cache_key.length,
                                  table);
 }
-  
+
 extern "C" uchar *get_key_table_stats(TABLE_STATS *table_stats, size_t *length,
                                       my_bool not_used __attribute__((unused)))
 {
@@ -376,6 +377,8 @@ ST_FIELD_INFO table_stats_fields_info[]=
   {"KEYS_DIRTIED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"QUERIES_USED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
 
+  {"QUERIES_EMPTY", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
+
   {"INNODB_BUFFER_POOL_PAGES", MY_INT32_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONG, 0, 0, 0, SKIP_OPEN_TABLE},
 
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
@@ -441,6 +444,7 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
         table_stats->io_perf_read_blob.requests == 0 &&
         table_stats->io_perf_read_primary.requests == 0 &&
         table_stats->io_perf_read_secondary.requests == 0 &&
+        table_stats->queries_empty == 0 &&
         table_stats->n_lru == 0)
     {
       continue;
@@ -522,6 +526,7 @@ int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     table->field[f++]->store(table_stats->index_inserts, TRUE);
     table->field[f++]->store(table_stats->keys_dirtied, TRUE);
     table->field[f++]->store(table_stats->queries_used, TRUE);
+    table->field[f++]->store(table_stats->queries_empty, TRUE);
 
     table->field[f++]->store(table_stats->n_lru, TRUE);
 
@@ -566,7 +571,7 @@ ST_FIELD_INFO index_stats_fields_info[]=
   {"IO_READ_WAIT_USECS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"IO_READ_WAIT_USECS_MAX_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
   {"IO_READ_SLOW_IOS_BLOB", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
-  
+
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
@@ -586,7 +591,7 @@ int fill_index_stats(THD *thd, TABLE_LIST *tables, COND *cond)
 
     for (ix=0; ix < table_stats->num_indexes; ++ix)
     {
-      INDEX_STATS *index_stats= &(table_stats->indexes[ix]); 
+      INDEX_STATS *index_stats= &(table_stats->indexes[ix]);
       int f= 0;
 
       if (index_stats->rows_inserted == 0 &&
