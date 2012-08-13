@@ -194,6 +194,8 @@ int n_fil_page_max_index_id;
 
 #define MAX_DATA_BYTES_PER_PAGE 16384
 #define SIZE_RANGES_FOR_PAGE 10
+#define NUM_RETRIES 3
+#define DEFAULT_RETRY_DELAY 1000000
 
 struct per_index_stats {
   unsigned long long pages;
@@ -880,12 +882,18 @@ int main(int argc, char **argv)
   int skip_corrupt= 0;
   int compressed = 0;
   ulint page_size = 0;
+  int retry = 0;
+  int retry_delay_microsec = DEFAULT_RETRY_DELAY;
+  int is_read_success = 1;
 
   /* remove arguments */
-  while ((c= getopt(argc, argv, "cvids:e:p:ub:")) != -1)
+  while ((c= getopt(argc, argv, "r:cvids:e:p:ub:")) != -1)
   {
     switch (c)
     {
+    case 'r':
+      retry_delay_microsec = atoi(optarg) * 1000;
+      break;
     case 'v':
       verbose= 1;
       break;
@@ -943,7 +951,7 @@ int main(int argc, char **argv)
   if (optind >= argc)
   {
     printf("InnoDB offline file checksum utility.\n");
-    printf("usage: %s [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v] [-d] [-i] <filename>\n", argv[0]);
+    printf("usage: %s [-c] [-s <start page>] [-e <end page>] [-p <page>] [-r <retry delay>] [-v] [-d] [-i] <filename>\n", argv[0]);
     printf("\t-c\tprint the count of pages in the file\n");
     printf("\t-s n\tstart on this page number (0 based)\n");
     printf("\t-e n\tend at this page number (0 based)\n");
@@ -951,6 +959,7 @@ int main(int argc, char **argv)
     printf("\t-v\tverbose (prints progress every 5 seconds)\n");
     printf("\t-d\tdebug mode (prints checksums for each page)\n");
     printf("\t-i\tprint per-page details\n");
+    printf("\t-r n\tDelay (in millisec) between retries when there is a read error or checksum error. Default is 1000 millisec with 3 retries\n");
     return 1;
   }
 
@@ -1028,6 +1037,7 @@ int main(int argc, char **argv)
   while (!feof(f))
   {
     int page_ok = 1;
+    is_read_success = 1;
 
     bytes= fread(p, 1, page_size, f);
     if (!bytes && feof(f))
@@ -1038,17 +1048,36 @@ int main(int argc, char **argv)
 
     if (bytes != (int)page_size)
     {
-      fprintf(stderr, "bytes read (%d) doesn't match the page size (%lu)\n", bytes, page_size);
-      print_stats();
-      return 1;
+      if (retry < NUM_RETRIES) {
+        retry++;
+        is_read_success = 0;
+      }
+      else {
+        fprintf(stderr, "bytes read (%d) doesn't match the page size (%lu)\n", bytes, page_size);
+        print_stats();
+        return 1;
+      }
     }
 
-    if (!checksum_match(p, ct, page_size, compressed, debug)) {
-      fprintf(stderr, "page %lu invalid\n", ct);
-      if (!skip_corrupt) return 1;
-      page_ok = 0;
+    if (is_read_success && !checksum_match(p, ct, page_size, compressed, debug)) {
+      if (retry < NUM_RETRIES) {
+        retry++;
+        is_read_success = 0;
+      }
+      else {
+        fprintf(stderr, "page %lu invalid\n", ct);
+        if (!skip_corrupt) return 1;
+        page_ok = 0;
+      }
     }
-
+    if (!is_read_success) {
+      fprintf(stderr, "Retrying in %dms for page %lu\n", retry_delay_microsec/1000, ct);
+      fflush(f);
+      fseek(f, ct * page_size, SEEK_SET);
+      usleep(retry_delay_microsec);
+      continue;
+    }
+    retry = 0;
     /* end if this was the last page we were supposed to check */
     if (use_end_page && (ct >= end_page))
     {
