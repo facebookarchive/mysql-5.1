@@ -4515,6 +4515,7 @@ bool sys_var_trust_routine_creators::update(THD *thd, set_var *var)
 bool sys_var_opt_readonly::set_value(THD *thd, set_var *var, my_bool super)
 {
   bool result;
+  bool should_log = false;
 
   DBUG_ENTER("sys_var_opt_readonly::update");
 
@@ -4566,6 +4567,7 @@ bool sys_var_opt_readonly::set_value(THD *thd, set_var *var, my_bool super)
   }
 
   /* Change the opt_readonly/opt_super_readonly system variables, safe because the lock is held */
+  should_log = true;
   if (!super) // If setting read_only
   {
     result = sys_var_bool_ptr::update(thd, var);
@@ -4591,6 +4593,17 @@ end_with_read_lock:
   if (need_lock)
   {
     unlock_global_read_lock(thd);
+  }
+  if (should_log) {
+    sql_print_information(
+      "Setting global variable: super = %d, value = %lu, "
+      "result: read_only = %d , super_read_only = %d (user '%s' from '%s')",
+      super,
+      var->save_result.ulong_value,
+      opt_readonly,
+      opt_super_readonly,
+      thd->user_connect->user,
+      thd->user_connect->host);
   }
   DBUG_RETURN(result);
 }
