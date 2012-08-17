@@ -5111,7 +5111,7 @@ possible change in data compressibility.
 */
 ulint dict_padding_linear_round_len = 128;
 uint dict_padding_linear_successful_rounds_max = 2;
-ulint dict_padding_linear_increment = 128;
+uint dict_padding_linear_increment = 128;
 
 typedef struct padding_algo_linear_st {
 	os_fast_mutex_t mutex;

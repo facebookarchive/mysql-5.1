@@ -63,6 +63,9 @@ of consecutive rounds, then the padding is decreased by a fixed value. This
 is done to prevent overshooting the padding value, and to accommodate the
 possible change in data compressibility. */
 extern uint dict_padding_linear_successful_rounds_max;
+/** Size of the linear increment added to the padding when sufficient
+compression failures are hit. */
+extern uint dict_padding_linear_increment;
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 UNIV_INTERN

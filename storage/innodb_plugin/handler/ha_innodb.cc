@@ -12414,29 +12414,29 @@ static MYSQL_SYSVAR_BOOL(log_compressed_pages, srv_log_compressed_pages,
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_DOUBLE(segment_reserve_factor, fseg_reserve_factor,
-  PLUGIN_VAR_OPCMDARG,
+  PLUGIN_VAR_RQCMDARG,
   "If this value is x, then if the number of unused but reserved"
-  " pages in a segment is less than	reserved pages * x, and there are"
+  " pages in a segment is less than reserved pages * x, and there are"
   " at least FSEG_FRAG_LIMIT used pages, then we allow a new empty extent to"
   " be added to the segment in fseg_alloc_free_page. Otherwise, we"
   " use unused pages of the segment.",
   NULL, NULL, 0.01, 0.0003, 0.4, 0);
 
 static MYSQL_SYSVAR_DOUBLE(padding_max_fail_rate,
-  dict_padding_max_fail_rate, PLUGIN_VAR_OPCMDARG,
+  dict_padding_max_fail_rate, PLUGIN_VAR_RQCMDARG,
   "If the compression failure rate of a table is greater than this number"
   " InnoDB will continue to increase the padding size.",
   NULL, NULL, 0.1, 0.01, 0.99, 0);
 
 static MYSQL_SYSVAR_DOUBLE(padding_max,
-  dict_padding_max, PLUGIN_VAR_OPCMDARG,
-  "This determines the maximum amount of empty space that can be  reserved on a"
+  dict_padding_max, PLUGIN_VAR_RQCMDARG,
+  "This determines the maximum amount of empty space that can be reserved on a"
   " page to make the page compressible as a fraction of the page size.",
   NULL, NULL, 0.4, 0.0, 1.0, 0);
 
 static MYSQL_SYSVAR_UINT(padding_rounds_successful_max,
   dict_padding_linear_successful_rounds_max,
-  PLUGIN_VAR_OPCMDARG,
+  PLUGIN_VAR_RQCMDARG,
   "If the compression failure is lower than the desired rate for a fixed number"
   " of consecutive rounds, then the padding is decreased by a fixed value. This"
   " is done to prevent overshooting the padding value, and to accommodate the"
@@ -12444,9 +12444,16 @@ static MYSQL_SYSVAR_UINT(padding_rounds_successful_max,
   NULL, NULL, 2, 1, 10, 0);
 
 static MYSQL_SYSVAR_UINT(padding_algo, dict_padding_algo,
-  PLUGIN_VAR_OPCMDARG,
+  PLUGIN_VAR_RQCMDARG,
   "Padding algorithm to be used for compressed pages.",
   NULL, NULL, PADDING_ALGO_LINEAR, 0, PADDING_ALGO_MAX, 0);
+
+static MYSQL_SYSVAR_UINT(padding_linear_increment,
+  dict_padding_linear_increment,
+  PLUGIN_VAR_RQCMDARG,
+  "Size of the linear increment added to the padding when sufficient "
+  " compression failures are hit.",
+  NULL, NULL, 128, 0, 1024, 0);
 
 static MYSQL_SYSVAR_UINT(simulate_comp_failures, srv_simulate_comp_failures,
   PLUGIN_VAR_NOCMDARG,
@@ -12992,6 +12999,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(padding_max),
   MYSQL_SYSVAR(padding_algo),
   MYSQL_SYSVAR(padding_rounds_successful_max),
+  MYSQL_SYSVAR(padding_linear_increment),
   MYSQL_SYSVAR(simulate_comp_failures),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),

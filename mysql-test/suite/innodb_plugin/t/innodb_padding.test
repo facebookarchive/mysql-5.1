@@ -8,6 +8,7 @@
 --let $file_format_save = `SELECT @@innodb_file_format`
 --let $file_format_check_save = `SELECT @@innodb_file_format_check`
 --let $padding_algo_save = `SELECT @@innodb_padding_algo`
+--let $padding_linear_increment_save = `SELECT @@innodb_padding_linear_increment`
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
 SET GLOBAL INNODB_FILE_FORMAT = 'Barracuda';
@@ -43,6 +44,7 @@ SELECT (compress_ops_ok - @ok_before)/(compress_ops - @ops_before) into @nopad F
 --enable_query_log
 # linear padding
 SET GLOBAL innodb_padding_algo = 1;
+SET GLOBAL innodb_padding_linear_increment = 256;
 CREATE TABLE t2(id INT PRIMARY KEY, msg varchar(255))
 ENGINE=INNODB
 ROW_FORMAT=COMPRESSED
@@ -82,6 +84,7 @@ DROP TABLE t1, t2;
 eval SET GLOBAL innodb_file_format = \"$file_format_save\";
 eval SET GLOBAL innodb_file_format_check = \"$file_format_check_save\";
 eval SET GLOBAL innodb_padding_algo = $padding_algo_save;
+eval SET GLOBAL innodb_padding_linear_increment = $padding_linear_increment_save;
 --enable_query_log
 
 # clean exit
