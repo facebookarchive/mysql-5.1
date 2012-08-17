@@ -22,17 +22,21 @@ SET GLOBAL innodb_padding_algo = 0;
 let $num_inserts = 20000;
 
 # create the table with compressed pages of size 1K.
-CREATE TABLE t1(id INT PRIMARY KEY, msg varchar(255))
+CREATE TABLE t1(id INT PRIMARY KEY, a INT, b INT, c INT, msg varchar(255))
 ENGINE=INNODB
 ROW_FORMAT=COMPRESSED
-KEY_BLOCK_SIZE=2;
+KEY_BLOCK_SIZE=4;
 let $idx = 1;
 let $num_rows = $num_inserts;
 --disable_query_log
 while ($num_rows) {
   eval
-INSERT INTO t1(id, msg)
-VALUES ($idx, REPEAT(PASSWORD($idx), 5));
+INSERT INTO t1(id, a, b, c, msg)
+VALUES ($idx,
+        FLOOR(RAND($idx * 3) * 2147483647),
+        FLOOR(RAND($idx * 3 + 1) * 2147483647),
+        FLOOR(RAND($idx * 3 + 2) * 2147483647),
+        REPEAT(PASSWORD($idx), 3));
   if (`SELECT $num_rows = 2000`) {
     SELECT compress_ops_ok INTO @ok_before FROM information_schema.table_statistics WHERE table_name='t1';
     SELECT compress_ops INTO @ops_before FROM information_schema.table_statistics WHERE table_name='t1';
@@ -45,17 +49,21 @@ SELECT (compress_ops_ok - @ok_before)/(compress_ops - @ops_before) into @nopad F
 # linear padding
 SET GLOBAL innodb_padding_algo = 1;
 SET GLOBAL innodb_padding_linear_increment = 256;
-CREATE TABLE t2(id INT PRIMARY KEY, msg varchar(255))
+CREATE TABLE t2(id INT PRIMARY KEY, a INT, b INT, c INT, msg varchar(255))
 ENGINE=INNODB
 ROW_FORMAT=COMPRESSED
-KEY_BLOCK_SIZE=2;
+KEY_BLOCK_SIZE=4;
 let $idx = 1;
 let $num_rows = $num_inserts;
 --disable_query_log
 while ($num_rows) {
   eval
-INSERT INTO t2(id, msg)
-VALUES ($idx, REPEAT(PASSWORD($idx), 5));
+INSERT INTO t2(id, a, b, c, msg)
+VALUES ($idx,
+        FLOOR(RAND($idx * 3) * 2147483647),
+        FLOOR(RAND($idx * 3 + 1) * 2147483647),
+        FLOOR(RAND($idx * 3 + 2) * 2147483647),
+        REPEAT(PASSWORD($idx), 3));
   if (`SELECT $num_rows = 2000`) {
     SELECT compress_ops_ok INTO @ok_before FROM information_schema.table_statistics WHERE table_name='t2';
     SELECT compress_ops INTO @ops_before FROM information_schema.table_statistics WHERE table_name='t2';

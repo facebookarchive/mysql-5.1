@@ -101,6 +101,9 @@ In summary, the compressed page looks like this:
 
 /** Start offset of the area that will be compressed */
 #define PAGE_ZIP_START		PAGE_NEW_SUPREMUM_END
+
+#if UNIV_PAGE_SIZE_SHIFT == 14
+
 /** Size of an compressed page directory entry */
 #define PAGE_ZIP_DIR_SLOT_SIZE	2
 /** Mask of record offsets */
@@ -109,6 +112,23 @@ In summary, the compressed page looks like this:
 #define PAGE_ZIP_DIR_SLOT_OWNED	0x4000
 /** 'deleted' flag */
 #define PAGE_ZIP_DIR_SLOT_DEL	0x8000
+
+#elif UNIV_PAGE_SIZE_SHIFT == 15
+
+/** Size of an compressed page directory entry */
+#define PAGE_ZIP_DIR_SLOT_SIZE	3
+/** Mask of record offsets */
+#define PAGE_ZIP_DIR_SLOT_MASK	0xffff
+/** 'owned' flag */
+#define PAGE_ZIP_DIR_SLOT_OWNED	0x10000
+/** 'deleted' flag */
+#define PAGE_ZIP_DIR_SLOT_DEL	0x20000
+
+#else
+
+#error Check above #defines for new UNIV_PAGE_SIZE_SHIFT and adjust accordingly
+
+#endif
 
 /**********************************************************************//**
 Determine the size of a compressed page in bytes.

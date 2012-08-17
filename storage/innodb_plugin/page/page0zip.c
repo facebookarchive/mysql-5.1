@@ -83,6 +83,22 @@ static const byte supremum_extra_data[] = {
 	0x65, 0x6d, 0x75, 0x6d	/* "supremum" */
 };
 
+#if UNIV_PAGE_SIZE_SHIFT == 14
+
+#define MACH_READ_DIR_SLOT(x)		mach_read_from_2((x))
+#define MACH_WRITE_DIR_SLOT(x, y)	mach_write_to_2((x), (y))
+
+#elif UNIV_PAGE_SIZE_SHIFT == 15
+
+#define MACH_READ_DIR_SLOT(x)		mach_read_from_3((x))
+#define MACH_WRITE_DIR_SLOT(x, y)	mach_write_to_3((x), (y))
+
+#else
+
+#error Check above #defines for new UNIV_PAGE_SIZE_SHIFT and adjust accordingly
+
+#endif
+
 /** Assert that a block of memory is filled with zero bytes.
 Compare at most sizeof(field_ref_zero) bytes.
 @param b	in: memory block
@@ -244,7 +260,7 @@ page_zip_dir_find_low(
 	ut_ad(slot <= end);
 
 	for (; slot < end; slot += PAGE_ZIP_DIR_SLOT_SIZE) {
-		if ((mach_read_from_2(slot) & PAGE_ZIP_DIR_SLOT_MASK)
+		if ((MACH_READ_DIR_SLOT(slot) & PAGE_ZIP_DIR_SLOT_MASK)
 		    == offset) {
 			return(slot);
 		}
@@ -305,8 +321,8 @@ page_zip_dir_get(
 {
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(slot < page_zip_dir_size(page_zip) / PAGE_ZIP_DIR_SLOT_SIZE);
-	return(mach_read_from_2(page_zip->data + page_zip_get_size(page_zip)
-				- PAGE_ZIP_DIR_SLOT_SIZE * (slot + 1)));
+	return(MACH_READ_DIR_SLOT(page_zip->data + page_zip_get_size(page_zip)
+				  - PAGE_ZIP_DIR_SLOT_SIZE * (slot + 1)));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -655,7 +671,7 @@ page_zip_dir_encode(
 		REC_INFO_MIN_REC_FLAG set. */
 		min_mark = 0;
 
-		mach_write_to_2(buf - PAGE_ZIP_DIR_SLOT_SIZE * ++i, offs);
+		MACH_WRITE_DIR_SLOT(buf - PAGE_ZIP_DIR_SLOT_SIZE * ++i, offs);
 
 		if (UNIV_LIKELY_NULL(recs)) {
 			/* Ensure that each heap_no occurs at most once. */
@@ -681,7 +697,7 @@ page_zip_dir_encode(
 		ut_a(!rec[-REC_N_NEW_EXTRA_BYTES]); /* info_bits and n_owned */
 		ut_a(rec_get_status(rec) == status);
 
-		mach_write_to_2(buf - PAGE_ZIP_DIR_SLOT_SIZE * ++i, offs);
+		MACH_WRITE_DIR_SLOT(buf - PAGE_ZIP_DIR_SLOT_SIZE * ++i, offs);
 
 		if (UNIV_LIKELY_NULL(recs)) {
 			/* Ensure that each heap_no occurs at most once. */
@@ -3695,9 +3711,11 @@ page_zip_write_rec(
 	ut_a(slot);
 	/* Copy the delete mark. */
 	if (rec_get_deleted_flag(rec, TRUE)) {
-		*slot |= PAGE_ZIP_DIR_SLOT_DEL >> 8;
+		*slot |= (PAGE_ZIP_DIR_SLOT_DEL >>
+			  (8 * (PAGE_ZIP_DIR_SLOT_SIZE - 1)));
 	} else {
-		*slot &= ~(PAGE_ZIP_DIR_SLOT_DEL >> 8);
+		*slot &= ~(PAGE_ZIP_DIR_SLOT_DEL >>
+			   (8 * (PAGE_ZIP_DIR_SLOT_SIZE - 1)));
 	}
 
 	ut_ad(rec_get_start((rec_t*) rec, offsets) >= page + PAGE_ZIP_START);
@@ -4296,9 +4314,11 @@ page_zip_rec_set_deleted(
 	ut_a(slot);
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 	if (flag) {
-		*slot |= (PAGE_ZIP_DIR_SLOT_DEL >> 8);
+		*slot |= (PAGE_ZIP_DIR_SLOT_DEL >>
+			  (8 * (PAGE_ZIP_DIR_SLOT_SIZE - 1)));
 	} else {
-		*slot &= ~(PAGE_ZIP_DIR_SLOT_DEL >> 8);
+		*slot &= ~(PAGE_ZIP_DIR_SLOT_DEL >>
+			   (8 * (PAGE_ZIP_DIR_SLOT_SIZE - 1)));
 	}
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page_align(rec)));
@@ -4320,9 +4340,11 @@ page_zip_rec_set_owned(
 	ut_a(slot);
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 	if (flag) {
-		*slot |= (PAGE_ZIP_DIR_SLOT_OWNED >> 8);
+		*slot |= (PAGE_ZIP_DIR_SLOT_OWNED >>
+			  (8 * (PAGE_ZIP_DIR_SLOT_SIZE - 1)));
 	} else {
-		*slot &= ~(PAGE_ZIP_DIR_SLOT_OWNED >> 8);
+		*slot &= ~(PAGE_ZIP_DIR_SLOT_OWNED >>
+			   (8 * (PAGE_ZIP_DIR_SLOT_SIZE - 1)));
 	}
 }
 
@@ -4401,7 +4423,8 @@ page_zip_dir_insert(
 
 	/* Write the entry for the inserted record.
 	The "owned" and "deleted" flags must be zero. */
-	mach_write_to_2(slot_rec - PAGE_ZIP_DIR_SLOT_SIZE, page_offset(rec));
+	MACH_WRITE_DIR_SLOT(slot_rec - PAGE_ZIP_DIR_SLOT_SIZE,
+			    page_offset(rec));
 }
 
 /**********************************************************************//**
@@ -4460,7 +4483,7 @@ page_zip_dir_delete(
 
 	/* Write the entry for the deleted record.
 	The "owned" and "deleted" flags will be cleared. */
-	mach_write_to_2(slot_free, page_offset(rec));
+	MACH_WRITE_DIR_SLOT(slot_free, page_offset(rec));
 
 	if (!page_is_leaf(page) || !dict_index_is_clust(index)) {
 		ut_ad(!rec_offs_any_extern(offsets));
