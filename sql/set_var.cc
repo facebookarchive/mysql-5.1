@@ -4594,7 +4594,8 @@ end_with_read_lock:
   {
     unlock_global_read_lock(thd);
   }
-  if (should_log) {
+  if (should_log && thd && thd->user_connect &&
+      thd->user_connect->user && thd->user_connect->host) {
     sql_print_information(
       "Setting global variable: super = %d, value = %lu, "
       "result: read_only = %d , super_read_only = %d (user '%s' from '%s')",
