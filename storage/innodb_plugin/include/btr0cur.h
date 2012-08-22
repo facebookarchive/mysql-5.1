@@ -243,8 +243,7 @@ btr_cur_pessimistic_insert(
 				NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
-	mtr_t*		mtr,	/*!< in: mtr */
-	ibool		try_optimistic); /*!< in: try optimistic insert first, if set */
+	mtr_t*		mtr);	/*!< in: mtr */
 /*************************************************************//**
 See if there is enough place in the page modification log to log
 an update-in-place.

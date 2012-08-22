@@ -1390,8 +1390,7 @@ btr_cur_pessimistic_insert(
 				NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
-	mtr_t*		mtr,	/*!< in: mtr */
-	ibool 		try_optimistic) /*!< in: if set, try optimistic insert first */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	dict_index_t*	index		= cursor->index;
 	ulint		zip_size	= dict_table_zip_size(index->table);
@@ -1413,22 +1412,9 @@ btr_cur_pessimistic_insert(
 	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
 
-	/* Try first an optimistic insert; reset the cursor flag: we do not
-	assume anything of how it was positioned */
-
 	cursor->flag = BTR_CUR_BINARY;
 
-	if (try_optimistic) {
-		err = btr_cur_optimistic_insert(flags, cursor, entry, rec,
-		                                big_rec, n_ext, thr, mtr);
-		if (err != DB_FAIL) {
-
-			return(err);
-		}
-	}
-
-	/* Retry with a pessimistic insert. Check locks and write to undo log,
-	if specified */
+	/* Check locks and write to undo log, if specified */
 
 	err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
 					thr, mtr, &dummy_inh);
@@ -2487,9 +2473,11 @@ make_external:
 		err = DB_SUCCESS;
 		goto return_after_reservations;
 	} else {
-		/* If the page is compressed, it is possible for btr_cur_optimistic_update()
-		   to return DB_UNDERFLOW and btr_cur_insert_if_possible() to return FALSE.
-		   See http://bugs.mysql.com/bug.php?id=61208 */
+		/* If the page is compressed and it initially
+		compresses very well, and there is a subsequent insert
+		of a badly-compressing record, it is possible for
+		btr_cur_optimistic_update() to return DB_UNDERFLOW and
+		btr_cur_insert_if_possible() to return FALSE. */
 		ut_a(page_zip || optim_err != DB_UNDERFLOW);
 
 		/* Out of space: reset the free bits. */
@@ -2518,15 +2506,16 @@ make_external:
 	record on its page? */
 	was_first = page_cur_is_before_first(page_cursor);
 
-	/* The first parameter means that no lock checking and undo logging
-	is made in the insert.
-	We don't ask btr_cur_pessimistic_insert() to try the optimistic insert
-	because btr_cur_insert_if_possible() already failed above */
+	/* Lock checks and undo logging were already performed by
+	btr_cur_upd_lock_and_undo(). We do not try
+	btr_cur_optimistic_insert() because
+	btr_cur_insert_if_possible() already failed above. */
+
 	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG
 					 | BTR_NO_LOCKING_FLAG
 					 | BTR_KEEP_SYS_FLAG,
 					 cursor, new_entry, &rec,
-					 &dummy_big_rec, n_ext, NULL, mtr, FALSE);
+					 &dummy_big_rec, n_ext, NULL, mtr);
 	ut_a(rec);
 	ut_a(err == DB_SUCCESS);
 	ut_a(dummy_big_rec == NULL);
