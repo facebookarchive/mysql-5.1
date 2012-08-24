@@ -1109,6 +1109,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_malloc_cache_block_size_decompress, SHOW_LONG},
   {"no_undo_slot_free",
   (char*) &export_vars.no_undo_slot_free, SHOW_LONG},
+#ifdef UNIV_DEBUG
+  {"num_optimistic_insert_calls_in_pessimistic_descent",
+  (char*) &export_vars.num_optimistic_insert_calls_in_pessimistic_descent, SHOW_LONGLONG},
+#endif
   {NullS, NullS, SHOW_LONG}
 };
 

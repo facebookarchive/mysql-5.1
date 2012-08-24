@@ -2304,6 +2304,10 @@ export_zip(
 	*decompressed_secondary_usec = zip_stat->decompressed_secondary_usec;
 }
 
+#ifdef UNIV_DEBUG
+extern ullint row_ins_optimistic_insert_calls_in_pessimistic_descent;
+#endif /* UNIV_DEBUG */
+
 /******************************************************************//**
 Function to pass InnoDB status variables to MySQL */
 UNIV_INTERN
@@ -2757,6 +2761,10 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_drop_purge_skip_row = srv_drop_purge_skip_row;
 	export_vars.innodb_drop_ibuf_skip_row = srv_drop_ibuf_skip_row;
+#ifdef UNIV_DEBUG
+	export_vars.num_optimistic_insert_calls_in_pessimistic_descent =
+		row_ins_optimistic_insert_calls_in_pessimistic_descent;
+#endif /* UNIV_DEBUG */
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }

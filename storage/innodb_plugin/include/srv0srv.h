@@ -1141,6 +1141,9 @@ struct export_var_struct{
 	ulint		innodb_drop_purge_skip_row;
 	ulint		innodb_drop_ibuf_skip_row;
 	ulint		no_undo_slot_free;
+#ifdef UNIV_DEBUG
+	ullint	num_optimistic_insert_calls_in_pessimistic_descent;
+#endif /* UNIV_DEBUG */
 };
 
 /** The server system struct */
