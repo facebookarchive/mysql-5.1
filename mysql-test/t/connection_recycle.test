@@ -16,7 +16,13 @@ let $old_connection_recycle_min_timeout_ms = `select @@global.connection_recycle
 let $old_connection_recycle_poll_ms = `select @@global.connection_recycle_poll_ms`;
 let $old_connection_recycle_pct_connections_min = `select @@global.connection_recycle_pct_connections_min`;
 let $old_connection_recycle_pct_connections_max = `select @@global.connection_recycle_pct_connections_max`;
+let $old_wait_timeout = `select @@global.wait_timeout`;
 --enable_query_log
+
+# If the machine is under load, a low value for wait_timeout can cause the
+# test to fail becausese wait_timeout hits before the code to recycle
+# connections has a chance to do it's work.
+eval select @@global.wait_timeout > 10;
 
 grant select on test.* to 'foo'@'%';
 --disable_reconnect
@@ -168,6 +174,7 @@ disconnect con8;
 #
 
 connection default;
+set @@global.wait_timeout=4;
 set @@global.max_connections=6;
 set @@global.connection_recycle = 1;
 set @@global.connection_recycle_min_timeout_ms = 500;
@@ -217,6 +224,7 @@ eval set @@global.connection_recycle_min_timeout_ms = $old_connection_recycle_mi
 eval set @@global.connection_recycle_poll_ms = $old_connection_recycle_poll_ms;
 eval set @@global.connection_recycle_pct_connections_min = $old_connection_recycle_pct_connections_min;
 eval set @@global.connection_recycle_pct_connections_max = $old_connection_recycle_pct_connections_max;
+eval set @@global.wait_timeout = $old_wait_timeout;
 --enable_query_log
 drop user 'foo'@'%';
 

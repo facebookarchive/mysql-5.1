@@ -1,3 +1,6 @@
+select @@global.wait_timeout > 10;
+@@global.wait_timeout > 10
+1
 grant select on test.* to 'foo'@'%';
 set @@global.max_connections=2;
 set @@global.connection_recycle = 0;
@@ -61,6 +64,7 @@ ROLLBACK;
 SHOW STATUS LIKE 'connection_recycle_count';
 Variable_name	Value
 Connection_recycle_count	3
+set @@global.wait_timeout=4;
 set @@global.max_connections=6;
 set @@global.connection_recycle = 1;
 set @@global.connection_recycle_min_timeout_ms = 500;
