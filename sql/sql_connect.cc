@@ -1633,6 +1633,7 @@ pthread_handler_t handle_one_raw_connection(void *arg)
   if (thd == NULL)
   {
     thread_scheduler.end_raw_connection_thread(NULL,0);
+    delete socket_conn;
     return 0;
   }
 
@@ -1651,6 +1652,7 @@ pthread_handler_t handle_one_raw_connection(void *arg)
   thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
 
   handle_one_connection_real(thd, true);
+  delete socket_conn;
   return 0;
 }
 
