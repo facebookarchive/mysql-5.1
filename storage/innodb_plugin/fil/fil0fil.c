@@ -5541,7 +5541,6 @@ _fil_io(
 			" page no. %lu, i/o length %lu bytes\n",
 			(ulong) type, (ulong) space_id, (ulong) block_offset,
 			(ulong) len);
-		ut_ad(FALSE);
 		return(DB_TABLESPACE_DELETED);
 	}
 

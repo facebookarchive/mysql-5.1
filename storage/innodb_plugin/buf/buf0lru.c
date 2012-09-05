@@ -2166,6 +2166,33 @@ buf_LRU_block_free_hashed_page(
 	buf_LRU_block_free_non_file_page(block);
 }
 
+/******************************************************************//**
+Remove one page from LRU list and put it to free list */
+UNIV_INTERN
+void
+buf_LRU_free_one_page(
+/*==================*/
+	buf_page_t*	bpage)	/*!< in/out: block, must contain a file page and
+				be in a state where it can be freed; there
+				may or may not be a hash index to the page */
+{
+	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+
+	ut_ad(buf_pool_mutex_own());
+	ut_ad(mutex_own(block_mutex));
+
+	if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
+	    != BUF_BLOCK_ZIP_FREE) {
+		buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
+	} else {
+		/* The block_mutex should have been released by
+		buf_LRU_block_remove_hashed_page() when it returns
+		BUF_BLOCK_ZIP_FREE. */
+		ut_ad(block_mutex == &buf_pool_zip_mutex);
+		mutex_enter(block_mutex);
+	}
+}
+
 /**********************************************************************//**
 Updates buf_LRU_old_ratio.
 @return	updated old_pct */
