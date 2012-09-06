@@ -5530,7 +5530,10 @@ _fil_io(
 
 	space = fil_space_get_by_id(space_id);
 
-	if (!space) {
+	/* The FB diff is for http://bugs.mysql.com/bug.php?id=66718 */
+	if (!space || (space->is_being_deleted && type == OS_FILE_READ && !sync)) {
+		ibool is_being_deleted = space ? space->is_being_deleted : FALSE;
+
 		mutex_exit(&fil_system->mutex);
 
 		ut_print_timestamp(stderr);
@@ -5538,9 +5541,11 @@ _fil_io(
 			"  InnoDB: Error: trying to do i/o"
 			" to a tablespace which does not exist.\n"
 			"InnoDB: i/o type %lu, space id %lu,"
-			" page no. %lu, i/o length %lu bytes\n",
+			" page no. %lu, i/o length %lu bytes\n"
+			"InnoDB: tablespace is being deleted %d\n",
 			(ulong) type, (ulong) space_id, (ulong) block_offset,
-			(ulong) len);
+			(ulong) len,
+			(int) is_being_deleted);
 		return(DB_TABLESPACE_DELETED);
 	}
 
