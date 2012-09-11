@@ -1600,6 +1600,7 @@ void init_user_stats(USER_STATS *user_stats)
 
   user_stats->binlog_bytes_written= 0;
   user_stats->binlog_events_skip_set= 0;
+  user_stats->binlog_disk_reads= 0;
   user_stats->bytes_received= 0;
   user_stats->bytes_sent= 0;
   user_stats->commands_ddl= 0;
@@ -1715,6 +1716,7 @@ fill_one_user_stats(TABLE *table, USER_CONN *uc, USER_STATS* us,
 
   table->field[f++]->store(us->binlog_bytes_written, TRUE);
   table->field[f++]->store(us->binlog_events_skip_set, TRUE);
+  table->field[f++]->store(us->binlog_disk_reads, TRUE);
   table->field[f++]->store(us->bytes_received, TRUE);
   table->field[f++]->store(us->bytes_sent, TRUE);
   table->field[f++]->store(us->commands_ddl, TRUE);

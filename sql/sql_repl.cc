@@ -502,6 +502,48 @@ static void repl_cleanup(String *packet, char *packet_buffer)
 }
 
 /*
+  We need to count how many disk reads are performed by
+  mysql_binlog_send() and export it to user_stats.
+
+  When mysql_binlog_send() calls Log_event::read_log_event(),
+  and thus read_log_event() calls my_b_read() to read binlog file,
+  my_b_read() determines whether the data is ready in memory;
+  otherwise, it calls read_function in IO_CACHE to read data from
+  disk. We want to count how many times the read_function is called.
+  So we added counting_read_function() which increases the counter
+  and calls the original read_function and let my_b_read() call
+  counting_read_function instead. counting_read_function() expects an
+  IO_CACHE_EX instance as the input which has the original
+  read_function pointer and THD pointer for updating user_stats.
+*/
+
+static int counting_read_function(IO_CACHE *info, uchar *buffer, size_t count);
+
+struct IO_CACHE_EX : public IO_CACHE {
+  int (*original_read_function)(struct st_io_cache *,uchar *,size_t);
+  THD* thd;
+
+  void extend(THD *thd) {
+    this->thd = thd;
+    /*
+      Must check if extend() has been done. Otherwise we may go into
+      endless recursion!
+    */
+    if(this->read_function != counting_read_function) {
+      this->original_read_function = this->read_function;
+      this->read_function = counting_read_function;
+    }
+  }
+};
+
+static int counting_read_function(IO_CACHE *info, uchar *buffer, size_t count) {
+  IO_CACHE_EX *info_ex = static_cast<IO_CACHE_EX*>(info);
+  USER_STATS *us = thd_get_user_stats(info_ex->thd);
+  us->binlog_disk_reads++;
+  return info_ex->original_read_function(info, buffer, count);
+}
+
+/*
   TODO: Clean up loop to only have one call to send_file()
 */
 
@@ -511,7 +553,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   LOG_INFO linfo;
   char *log_file_name = linfo.log_file_name;
   char search_file_name[FN_REFLEN], *name;
-  IO_CACHE log;
+  IO_CACHE_EX log;
   File file = -1;
   /*
     Use a local string here to avoid disturbing the contents of thd->packet.
@@ -607,6 +649,13 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     goto err;
   }
+  /*
+    open_binlog() calls init_io_cache() to initialize the read_function
+    in IO_CACHE. We need to replace the read_function with our
+    counting_read_function() in order to count how many times the
+    read_function is called.
+  */
+  log.extend(thd);
   if (pos < BIN_LOG_HEADER_SIZE || pos > my_b_filelength(&log))
   {
     errmsg= "Client requested master to start replication from \
@@ -1026,6 +1075,7 @@ impossible position";
                                  &linfo);
 	goto err;
       }
+      log.extend(thd);
       DBUG_PRINT("info", ("Binlog filename: new binlog %s", log_file_name));
 
       packet->length(0);

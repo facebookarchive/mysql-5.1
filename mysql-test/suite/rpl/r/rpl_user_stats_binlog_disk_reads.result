@@ -1,0 +1,14 @@
+include/master-slave.inc
+[connection master]
+select binlog_disk_reads into @r1
+from information_schema.user_statistics
+where user_name = 'root';
+create table test_binlog_disk_reads(x int);
+drop table test_binlog_disk_reads;
+select binlog_disk_reads into @r2
+from information_schema.user_statistics
+where user_name = 'root';
+select if(@r1 <= @r2, 'yes', 'no') as is_increasing;
+is_increasing
+yes
+include/rpl_end.inc
