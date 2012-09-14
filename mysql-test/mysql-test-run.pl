@@ -161,6 +161,7 @@ my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb,innodb,innodb_plugin"
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
+our $opt_error_log_max_size= 0; # don't limit error log by default
 our $exe_mysql;
 our $exe_mysqladmin;
 our $exe_mysqltest;
@@ -991,6 +992,7 @@ sub command_line_setup {
              'enable-disabled'          => \&collect_option,
              'verbose+'                 => \$opt_verbose,
              'verbose-restart'          => \&report_option,
+             'error-log-max-size=i'     => \$opt_error_log_max_size,
              'sleep=i'                  => \$opt_sleep,
              'start-dirty'              => \$opt_start_dirty,
              'start-and-exit'           => \$opt_start_exit,
@@ -3328,7 +3330,15 @@ sub run_on_all($$)
 
       # Append the report from .err file
       $tinfo->{comment}.= " == $err_file ==\n";
-      $tinfo->{comment}.= mtr_grab_file($err_file);
+      my $error_log= mtr_grab_file($err_file);
+      if ($opt_error_log_max_size > 0 &&
+          length($error_log) > $opt_error_log_max_size) {
+        $tinfo->{comment}.= substr($error_log, 0, $opt_error_log_max_size);
+        $tinfo->{comment}.= "\n ===Error Log Truncated at ";
+        $tinfo->{comment}.= $opt_error_log_max_size." bytes===";
+      } else {
+        $tinfo->{comment}.= $error_log;
+      }
       $tinfo->{comment}.= "\n";
 
       # Remove the .err file
@@ -5669,6 +5679,7 @@ Misc options
   timer                 Show test case execution time.
   verbose               More verbose output(use multiple times for even more)
   verbose-restart       Write when and why servers are restarted
+  error-log-max-size=N  The max size of the error log that gets printed (bytes)
   start                 Only initialize and start the servers, using the
                         startup settings for the first specified test case
                         Example:
