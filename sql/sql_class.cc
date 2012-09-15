@@ -667,7 +667,8 @@ THD::THD()
    bootstrap(0),
    derived_tables_processing(FALSE),
    spcont(NULL),
-   m_parser_state(NULL)
+   m_parser_state(NULL),
+   status_added_to_global_status(false)
 #if defined(ENABLED_DEBUG_SYNC)
    , debug_sync_control(0)
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -1043,6 +1044,17 @@ void THD::cleanup(void)
   DBUG_VOID_RETURN;
 }
 
+void THD::add_status_to_global_status()
+{
+  if (status_added_to_global_status)
+    return;
+
+  /* Ensure that no one is using THD */
+  pthread_mutex_lock(&LOCK_thd_data);
+  add_to_status(&global_status_var, &status_var);
+  status_added_to_global_status = true;
+  pthread_mutex_unlock(&LOCK_thd_data);
+}
 
 THD::~THD()
 {
@@ -1051,7 +1063,8 @@ THD::~THD()
   /* Ensure that no one is using THD */
   pthread_mutex_lock(&LOCK_thd_data);
   pthread_mutex_unlock(&LOCK_thd_data);
-  add_to_status(&global_status_var, &status_var);
+  if (!status_added_to_global_status)
+    add_to_status(&global_status_var, &status_var);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY

@@ -32,8 +32,10 @@ public:
   bool (*init)(void);
   bool (*init_new_connection_thread)(void);
   void (*add_connection)(THD *thd);
+  void (*add_raw_connection)(my_socket sock, my_socket accepted_sock);
   void (*post_kill_notification)(THD *thd);
   bool (*end_thread)(THD *thd, bool cache_thread);
+  bool (*end_raw_connection_thread)(THD *thd, bool cache_thread);
   void (*end)(void);
   scheduler_functions();
 };
