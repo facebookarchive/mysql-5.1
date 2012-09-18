@@ -841,6 +841,9 @@ static sys_var_thd_bit	sys_auto_is_null(&vars, "sql_auto_is_null", 0,
 static sys_var_thd_bit	sys_safe_updates(&vars, "sql_safe_updates", 0,
 					 set_option_bit,
 					 OPTION_SAFE_UPDATES);
+static sys_var_thd_bit	sys_async_commit(&vars, "sql_async_commit", 0,
+					 set_option_bit,
+					 OPTION_ASYNC_COMMIT);
 static sys_var_thd_bit	sys_buffer_results(&vars, "sql_buffer_result", 0,
 					   set_option_bit,
 					   OPTION_BUFFER_RESULT);

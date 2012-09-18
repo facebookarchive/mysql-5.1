@@ -498,7 +498,8 @@ protected:
 #define OPTION_PROFILING                (ULL(1) << 33)
 #define OPTION_SKIP_REPLICATION         (ULL(1) << 34) // THD, user
 
-
+/* Session level option for ASYNC_COMMIT */
+#define OPTION_ASYNC_COMMIT			(ULL(1) << 35)		// THD, user
 
 /**
   Maximum length of time zone name that we support
