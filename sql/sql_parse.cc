@@ -6753,8 +6753,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     if (!err)
     {
       if (async_commit)
-        *async_commit= lex->async_commit 
-						|| (thd->options & OPTION_ASYNC_COMMIT);
+        *async_commit = lex->async_commit
+                        || (thd->options & OPTION_ASYNC_COMMIT);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->user_connect &&
