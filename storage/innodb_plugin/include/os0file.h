@@ -191,6 +191,7 @@ log. */
 extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;
 extern ulint	os_n_fsyncs;
+extern ullint	os_fsync_freq;
 
 /** Seconds waiting for file flushes to finish */
 extern double os_file_flush_secs;

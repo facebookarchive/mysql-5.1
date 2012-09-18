@@ -12774,6 +12774,13 @@ static MYSQL_SYSVAR_UINT(zlib_strategy, page_zip_zlib_strategy,
   "this per table which should be more useful.",
   NULL, NULL, 0, 0, 4, 0);
 
+static MYSQL_SYSVAR_ULONGLONG(fsync_freq, os_fsync_freq,
+  PLUGIN_VAR_RQCMDARG,
+  "The value of this variable determines how often InnoDB calls fsync when "
+  "creating a new file. Default is to call fsync after every 128M written. "
+  "Setting this value to zero would make InnoDB flush the file before closing "
+  "it.", NULL, NULL, 1ULL << 27, 0, ULONG_MAX, UNIV_PAGE_SIZE);
+
 static MYSQL_SYSVAR_ULONG(expand_import, srv_expand_import,
   PLUGIN_VAR_RQCMDARG,
   "Enable/Disable converting automatically *.ibd files when import tablespace.",
@@ -13058,6 +13065,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(segment_reserve_factor),
   MYSQL_SYSVAR(zlib_wrap),
   MYSQL_SYSVAR(zlib_strategy),
+  MYSQL_SYSVAR(fsync_freq),
   MYSQL_SYSVAR(error_log_spam),
   MYSQL_SYSVAR(aio_slow_usecs),
   MYSQL_SYSVAR(aio_old_usecs),

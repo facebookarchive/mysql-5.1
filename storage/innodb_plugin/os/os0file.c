@@ -74,6 +74,8 @@ UNIV_INTERN ibool	os_do_not_call_flush_at_each_write	= FALSE;
 /* We do not call os_file_flush in every os_file_write. */
 #endif /* UNIV_DO_FLUSH */
 
+UNIV_INTERN ullint os_fsync_freq = 1ULL << 27;
+
 #ifdef UNIV_HOTBACKUP
 # define os_aio_use_native_aio	FALSE
 #else /* UNIV_HOTBACKUP */
@@ -2069,6 +2071,18 @@ os_file_set_size(
 			fprintf(stderr, " %lu00",
 				(ulong) ((current_size + n_bytes)
 					 / (ib_int64_t)(100 * 1024 * 1024)));
+		}
+
+		/* Flush after each os_fsync_freq bytes */
+		if (os_fsync_freq) {
+			if ((ib_int64_t) (current_size + n_bytes) / os_fsync_freq
+					    != current_size / os_fsync_freq) {
+				ret = os_file_flush(file);
+				if (!ret) {
+					ut_free(buf2);
+					goto error_handling;
+				}
+			}
 		}
 
 		current_size += n_bytes;
