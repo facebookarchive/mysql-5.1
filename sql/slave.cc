@@ -119,6 +119,8 @@ ulong relay_sql_events= 0;
 /* Number of bytes written to the relay log by the IO thread */
 ulonglong relay_io_bytes= 0;
 
+ulonglong relay_io_fsync_freq = 1ULL << 27;
+
 /* Number of events executed from the relay log by the SQL thread */
 ulonglong relay_sql_bytes= 0;
 
@@ -3005,8 +3007,19 @@ Stopping slave I/O thread due to out-of-memory error from master");
       } // if (event_len == packet_error)
 
       relay_io_events++;
-      relay_io_bytes += event_len;
 
+      if (relay_io_fsync_freq)
+      {
+        if ((relay_io_bytes + event_len) / relay_io_fsync_freq
+            != relay_io_bytes / relay_io_fsync_freq) {
+          if (flush_io_cache(mi->rli.relay_log.get_log_file()))
+        	  goto err;
+          if (my_sync(mi->rli.relay_log.get_log_file()->file, MY_WME))
+        	  goto err;
+        }
+      }
+
+      relay_io_bytes += event_len;
       retry_count=0;                    // ok event, reset retry counter
       thd_proc_info(thd, "Queueing master event to the relay log");
       if (queue_event(mi,(const char*)mysql->net.read_pos + 1,

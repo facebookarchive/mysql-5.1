@@ -2140,6 +2140,8 @@ static sys_var_const    sys_relay_log_info_file(&vars, "relay_log_info_file",
                                       (uchar*) &relay_log_info_file);
 static sys_var_bool_ptr	sys_relay_log_purge(&vars, "relay_log_purge",
 					    &relay_log_purge);
+static sys_var_ulonglong_ptr sys_relay_fsync_freq(&vars, "relay_fsync_freq",
+                                                  &relay_io_fsync_freq);
 static sys_var_const    sys_relay_log_space_limit(&vars,
                                                   "relay_log_space_limit",
                                                   OPT_GLOBAL, SHOW_LONGLONG,

@@ -2255,6 +2255,7 @@ extern ulonglong opened_fast, opened_not_fast;
 
 extern ulong relay_io_events, relay_sql_events;
 extern ulonglong relay_io_bytes, relay_sql_bytes;
+extern ulonglong relay_io_fsync_freq;
 extern double relay_sql_wait_secs;
 extern ulong relay_io_connected;
 
