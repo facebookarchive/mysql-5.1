@@ -11,7 +11,7 @@ con1 should still exist
 con1 should still exist
 set @@global.max_connections=2;
 set @@global.connection_recycle = 1;
-set @@global.connection_recycle_min_timeout_ms = 1500;
+set @@global.connection_recycle_min_timeout_ms = 6000;
 set @@global.connection_recycle_poll_ms = 100;
 set @@global.connection_recycle_pct_connections_min=50;
 set @@global.connection_recycle_pct_connections_max=50;
@@ -28,7 +28,7 @@ SHOW STATUS LIKE 'connection_recycle_count';
 Variable_name	Value
 Connection_recycle_count	1
 SELECT 'con3 should have gone away';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 set @@global.max_connections=6;
 set @@global.connection_recycle = 1;
 set @@global.connection_recycle_min_timeout_ms = 500;
@@ -51,12 +51,12 @@ con8 should still exist
 set @@global.connection_recycle_pct_connections_min=20;
 set @@global.connection_recycle_pct_connections_max=20;
 SELECT 'con5 should have gone away';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 SELECT 'con6 should still exist (superuser)';
 con6 should still exist (superuser)
 con6 should still exist (superuser)
 SELECT 'con7 should have gone away';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 SELECT 'con8 should still exist (in transaction)';
 con8 should still exist (in transaction)
 con8 should still exist (in transaction)
@@ -67,8 +67,8 @@ Connection_recycle_count	3
 set @@global.wait_timeout=4;
 set @@global.max_connections=6;
 set @@global.connection_recycle = 1;
-set @@global.connection_recycle_min_timeout_ms = 500;
-set @@global.connection_recycle_poll_ms = 2500;
+set @@global.connection_recycle_min_timeout_ms = 2000;
+set @@global.connection_recycle_poll_ms = 500;
 set @@global.connection_recycle_pct_connections_min=50;
 set @@global.connection_recycle_pct_connections_max=50;
 SELECT 'con9 should still exist';
@@ -81,9 +81,9 @@ SELECT SLEEP(4.1);
 SLEEP(4.1)
 0
 SELECT 'con9 should have gone away';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 SELECT 'con10 should have gone away';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 SHOW STATUS LIKE 'connection_recycle_count';
 Variable_name	Value
 Connection_recycle_count	3

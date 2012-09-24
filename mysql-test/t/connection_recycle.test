@@ -22,7 +22,7 @@ let $old_wait_timeout = `select @@global.wait_timeout`;
 # If the machine is under load, a low value for wait_timeout can cause the
 # test to fail becausese wait_timeout hits before the code to recycle
 # connections has a chance to do it's work.
-eval select @@global.wait_timeout > 10;
+select @@global.wait_timeout > 10;
 
 grant select on test.* to 'foo'@'%';
 --disable_reconnect
@@ -68,7 +68,7 @@ disconnect con1;
 connection default;
 set @@global.max_connections=2;
 set @@global.connection_recycle = 1;
-set @@global.connection_recycle_min_timeout_ms = 1500;
+set @@global.connection_recycle_min_timeout_ms = 6000;
 set @@global.connection_recycle_poll_ms = 100;
 set @@global.connection_recycle_pct_connections_min=50;
 set @@global.connection_recycle_pct_connections_max=50;
@@ -78,7 +78,7 @@ connect (con3,127.0.0.1,foo,,);
 --disable_reconnect
 
 # Wait 1 second
-sleep 1;
+sleep 2;
 
 # Connecting again should fail (not enough time elapsed)
 echo 'con4 connect should fail'
@@ -90,7 +90,7 @@ connection con3;
 SELECT 'con3 should still exist';
 
 # Wait 2 seconds
-sleep 2.1;
+sleep 6.1;
 
 # Connecting again should now succeed
 connect (con5,127.0.0.1,foo,,);
@@ -99,7 +99,7 @@ SHOW STATUS LIKE 'connection_recycle_count';
 
 # Original connection should now be gone
 connection con3;
--- error 2006
+-- error 2006,2013
 SELECT 'con3 should have gone away';
 
 # Close connections
@@ -152,12 +152,12 @@ sleep 1.1;
 
 # Connections should now be closed
 connection con5;
--- error 2006
+-- error 2006,2013
 SELECT 'con5 should have gone away';
 connection con6;
 SELECT 'con6 should still exist (superuser)';
 connection con7;
--- error 2006
+-- error 2006,2013
 SELECT 'con7 should have gone away';
 connection con8;
 SELECT 'con8 should still exist (in transaction)';
@@ -177,8 +177,8 @@ connection default;
 set @@global.wait_timeout=4;
 set @@global.max_connections=6;
 set @@global.connection_recycle = 1;
-set @@global.connection_recycle_min_timeout_ms = 500;
-set @@global.connection_recycle_poll_ms = 2500;
+set @@global.connection_recycle_min_timeout_ms = 2000;
+set @@global.connection_recycle_poll_ms = 500;
 set @@global.connection_recycle_pct_connections_min=50;
 set @@global.connection_recycle_pct_connections_max=50;
 
@@ -189,7 +189,7 @@ connect (con10,127.0.0.1,root,,);
 --disable_reconnect
 
 # Wait 3 seconds
-sleep 3;
+sleep 2;
 
 # Connections should remain open
 connection con9;
@@ -203,10 +203,10 @@ SELECT SLEEP(4.1);
 
 # Connections should now be closed
 connection con9;
--- error 2006
+-- error 2006,2013
 SELECT 'con9 should have gone away';
 connection con10;
--- error 2006
+-- error 2006,2013
 SELECT 'con10 should have gone away';
 
 
