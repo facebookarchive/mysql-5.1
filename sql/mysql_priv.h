@@ -1032,8 +1032,6 @@ int check_user(THD *thd, enum enum_server_command command,
 	       const char *passwd, uint passwd_len, const char *db,
 	       bool check_count);
 pthread_handler_t handle_one_connection(void *arg);
-pthread_handler_t handle_one_raw_connection(void* arg);
-THD* new_thd_from_socket(Socket_Conn* socket_conn);
 bool init_new_connection_handler_thread();
 void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
@@ -1904,14 +1902,9 @@ extern void MYSQLerror(const char*);
 void refresh_status(THD *thd);
 my_bool mysql_rm_tmp_tables(void);
 void handle_connection_in_main_thread(THD *thd);
-void handle_raw_connection_in_main_thread(my_socket sock,
-                                          my_socket accepted_sock);
 void create_thread_to_handle_connection(THD *thd);
-void create_thread_to_handle_raw_connection(my_socket sock,
-                                      my_socket accepted_sock);
 void unlink_thd(THD *thd);
 bool one_thread_per_connection_end(THD *thd, bool put_in_cache);
-bool one_thread_per_raw_connection_end(THD *thd, bool put_in_cache);
 void flush_thread_cache();
 
 /* item_func.cc */

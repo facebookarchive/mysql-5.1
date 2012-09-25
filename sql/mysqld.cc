@@ -457,13 +457,11 @@ static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
-static uint kill_cached_threads, wake_thread, socket_wake_thread;
+static uint kill_cached_threads, wake_thread;
 static ulong killed_threads, thread_created;
        ulong max_used_connections;
 static ulong my_bind_addr;			/**< the address we bind to */
 static volatile ulong cached_thread_count= 0;
-static volatile ulong cached_thd_thread_count= 0;
-static volatile ulong cached_socket_thread_count= 0;
 static const char *sql_mode_str= "OFF";
 /* Text representation for OPTIMIZER_SWITCH_DEFAULT */
 static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
@@ -479,13 +477,11 @@ static char *default_collation_name;
 static char *default_storage_engine_str;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static I_List<THD> thread_cache;
-static I_List<Socket_Conn> thread_cache_socket;
 static double long_query_time;
 static double long_slave_query_time;
 ulonglong long_slave_query_time_usecs;
 
-static pthread_cond_t COND_thread_cache, COND_flush_thread_cache,
-                      COND_raw_socket_thread_cache;
+static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
 /* Global variables */
 
@@ -1616,7 +1612,6 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_refresh);
   (void) pthread_cond_destroy(&COND_global_read_lock);
   (void) pthread_cond_destroy(&COND_thread_cache);
-  (void) pthread_cond_destroy(&COND_raw_socket_thread_cache);
   (void) pthread_cond_destroy(&COND_flush_thread_cache);
   (void) pthread_cond_destroy(&COND_manager);
 }
@@ -2031,11 +2026,8 @@ extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
 void unlink_thd(THD *thd)
 {
   DBUG_ENTER("unlink_thd");
-  if (thd != NULL)
-  {
-    DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
-    thd->cleanup();
-  }
+  DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
+  thd->cleanup();
 
   pthread_mutex_lock(&LOCK_connection_count);
   --connection_count;
@@ -2049,34 +2041,10 @@ void unlink_thd(THD *thd)
   */
   DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
   thread_count--;
-  if(thd != NULL)
-  {
-    thd->unlink();
-    thd->add_status_to_global_status();
-  }
+  delete thd;
   DBUG_VOID_RETURN;
 }
 
-static void prepare_thd_for_cached_thread(THD* arg, bool raw_socket)
-{
-  THD* thd = arg;
-  thd->thread_stack= (char*) &thd;          // For store_globals
-  (void) thd->store_globals();
-  /*
-   THD::mysys_var::abort is associated with physical thread rather
-   than with THD object. So we need to reset this flag before using
-   this thread for handling of new THD object/connection.
-  */
-  thd->mysys_var->abort= 0;
-  thd->thr_create_utime= my_micro_time();
-  if (raw_socket)
-  {
-    /* lock LOCK_thread_count */
-    pthread_mutex_lock(&LOCK_thread_count);
-    thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  }
-  threads.append(thd);
-}
 
 /*
   Store thread in cache for reuse by new connections
@@ -2103,11 +2071,9 @@ static bool cache_thread()
     /* Don't kill the thread, just put it in cache for reuse */
     DBUG_PRINT("info", ("Adding thread to cache"));
     cached_thread_count++;
-    cached_thd_thread_count++;
     while (!abort_loop && ! wake_thread && ! kill_cached_threads)
       (void) pthread_cond_wait(&COND_thread_cache, &LOCK_thread_count);
     cached_thread_count--;
-    cached_thd_thread_count--;
     if (kill_cached_threads)
       pthread_cond_signal(&COND_flush_thread_cache);
     if (wake_thread)
@@ -2115,61 +2081,22 @@ static bool cache_thread()
       THD *thd;
       wake_thread--;
       thd= thread_cache.get();
-      prepare_thd_for_cached_thread(thd, false);
+      thd->thread_stack= (char*) &thd;          // For store_globals
+      (void) thd->store_globals();
+      /*
+        THD::mysys_var::abort is associated with physical thread rather
+        than with THD object. So we need to reset this flag before using
+        this thread for handling of new THD object/connection.
+      */
+      thd->mysys_var->abort= 0;
+      thd->thr_create_utime= my_micro_time();
+      threads.append(thd);
       return(1);
     }
   }
   return(0);
 }
 
-/*
-  Store thread in cache for reuse by new connections
-
-  SYNOPSIS
-    cache_raw_connection_thread()
-
-  NOTES
-    LOCK_thread_count has to be locked
-
-  RETURN
-    0  Thread was not put in cache
-    1  Thread is to be reused by new connection.
-       (ie, caller should return, not abort with pthread_exit())
-*/
-static bool cache_raw_connection_thread()
-{
-  safe_mutex_assert_owner(&LOCK_thread_count);
-  if (cached_thread_count < thread_cache_size
-      && !abort_loop && !kill_cached_threads)
-  {
-    /* Don't kill the thread, just put it in cache for reuse */
-    DBUG_PRINT("info", ("Adding thread to cache"));
-    cached_socket_thread_count++;
-    cached_thread_count++;
-    while (!abort_loop && !socket_wake_thread && !kill_cached_threads)
-      (void) pthread_cond_wait(&COND_raw_socket_thread_cache, &LOCK_thread_count);
-    cached_socket_thread_count--;
-    cached_thread_count--;
-    if (kill_cached_threads)
-      pthread_cond_signal(&COND_flush_thread_cache);
-    if (socket_wake_thread)
-    {
-      socket_wake_thread--;
-      Socket_Conn* socket_conn = thread_cache_socket.get();
-
-      pthread_mutex_unlock(&LOCK_thread_count);
-      THD *thd = new_thd_from_socket(socket_conn);
-      delete socket_conn;
-      if (thd == NULL)
-      {
-        return (0);
-      }
-      prepare_thd_for_cached_thread(thd, true);
-      return(1);
-    }
-  }
-  return(0);
-}
 
 /*
   End thread for the current connection
@@ -2180,10 +2107,6 @@ static bool cache_raw_connection_thread()
     put_in_cache  Store thread in cache, if there is room in it
                   Normally this is true in all cases except when we got
                   out of resources initializing the current thread
-    raw_socket    Is this thread handling raw socket or not. It determines
-                  which method to call to cache this thread. If raw_socket
-		  is true,it will call cache_raw_connection_thread to do the
-		  cache, otherwise call cache_thread.
 
   NOTES
     If thread is cached, we will wait until thread is scheduled to be
@@ -2194,26 +2117,13 @@ static bool cache_raw_connection_thread()
     0    Signal to handle_one_connection to reuse connection
 */
 
-static bool one_thread_per_connection_end_real(THD *thd, bool put_in_cache,
-					       bool raw_socket)
+bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
 {
-
-  DBUG_ENTER("one_thread_per_connection_end_real");
-
-  /* it will hold the lock 'LOCK_thread_count' */
+  DBUG_ENTER("one_thread_per_connection_end");
   unlink_thd(thd);
-
-  if (put_in_cache && thd)
-  {
-    if (raw_socket)
-      put_in_cache= cache_raw_connection_thread();
-    else
-      put_in_cache= cache_thread();
-  }
-
+  if (put_in_cache)
+    put_in_cache= cache_thread();
   pthread_mutex_unlock(&LOCK_thread_count);
-  if (thd)
-    delete thd;
   if (put_in_cache)
     DBUG_RETURN(0);                             // Thread is reused
 
@@ -2227,17 +2137,6 @@ static bool one_thread_per_connection_end_real(THD *thd, bool put_in_cache,
   return 0;                                     // Avoid compiler warnings
 }
 
-bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
-{
-  bool ret = one_thread_per_connection_end_real(thd, put_in_cache, false);
-  return ret;
-}
-
-bool one_thread_per_raw_connection_end(THD *thd, bool put_in_cache)
-{
-  bool ret = one_thread_per_connection_end_real(thd, put_in_cache, true);
-  return ret;
-}
 
 void flush_thread_cache()
 {
@@ -2246,7 +2145,6 @@ void flush_thread_cache()
   while (cached_thread_count)
   {
     pthread_cond_broadcast(&COND_thread_cache);
-    pthread_cond_broadcast(&COND_raw_socket_thread_cache);
     pthread_cond_wait(&COND_flush_thread_cache,&LOCK_thread_count);
   }
   kill_cached_threads--;
@@ -3745,7 +3643,6 @@ static int init_thread_environment()
   (void) pthread_cond_init(&COND_refresh,NULL);
   (void) pthread_cond_init(&COND_global_read_lock,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
-  (void) pthread_cond_init(&COND_raw_socket_thread_cache,NULL);
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
   (void) pthread_cond_init(&COND_manager,NULL);
 #ifdef HAVE_REPLICATION
@@ -4390,11 +4287,6 @@ static void handle_connections_methods()
   }
 #endif /* __NT__ */
 
-  /*
-    The handle_connections_socket  will be used to create 2 threads,
-    one thread is for accepting connections from tcp/ip. And the other
-    thread is for accepting connections from unix socket.
-   */
 #ifdef __WIN__
   if (have_tcpip && !opt_disable_networking)
 #endif
@@ -5252,154 +5144,13 @@ void handle_connection_in_main_thread(THD *thd)
 }
 
 
-void handle_raw_connection_in_main_thread(my_socket sock,
-					  my_socket accepted_sock)
-{
-  safe_mutex_assert_owner(&LOCK_thread_count);
-  thread_cache_size=0;			// Safety
-  pthread_mutex_unlock(&LOCK_thread_count);
-  Socket_Conn* socket_conn = new Socket_Conn(sock, accepted_sock,
-                                            sock == ip_sock);
-  handle_one_raw_connection(socket_conn);
-}
-
-/*
-  Create a new thread to handle the new connection. The parameter
-  'arg' will point to a THD instance if the second parameter
-  'raw_sock' is false. Otherwise 'arg' points to a 'Socket_Conn'
-  instance, which means it needs to create and initialize the 'THD'
-  instance by itself.
-
-  NOTE: when this method is called, the caller should already
-        hold the LOCK_thread_count lock.
-
-  @param arg a pointer to THD instance or Socket_Conn instance
-  @param raw_sock specify the arg type is a Socket_Conn.
- */
-static void create_thread_to_handle_connection_real(void* arg, bool raw_sock)
-{
-  DBUG_ENTER("create_thread_to_handle_connection_real");
-  char error_message_buff[MYSQL_ERRMSG_SIZE];
-  /* Create new thread to handle connection */
-  int error;
-  thread_created++;
-
-  if (!raw_sock)
-  {
-    THD *thd = (THD *) arg;
-    threads.append(thd);
-    thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
-    error=profile_pthread_create(&thd->real_id,&connection_attrib,
-				 handle_one_connection, arg);
-  }
-  else
-  {
-    pthread_t id;
-    error=profile_pthread_create(&id, &connection_attrib,
-				 handle_one_raw_connection, arg);
-  }
-
-  if (error)
-  {
-    /* purecov: begin inspected */
-    DBUG_PRINT("error",
-	       ("Can't create thread to handle request (error %d)",
-		error));
-    thread_count--;
-
-    (void) pthread_mutex_unlock(&LOCK_thread_count);
-
-    pthread_mutex_lock(&LOCK_connection_count);
-    --connection_count;
-    pthread_mutex_unlock(&LOCK_connection_count);
-
-    statistic_increment(aborted_connects,&LOCK_status);
-    /* Can't use my_error() since store_globals has not been called. */
-    my_snprintf(error_message_buff, sizeof(error_message_buff),
-		ER(ER_CANT_CREATE_THREAD), error);
-    THD* thd;
-    if (raw_sock)
-      thd = new_thd_from_socket((Socket_Conn *) arg);
-    else
-      thd = (THD*) arg;
-
-    thd->killed= THD::KILL_CONNECTION;			// Safety
-    net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff);
-    (void) pthread_mutex_lock(&LOCK_thread_count);
-    close_connection(thd,0,0);
-    delete thd;
-    (void) pthread_mutex_unlock(&LOCK_thread_count);
-    DBUG_LEAVE;
-    return;
-    /* purecov: end */
-  }
-  DBUG_PRINT("info",("Thread created"));
-  DBUG_LEAVE;
-}
-
-/*
-  Thread model for processing connections: There is always a master thread
-  which keeps accepting connections, and may do some initialization for that
-  connection, then pass it to a worker thread. The worker thread takes the
-  connection from master thread, and dedicated itself to that connection until
-  that connection ends. After a connection ends, the worker thread which was
-  processing it will be terminated or cached. In case of cached, the thread
-  will still be living there to be ready to take new connections.
-
-  There are two methods in 'create thread to handle connection'.
-
-  One is 'create_thread_to_handle_connection', whose call path normally is
-  'create_new_thread' -> thread_scheduler.add_connection. In this case, the
-  master thread, which running accept, will check connection limit, and
-  initialize the THD object, and also network related stuff for the worker
-  thread.
-
-  The other is 'create_thread_to_handle_raw_connection', whose call path is
-  'handle_connections_socket'->'create_new_thread_for_raw_socket'->
-  'thread_scheduler.add_connection.add_raw_connection'. In this case, the
-  master thread, which running accept, will check connection limit and pass
-  the accept raw socket to a worker thread. The master thread will not do any
-  initialization for the accepted socket. The worker thread is responsible for
-  everything related to this raw connection.
-
-  If thread cache is enabled, because of the difference of call paths, there
-  are two types of worker threads cached. One is to handle raw connections, and
-  the other is to process connections that are already well initialized.
-  However if the system is only enabled with tcp/ip connection and unix socket
-  connection, there is only type of threads cached, which is the type of
-  processing raw socket.
- */
-
-
-/*
-  Scheduler that uses one thread per raw connection.
- */
-
-void create_thread_to_handle_raw_connection(my_socket sock,
-					    my_socket accepted_sock)
-{
-  Socket_Conn* socket_conn = new Socket_Conn(sock, accepted_sock,
-                                             sock == ip_sock);
-  if (cached_socket_thread_count > socket_wake_thread)
-  {
-    /* Get thread from cache */
-    thread_cache_socket.append(socket_conn);
-    socket_wake_thread++;
-    pthread_cond_signal(&COND_raw_socket_thread_cache);
-  }
-  else
-    create_thread_to_handle_connection_real((void*) socket_conn, true);
-
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
-}
-
 /*
   Scheduler that uses one thread per connection
 */
 
 void create_thread_to_handle_connection(THD *thd)
 {
-  if (cached_thd_thread_count > wake_thread)
+  if (cached_thread_count > wake_thread)
   {
     /* Get thread from cache */
     thread_cache.append(thd);
@@ -5407,12 +5158,49 @@ void create_thread_to_handle_connection(THD *thd)
     pthread_cond_signal(&COND_thread_cache);
   }
   else
-    create_thread_to_handle_connection_real((void*) thd, false);
+  {
+    char error_message_buff[MYSQL_ERRMSG_SIZE];
+    /* Create new thread to handle connection */
+    int error;
+    thread_created++;
+    threads.append(thd);
+    DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
+    thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
+    if ((error=profile_pthread_create(&thd->real_id,&connection_attrib,
+                              handle_one_connection,
+                              (void*) thd)))
+    {
+      /* purecov: begin inspected */
+      DBUG_PRINT("error",
+                 ("Can't create thread to handle request (error %d)",
+                  error));
+      thread_count--;
+      thd->killed= THD::KILL_CONNECTION;			// Safety
+      (void) pthread_mutex_unlock(&LOCK_thread_count);
 
+      pthread_mutex_lock(&LOCK_connection_count);
+      --connection_count;
+      pthread_mutex_unlock(&LOCK_connection_count);
+
+      statistic_increment(aborted_connects,&LOCK_status);
+      /* Can't use my_error() since store_globals has not been called. */
+      my_snprintf(error_message_buff, sizeof(error_message_buff),
+                  ER(ER_CANT_CREATE_THREAD), error);
+      net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff);
+      (void) pthread_mutex_lock(&LOCK_thread_count);
+      close_connection(thd,0,0);
+      delete thd;
+      (void) pthread_mutex_unlock(&LOCK_thread_count);
+      return;
+      /* purecov: end */
+    }
+  }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  DBUG_PRINT("info",("Thread created"));
 }
 
-/*
+
+/**
   Create new thread to handle incoming connection.
 
     This function will create new thread to handle the incoming
@@ -5425,8 +5213,6 @@ void create_thread_to_handle_connection(THD *thd)
   @param[in,out] thd    Thread handle of future thread.
 */
 
-#ifndef EMBEDDED_LIBRARY
-#if defined(__NT__) || defined(HAVE_SMEM)
 static void create_new_thread(THD *thd)
 {
   NET *net=&thd->net;
@@ -5476,43 +5262,6 @@ static void create_new_thread(THD *thd)
 
   DBUG_VOID_RETURN;
 }
-#endif
-#endif
-
-/*
-  It will create a new thread, and will create and init THD and network
-  related things inside the new thread.
-*/
-static void create_new_thread_for_raw_socket (my_socket sock,
-                                 my_socket accepted_sock)
-{
-  DBUG_ENTER("create_new_thread_for_raw_socket");
-
-  pthread_mutex_lock(&LOCK_connection_count);
-
-  if ((connection_count >= max_connections + 1) || abort_loop)
-  {
-    DBUG_PRINT("error",("Too many connections"));
-    /* Create THD instance here  to send error to client.*/
-    Socket_Conn* socket_pair = new Socket_Conn(sock, accepted_sock,
-                                             sock == ip_sock);
-    THD *thd = new_thd_from_socket(socket_pair);
-    delete socket_pair;
-    close_connection(thd, ER_CON_COUNT_ERROR, 1);
-    pthread_mutex_unlock(&LOCK_connection_count);
-    DBUG_VOID_RETURN;
-  }
-  ++connection_count;
-  if (connection_count > max_used_connections)
-    max_used_connections= connection_count;
-  pthread_mutex_unlock(&LOCK_connection_count);
-
-  pthread_mutex_lock(&LOCK_thread_count);
-  thread_count++;
-  /* Create a new thread for the accepted socket. */
-  thread_scheduler.add_raw_connection(sock, accepted_sock);
-  DBUG_VOID_RETURN;
-}
 #endif /* EMBEDDED_LIBRARY */
 
 
@@ -5545,8 +5294,9 @@ pthread_handler_t handle_connections_socket (void *arg)
   my_socket sock = *((my_socket*)arg);
   my_socket UNINIT_VAR(new_sock);
   uint error_count=0;
+  THD *thd;
   struct sockaddr_in cAddr;
-
+  st_vio *vio_tmp;
   DBUG_ENTER("handle_connections_socket");
   LINT_INIT(new_sock);
   (void) my_pthread_getprio(pthread_self());        // For debugging
@@ -5618,7 +5368,56 @@ pthread_handler_t handle_connections_socket (void *arg)
     }
 #endif /* HAVE_LIBWRAP */
 
-    create_new_thread_for_raw_socket(sock, new_sock);
+    {
+      size_socket dummyLen;
+      struct sockaddr dummy;
+      dummyLen = sizeof(struct sockaddr);
+      if (getsockname(new_sock,&dummy, &dummyLen) < 0)
+      {
+        sql_perror("Error on new connection socket");
+        (void) shutdown(new_sock, SHUT_RDWR);
+        (void) closesocket(new_sock);
+        continue;
+      }
+    }
+
+    /*
+    ** Don't allow too many connections
+    */
+
+    if (!(thd= new THD))
+    {
+      (void) shutdown(new_sock, SHUT_RDWR);
+      VOID(closesocket(new_sock));
+      continue;
+    }
+
+    if (!(vio_tmp=vio_new(new_sock,
+              sock == unix_sock ? VIO_TYPE_SOCKET :
+              VIO_TYPE_TCPIP,
+              sock == unix_sock ? VIO_LOCALHOST: 0)) ||
+    my_net_init(&thd->net,vio_tmp))
+    {
+      /*
+        Only delete the temporary vio if we didn't already attach it to the
+        NET object. The destructor in THD will delete any initialized net
+        structure.
+      */
+      if (vio_tmp && thd->net.vio != vio_tmp)
+        vio_delete(vio_tmp);
+      else
+      {
+        (void) shutdown(new_sock, SHUT_RDWR);
+        (void) closesocket(new_sock);
+      }
+      delete thd;
+      continue;
+    }
+
+    if (sock == unix_sock)
+      thd->security_ctx->host=(char*) my_localhost;
+
+    create_new_thread(thd);
   }
   DBUG_LEAVE;
   decrement_handler_count();
@@ -7983,13 +7782,13 @@ static int show_jemalloc_sizet(THD *thd, SHOW_VAR *var, char *buff,
   var->value= buff;
 
   if (!mallctl(stat_name, &val, &len, NULL, 0))
-    {
-      *((ulonglong *)buff)= (ulonglong) val;
-    }
+  {
+    *((ulonglong *)buff)= (ulonglong) val;
+  }
   else
-    {
-      *((ulonglong *)buff)= 0;
-    }
+  {
+    *((ulonglong *)buff)= 0;
+  }
 
   /* Always return 0 to avoid worrying about error handling */
   return 0;
@@ -8005,13 +7804,13 @@ static int show_jemalloc_unsigned(THD *thd, SHOW_VAR *var, char *buff,
   var->value= buff;
 
   if (!mallctl(stat_name, &val, &len, NULL, 0))
-    {
-      *((ulong *)buff)= (ulong) val;
-    }
+  {
+    *((ulong *)buff)= (ulong) val;
+  }
   else
-    {
-      *((ulong *)buff)= 0;
-    }
+  {
+    *((ulong *)buff)= 0;
+  }
 
   /* Always return 0 to avoid worrying about error handling */
   return 0;
@@ -8027,13 +7826,13 @@ static int show_jemalloc_bool(THD *thd, SHOW_VAR *var, char *buff,
   var->value= buff;
 
   if (!mallctl(stat_name, &val, &len, NULL, 0))
-    {
-      *((ulong *)buff)= (ulong) val;
-    }
+  {
+    *((ulong *)buff)= (ulong) val;
+  }
   else
-    {
-      *((ulong *)buff)= 0;
-    }
+  {
+    *((ulong *)buff)= 0;
+  }
 
   /* Always return 0 to avoid worrying about error handling */
   return 0;

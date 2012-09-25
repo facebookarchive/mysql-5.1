@@ -54,8 +54,6 @@ scheduler_functions::scheduler_functions()
 static bool no_threads_end(THD *thd, bool put_in_cache)
 {
   unlink_thd(thd);
-  if (thd)
-    delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
   return 1;                                     // Abort handle_one_connection
 }
@@ -70,11 +68,9 @@ void one_thread_scheduler(scheduler_functions* func)
   func->max_threads= 1;
 #ifndef EMBEDDED_LIBRARY
   func->add_connection= handle_connection_in_main_thread;
-  func->add_raw_connection= handle_raw_connection_in_main_thread;
 #endif
   func->init_new_connection_thread= init_dummy;
   func->end_thread= no_threads_end;
-  func->end_raw_connection_thread = no_threads_end;
 }
 
 
@@ -87,8 +83,6 @@ void one_thread_per_connection_scheduler(scheduler_functions* func)
 {
   func->max_threads= max_connections;
   func->add_connection= create_thread_to_handle_connection;
-  func->add_raw_connection= create_thread_to_handle_raw_connection;
   func->end_thread= one_thread_per_connection_end;
-  func->end_raw_connection_thread = one_thread_per_raw_connection_end;
 }
 #endif /* EMBEDDED_LIBRARY */
