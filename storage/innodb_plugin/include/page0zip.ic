@@ -101,34 +101,17 @@ In summary, the compressed page looks like this:
 
 /** Start offset of the area that will be compressed */
 #define PAGE_ZIP_START		PAGE_NEW_SUPREMUM_END
-
-#if UNIV_PAGE_SIZE_SHIFT == 14
-
 /** Size of an compressed page directory entry */
-#define PAGE_ZIP_DIR_SLOT_SIZE	2
+#define PAGE_ZIP_DIR_SLOT_SIZE	(UNIV_PAGE_SIZE <= UNIV_PAGE_SIZE_DEF ? 2 : 3)
 /** Mask of record offsets */
-#define PAGE_ZIP_DIR_SLOT_MASK	0x3fff
+#define PAGE_ZIP_DIR_SLOT_MASK	(UNIV_PAGE_SIZE <= UNIV_PAGE_SIZE_DEF ? \
+				 0x3fff : 0x3fffff)
 /** 'owned' flag */
-#define PAGE_ZIP_DIR_SLOT_OWNED	0x4000
+#define PAGE_ZIP_DIR_SLOT_OWNED	(UNIV_PAGE_SIZE <= UNIV_PAGE_SIZE_DEF ? \
+				 0x4000 : 0x400000)
 /** 'deleted' flag */
-#define PAGE_ZIP_DIR_SLOT_DEL	0x8000
-
-#elif UNIV_PAGE_SIZE_SHIFT == 15
-
-/** Size of an compressed page directory entry */
-#define PAGE_ZIP_DIR_SLOT_SIZE	3
-/** Mask of record offsets */
-#define PAGE_ZIP_DIR_SLOT_MASK	0xffff
-/** 'owned' flag */
-#define PAGE_ZIP_DIR_SLOT_OWNED	0x10000
-/** 'deleted' flag */
-#define PAGE_ZIP_DIR_SLOT_DEL	0x20000
-
-#else
-
-#error Check above #defines for new UNIV_PAGE_SIZE_SHIFT and adjust accordingly
-
-#endif
+#define PAGE_ZIP_DIR_SLOT_DEL	(UNIV_PAGE_SIZE <= UNIV_PAGE_SIZE_DEF ? \
+				 0x8000 : 0x800000)
 
 /**********************************************************************//**
 Determine the size of a compressed page in bytes.
@@ -145,9 +128,9 @@ page_zip_get_size(
 		return(0);
 	}
 
-	size = (PAGE_ZIP_MIN_SIZE >> 1) << page_zip->ssize;
+	size = (UNIV_ZIP_SIZE_MIN >> 1) << page_zip->ssize;
 
-	ut_ad(size >= PAGE_ZIP_MIN_SIZE);
+	ut_ad(size >= UNIV_ZIP_SIZE_MIN);
 	ut_ad(size <= UNIV_PAGE_SIZE);
 
 	return(size);
@@ -230,7 +213,7 @@ page_zip_simple_validate(
 {
 	ut_ad(page_zip);
 	ut_ad(page_zip->data);
-	ut_ad(page_zip->ssize < PAGE_ZIP_NUM_SSIZE);
+	ut_ad(page_zip->ssize <= PAGE_ZIP_SSIZE_MAX);
 	ut_ad(page_zip_get_size(page_zip)
 	      > PAGE_DATA + PAGE_ZIP_DIR_SLOT_SIZE);
 	ut_ad(page_zip->m_start <= page_zip->m_end);

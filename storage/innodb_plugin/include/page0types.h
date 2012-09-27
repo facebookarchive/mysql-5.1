@@ -49,15 +49,14 @@ page0*.h includes rem0rec.h and may include rem0rec.ic. */
 /** Number of bits needed for representing different compressed page sizes */
 #define PAGE_ZIP_SSIZE_BITS 3
 
-/** log2 of smallest compressed page size */
-#define PAGE_ZIP_MIN_SIZE_SHIFT	10
-/** Smallest compressed page size */
-#define PAGE_ZIP_MIN_SIZE	(1 << PAGE_ZIP_MIN_SIZE_SHIFT)
+/** Maximum compressed page shift size */
+#define PAGE_ZIP_SSIZE_MAX	\
+	(UNIV_ZIP_SIZE_SHIFT_MAX - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
 
-/** Number of supported compressed page sizes */
-#define PAGE_ZIP_NUM_SSIZE (UNIV_PAGE_SIZE_SHIFT - PAGE_ZIP_MIN_SIZE_SHIFT + 2)
-#if PAGE_ZIP_NUM_SSIZE > (1 << PAGE_ZIP_SSIZE_BITS)
-# error "PAGE_ZIP_NUM_SSIZE > (1 << PAGE_ZIP_SSIZE_BITS)"
+/* Make sure there are enough bits available to store the maximum zip
+   ssize, which is the number of shifts from 512. */
+#if PAGE_ZIP_SSIZE_MAX >= (1 << PAGE_ZIP_SSIZE_BITS)
+# error "PAGE_ZIP_SSIZE_MAX >= (1 << PAGE_ZIP_SSIZE_BITS)"
 #endif
 
 /** Compressed page descriptor */
@@ -77,7 +76,7 @@ struct page_zip_des_struct
 	unsigned	ssize:PAGE_ZIP_SSIZE_BITS;
 					/*!< 0 or compressed page size;
 					the size in bytes is
-					PAGE_ZIP_MIN_SIZE << (ssize - 1). */
+					UNIV_ZIP_SIZE_MIN << (ssize - 1). */
 };
 
 /** Compression statistics for a given page size */
@@ -124,7 +123,7 @@ struct page_zip_stat_struct {
 typedef struct page_zip_stat_struct page_zip_stat_t;
 
 /** Statistics on compression, indexed by page_zip_des_struct::ssize - 1 */
-extern page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
+extern page_zip_stat_t page_zip_stat[PAGE_ZIP_SSIZE_MAX];
 
 /**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must

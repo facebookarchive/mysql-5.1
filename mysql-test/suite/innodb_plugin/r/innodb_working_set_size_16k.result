@@ -205,5 +205,3 @@ working_set_size
 0
 drop table t1;
 drop table t2;
-SET GLOBAL disable_working_set_size = 0;
-SET GLOBAL innodb_file_format_check = Antelope;

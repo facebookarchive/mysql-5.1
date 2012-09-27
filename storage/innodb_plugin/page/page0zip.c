@@ -52,7 +52,7 @@ Created June 2005 by Marko Makela
 
 #ifndef UNIV_HOTBACKUP
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
-UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
+UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_SSIZE_MAX];
 #endif /* !UNIV_HOTBACKUP */
 
 UNIV_INTERN uint page_compression_level = 6;
@@ -82,22 +82,6 @@ static const byte supremum_extra_data[] = {
 	0x73, 0x75, 0x70, 0x72,
 	0x65, 0x6d, 0x75, 0x6d	/* "supremum" */
 };
-
-#if UNIV_PAGE_SIZE_SHIFT == 14
-
-#define MACH_READ_DIR_SLOT(x)		mach_read_from_2((x))
-#define MACH_WRITE_DIR_SLOT(x, y)	mach_write_to_2((x), (y))
-
-#elif UNIV_PAGE_SIZE_SHIFT == 15
-
-#define MACH_READ_DIR_SLOT(x)		mach_read_from_3((x))
-#define MACH_WRITE_DIR_SLOT(x, y)	mach_write_to_3((x), (y))
-
-#else
-
-#error Check above #defines for new UNIV_PAGE_SIZE_SHIFT and adjust accordingly
-
-#endif
 
 /** Assert that a block of memory is filled with zero bytes.
 Compare at most sizeof(field_ref_zero) bytes.
@@ -144,6 +128,36 @@ page_zip_fail_func(
 @param fmt_args	ignored: printf(3) format string and arguments */
 # define page_zip_fail(fmt_args) /* empty */
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+
+/**********************************************************************//**
+When the page size grows above 16 KB the offset stored in the dense
+directory will exceed the 14 bits allocated for it by default. Thus,
+32KB pages increase the slot size to 3 bytes and give a full 2 bytes for
+the offset. */
+UNIV_INLINE
+ulint
+mach_read_dir_slot(
+	/*===============*/
+	const byte*	b)	/*!< in: pointer to bytes */
+{
+	if (UNIV_PAGE_SIZE <= UNIV_PAGE_SIZE_DEF)
+		return mach_read_from_2(b);
+	else
+		return mach_read_from_3(b);
+}
+
+UNIV_INLINE
+void
+mach_write_dir_slot(
+	/*================*/
+	byte*	b,	/*!< in: pointer bytes where to store */
+	ulint	n)	/*!< in: ulint integer to be stored */
+{
+	if (UNIV_PAGE_SIZE <= UNIV_PAGE_SIZE_DEF)
+		return mach_write_to_2(b, n);
+	else
+		return mach_write_to_3(b, n);
+}
 
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
@@ -260,7 +274,7 @@ page_zip_dir_find_low(
 	ut_ad(slot <= end);
 
 	for (; slot < end; slot += PAGE_ZIP_DIR_SLOT_SIZE) {
-		if ((MACH_READ_DIR_SLOT(slot) & PAGE_ZIP_DIR_SLOT_MASK)
+		if ((mach_read_dir_slot(slot) & PAGE_ZIP_DIR_SLOT_MASK)
 		    == offset) {
 			return(slot);
 		}
@@ -321,7 +335,7 @@ page_zip_dir_get(
 {
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(slot < page_zip_dir_size(page_zip) / PAGE_ZIP_DIR_SLOT_SIZE);
-	return(MACH_READ_DIR_SLOT(page_zip->data + page_zip_get_size(page_zip)
+	return(mach_read_dir_slot(page_zip->data + page_zip_get_size(page_zip)
 				  - PAGE_ZIP_DIR_SLOT_SIZE * (slot + 1)));
 }
 
@@ -671,7 +685,7 @@ page_zip_dir_encode(
 		REC_INFO_MIN_REC_FLAG set. */
 		min_mark = 0;
 
-		MACH_WRITE_DIR_SLOT(buf - PAGE_ZIP_DIR_SLOT_SIZE * ++i, offs);
+		mach_write_dir_slot(buf - PAGE_ZIP_DIR_SLOT_SIZE * ++i, offs);
 
 		if (UNIV_LIKELY_NULL(recs)) {
 			/* Ensure that each heap_no occurs at most once. */
@@ -697,7 +711,7 @@ page_zip_dir_encode(
 		ut_a(!rec[-REC_N_NEW_EXTRA_BYTES]); /* info_bits and n_owned */
 		ut_a(rec_get_status(rec) == status);
 
-		MACH_WRITE_DIR_SLOT(buf - PAGE_ZIP_DIR_SLOT_SIZE * ++i, offs);
+		mach_write_dir_slot(buf - PAGE_ZIP_DIR_SLOT_SIZE * ++i, offs);
 
 		if (UNIV_LIKELY_NULL(recs)) {
 			/* Ensure that each heap_no occurs at most once. */
@@ -1278,7 +1292,7 @@ page_zip_compress(
 	int window_bits;
 	page_zip_decode_compression_flags(compression_flags, &level,
 	                                  &wrap, &strategy);
-	window_bits = wrap ? UNIV_PAGE_SIZE_SHIFT
+	window_bits = wrap ? (int)UNIV_PAGE_SIZE_SHIFT
 	                   : -((int)UNIV_PAGE_SIZE_SHIFT);
 	my_get_fast_timer(&start);
 	ut_ad(fil_system);
@@ -1352,7 +1366,7 @@ page_zip_compress(
 		zip_stat->compressed_secondary++;
 	}
 
-	comp_stat_page_size = PAGE_ZIP_MIN_SIZE << (page_zip->ssize - 1);
+	comp_stat_page_size = UNIV_ZIP_SIZE_MIN << (page_zip->ssize - 1);
 
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3307,7 +3321,7 @@ err_exit:
 		zip_stat->decompressed_secondary_usec += udiff;
 	}
 
-	comp_stat_page_size = PAGE_ZIP_MIN_SIZE << (page_zip->ssize - 1);
+	comp_stat_page_size = UNIV_ZIP_SIZE_MIN << (page_zip->ssize - 1);
 
 	stats = fil_get_stats_lock_mutex_by_id(space_id, &stats_mutex);
 	if (stats) {
@@ -4423,7 +4437,7 @@ page_zip_dir_insert(
 
 	/* Write the entry for the inserted record.
 	The "owned" and "deleted" flags must be zero. */
-	MACH_WRITE_DIR_SLOT(slot_rec - PAGE_ZIP_DIR_SLOT_SIZE,
+	mach_write_dir_slot(slot_rec - PAGE_ZIP_DIR_SLOT_SIZE,
 			    page_offset(rec));
 }
 
@@ -4483,7 +4497,7 @@ page_zip_dir_delete(
 
 	/* Write the entry for the deleted record.
 	The "owned" and "deleted" flags will be cleared. */
-	MACH_WRITE_DIR_SLOT(slot_free, page_offset(rec));
+	mach_write_dir_slot(slot_free, page_offset(rec));
 
 	if (!page_is_leaf(page) || !dict_index_is_clust(index)) {
 		ut_ad(!rec_offs_any_extern(offsets));

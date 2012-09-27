@@ -2919,7 +2919,7 @@ do_insert:
 		return(TRUE);
 
 	} else {
-		ut_a(err == DB_STRONG_FAIL);
+		ut_a(err == DB_STRONG_FAIL || err == DB_TOO_BIG_RECORD);
 
 		return(FALSE);
 	}

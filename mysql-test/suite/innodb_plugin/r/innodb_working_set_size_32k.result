@@ -1,0 +1,207 @@
+drop table if exists t1;
+drop table if exists t2;
+set global DISABLE_WORKING_SET_SIZE = OFF;
+set WORKING_DURATION = 300;
+flush statistics;
+create table t1 (i int primary key auto_increment) engine=innodb;
+select working_set_size between 3 and 5
+from information_schema.db_statistics
+where db='test';
+working_set_size between 3 and 5
+1
+insert into t1 values (1);
+insert into t1 select NULL from t1;
+insert into t1 select NULL from t1;
+insert into t1 select NULL from t1;
+insert into t1 select NULL from t1;
+insert into t1 select NULL from t1;
+insert into t1 select NULL from t1;
+insert into t1 select NULL from t1;
+insert into t1 select NULL from t1;
+insert into t1 select NULL from t1;
+insert into t1 select NULL from t1;
+select count(*) from t1;
+count(*)
+1024
+select working_set_size between 3 and 6
+from information_schema.db_statistics
+where db='test';
+working_set_size between 3 and 6
+1
+insert into t1 select NULL from t1;
+select count(*) from t1;
+count(*)
+2048
+select working_set_size between 5 and 8
+from information_schema.db_statistics
+where db='test';
+working_set_size between 5 and 8
+1
+insert into t1 select NULL from t1;
+select count(*) from t1;
+count(*)
+4096
+select working_set_size between 7 and 9
+from information_schema.db_statistics
+where db='test';
+working_set_size between 7 and 9
+1
+insert into t1 select NULL from t1;
+select count(*) from t1;
+count(*)
+8192
+select working_set_size between 9 and 13
+from information_schema.db_statistics
+where db='test';
+working_set_size between 9 and 13
+1
+insert into t1 select NULL from t1;
+select count(*) from t1;
+count(*)
+16384
+select working_set_size between 15 and 19
+from information_schema.db_statistics
+where db='test';
+working_set_size between 15 and 19
+1
+insert into t1 select NULL from t1;
+select count(*) from t1;
+count(*)
+32768
+select working_set_size between 25 and 31
+from information_schema.db_statistics
+where db='test';
+working_set_size between 25 and 31
+1
+insert into t1 select NULL from t1;
+select count(*) from t1;
+count(*)
+65536
+select working_set_size between 47 and 159
+from information_schema.db_statistics
+where db='test';
+working_set_size between 47 and 159
+1
+insert into t1 select NULL from t1;
+select count(*) from t1;
+count(*)
+131072
+select working_set_size between 90 and 112
+from information_schema.db_statistics
+where db='test';
+working_set_size between 90 and 112
+1
+insert into t1 select NULL from t1;
+select count(*) from t1;
+count(*)
+262144
+select working_set_size between 178 and 218
+from information_schema.db_statistics
+where db='test';
+working_set_size between 178 and 218
+1
+create table t2 (i int primary key auto_increment)
+key_block_size=16 engine=innodb;
+select working_set_size between 182 and 224
+from information_schema.db_statistics
+where db='test';
+working_set_size between 182 and 224
+1
+insert into t2 values (1);
+insert into t2 select NULL from t2;
+insert into t2 select NULL from t2;
+insert into t2 select NULL from t2;
+insert into t2 select NULL from t2;
+insert into t2 select NULL from t2;
+insert into t2 select NULL from t2;
+insert into t2 select NULL from t2;
+insert into t2 select NULL from t2;
+insert into t2 select NULL from t2;
+insert into t2 select NULL from t2;
+select count(*) from t2;
+count(*)
+1024
+select working_set_size between 184 and 226
+from information_schema.db_statistics
+where db='test';
+working_set_size between 184 and 226
+1
+insert into t2 select NULL from t2;
+select count(*) from t2;
+count(*)
+2048
+select working_set_size between 185 and 227
+from information_schema.db_statistics
+where db='test';
+working_set_size between 185 and 227
+1
+insert into t2 select NULL from t2;
+select count(*) from t2;
+count(*)
+4096
+select working_set_size between 188 and 230
+from information_schema.db_statistics
+where db='test';
+working_set_size between 188 and 230
+1
+insert into t2 select NULL from t2;
+select count(*) from t2;
+count(*)
+8192
+select working_set_size between 191 and 235
+from information_schema.db_statistics
+where db='test';
+working_set_size between 191 and 235
+1
+insert into t2 select NULL from t2;
+select count(*) from t2;
+count(*)
+16384
+select working_set_size between 198 and 242
+from information_schema.db_statistics
+where db='test';
+working_set_size between 198 and 242
+1
+insert into t2 select NULL from t2;
+select count(*) from t2;
+count(*)
+32768
+select working_set_size between 215 and 263
+from information_schema.db_statistics
+where db='test';
+working_set_size between 215 and 263
+1
+insert into t2 select NULL from t2;
+select count(*) from t2;
+count(*)
+65536
+select working_set_size between 249 and 305
+from information_schema.db_statistics
+where db='test';
+working_set_size between 249 and 305
+1
+insert into t2 select NULL from t2;
+select count(*) from t2;
+count(*)
+131072
+select working_set_size between 314 and 384
+from information_schema.db_statistics
+where db='test';
+working_set_size between 314 and 384
+1
+insert into t2 select NULL from t2;
+select count(*) from t2;
+count(*)
+262144
+select working_set_size between 441 and 541
+from information_schema.db_statistics
+where db='test';
+working_set_size between 441 and 541
+1
+flush statistics;
+select working_set_size from information_schema.db_statistics
+where db='test';
+working_set_size
+0
+drop table t1;
+drop table t2;

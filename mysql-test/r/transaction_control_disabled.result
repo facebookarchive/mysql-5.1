@@ -4,7 +4,7 @@ Variable_name	Value
 Control_transaction_disabled	OFF
 SHOW GLOBAL STATUS LIKE "Control_transaction_max_slots";
 Variable_name	Value
-Control_transaction_max_slots	1024
+Control_transaction_max_slots	{valid}
 grant all on *.* to 'adminc'@'%' with max_concurrent_transactions 1 max_user_connections 100;
 select User, Host, max_user_connections, max_concurrent_transactions from mysql.user where User = 'adminc';
 User	Host	max_user_connections	max_concurrent_transactions

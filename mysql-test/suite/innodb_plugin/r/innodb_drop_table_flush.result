@@ -14,7 +14,7 @@ insert into t1 select null, 'foobar' from t1;
 insert into t1 select null, 'foobar' from t1;
 insert into t1 select null, 'foobar' from t1;
 select innodb_buffer_pool_pages from information_schema.table_statistics where table_name = 't1';
-innodb_buffer_pool_pages	8
+innodb_buffer_pool_pages	{checked_valid}
 drop table t1;
 Allow dirty page writes to be done
 set global innodb_background_checkpoint=1;

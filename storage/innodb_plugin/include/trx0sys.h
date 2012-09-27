@@ -586,8 +586,8 @@ header. Contains the same fields as TRX_SYS_MYSQL_LOG_INFO. */
 /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
 #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
 
-#if UNIV_PAGE_SIZE < 5120
-# error "UNIV_PAGE_SIZE < 5120"
+#if UNIV_PAGE_SIZE_MIN < 5120
+# error "UNIV_PAGE_SIZE_MIN < 5120"
 #endif
 
 /** High 4 bytes of the offset within that file */

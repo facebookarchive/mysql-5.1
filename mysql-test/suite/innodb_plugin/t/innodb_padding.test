@@ -2,6 +2,11 @@
 --echo # Testing different padding algorithms
 --echo #
 --source include/have_innodb.inc
+# TODO(nizamordulu): I (jtolmer) tried manipulating the number of int colummns
+# and the length of the string in order to get this test to pass with 32k
+# pages. I was unable to get padding high enough to make a difference in the
+# compression failure rate.
+--source include/have_innodb_16k.inc
 
 # record the file format in order to restore in the end.
 --disable_query_log

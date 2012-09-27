@@ -235,7 +235,6 @@ dict_build_table_def_step(
 	dict_table_t*	table;
 	dtuple_t*	row;
 	ulint		error;
-	ulint		flags;
 	const char*	path_or_name;
 	ibool		is_path;
 	mtr_t		mtr;
@@ -290,10 +289,9 @@ dict_build_table_def_step(
 		ut_ad(!dict_table_zip_size(table)
 		      || dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
 
-		flags = table->flags & ~(~0 << DICT_TF_BITS);
 		error = fil_create_new_single_table_tablespace(
 			space, path_or_name, is_path,
-			flags == DICT_TF_COMPACT ? 0 : flags,
+			dict_tf_to_fsp_flags(table->flags),
 			FIL_IBD_FILE_INITIAL_SIZE);
 		table->space = (unsigned int) space;
 

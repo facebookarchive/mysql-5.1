@@ -74,12 +74,15 @@ enum buf_remove_t {
 
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /* @{ */
-#define BUF_BUDDY_LOW_SHIFT	PAGE_ZIP_MIN_SIZE_SHIFT
+#define BUF_BUDDY_LOW_SHIFT	UNIV_ZIP_SIZE_SHIFT_MIN
 
-#define BUF_BUDDY_LOW		(1 << BUF_BUDDY_LOW_SHIFT)
+#define BUF_BUDDY_LOW		(1U << BUF_BUDDY_LOW_SHIFT)
 
 #define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
-					/*!< number of buddy sizes */
+
+/** Maximum number of buddy sizes based on the max page size */
+#define BUF_BUDDY_SIZES_MAX	(UNIV_PAGE_SIZE_SHIFT_MAX	\
+				- BUF_BUDDY_LOW_SHIFT)
 
 /** twice the maximum block size of the buddy system;
 the underlying memory is aligned by this amount:

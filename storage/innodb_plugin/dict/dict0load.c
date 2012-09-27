@@ -429,8 +429,9 @@ loop:
 			/* It is a normal database startup: create the space
 			object and check that the .ibd file exists. */
 
-			fil_open_single_table_tablespace(FALSE, space_id,
-							 flags, name);
+			fil_open_single_table_tablespace(
+			  FALSE, space_id,
+			  dict_tf_to_fsp_flags(flags), name);
 		}
 
 		mem_free(name);
@@ -1022,8 +1023,7 @@ err_exit:
 			/* Try to open the tablespace */
 			if (!fil_open_single_table_tablespace(
 				    TRUE, space,
-				    flags == DICT_TF_COMPACT ? 0 :
-				    flags & ~(~0 << DICT_TF_BITS), name)) {
+				    dict_tf_to_fsp_flags(flags), name)) {
 				/* We failed to find a sensible
 				tablespace file */
 

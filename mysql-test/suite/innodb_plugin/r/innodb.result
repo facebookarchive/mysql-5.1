@@ -1684,10 +1684,10 @@ count(*)
 drop table t1;
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
-8191
+{checked_valid}
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
-16384
+{checked_valid}
 SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
 variable_value - @innodb_rows_deleted_orig
 71
@@ -2495,16 +2495,7 @@ create table t7 (col1 text, index(col1(767)))
 character set = latin1 engine = innodb;
 create table t8 (col1 blob, index(col1(767)))
 character set = latin1 engine = innodb;
-create table t9 (col1 varchar(512), col2 varchar(512), index(col1, col2))
-character set = latin1 engine = innodb;
-show create table t9;
-Table	Create Table
-t9	CREATE TABLE `t9` (
-  `col1` varchar(512) DEFAULT NULL,
-  `col2` varchar(512) DEFAULT NULL,
-  KEY `col1` (`col1`,`col2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
+drop table t1, t2, t3, t4, t5, t6, t7, t8;
 create table t1 (col1 varchar(768), index(col1))
 character set = latin1 engine = innodb;
 Warnings:
@@ -2652,19 +2643,6 @@ truncate t4;
 truncate t1;
 truncate t3;
 drop table t4,t3,t2,t1;
-create table t1 (a varchar(255) character set utf8,
-b varchar(255) character set utf8,
-c varchar(255) character set utf8,
-d varchar(255) character set utf8,
-key (a,b,c,d)) engine=innodb;
-drop table t1;
-create table t1 (a varchar(255) character set utf8,
-b varchar(255) character set utf8,
-c varchar(255) character set utf8,
-d varchar(255) character set utf8,
-e varchar(255) character set utf8,
-key (a,b,c,d,e)) engine=innodb;
-ERROR 42000: Specified key was too long; max key length is 3072 bytes
 create table t1 (s1 varbinary(2),primary key (s1)) engine=innodb;
 create table t2 (s1 binary(2),primary key (s1)) engine=innodb;
 create table t3 (s1 varchar(2) binary,primary key (s1)) engine=innodb;
@@ -3140,7 +3118,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=latin1
 DROP TABLE t1,t2;
-set innodb_strict_mode=on;
+set innodb_strict_mode=ON;
 CREATE TABLE t1 (
 c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
 c05 CHAR(255), c06 CHAR(255), c07 CHAR(255), c08 CHAR(255),
@@ -3149,9 +3127,17 @@ c13 CHAR(255), c14 CHAR(255), c15 CHAR(255), c16 CHAR(255),
 c17 CHAR(255), c18 CHAR(255), c19 CHAR(255), c20 CHAR(255),
 c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
-c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
+c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255),
+c33 CHAR(255), c34 CHAR(255), c35 CHAR(255), c36 CHAR(255),
+c37 CHAR(255), c38 CHAR(255), c39 CHAR(255), c40 CHAR(255),
+c41 CHAR(255), c42 CHAR(255), c43 CHAR(255), c44 CHAR(255),
+c45 CHAR(255), c46 CHAR(255), c47 CHAR(255), c48 CHAR(255),
+c49 CHAR(255), c50 CHAR(255), c51 CHAR(255), c52 CHAR(255),
+c53 CHAR(255), c54 CHAR(255), c55 CHAR(255), c56 CHAR(255),
+c57 CHAR(255), c58 CHAR(255), c59 CHAR(255), c60 CHAR(255),
+c61 CHAR(255), c62 CHAR(255), c63 CHAR(255), c64 CHAR(255)
 ) ENGINE = InnoDB;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is {checked_valid}. You have to change some columns to TEXT or BLOBs
 DROP TABLE IF EXISTS t1;
 Warnings:
 Note	1051	Unknown table 't1'

@@ -118,16 +118,7 @@ create table t7 (col1 text, index(col1(767)))
 character set = latin1 engine = innodb;
 create table t8 (col1 blob, index(col1(767)))
 character set = latin1 engine = innodb;
-create table t9 (col1 varchar(512), col2 varchar(512), index(col1, col2))
-character set = latin1 engine = innodb;
-show create table t9;
-Table	Create Table
-t9	CREATE TABLE `t9` (
-  `col1` varchar(512) DEFAULT NULL,
-  `col2` varchar(512) DEFAULT NULL,
-  KEY `col1` (`col1`,`col2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-drop table t1, t2, t3, t4, t5, t6, t7, t8, t9;
+drop table t1, t2, t3, t4, t5, t6, t7, t8;
 create table t1 (col1 varchar(768), index(col1))
 character set = latin1 engine = innodb;
 Warnings:
@@ -275,19 +266,6 @@ truncate t4;
 truncate t1;
 truncate t3;
 drop table t4,t3,t2,t1;
-create table t1 (a varchar(255) character set utf8,
-b varchar(255) character set utf8,
-c varchar(255) character set utf8,
-d varchar(255) character set utf8,
-key (a,b,c,d)) engine=innodb;
-drop table t1;
-create table t1 (a varchar(255) character set utf8,
-b varchar(255) character set utf8,
-c varchar(255) character set utf8,
-d varchar(255) character set utf8,
-e varchar(255) character set utf8,
-key (a,b,c,d,e)) engine=innodb;
-ERROR 42000: Specified key was too long; max key length is 3072 bytes
 create table t1 (s1 varbinary(2),primary key (s1)) engine=innodb;
 create table t2 (s1 binary(2),primary key (s1)) engine=innodb;
 create table t3 (s1 varchar(2) binary,primary key (s1)) engine=innodb;
@@ -403,64 +381,6 @@ t2	CREATE TABLE `t2` (
   KEY `t2_ibfk_0` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2,t1;
-create table t1(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
-insert into t1(a) values (1),(2),(3);
-commit;
-set autocommit = 0;
-update t1 set b = 5 where a = 2;
-create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
-set autocommit = 0;
-insert into t1(a) values (10),(20),(30),(40),(50),(60),(70),(80),(90),(100),
-(11),(21),(31),(41),(51),(61),(71),(81),(91),(101),
-(12),(22),(32),(42),(52),(62),(72),(82),(92),(102),
-(13),(23),(33),(43),(53),(63),(73),(83),(93),(103),
-(14),(24),(34),(44),(54),(64),(74),(84),(94),(104);
-commit;
-commit;
-drop trigger t1t;
-drop table t1;
-create table t1(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
-create table t2(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
-create table t3(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
-create table t4(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
-create table t5(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
-insert into t1(a) values (1),(2),(3);
-insert into t2(a) values (1),(2),(3);
-insert into t3(a) values (1),(2),(3);
-insert into t4(a) values (1),(2),(3);
-insert into t3(a) values (5),(7),(8);
-insert into t4(a) values (5),(7),(8);
-insert into t5(a) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12);
-create trigger t1t before insert on t1 for each row begin
-INSERT INTO t2 SET a = NEW.a;
-end |
-create trigger t2t before insert on t2 for each row begin
-DELETE FROM t3 WHERE a = NEW.a;
-end |
-create trigger t3t before delete on t3 for each row begin
-UPDATE t4 SET b = b + 1 WHERE a = OLD.a;
-end |
-create trigger t4t before update on t4 for each row begin
-UPDATE t5 SET b = b + 1 where a = NEW.a;
-end |
-commit;
-set autocommit = 0;
-update t1 set b = b + 5 where a = 1;
-update t2 set b = b + 5 where a = 1;
-update t3 set b = b + 5 where a = 1;
-update t4 set b = b + 5 where a = 1;
-insert into t5(a) values(20);
-set autocommit = 0;
-insert into t1(a) values(7);
-insert into t2(a) values(8);
-delete from t2 where a = 3;
-update t4 set b = b + 1 where a = 3;
-commit;
-drop trigger t1t;
-drop trigger t2t;
-drop trigger t3t;
-drop trigger t4t;
-drop table t1, t2, t3, t4, t5;
 CREATE TABLE t1 (
 field1 varchar(8) NOT NULL DEFAULT '',
 field2 varchar(8) NOT NULL DEFAULT '',
@@ -772,9 +692,17 @@ c13 CHAR(255), c14 CHAR(255), c15 CHAR(255), c16 CHAR(255),
 c17 CHAR(255), c18 CHAR(255), c19 CHAR(255), c20 CHAR(255),
 c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
-c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
+c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255),
+c33 CHAR(255), c34 CHAR(255), c35 CHAR(255), c36 CHAR(255),
+c37 CHAR(255), c38 CHAR(255), c39 CHAR(255), c40 CHAR(255),
+c41 CHAR(255), c42 CHAR(255), c43 CHAR(255), c44 CHAR(255),
+c45 CHAR(255), c46 CHAR(255), c47 CHAR(255), c48 CHAR(255),
+c49 CHAR(255), c50 CHAR(255), c51 CHAR(255), c52 CHAR(255),
+c53 CHAR(255), c54 CHAR(255), c55 CHAR(255), c56 CHAR(255),
+c57 CHAR(255), c58 CHAR(255), c59 CHAR(255), c60 CHAR(255),
+c61 CHAR(255), c62 CHAR(255), c63 CHAR(255), c64 CHAR(255)
 ) ENGINE = InnoDB;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is {checked_valid}. You have to change some columns to TEXT or BLOBs
 SET innodb_strict_mode=OFF;
 DROP TABLE IF EXISTS t1;
 Warnings:

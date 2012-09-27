@@ -4,6 +4,7 @@
 
 -- source include/not_embedded.inc
 -- source include/have_innodb_plugin.inc
+-- source include/have_innodb_16k.inc
 
 CREATE TABLE t(a INT)ENGINE=InnoDB;
 RENAME TABLE t TO u;
