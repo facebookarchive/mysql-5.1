@@ -1022,6 +1022,7 @@ trx_sys_read_slave_state(
 	sys_header = trx_sysf_get(&mtr);
 
 	trx_sys_get_mysql_replication_for_write(&num_slots, &trx_rpl, FALSE);
+	ut_ad(num_slots == 1 || num_slots == 2);
 	for (i = 0; i < num_slots; ++i) {
 		magic_num = mach_read_from_4(
 			sys_header + trx_rpl[i].offset +
@@ -1094,6 +1095,40 @@ trx_sys_read_slave_state(
 				(long long int) trx_rpl[i].relay_log_pos,
 				trx_rpl[i].master_log_name,
 				(long long int) trx_rpl[i].master_log_pos);
+		}
+	}
+
+	/* The commited replication position should always be <= the
+	prepared position. However, if the mysqld binary was upgraded,
+	downgraded and then upgraded, the data in the prepared slot
+	would be out of date and < committed. In that case, we should
+	not use it. */
+	if (num_slots == 2)
+	{
+		int cmp_logs_names =
+			ut_strcmp(trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
+				  relay_log_name,
+				  trx_rpl[TRX_SYS_MYSQL_REPLICATION_COMMITTED].
+				  relay_log_name);
+		if (cmp_logs_names < 0 ||
+		    (cmp_logs_names == 0 &&
+		     (trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
+		      relay_log_pos <
+		      trx_rpl[TRX_SYS_MYSQL_REPLICATION_COMMITTED].
+		      relay_log_pos)))
+		{
+			if (print_msg)
+			{
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					"InnoDB: Ignoring seemingly "
+					"out-of-date prepared relay-log "
+					"information\n");
+			}
+			trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
+				relay_log_name[0] = '\0';
+			trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
+				relay_log_pos = -1;
 		}
 	}
 

@@ -1,25 +1,40 @@
 include/master-slave.inc
 [connection master]
 drop table if exists t1;
-CREATE TABLE t1(a int primary key) engine=innodb;
-insert into t1 values(10);
 show variables like 'innodb_old_rpl_transaction';
 Variable_name	Value
 innodb_old_rpl_transaction	ON
+CREATE TABLE t1(a int primary key auto_increment) engine=innodb;
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
 show variables like 'innodb_old_rpl_transaction';
 Variable_name	Value
 innodb_old_rpl_transaction	OFF
-start slave;
-insert into t1 values(11);
-select * from t1;
-a
-10
-11
-select * from t1;
-a
-10
-11
-start slave;
-SET GLOBAL INNODB_FILE_FORMAT_CHECK=`ANTELOPE`;
+include/start_slave.inc
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+show variables like 'innodb_old_rpl_transaction';
+Variable_name	Value
+innodb_old_rpl_transaction	ON
+include/start_slave.inc
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+show variables like 'innodb_old_rpl_transaction';
+Variable_name	Value
+innodb_old_rpl_transaction	OFF
+include/start_slave.inc
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+show variables like 'innodb_old_rpl_transaction';
+Variable_name	Value
+innodb_old_rpl_transaction	ON
+include/start_slave.inc
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
 DROP TABLE t1;
 include/rpl_end.inc
