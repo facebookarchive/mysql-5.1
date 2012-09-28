@@ -1121,14 +1121,18 @@ trx_sys_read_slave_state(
 			{
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-					"InnoDB: Ignoring seemingly "
-					"out-of-date prepared relay-log "
-					"information\n");
+					" InnoDB: Ignoring seemingly"
+					" out-of-date prepared relay-log"
+					" information\n");
 			}
 			trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
 				relay_log_name[0] = '\0';
 			trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
 				relay_log_pos = -1;
+			trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
+				master_log_name[0] = '\0';
+			trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
+				master_log_pos = -1;
 		}
 	}
 
