@@ -871,6 +871,20 @@ trx_sys_update_slave_state(
 		}
 
 		/* Write magic number if missing for master log */
+#if UNIV_DEBUG
+		if (trx_old_rpl_transaction) {
+			if (mach_read_from_4(
+				    sys_header + trx_rpl[i].offset +
+				    TRX_SYS_MYSQL_RELAYMASTER_MAGIC_OFF)
+			    != TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM_OLD) {
+				mlog_write_ulint(
+					sys_header + trx_rpl[i].offset +
+					TRX_SYS_MYSQL_RELAYMASTER_MAGIC_OFF,
+					TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM_OLD,
+					MLOG_4BYTES, mtr);
+			}
+		} else
+#endif
 		if (mach_read_from_4(sys_header + trx_rpl[i].offset +
 				     TRX_SYS_MYSQL_RELAYMASTER_MAGIC_OFF)
 		    != TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM) {
@@ -1005,6 +1019,7 @@ trx_sys_read_slave_state(
 	uint		i;
 	uint		num_slots;
 	trx_sys_mysql_replication_t* trx_rpl;
+	ibool		only_use_committed_slot = FALSE;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -1039,7 +1054,9 @@ trx_sys_read_slave_state(
 		magic_num = mach_read_from_4(
 			sys_header + trx_rpl[i].offset +
 			TRX_SYS_MYSQL_RELAYMASTER_MAGIC_OFF);
-		if (magic_num != TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM) {
+		if (magic_num == TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM_OLD) {
+			only_use_committed_slot = TRUE;
+		} else if (magic_num != TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM) {
 			mtr_commit(&mtr);
 			fprintf(stderr,
 				" InnoDB: Old magic number(%lu) for relay-log "
@@ -1098,42 +1115,26 @@ trx_sys_read_slave_state(
 		}
 	}
 
-	/* The commited replication position should always be <= the
-	prepared position. However, if the mysqld binary was upgraded,
-	downgraded and then upgraded, the data in the prepared slot
-	would be out of date and < committed. In that case, we should
-	not use it. */
-	if (num_slots == 2)
+	/* If the mysqld binary was upgraded, downgraded and then upgraded,
+	the data in the prepared slot would be out of date and should not be
+	used. */
+	if (only_use_committed_slot && num_slots == 2)
 	{
-		int cmp_logs_names =
-			ut_strcmp(trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
-				  relay_log_name,
-				  trx_rpl[TRX_SYS_MYSQL_REPLICATION_COMMITTED].
-				  relay_log_name);
-		if (cmp_logs_names < 0 ||
-		    (cmp_logs_names == 0 &&
-		     (trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
-		      relay_log_pos <
-		      trx_rpl[TRX_SYS_MYSQL_REPLICATION_COMMITTED].
-		      relay_log_pos)))
-		{
-			if (print_msg)
-			{
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: Ignoring seemingly"
-					" out-of-date prepared relay-log"
-					" information\n");
-			}
-			trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
-				relay_log_name[0] = '\0';
-			trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
-				relay_log_pos = -1;
-			trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
-				master_log_name[0] = '\0';
-			trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
-				master_log_pos = -1;
+		if (print_msg) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: committed slave state has old"
+				" magic number so not using prepared slave"
+				" state.\n");
 		}
+		trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
+			relay_log_name[0] = '\0';
+		trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
+			relay_log_pos = -1;
+		trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
+			master_log_name[0] = '\0';
+		trx_rpl[TRX_SYS_MYSQL_REPLICATION_PREPARED].
+			master_log_pos = -1;
 	}
 
 	return 0;
@@ -1184,6 +1185,14 @@ trx_sys_init_replication(
 			+ TRX_SYS_MYSQL_RELAYLOG_MAGIC_N_FLD,
 			TRX_SYS_MYSQL_LOG_MAGIC_N, MLOG_4BYTES, mtr);
 
+#if UNIV_DEBUG
+	if (trx_old_rpl_transaction)
+		mlog_write_ulint(sys_header + offset
+				 + TRX_SYS_MYSQL_RELAYMASTER_MAGIC_OFF,
+				 TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM_OLD,
+				 MLOG_4BYTES, mtr);
+	else
+#endif
 	mlog_write_ulint(sys_header + offset
 			+ TRX_SYS_MYSQL_RELAYMASTER_MAGIC_OFF,
 			TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM, MLOG_4BYTES, mtr);

@@ -552,7 +552,8 @@ header. Contains the same fields as TRX_SYS_MYSQL_LOG_INFO. */
 #define TRX_SYS_MYSQL_RELAY_INFO	(UNIV_PAGE_SIZE - 2000)
 
 #define	TRX_SYS_MYSQL_RELAYLOG_MAGIC_N_FLD  0
-#define TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM  0xfffffffe
+#define TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM_OLD  0xfffffffe
+#define TRX_SYS_MYSQL_RELAYMASTER_MAGIC_NUM  0xfffffffd
 
 /** Magic number indicating both relay-log and master-log information */
 #define TRX_SYS_MYSQL_RELAYMASTER_MAGIC_OFF  4
