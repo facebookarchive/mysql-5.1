@@ -532,6 +532,10 @@ row_vers_build_for_consistent_read(
 		undo_no_t	undo_no;
 		heap = mem_heap_create(1024);
 
+		if (UNIV_UNLIKELY(trx_is_interrupted(mtr->trx))) {
+			return(DB_INTERRUPTED);
+		}
+
 		/* If we have high-granularity consistent read view and
 		creating transaction of the view is the same as trx_id in
 		the record we see this record only in the case when
