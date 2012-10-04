@@ -1649,7 +1649,10 @@ buf_flush_free_margin(
 	my_fast_timer_t	start_time;
 	enum buf_flush	flush_type;
 
-	if (!srv_fast_free_list) {
+	if (!foreground || !srv_fast_free_list) {
+		/* Don't do the fast_free_list path for background requests
+		because nsearched always = 0 in that case so we need to figure
+		out how many dirty blocks might need to be flushed */
 		n_to_flush = buf_flush_LRU_recommendation();
 		flush_type = BUF_FLUSH_LRU;
 	} else {
@@ -1662,11 +1665,15 @@ buf_flush_free_margin(
 		LRU end. This is more efficient than first calling
 		buf_flush_LRU_recommendation. */
 
-		if (foreground && nsearched < srv_fast_free_list_min) {
+		if (nsearched < srv_fast_free_list_min) {
 			return;
 		}
 
-		n_to_flush = BUF_LRU_FREE_SEARCH_LEN;
+		/* Check for dirty pages a bit further into the LRU than
+		the caller searched while getting a free page. */
+		n_to_flush = (nsearched + 16) < BUF_LRU_FREE_SEARCH_LEN ?
+			nsearched + 16 :
+			BUF_LRU_FREE_SEARCH_LEN;
 		flush_type = BUF_FLUSH_LRU_FAST;
 	}
 
