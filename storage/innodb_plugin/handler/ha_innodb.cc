@@ -737,10 +737,6 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
   {"dblwr_writes",
   (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
-  {"drop_table_phase1_seconds",
-  (char*) &export_vars.drop_table_phase1_secs,            SHOW_DOUBLE},
-  {"drop_table_phase2_seconds",
-  (char*) &export_vars.drop_table_phase2_secs,            SHOW_DOUBLE},
   {"drop_table_purge_skipped_row",
   (char*) &export_vars.innodb_drop_purge_skip_row,        SHOW_LONG},
   {"drop_table_ibuf_skipped_row",
@@ -12842,15 +12838,6 @@ static MYSQL_SYSVAR_BOOL(enable_slave_update_table_stats,
   "By default it is set to false",
   NULL, NULL, FALSE);
 
-static MYSQL_SYSVAR_BOOL(drop_table_phase1, srv_drop_table_phase1,
-  PLUGIN_VAR_NOCMDARG,
-  "If enabled this calls buf_LRU_drop_page_hash_for_tablespace to "
-  "optimize one part of drop table processing while creating more dogpiles "
-  "on the buffer pool mutex. The call is not required and is not done "
-  "when this is false. Unmodified MySQL always calls it. See SHOW STATUS "
-  "counters Innodb_drop_table_phase[12]_seconds to determine the costs.",
-  NULL, NULL, TRUE);
-
 static MYSQL_SYSVAR_ULONG(uncache_table_batch, srv_uncache_table_batch,
   PLUGIN_VAR_RQCMDARG,
   "Release and relock the buffer pool mutex after this number of pages "
@@ -13060,7 +13047,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(sync_checkpoint_limit),
   MYSQL_SYSVAR(use_purge_thread),
   MYSQL_SYSVAR(enable_slave_update_table_stats),
-  MYSQL_SYSVAR(drop_table_phase1),
   MYSQL_SYSVAR(uncache_table_batch),
   MYSQL_SYSVAR(fake_changes),
   MYSQL_SYSVAR(fake_changes_locks),

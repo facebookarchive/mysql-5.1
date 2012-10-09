@@ -126,10 +126,6 @@ extern ulint	srv_use_purge_thread;
 
 extern my_bool	srv_enable_slave_update_table_stats;
 
-extern my_bool     srv_drop_table_phase1;
-extern double      srv_drop_table_phase1_secs;
-extern double      srv_drop_table_phase2_secs;
-
 extern my_bool     srv_fake_changes_locks;
 
 extern ulint	srv_read_wait_usecs;
@@ -1130,8 +1126,6 @@ struct export_var_struct{
 	ib_int64_t	zip16384_decompressed_primary_usec;
 	ulint		zip16384_decompressed_secondary;
 	ib_int64_t	zip16384_decompressed_secondary_usec;
-	double		drop_table_phase1_secs;
-	double		drop_table_phase2_secs;
 	ulint 		innodb_malloc_cache_hits_compress;
 	ulint 		innodb_malloc_cache_misses_compress;
 	ulint 		innodb_malloc_cache_hits_decompress;
