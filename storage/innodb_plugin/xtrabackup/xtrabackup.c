@@ -2759,7 +2759,7 @@ xtrabackup_copy_datafile(fil_node_t* node, uint thread_n)
 	ibool		success;
 	byte*		page;
 	byte*		buf2 = NULL;
-	LSN64		flush_lsn;
+//	LSN64		flush_lsn;
 	IB_INT64	file_size;
 	IB_INT64	offset;
  	IB_INT64	nextoffset = 0;
@@ -3019,7 +3019,7 @@ skip_filter:
 	if (!success) {
 		goto error;
 	}
-	flush_lsn = MACH_READ_64(page + FIL_PAGE_FILE_FLUSH_LSN);
+//	flush_lsn = MACH_READ_64(page + FIL_PAGE_FILE_FLUSH_LSN);
 		/* check current flush lsn newer than checkpoint@start */
 //	if (ut_dulint_cmp(backup_start_checkpoint, flush_lsn) >= 0) {
 //		goto error;
@@ -3316,8 +3316,8 @@ xtrabackup_copy_logfile(LSN64 from_lsn, my_bool is_last)
 {
 	/* definition from recv_recovery_from_checkpoint_start() */
 	log_group_t*	group;
-	log_group_t*	up_to_date_group;
-	LSN64		old_scanned_lsn;
+//	log_group_t*	up_to_date_group;
+//	LSN64		old_scanned_lsn;
 	LSN64		group_scanned_lsn;
 	LSN64		contiguous_lsn;
 
@@ -3346,7 +3346,7 @@ xtrabackup_copy_logfile(LSN64 from_lsn, my_bool is_last)
 		LSN64	end_lsn;
 
 
-		old_scanned_lsn = from_lsn;
+//		old_scanned_lsn = from_lsn;
 
 		/* reference recv_group_scan_log_recs() */
 	finished = FALSE;
@@ -3369,7 +3369,7 @@ xtrabackup_copy_logfile(LSN64 from_lsn, my_bool is_last)
 	byte*	log_block;
 	LSN64	scanned_lsn;
 	ulint	data_len;
-	ibool	more_data;
+//	ibool	more_data;
 
 	ulint	scanned_checkpoint_no = 0;
 
@@ -3377,7 +3377,7 @@ xtrabackup_copy_logfile(LSN64 from_lsn, my_bool is_last)
 	
 	log_block = log_sys->buf;
 	scanned_lsn = start_lsn;
-	more_data = FALSE;
+//	more_data = FALSE;
 
 	while (log_block < log_sys->buf + RECV_SCAN_SIZE && !finished) {
 		ulint	no = log_block_get_hdr_no(log_block);
@@ -3563,11 +3563,11 @@ xtrabackup_copy_logfile(LSN64 from_lsn, my_bool is_last)
 
 		group->scanned_lsn = group_scanned_lsn;
 		
-		if (ut_dulint_cmp(old_scanned_lsn, group_scanned_lsn) < 0) {
+//		if (ut_dulint_cmp(old_scanned_lsn, group_scanned_lsn) < 0) {
 			/* We found a more up-to-date group */
 
-			up_to_date_group = group;
-		}
+//			up_to_date_group = group;
+//		}
 
 		/*
 #ifndef INNODB_VERSION_SHORT
@@ -3616,8 +3616,8 @@ xtrabackup_read_logfile(LSN64 from_lsn, my_bool is_last)
 {
 	/* definition from recv_recovery_from_checkpoint_start() */
 	log_group_t*	group;
-	log_group_t*	up_to_date_group;
-	LSN64		old_scanned_lsn;
+	//log_group_t*	up_to_date_group;
+	//LSN64		old_scanned_lsn;
 	LSN64		group_scanned_lsn;
 	LSN64		contiguous_lsn;
 
@@ -3634,7 +3634,7 @@ xtrabackup_read_logfile(LSN64 from_lsn, my_bool is_last)
 		LSN64	start_lsn;
 		LSN64	end_lsn;
 
-		old_scanned_lsn = from_lsn;
+//		old_scanned_lsn = from_lsn;
 
 		/* reference recv_group_scan_log_recs() */
 		finished = FALSE;
@@ -3664,11 +3664,11 @@ xtrabackup_read_logfile(LSN64 from_lsn, my_bool is_last)
 
 		group->scanned_lsn = group_scanned_lsn;
 		
-		if (ut_dulint_cmp(old_scanned_lsn, group_scanned_lsn) < 0) {
+//		if (ut_dulint_cmp(old_scanned_lsn, group_scanned_lsn) < 0) {
 			/* We found a more up-to-date group */
-
-			up_to_date_group = group;
-		}
+//
+//			up_to_date_group = group;
+//		}
 
 		/*
 #ifndef INNODB_VERSION_SHORT
@@ -4793,7 +4793,7 @@ loop:
 					ulint	space_id;
 					ulint	page_no;
 					ulint	offset;
-					ulint	extern_len;
+//					ulint	extern_len;
 					byte*	blob_header;
 					ulint	part_len;
 					mtr_t	local_mtr;
@@ -4811,7 +4811,7 @@ loop:
 					space_id = mach_read_from_4(data + local_len + BTR_EXTERN_SPACE_ID);
 					page_no = mach_read_from_4(data + local_len + BTR_EXTERN_PAGE_NO);
 					offset = mach_read_from_4(data + local_len + BTR_EXTERN_OFFSET);
-					extern_len = mach_read_from_4(data + local_len + BTR_EXTERN_LEN + 4);
+//					extern_len = mach_read_from_4(data + local_len + BTR_EXTERN_LEN + 4);
 
 					if (offset != FIL_PAGE_DATA)
 						fprintf(stderr, "\nWarning: several record may share same external page.\n");
@@ -4822,7 +4822,7 @@ loop:
 #ifndef INNODB_VERSION_SHORT
 						local_page = buf_page_get(space_id, page_no, RW_S_LATCH, &local_mtr);
 #else
-						local_block = btr_block_get(space_id, zip_size, page_no, RW_S_LATCH, &local_mtr);
+						local_block = btr_block_get(space_id, zip_size, page_no, RW_S_LATCH, NULL, &local_mtr);
 						local_page = buf_block_get_frame(local_block);
 #endif
 						blob_header = local_page + offset;
@@ -4867,7 +4867,7 @@ loop:
 #ifndef INNODB_VERSION_SHORT
 		page = btr_page_get(space, right_page_no, RW_X_LATCH, &mtr);
 #else
-		block = btr_block_get(space, zip_size, right_page_no, RW_X_LATCH, &mtr);
+		block = btr_block_get(space, zip_size, right_page_no, RW_X_LATCH, NULL, &mtr);
 		page = buf_block_get_frame(block);
 #endif
 		goto loop;
@@ -5100,7 +5100,7 @@ loop:
 			is no index */
 
 			if (dict_table_get_first_index(table)) {
-				dict_update_statistics_low(table, TRUE, TRUE, TRUE, NULL);
+				dict_update_statistics(table, FALSE, TRUE, NULL);
 			}
 
 			//dict_table_print_low(table);
@@ -5201,7 +5201,7 @@ xtrabackup_init_temp_log(void)
 
 	LSN64	max_no;
 	LSN64	max_lsn;
-	ulint	max_field;
+//	ulint	max_field;
 	LSN64	checkpoint_no;
 
 	ulint	fold;
@@ -5337,8 +5337,8 @@ retry:
 		if (ut_dulint_cmp(checkpoint_no, max_no) >= 0) {
 			max_no = checkpoint_no;
 			max_lsn = MACH_READ_64(log_buf + field + LOG_CHECKPOINT_LSN);
-			max_field = field;
 /*
+			max_field = field;
 			mach_write_to_4(log_buf + field + LOG_CHECKPOINT_OFFSET,
 					LOG_FILE_HDR_SIZE + ut_dulint_minus(max_lsn,
 					ut_dulint_align_down(max_lsn,OS_FILE_LOG_BLOCK_SIZE)));
@@ -6469,7 +6469,7 @@ xtrabackup_stream_datafile(void)
 	fprintf(stderr, "xtrabackup: xtrabackup_stream_datafile started for %s\n",
 		path);
 
-	while (path = strstr(path, SRV_PATH_SEPARATOR_STR)) {
+	while ((path = strstr(path, SRV_PATH_SEPARATOR_STR))) {
 		path++;
 		lastbutone = last;
 		last = path;
@@ -6508,7 +6508,7 @@ xtrabackup_stream_datafile(void)
 		while (node != NULL) {
 			path = node->name;
 			last = NULL;
-			while (path = strstr(path, SRV_PATH_SEPARATOR_STR)) {
+			while ((path = strstr(path, SRV_PATH_SEPARATOR_STR))) {
 				path++;
 				last = path;
 			}
@@ -6546,12 +6546,13 @@ xtrabackup_stream_datafile(void)
 int
 xtrabackup_parse_lsn(char* lsnstr, LSN64 *lsn)
 {
-	char* incremental_low;
 	char* endchar;
-	long long lsn_high, lsn_low;
 	int error = 0;
 
 #ifndef INNODB_VERSION_SHORT
+	char* incremental_low;
+	long long lsn_high, lsn_low;
+
 	incremental_low = strstr(lsnstr, ":");
 	if (incremental_low) {
 		*incremental_low = '\0';
