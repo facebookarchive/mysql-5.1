@@ -1,6 +1,7 @@
 source include/not_embedded.inc;
 source include/have_innodb.inc;
 
+flush statistics;
 --disable_warnings
 drop table if exists t1;
 --enable_warnings

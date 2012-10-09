@@ -2917,6 +2917,7 @@ buf_page_io_complete(
 	enum buf_io_fix	io_type;
 	const ibool	uncompressed = (buf_page_get_state(bpage)
 					== BUF_BLOCK_FILE_PAGE);
+  byte* frame = NULL;
 
 	ut_a(buf_page_in_file(bpage));
 
@@ -2932,7 +2933,6 @@ buf_page_io_complete(
 	if (io_type == BUF_IO_READ) {
 		ulint	read_page_no;
 		ulint	read_space_id;
-		byte*	frame;
 
 		if (buf_page_get_zip_size(bpage)) {
 			frame = bpage->zip.data;
@@ -3049,6 +3049,14 @@ corrupt:
 				TRUE);
 		}
 	}
+  else {
+		if (buf_page_get_zip_size(bpage)) {
+			frame = bpage->zip.data;
+    }
+		else {
+			frame = ((buf_block_t*) bpage)->frame;
+		}
+  }
 
 	buf_pool_mutex_enter();
 	mutex_enter(buf_page_get_mutex(bpage));
@@ -3078,7 +3086,14 @@ corrupt:
 		buf_pool->n_pend_reads--;
 		buf_pool->stat.n_pages_read++;
 
-		if (uncompressed) {
+	  switch (fil_page_get_type(frame)) {
+      case FIL_PAGE_TYPE_BLOB:
+      case FIL_PAGE_TYPE_ZBLOB:
+      case FIL_PAGE_TYPE_ZBLOB2:
+        buf_pool->stat.n_pages_read_blob++;
+        break;
+    }
+    if (uncompressed) {
 			rw_lock_x_unlock_gen(&((buf_block_t*) bpage)->lock,
 					     BUF_IO_READ);
 		}
@@ -3097,6 +3112,13 @@ corrupt:
 		}
 
 		buf_pool->stat.n_pages_written++;
+	  switch (fil_page_get_type(frame)) {
+      case FIL_PAGE_TYPE_BLOB:
+      case FIL_PAGE_TYPE_ZBLOB:
+      case FIL_PAGE_TYPE_ZBLOB2:
+        buf_pool->stat.n_pages_written_blob++;
+        break;
+    }
 
 		break;
 

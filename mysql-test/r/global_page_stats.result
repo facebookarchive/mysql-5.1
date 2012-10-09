@@ -1,0 +1,30 @@
+drop table if exists t1;
+SELECT VARIABLE_VALUE INTO @r1 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_read';
+SELECT VARIABLE_VALUE INTO @rb1 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_read_blob';
+SELECT VARIABLE_VALUE INTO @w1 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_written';
+SELECT VARIABLE_VALUE INTO @wb1 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_written_blob';
+CREATE TABLE t1 (a int not null primary key, b blob) engine=innodb;
+insert into t1 values (1, repeat("test", 3000));
+flush tables t1 with memory cache;
+select count(*) from t1;
+count(*)
+1
+flush tables t1 with memory cache;
+select * from t1 where a=1;
+SELECT VARIABLE_VALUE INTO @r2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_read';
+SELECT VARIABLE_VALUE INTO @rb2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_read_blob';
+SELECT VARIABLE_VALUE INTO @w2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_written';
+SELECT VARIABLE_VALUE INTO @wb2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_written_blob';
+SELECT @r2 - @r1 as diff;
+diff
+3
+SELECT @rb2 - @rb1 as diff;
+diff
+1
+SELECT @w2 - @w1 as diff;
+diff
+5
+SELECT @wb2 - @wb1 as diff;
+diff
+1
+drop table t1;

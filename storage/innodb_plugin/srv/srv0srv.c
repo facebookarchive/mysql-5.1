@@ -2529,7 +2529,9 @@ srv_export_innodb_status(void)
 	export_vars.innodb_dblwr_writes = srv_dblwr_writes;
 	export_vars.innodb_pages_created = buf_pool->stat.n_pages_created;
 	export_vars.innodb_pages_read = buf_pool->stat.n_pages_read;
+	export_vars.innodb_pages_read_blob = buf_pool->stat.n_pages_read_blob;
 	export_vars.innodb_pages_written = buf_pool->stat.n_pages_written;
+	export_vars.innodb_pages_written_blob = buf_pool->stat.n_pages_written_blob;
 
 	export_vars.innodb_purge_pending= trx_sys->rseg_history_len;
 	export_vars.innodb_purged_pages= srv_purged_pages;

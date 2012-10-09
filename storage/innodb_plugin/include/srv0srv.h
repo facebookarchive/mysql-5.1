@@ -985,7 +985,9 @@ struct export_var_struct{
 	ulint innodb_page_size;			/*!< UNIV_PAGE_SIZE */
 	ulint innodb_pages_created;		/*!< buf_pool->stat.n_pages_created */
 	ulint innodb_pages_read;		/*!< buf_pool->stat.n_pages_read */
+	ulint innodb_pages_read_blob;		/*!< buf_pool->stat.n_pages_read_blob */
 	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
+	ulint innodb_pages_written_blob;		/*!< buf_pool->stat.n_pages_written_blob */
 	ulint innodb_preflush_async_limit;	/*!< max_modified_age_async */
 	ulint innodb_preflush_sync_limit;	/*!< max_modified_age_sync */
 	ulint innodb_preflush_async_margin;	/*!< age - max_modified_age_async */

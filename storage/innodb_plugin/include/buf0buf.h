@@ -1427,6 +1427,8 @@ struct buf_pool_stat_struct{
 				young because the first access
 				was not long enough ago, in
 				buf_page_peek_if_too_old() */
+  ulint n_pages_read_blob;
+  ulint n_pages_written_blob;
 };
 
 /** @brief The buffer pool structure.
