@@ -3087,6 +3087,36 @@ corrupt:
 		buf_pool->stat.n_pages_read++;
 
 	  switch (fil_page_get_type(frame)) {
+      case FIL_PAGE_INDEX:
+        buf_pool->stat.n_pages_read_index++;
+        break;
+      case FIL_PAGE_UNDO_LOG:
+        buf_pool->stat.n_pages_read_undo_log++;
+        break;
+      case FIL_PAGE_INODE:
+        buf_pool->stat.n_pages_read_inode++;
+        break;
+      case FIL_PAGE_IBUF_FREE_LIST:
+        buf_pool->stat.n_pages_read_ibuf_free_list++;
+        break;
+      case FIL_PAGE_TYPE_ALLOCATED:
+        buf_pool->stat.n_pages_read_allocated++;
+        break;
+      case FIL_PAGE_IBUF_BITMAP:
+        buf_pool->stat.n_pages_read_ibuf_bitmap++;
+        break;
+      case FIL_PAGE_TYPE_SYS:
+        buf_pool->stat.n_pages_read_sys++;
+        break;
+      case FIL_PAGE_TYPE_TRX_SYS:
+        buf_pool->stat.n_pages_read_trx_sys++;
+        break;
+      case FIL_PAGE_TYPE_FSP_HDR:
+        buf_pool->stat.n_pages_read_fsp_hdr++;
+        break;
+      case FIL_PAGE_TYPE_XDES:
+        buf_pool->stat.n_pages_read_xdes++;
+        break;
       case FIL_PAGE_TYPE_BLOB:
       case FIL_PAGE_TYPE_ZBLOB:
       case FIL_PAGE_TYPE_ZBLOB2:
@@ -3113,6 +3143,36 @@ corrupt:
 
 		buf_pool->stat.n_pages_written++;
 	  switch (fil_page_get_type(frame)) {
+      case FIL_PAGE_INDEX:
+        buf_pool->stat.n_pages_written_index++;
+        break;
+      case FIL_PAGE_UNDO_LOG:
+        buf_pool->stat.n_pages_written_undo_log++;
+        break;
+      case FIL_PAGE_INODE:
+        buf_pool->stat.n_pages_written_inode++;
+        break;
+      case FIL_PAGE_IBUF_FREE_LIST:
+        buf_pool->stat.n_pages_written_ibuf_free_list++;
+        break;
+      case FIL_PAGE_TYPE_ALLOCATED:
+        buf_pool->stat.n_pages_written_allocated++;
+        break;
+      case FIL_PAGE_IBUF_BITMAP:
+        buf_pool->stat.n_pages_written_ibuf_bitmap++;
+        break;
+      case FIL_PAGE_TYPE_SYS:
+        buf_pool->stat.n_pages_written_sys++;
+        break;
+      case FIL_PAGE_TYPE_TRX_SYS:
+        buf_pool->stat.n_pages_written_trx_sys++;
+        break;
+      case FIL_PAGE_TYPE_FSP_HDR:
+        buf_pool->stat.n_pages_written_fsp_hdr++;
+        break;
+      case FIL_PAGE_TYPE_XDES:
+        buf_pool->stat.n_pages_written_xdes++;
+        break;
       case FIL_PAGE_TYPE_BLOB:
       case FIL_PAGE_TYPE_ZBLOB:
       case FIL_PAGE_TYPE_ZBLOB2:
