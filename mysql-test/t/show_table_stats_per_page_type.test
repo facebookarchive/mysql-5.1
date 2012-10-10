@@ -1,0 +1,32 @@
+source include/not_embedded.inc;
+source include/have_innodb.inc;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1 (a int not null primary key, b blob) engine=innodb;
+
+insert into t1 values (1, repeat("test", 30000));
+
+# Clear innodb page cache so the read stats can be deterministic
+flush tables t1 with memory cache;
+select count(*) from t1;
+insert into t1 values (2, repeat("test", 10000));
+insert into t1 values (5, repeat("test", 10000));
+flush tables t1 with memory cache;
+
+--disable_result_log
+select * from t1 where a=1;
+--enable_result_log
+
+select
+INNODB_PAGES_READ, INNODB_PAGES_READ_INDEX, INNODB_PAGES_READ_BLOB
+from information_schema.table_statistics where table_name like 't1%';
+
+select
+INNODB_PAGES_WRITTEN, INNODB_PAGES_WRITTEN_INDEX, INNODB_PAGES_WRITTEN_BLOB
+from information_schema.table_statistics where table_name like 't1%';
+
+
+drop table t1;

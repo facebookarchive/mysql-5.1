@@ -302,7 +302,8 @@ innobase_update_table_stats(
 	void (*cb)(const char* db, const char* tbl,
 			 my_io_perf_t* r, my_io_perf_t* w, my_io_perf_t* r_blob,
 			 my_io_perf_t* r_primary, my_io_perf_t* r_secondary,
-			 comp_stat_t *comp_stat, int n_lru, const char* engine));
+       page_stats_t *page_stats, comp_stat_t *comp_stat,
+       int n_lru, const char* engine));
 
 /** Reads replication state (relay/master log offset and position)
 from the transaction system header into global variables. After this
@@ -3118,7 +3119,8 @@ innobase_update_table_stats(
 	void (*cb)(const char* db, const char* tbl,
 			 my_io_perf_t* r, my_io_perf_t* w, my_io_perf_t* r_blob,
 			 my_io_perf_t* r_primary, my_io_perf_t* r_secondary,
-			 comp_stat_t* comp_stat, int n_lru, const char* engine))
+       page_stats_t *page_stats, comp_stat_t *comp_stat,
+       int n_lru, const char* engine))
 {
 	fil_update_table_stats(cb);
 }
