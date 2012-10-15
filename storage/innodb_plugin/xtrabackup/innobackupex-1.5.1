@@ -1488,7 +1488,8 @@ sub write_slave_info {
     my $position = '';
     my $filename = '';
     my $master= '';
-	
+    my $master_port = 0;	
+
     # get slave status. Use single quotes here, otherwise
     # \G is evaluated as a control character.
     mysql_send 'SHOW SLAVE STATUS\G;';
@@ -1500,6 +1501,7 @@ sub write_slave_info {
         $master = $1 if /Master_Host:\s*(\S*)\s*$/;
         $filename = $1 if /Master_Log_File:\s*(\S*)\s*$/;
         $position = $1 if /Master_Log_Pos:\s*(\S*)\s*$/;
+        $master_port = $1 if /Master_Port:\s*(\S*)\s*$/;
     }
 
     # print slave status to a file
@@ -1510,7 +1512,7 @@ sub write_slave_info {
         open(FILE, "| $ssh_with_opt 'cat > $slave_info'") ||
             Die "Failed to open file '$option_remote_host:$slave_info': $!";
     }
-    print FILE  "CHANGE MASTER TO MASTER_LOG_FILE='$filename', MASTER_LOG_POS=$position\n";
+    print FILE  "CHANGE MASTER TO MASTER_LOG_FILE='$filename', MASTER_LOG_POS=$position, MASTER_HOST='$master', MASTER_PORT=$master_port\n";
     close(FILE);
 
     if ($option_stream eq 'tar') {
@@ -1519,7 +1521,7 @@ sub write_slave_info {
         unlink $slave_info || Die "Failed to delete '$slave_info': $!";
     }
 
-    $mysql_slave_position = "master host '$master', filename '$filename', position $position";
+    $mysql_slave_position = "master host '$master', filename '$filename', position $position, master port $master_port";
 }
 
 

@@ -5858,7 +5858,7 @@ xtrabackup_close_temp_log(my_bool clear_flag)
 
 	byte*	log_buf;
 	byte*	log_buf_ = NULL;
-
+  ulint log_buf_size = 0;
 
 	if (!xtrabackup_logfile_is_renamed)
 		return(FALSE);
@@ -5912,17 +5912,25 @@ xtrabackup_close_temp_log(my_bool clear_flag)
 		os_file_set_nocache(src_file, src_path, "OPEN");
 	}
 
-	log_buf_ = ut_malloc(LOG_FILE_HDR_SIZE * 2);
-	log_buf = ut_align(log_buf_, LOG_FILE_HDR_SIZE);
+  /* increase buffer size to handle 4k sector size */ 
+  if (LOG_FILE_HDR_SIZE < 4096) {
+    log_buf_size = 4096;
+  }
+  else {
+    log_buf_size = LOG_FILE_HDR_SIZE;
+  }
 
-	success = os_file_read(src_file, log_buf, 0, 0, LOG_FILE_HDR_SIZE);
+	log_buf_ = ut_malloc(log_buf_size * 2);
+	log_buf = ut_align(log_buf_, log_buf_size);
+
+	success = os_file_read(src_file, log_buf, 0, 0, log_buf_size);
 	if (!success) {
 		goto error;
 	}
 
 	memset(log_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, ' ', 4);
 
-	success = os_file_write(src_path, src_file, log_buf, 0, 0, LOG_FILE_HDR_SIZE);
+	success = os_file_write(src_path, src_file, log_buf, 0, 0, log_buf_size);
 	if (!success) {
 		goto error;
 	}
