@@ -210,6 +210,8 @@ typedef struct fil_stats_struct {
 	comp_stat_t	comp_stat;	/*!< compression counters */
 	ulint		id;		/*!< space id */
 	int		n_lru;		/*!< number of pages in LRU */
+	int		n_lock_wait;		/*!< number of row lock wait */
+	int		n_lock_wait_timeout;	/*!< number of row lock wait timeout */
 	ibool		used;		/*!< cleared by fil_update_table_stats
 					and set by fil_io */
 	ulint		magic_n;	/*!< FIL_STATS_MAGIC_N */
@@ -893,8 +895,9 @@ fil_update_table_stats(
 	void (*cb)(const char* db, const char* tbl,
 			 my_io_perf_t *r, my_io_perf_t *w, my_io_perf_t *r_blob,
 			 my_io_perf_t *r_primary, my_io_perf_t *r_secondary,
-       page_stats_t *page_stats, comp_stat_t *comp_stat,
-       int n_lru, const char* engine));
+			 page_stats_t *page_stats, comp_stat_t *comp_stat,
+			 int n_lru, int n_lock_wait, int lock_wait_timeout,
+			 const char* engine));
 
 /********************************************************************//**
 Reads or writes data. This operation is asynchronous (aio).
@@ -1050,6 +1053,26 @@ fil_system->mutex */
 
 void
 fil_change_lru_count(
+/*=================*/
+	ulint	space,		/* in: tablespace id for which count changes */
+	int	amount);	/* in: amount by which the count changes */
+
+/*************************************************************************
+Changes count of pages on the lock wait for this space. Will lock/unlock 
+fil_system->mutex */
+
+void
+fil_change_lock_wait_count(
+/*=================*/
+	ulint	space,		/* in: tablespace id for which count changes */
+	int	amount);	/* in: amount by which the count changes */
+
+/*************************************************************************
+Changes count of pages on the lock wait timeout for this space. Will lock/unlock 
+fil_system->mutex */
+
+void
+fil_change_lock_wait_timeout_count(
 /*=================*/
 	ulint	space,		/* in: tablespace id for which count changes */
 	int	amount);	/* in: amount by which the count changes */

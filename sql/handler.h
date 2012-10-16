@@ -749,6 +749,8 @@ struct handlerton
                                          my_io_perf_t *r_secondary,
                                          page_stats_t* page_stats,
                                          comp_stat_t* comp_stat, int n_lru,
+                                         int n_lock_wait,
+                                         int n_lock_wait_timeout,
                                          const char *engine));
 
    uint32 license; /* Flag for Engine License */
@@ -2152,6 +2154,7 @@ void ha_get_table_stats(void (*cb)(const char* db, const char* tbl,
                                    my_io_perf_t* r_secondary,
                                    page_stats_t* page_stats,
                                    comp_stat_t* comp_stat, int n_lru,
+                                   int n_lock_wait, int n_lock_wait_timeout,
                                    const char* engine));
 
 /* discovery */

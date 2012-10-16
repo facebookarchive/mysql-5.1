@@ -406,6 +406,8 @@ typedef struct st_table_stats {
 
   /* LOCK_global_table_stats is locked when this is updated */
   int n_lru;                         /* #pages in InnoDB LRU */
+  int n_lock_wait;  /* #count of lock wait */
+  int n_lock_wait_timeout;  /* #count of lock wait timeout */
 
   const char* engine_name;
 } TABLE_STATS;

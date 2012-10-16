@@ -1917,7 +1917,7 @@ row_merge_insert_index_tuples(
 				que_thr_stop_for_mysql(thr);
 				thr->lock_state = QUE_THR_LOCK_NOLOCK;
 			} while (row_mysql_handle_errors(&error, trx,
-							 thr, NULL));
+							 thr, NULL, table));
 
 			goto err_exit;
 next_rec:
@@ -1987,7 +1987,7 @@ run_again:
 			ibool	was_lock_wait;
 
 			was_lock_wait = row_mysql_handle_errors(
-				&err, trx, thr, NULL);
+				&err, trx, thr, NULL, table);
 
 			if (was_lock_wait) {
 				goto run_again;
