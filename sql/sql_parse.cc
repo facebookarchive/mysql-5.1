@@ -1982,8 +1982,9 @@ void log_to_datagram(THD *thd, ulonglong end_utime,
     if (write_log_to_socket(log_datagram_sock, thd, end_utime,
                             query_start_status))
     {
-      // we don't care if the packet was dropped due to contention
-      if (errno != 11)
+      // we don't care if the packet was dropped due to contention or
+      // if it was too large to fit inside the kernel's buffers
+      if (errno != EAGAIN && errno != EMSGSIZE)
       {
         log_datagram = 0;
         close(log_datagram_sock);
