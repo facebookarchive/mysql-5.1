@@ -506,7 +506,9 @@ buf_page_is_corrupted(
 							   + FIL_PAGE_LSN)
 		    && old_checksum_field != BUF_NO_CHECKSUM_MAGIC
 		    && old_checksum_field
-		    != buf_calc_page_old_checksum(read_buf)) {
+		    != buf_calc_page_old_checksum(read_buf)
+		    && old_checksum_field
+		    != buf_calc_page_fast_checksum(read_buf)) {
 
 			return(TRUE);
 		}
