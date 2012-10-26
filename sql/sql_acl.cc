@@ -534,7 +534,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         else
           user.user_resource.user_conn= 0;
 
-        if (table->s->fields >= 40)
+        if (table->s->fields == 41)
         {
           /* Facebook patch adds max_concurrent_queries */
           ptr= get_field(thd->mem_root, table->field[next_field++]);
@@ -545,7 +545,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           user.user_resource.max_concurrent_queries= 0;
         }
 
-        if (table->s->fields >= 41)
+        if (table->s->fields == 41)
         {
           /* Facebook patch adds max_concurrent_transactions */
           ptr= get_field(thd->mem_root, table->field[next_field++]);
@@ -2099,10 +2099,10 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (table->s->fields >= 36 &&
         (mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS))
       table->field[next_field+3]->store((longlong) mqh.user_conn, TRUE);
-    if (table->s->fields >= 40 &&
+    if (table->s->fields == 41 &&
         (mqh.specified_limits & USER_RESOURCES::USER_CONCURRENT_QUERIES))
       table->field[next_field+4]->store((longlong) mqh.max_concurrent_queries, TRUE);
-    if (table->s->fields >= 41 &&
+    if (table->s->fields == 41 &&
         (mqh.specified_limits & USER_RESOURCES::USER_CONCURRENT_TRANSACTIONS))
       table->field[next_field+5]->store((longlong) mqh.max_concurrent_transactions, TRUE);
     mqh_used= mqh_used || mqh.questions || mqh.updates || mqh.conn_per_hour;
