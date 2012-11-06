@@ -6,18 +6,16 @@ At start
 
 select binlog_bytes_written from information_schema.user_statistics where user_name = 'root';
 binlog_bytes_written	79
-show global status like "Binlog_bytes_written";
-Variable_name	Value
-Binlog_bytes_written	298
+bytes_written	should be 0
+0	should be 0
 insert into userstats values (1,1);
 
 after insert
 
 select binlog_bytes_written from information_schema.user_statistics where user_name = 'root';
 binlog_bytes_written	312
-show global status like "Binlog_bytes_written";
-Variable_name	Value
-Binlog_bytes_written	531
+bytes_written	should be 233
+233	should be 233
 begin;
 insert into userstats values (2,2);
 commit;
@@ -26,9 +24,8 @@ after begin, insert, commit
 
 select binlog_bytes_written from information_schema.user_statistics where user_name = 'root';
 binlog_bytes_written	545
-show global status like "Binlog_bytes_written";
-Variable_name	Value
-Binlog_bytes_written	764
+bytes_written	should be 466
+466	should be 466
 select * from userstats;
 i	j
 1	1
@@ -38,7 +35,6 @@ after select
 
 select binlog_bytes_written from information_schema.user_statistics where user_name = 'root';
 binlog_bytes_written	545
-show global status like "Binlog_bytes_written";
-Variable_name	Value
-Binlog_bytes_written	764
+bytes_written	should be 466
+466	should be 466
 drop table userstats;
