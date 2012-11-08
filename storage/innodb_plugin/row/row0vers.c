@@ -533,7 +533,8 @@ row_vers_build_for_consistent_read(
 		heap = mem_heap_create(1024);
 
 		if (UNIV_UNLIKELY(trx_is_interrupted(mtr->trx))) {
-			return(DB_INTERRUPTED);
+			err = DB_INTERRUPTED;
+			break;
 		}
 
 		/* If we have high-granularity consistent read view and
