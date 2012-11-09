@@ -46,6 +46,10 @@ Created 2/6/1997 Heikki Tuuri
 #include "read0read.h"
 #include "lock0lock.h"
 
+#ifdef UNIV_DEBUG
+uint		row_build_prev_version_sleep = 0;
+#endif
+
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
 index record. NOTE: the kernel mutex is temporarily released in this
@@ -525,6 +529,12 @@ row_vers_build_for_consistent_read(
 	rw_lock_s_lock(&(purge_sys->latch));
 	version = rec;
 
+#ifdef UNIV_DEBUG
+	if (row_build_prev_version_sleep) {
+		os_thread_sleep(row_build_prev_version_sleep * 1000);
+	}
+#endif
+
 	for (;;) {
 		mem_heap_t*	heap2	= heap;
 		trx_undo_rec_t* undo_rec;
@@ -533,6 +543,10 @@ row_vers_build_for_consistent_read(
 		heap = mem_heap_create(1024);
 
 		if (UNIV_UNLIKELY(trx_is_interrupted(mtr->trx))) {
+#ifdef UNIV_DEBUG
+			fprintf(stderr, "InnoDB: Detected killed connection "
+				"in row_vers_build_for_consistent_read.\n");
+#endif
 			err = DB_INTERRUPTED;
 			break;
 		}

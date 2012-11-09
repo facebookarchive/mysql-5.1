@@ -12938,6 +12938,16 @@ static MYSQL_SYSVAR_BOOL(old_rpl_transaction, trx_old_rpl_transaction,
   "Use the old rpl_transaction_enabled behavior of only storing one block.",
   NULL, NULL, FALSE);
 
+#ifdef UNIV_DEBUG
+extern	uint		row_build_prev_version_sleep;
+#endif
+
+static MYSQL_SYSVAR_UINT(build_prev_version_sleep,
+  row_build_prev_version_sleep,
+  PLUGIN_VAR_RQCMDARG,
+  "Sleep this many milliseconds in row_vers_build_for_consistent_read.",
+  NULL, NULL, 0, 0, 60 * 1000, 0);
+
 #endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -13064,6 +13074,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(buffer_pool_min_pages_div32),
   MYSQL_SYSVAR(allow_ibuf_merges),
   MYSQL_SYSVAR(old_rpl_transaction),
+  MYSQL_SYSVAR(build_prev_version_sleep),
 #endif /* UNIV_DEBUG */
   NULL
 };
