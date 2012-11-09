@@ -500,6 +500,7 @@ ulong opt_log_query_sample_rate;
 ulong opt_log_error_sample_rate;
 ulong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
+my_bool opt_disable_working_set_size=0;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
 bool opt_skip_name_resolve=0;
@@ -1496,6 +1497,7 @@ void clean_up(bool print_message)
   x_free(opt_perftools_profile_output);
   bitmap_free(&temp_pool);
   free_global_table_stats();
+  free_global_db_stats();
   free_max_user_conn();
 #ifdef HAVE_REPLICATION
   end_slave_list();
@@ -4002,6 +4004,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   my_init_cpu_optimizations();
 
   init_global_table_stats();
+  init_global_db_stats();
 
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
@@ -5911,6 +5914,7 @@ enum options_mysqld
   OPT_TIME_FORMAT,
   OPT_DATETIME_FORMAT,
   OPT_LOG_QUERIES_NOT_USING_INDEXES,
+  OPT_DISABLE_WORKING_SET_SIZE,
   OPT_DEFAULT_TIME_ZONE,
   OPT_SYSDATE_IS_NOW,
   OPT_OPTIMIZER_SEARCH_DEPTH,
@@ -6305,6 +6309,10 @@ each time the SQL thread starts.",
   {"log-queries-not-using-indexes", OPT_LOG_QUERIES_NOT_USING_INDEXES,
    "Log queries that are executed without benefit of any index to the slow log if it is open.",
    &opt_log_queries_not_using_indexes, &opt_log_queries_not_using_indexes,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"disable_working_set_size", OPT_DISABLE_WORKING_SET_SIZE,
+   "Maintain working set size for each db.",
+   &opt_disable_working_set_size, &opt_disable_working_set_size,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-short-format", OPT_SHORT_LOG_FORMAT,
    "Don't log extra information to update and slow-query logs.",

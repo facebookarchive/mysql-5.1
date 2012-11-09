@@ -425,6 +425,7 @@ struct system_variables
   ulong ndb_index_stat_cache_entries;
   ulong ndb_index_stat_update_freq;
   ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
+  ulong working_duration;
   my_bool binlog_direct_non_trans_update;
   /*
     In slave thread we need to know in behalf of which

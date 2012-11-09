@@ -169,6 +169,11 @@ STATIC_INLINE void my_io_perf_sum_atomic_helper(my_io_perf_t* sum,
 struct st_table_stats* get_table_stats(struct st_table *table,
                                        struct handlerton *engine_type);
 
+unsigned char get_db_stats_index(const char* db);
+void update_global_db_stats_access(unsigned char db_stats_index,
+                                   uint64 space,
+                                   uint64 offset);
+
 /* The inverse of the CPU frequency used to convert the time stamp counter
    to seconds. */
 extern double my_tsc_scale;
@@ -214,6 +219,12 @@ STATIC_INLINE void my_get_fast_timer(my_fast_timer_t* timer)
     else
       *timer = 0;
   }
+}
+
+/* Converts the time represented by timer to seconds. */
+STATIC_INLINE uint32 my_convert_to_seconds(my_fast_timer_t* timer)
+{
+  return (uint32) (my_tsc_scale * (*timer));
 }
 
 /* Returns the difference between stop and start in seconds. Returns 0
@@ -304,6 +315,11 @@ uint32 my_fast_crc32(const uchar* data, ulong length);
    until migration to fixed crc32 is completed. */
 uint32 my_fast_crc32_broken_slice8(const uchar* data, ulong length);
 #endif
+
+/* Implementatio of a Substitution Box (S-Box) hash using 256 values
+   Ideal for use in generating uniform hashes (CRC32 is very unsuitable
+	 for use as a uniform hash) */
+uint32 my_sbox_hash(const uchar* data, ulong length);
 
 C_MODE_END
 

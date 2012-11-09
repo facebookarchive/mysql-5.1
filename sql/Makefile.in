@@ -155,7 +155,8 @@ am_mysqld_OBJECTS = sql_lex.$(OBJEXT) sql_handler.$(OBJEXT) \
 	sql_plugin.$(OBJEXT) sql_binlog.$(OBJEXT) \
 	sql_builtin.$(OBJEXT) sql_tablespace.$(OBJEXT) \
 	partition_info.$(OBJEXT) sql_servers.$(OBJEXT) \
-	event_parse_data.$(OBJEXT) table_stats.$(OBJEXT)
+	event_parse_data.$(OBJEXT) table_stats.$(OBJEXT) \
+	db_stats.$(OBJEXT)
 nodist_mysqld_OBJECTS = mini_client_errors.$(OBJEXT) pack.$(OBJEXT) \
 	client.$(OBJEXT) my_time.$(OBJEXT) my_user.$(OBJEXT)
 mysqld_OBJECTS = $(am_mysqld_OBJECTS) $(nodist_mysqld_OBJECTS)
@@ -622,7 +623,8 @@ mysqld_SOURCES = sql_lex.cc sql_handler.cc sql_partition.cc \
                         event_queue.cc event_db_repository.cc events.cc \
 			sql_plugin.cc sql_binlog.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc \
-			sql_servers.cc event_parse_data.cc table_stats.cc
+			sql_servers.cc event_parse_data.cc table_stats.cc \
+			db_stats.cc
 
 nodist_mysqld_SOURCES = mini_client_errors.c pack.c client.c my_time.c my_user.c 
 libndb_la_CPPFLAGS = @ndbcluster_includes@
@@ -784,6 +786,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/event_db_repository.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/event_parse_data.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/table_stats.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/db_stats.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/event_queue.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/event_scheduler.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/events.Po@am__quote@

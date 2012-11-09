@@ -7829,6 +7829,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   {
     reset_global_table_stats();
     reset_global_user_stats();
+    reset_global_db_stats();
   }
 
  if (*write_to_binlog != -1)

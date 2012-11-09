@@ -381,6 +381,8 @@ static sys_var_const    sys_lower_case_table_names(&vars,
                                                    OPT_GLOBAL, SHOW_INT,
                                                    (uchar*)
                                                    &lower_case_table_names);
+static sys_var_bool_ptr	sys_disable_working_set_size(&vars, "disable_working_set_size",
+						  &opt_disable_working_set_size);
 static sys_var_thd_ulong_session_readonly sys_max_allowed_packet(&vars, "max_allowed_packet",
 					       &SV::max_allowed_packet,
                                                check_max_allowed_packet);
@@ -727,7 +729,8 @@ static sys_var_const_str	sys_version_compile_os(&vars, "version_compile_os",
                                                SYSTEM_TYPE);
 static sys_var_thd_ulong	sys_net_wait_timeout(&vars, "wait_timeout",
 					     &SV::net_wait_timeout);
-
+static sys_var_thd_ulong	sys_working_duration(&vars, "working_duration",
+					     &SV::working_duration);
 static sys_var_long_ptr	sys_net_compression_level(&vars, "net_compression_level",
 					      &net_compression_level);
 

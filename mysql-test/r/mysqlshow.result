@@ -106,6 +106,7 @@ Database: information_schema
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
 | TABLE_STATISTICS                      |
+| DB_STATISTICS                         |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
@@ -151,6 +152,7 @@ Database: INFORMATION_SCHEMA
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
 | TABLE_STATISTICS                      |
+| DB_STATISTICS                         |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |

@@ -1752,7 +1752,7 @@ buf_page_get_gen(
 	ibool		must_read;
 	ulint		retries = 0;
 	ibool		buf_page_cached = FALSE;
-
+	
 	ut_ad(mtr);
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad((rw_latch == RW_S_LATCH)
@@ -2119,6 +2119,12 @@ wait_until_unfixed:
 	ut_a(ibuf_count_get(buf_block_get_space(block),
 			    buf_block_get_page_no(block)) == 0);
 #endif
+
+	// Update working set size
+	if (mode != BUF_PEEK_IF_IN_POOL && space != 0 && block->db_stats_index != 0) {
+		update_global_db_stats_access(block->db_stats_index, space, offset);
+	}
+	
 	return(block);
 }
 
@@ -2466,6 +2472,7 @@ buf_page_init(
 
 	/* Set the state of the block */
 	buf_block_set_file_page(block, space, offset);
+	block->db_stats_index = 0;
 
 #ifdef UNIV_DEBUG_VALGRIND
 	if (!space) {
@@ -2712,8 +2719,16 @@ func_exit:
 		mtr_commit(&mtr);
 	}
 
-	if (added_to_lru)
-		fil_change_lru_count(space, 1);
+	if (added_to_lru) {
+		fil_stats_t*	stats;
+		mutex_t*	stats_mutex;
+		stats = fil_get_stats_lock_mutex_by_id(space, &stats_mutex);
+		fil_change_lru_count_low(space, stats, 1);
+		if(block) {
+		  block->db_stats_index = stats->db_stats_index;
+		}
+		mutex_exit(stats_mutex);
+	}
 
 	ut_ad(!bpage || buf_page_in_file(bpage));
 	return(bpage);
@@ -2740,6 +2755,8 @@ buf_page_create(
 	buf_block_t*	free_block	= NULL;
 	ulint		nsearched	= 0;
 	my_fast_timer_t	timer;
+	fil_stats_t*	stats;
+	mutex_t*	stats_mutex;
 	my_get_fast_timer(&timer);
 
 	ut_ad(mtr);
@@ -2863,7 +2880,10 @@ buf_page_create(
 			    buf_block_get_page_no(block)) == 0);
 #endif
 
-	fil_change_lru_count(space, 1);
+	stats = fil_get_stats_lock_mutex_by_id(space, &stats_mutex);
+	fil_change_lru_count_low(space, stats, 1);
+	block->db_stats_index = stats->db_stats_index;
+	mutex_exit(stats_mutex);
 
 	return(block);
 }

@@ -1343,6 +1343,7 @@ fil_space_create(
 	mutex_t*	stats_mutex;
 	char		db_name[FN_LEN+1];
 	char		table_name[FN_LEN+1];
+    unsigned char db_stats_index;
 
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
 	ROW_FORMAT=COMPACT
@@ -1354,6 +1355,7 @@ fil_space_create(
 	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
 	parse_db_and_table(name, db_name, table_name, purpose, id);
+    db_stats_index = get_db_stats_index(db_name);
 
 try_again:
 	/*printf(
@@ -1505,7 +1507,8 @@ try_again:
 
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
 
-	mutex_exit(&fil_system->mutex);
+	space->stats.db_stats_index = db_stats_index;
+    mutex_exit(&fil_system->mutex);
 
 	stats_mutex = hash_get_mutex(fil_system->stats_hash, id);
 	mutex_enter(stats_mutex);
@@ -6262,21 +6265,14 @@ fil_page_buf_page_store_checksum(
 	}
 }
 
-/*************************************************************************
-Changes count of pages on the LRU for this space. Will lock/unlock 
-fil_system->mutex */
 
 void
-fil_change_lru_count(
+fil_change_lru_count_low(
 /*=================*/
-	ulint	id,	/* in: tablespace id for which count changes */
+	ulint	id, /* in: tablespace id for which count changes */
+	fil_stats_t* stats,
 	int	amount)	/* in: amount by which the count changes */
 {
-	fil_stats_t*	stats;
-	mutex_t*	stats_mutex;
-
-	stats = fil_get_stats_lock_mutex_by_id(id, &stats_mutex);
-
 	if (stats) {
 		stats->used = TRUE;
 
@@ -6291,7 +6287,24 @@ fil_change_lru_count(
 			ut_ad(0);
 		}
 	}
+}
 
+
+/*************************************************************************
+Changes count of pages on the LRU for this space. Will lock/unlock 
+fil_system->mutex */
+
+void
+fil_change_lru_count(
+/*=================*/
+	ulint	id,	/* in: tablespace id for which count changes */
+	int	amount)	/* in: amount by which the count changes */
+{
+	fil_stats_t*	stats;
+	mutex_t*	stats_mutex;
+
+	stats = fil_get_stats_lock_mutex_by_id(id, &stats_mutex);
+	fil_change_lru_count_low(id, stats, amount);
 	mutex_exit(stats_mutex);
 }
 

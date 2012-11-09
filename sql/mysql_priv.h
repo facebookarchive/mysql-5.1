@@ -1606,12 +1606,19 @@ void flush_tables();
 /* for SHOW GLOBAL TABLE STATUS */
 void update_table_stats(THD* thd, TABLE *table_ptr, bool follow_next,
                         uint keys_dirtied);
+void update_global_db_stats_access(unsigned char db_stats_index,
+                                   uint64 space,
+                                   uint64 offset);
 extern HASH global_table_stats;
 void init_global_table_stats(void);
 void free_global_table_stats(void);
 void reset_global_table_stats(void);
+void init_global_db_stats(void);
+void free_global_db_stats(void);
+void reset_global_db_stats(void);
 extern ST_FIELD_INFO table_stats_fields_info[];
 extern ST_FIELD_INFO index_stats_fields_info[];
+extern ST_FIELD_INFO db_stats_fields_info[];
 
 int fill_table_stats(THD *thd, TABLE_LIST *tables, COND *cond);
 typedef void (*table_stats_cb)(const char *db, const char *table,
@@ -1626,6 +1633,8 @@ void fill_table_stats_cb(const char *db, const char *table,
                          my_io_perf_t *r_blob, my_io_perf_t *r_primary,
                          my_io_perf_t *r_secondary, int n_lru,
                          const char *engine);
+
+int fill_db_stats(THD *thd, TABLE_LIST *tables, COND *cond);
 
 int fill_index_stats(THD *thd, TABLE_LIST *tables, COND *cond);
 
@@ -2060,6 +2069,7 @@ extern bool opt_update_log, opt_bin_log, opt_error_log;
 extern my_bool opt_log, opt_slow_log;
 extern ulong log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
+extern my_bool opt_disable_working_set_size;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;

@@ -16,7 +16,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
+#include "hyperloglog.h"
 /* The old structures from unireg */
 
 struct st_table;
@@ -408,6 +408,12 @@ typedef struct st_table_stats {
 
   const char* engine_name;
 } TABLE_STATS;
+
+typedef struct st_db_stats {
+	char db[NAME_LEN + 1];
+	hyperloglog_t hll;
+	unsigned char index;
+} DB_STATS;
 
 /*
    Hack to provide stats for SQL replication slave as THD::user_connect is
