@@ -3429,14 +3429,7 @@ fil_open_single_table_tablespace(
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
-	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT
-	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
-	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal
-	(table->flags & ~(~0 << DICT_TF_BITS)). */
-	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
+	ut_a(fsp_flags_is_valid(flags));
 
 	file = os_file_create_simple_no_error_handling(
 		filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);

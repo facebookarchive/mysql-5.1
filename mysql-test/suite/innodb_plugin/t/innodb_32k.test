@@ -431,6 +431,11 @@ UPDATE t1 SET u=@e;
 #CREATE INDEX t1ut ON t1 (u(767), t(767));
 #CREATE INDEX t1st ON t1 (s(767), t(767));
 
+#
+# Verify persistence and loading of flags in the ibd files.
+#
+--source include/restart_mysqld.inc
+
 show CREATE TABLE t1;
 DROP TABLE t1;
 
