@@ -44,7 +44,6 @@ a
 6
 6
 6
-drop table t2;
 select * from t1 where a=1;
 SELECT VARIABLE_VALUE INTO @r2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_read';
 SELECT VARIABLE_VALUE INTO @rind2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_read_index';
@@ -70,76 +69,11 @@ SELECT VARIABLE_VALUE INTO @wtsys2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE V
 SELECT VARIABLE_VALUE INTO @wfsp2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_written_fsp_hdr';
 SELECT VARIABLE_VALUE INTO @wx2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_written_xdes';
 SELECT VARIABLE_VALUE INTO @wb2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_written_blob';
-SELECT @r2 - @r1 as diff;
-diff
-3
-SELECT @rind2 - @rind1 as diff;
-diff
-1
-SELECT @rul2 - @rul1 as diff;
-diff
-0
-SELECT @rino2 - @rino1 as diff;
-diff
-0
-SELECT @rifl2 - @rifl1 as diff;
-diff
-0
-SELECT @ralloc2 - @ralloc1 as diff;
-diff
-0
-SELECT @ribit2 - @ribit1 as diff;
-diff
-1
-SELECT @rsys2 - @rsys1 as diff;
-diff
-0
-SELECT @rtsys2 - @rtsys1 as diff;
-diff
-0
-SELECT @rfsp2 - @rfsp1 as diff;
-diff
-0
-SELECT @rx2 - @rx1 as diff;
-diff
-0
-SELECT @rb2 - @rb1 as diff;
-diff
-1
-SELECT @w2 - @w1 as diff;
-diff
-9
-SELECT @wind2 - @wind1 as diff;
-diff
-2
-SELECT @wul2 - @wul1 as diff;
-diff
-0
-SELECT @wino2 - @wino1 as diff;
-diff
-2
-SELECT @wifl2 - @wifl1 as diff;
-diff
-0
-SELECT @walloc2 - @walloc1 as diff;
-diff
-0
-SELECT @wibit2 - @wibit1 as diff;
-diff
-2
-SELECT @wsys2 - @wsys1 as diff;
-diff
-0
-SELECT @wtsys2 - @wtsys1 as diff;
-diff
-0
-SELECT @wfsp2 - @wfsp1 as diff;
-diff
-2
-SELECT @wx2 - @wx1 as diff;
-diff
-0
 SELECT @wb2 - @wb1 as diff;
 diff
 1
+SELECT @rb2 - @rb1 as diff;
+diff
+1
 drop table t1;
+drop table t2;

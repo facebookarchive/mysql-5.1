@@ -1,3 +1,8 @@
+# Test the per page type read/write stats.
+# Note: the test is doesn't check exact values because the background threads somteimtes
+# may change the result. If the test fails because of too large value it may mean that
+# the range should be extended. If it fails because of too small value, then something
+# has changed and it should be explained before lowering the minimum value
 source include/not_embedded.inc;
 source include/have_innodb.inc;
 
@@ -37,6 +42,8 @@ insert into t1 values (1, repeat("test", 3000));
 
 # Clear innodb page cache so the read stats can be deterministic
 flush tables t1 with memory cache;
+# Wait for flush to finish flushing
+sleep 5;
 select count(*) from t1;
 flush tables t1 with memory cache;
 
@@ -47,8 +54,8 @@ insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 flush tables t2 with memory cache;
+sleep 5;
 select * from t2 where a=6;
-drop table t2;
 
 --disable_result_log
 select * from t1 where a=1;
@@ -80,35 +87,123 @@ SELECT VARIABLE_VALUE INTO @wfsp2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VA
 SELECT VARIABLE_VALUE INTO @wx2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_written_xdes';
 SELECT VARIABLE_VALUE INTO @wb2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_written_blob';
 
-#SELECT VARIABLE_VALUE INTO @r2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_read';
-#SELECT VARIABLE_VALUE INTO @rb2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_read_blob';
-#SELECT VARIABLE_VALUE INTO @w2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_written';
-#SELECT VARIABLE_VALUE INTO @wb2 from INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_pages_written_blob';
+#'should be' value equals to recorded value, it should be the smallest valid value
+let $r_diff=`SELECT @r2 - @r1 as diff`; # should be 3
+let $rind_diff=`SELECT @rind2 - @rind1 as diff`; # should be 1
+let $rul_diff=`SELECT @rul2 - @rul1 as diff`; # should be 0
+let $rino_diff=`SELECT @rino2 - @rino1 as diff`; # should be 0
+let $rifl_diff=`SELECT @rifl2 - @rifl1 as diff`; # should be 0
+let $ralloc_diff=`SELECT @ralloc2 - @ralloc1 as diff`; #should be 0
+let $ribit_diff=`SELECT @ribit2 - @ribit1 as diff`; #should be 1
+let $rsys_diff=`SELECT @rsys2 - @rsys1 as diff`; #should be 0
+let $rtsys_diff=`SELECT @rtsys2 - @rtsys1 as diff`; #should be 0
+let $rfsp_diff=`SELECT @rfsp2 - @rfsp1 as diff`; #should be 0
+let $rx_diff=`SELECT @rx2 - @rx1 as diff`; #should be 0
 
-SELECT @r2 - @r1 as diff;
-SELECT @rind2 - @rind1 as diff;
-SELECT @rul2 - @rul1 as diff;
-SELECT @rino2 - @rino1 as diff;
-SELECT @rifl2 - @rifl1 as diff;
-SELECT @ralloc2 - @ralloc1 as diff;
-SELECT @ribit2 - @ribit1 as diff;
-SELECT @rsys2 - @rsys1 as diff;
-SELECT @rtsys2 - @rtsys1 as diff;
-SELECT @rfsp2 - @rfsp1 as diff;
-SELECT @rx2 - @rx1 as diff;
+let $w_diff=`SELECT @w2 - @w1 as diff`; # should be 9
+let $wind_diff=`SELECT @wind2 - @wind1 as diff`; # should be 2
+let $wul_diff=`SELECT @wul2 - @wul1 as diff`; # should be 0
+let $wino_diff=`SELECT @wino2 - @wino1 as diff`; # should be 2
+let $wifl_diff=`SELECT @wifl2 - @wifl1 as diff`; # should be 0
+let $walloc_diff=`SELECT @walloc2 - @walloc1 as diff`; #should be 0
+let $wibit_diff=`SELECT @wibit2 - @wibit1 as diff`; #should be 2
+let $wsys_diff=`SELECT @wsys2 - @wsys1 as diff`; #should be 0
+let $wtsys_diff=`SELECT @wtsys2 - @wtsys1 as diff`; #should be 0
+let $wfsp_diff=`SELECT @wfsp2 - @wfsp1 as diff`; #should be 2
+let $wx_diff=`SELECT @wx2 - @wx1 as diff`; #should be 0
+
+#values for blob should be exact because background threads will not modify these pages
+SELECT @wb2 - @wb1 as diff; 
 SELECT @rb2 - @rb1 as diff;
 
-SELECT @w2 - @w1 as diff;
-SELECT @wind2 - @wind1 as diff;
-SELECT @wul2 - @wul1 as diff;
-SELECT @wino2 - @wino1 as diff;
-SELECT @wifl2 - @wifl1 as diff;
-SELECT @walloc2 - @walloc1 as diff;
-SELECT @wibit2 - @wibit1 as diff;
-SELECT @wsys2 - @wsys1 as diff;
-SELECT @wtsys2 - @wtsys1 as diff;
-SELECT @wfsp2 - @wfsp1 as diff;
-SELECT @wx2 - @wx1 as diff;
-SELECT @wb2 - @wb1 as diff;
+if(`SELECT $r_diff < 3 or $r_diff > 9`)
+{
+  echo pages_read=$r_diff not in the valid range;
+}
+if(`SELECT $rind_diff < 1 or $rind_diff > 3`)
+{
+  echo pages_read_index=$rind_diff not in the valid range;
+}
+if(`SELECT $rul_diff < 0 or $rul_diff > 3`)
+{
+  echo pages_read_undo_log=$rul_diff not in the valid range;
+}
+if(`SELECT $rino_diff < 0 or $rino_diff > 3`)
+{
+  echo pages_read_inode=$rino_diff not in the valid range;
+}
+if(`SELECT $rifl_diff < 0 or $rifl_diff > 3`)
+{
+  echo pages_read_ibuf_free_list=$rifl_diff not in the valid range;
+}
+if(`SELECT $ralloc_diff < 0 or $ralloc_diff > 3`)
+{
+  echo pages_read_allocated=$ralloc_diff not in the valid range;
+}
+if(`SELECT $ribit_diff < 1 or $ribit_diff > 3`)
+{
+  echo pages_read_ibuf_bitmap=$ribit_diff not in the valid range;
+}
+if(`SELECT $rsys_diff < 0 or $rsys_diff > 3`)
+{
+  echo pages_read_sys=$rsys_diff not in the valid range;
+}
+if(`SELECT $rtsys_diff < 0 or $rtsys_diff > 3`)
+{
+  echo pages_read_trx_sys=$rtsys_diff not in the valid range;
+}
+if(`SELECT $rfsp_diff < 0 or $rfsp_diff > 3`)
+{
+  echo pages_read_fsp_hdr=$rfsp_diff not in the valid range;
+}
+if(`SELECT $rx_diff < 0 or $rx_diff > 3`)
+{
+  echo pages_read_xdes=$rx_diff not in the valid range;
+}
 
+if(`SELECT $w_diff < 9 or $w_diff > 100`)
+{
+  echo pages_written=$w_diff not in the valid range;
+}
+if(`SELECT $wind_diff < 2 or $wind_diff > 30`)
+{
+  echo pages_written_index=$wind_diff not in the valid range;
+}
+if(`SELECT $wul_diff < 0 or $wul_diff > 10`)
+{
+  echo pages_written_undo_log=$wul_diff not in the valid range;
+}
+if(`SELECT $wino_diff < 2 or $wino_diff > 10`)
+{
+  echo pages_written_inode=$wino_diff not in the valid range;
+}
+if(`SELECT $wifl_diff < 0 or $wifl_diff > 10`)
+{
+  echo pages_written_ibuf_free_list=$wifl_diff not in the valid range;
+}
+if(`SELECT $walloc_diff < 0 or $walloc_diff > 10`)
+{
+  echo pages_written_allocated=$walloc_diff not in the valid range;
+}
+if(`SELECT $wibit_diff < 2 or $wibit_diff > 20`)
+{
+  echo pages_written_ibuf_bitmap=$wibit_diff not in the valid range;
+}
+if(`SELECT $wsys_diff < 0 or $wsys_diff > 10`)
+{
+  echo pages_written_sys=$wsys_diff not in the valid range;
+}
+if(`SELECT $wtsys_diff < 0 or $wtsys_diff > 10`)
+{
+  echo pages_written_trx_sys=$wtsys_diff not in the valid range;
+}
+if(`SELECT $wfsp_diff < 2 or $wfsp_diff > 20`)
+{
+  echo pages_written_fsp_hdr=$wfsp_diff not in the valid range;
+}
+if(`SELECT $wx_diff < 0 or $wx_diff > 10`)
+{
+  echo pages_written_xdes=$wx_diff not in the valid range;
+}
 drop table t1;
+drop table t2;
