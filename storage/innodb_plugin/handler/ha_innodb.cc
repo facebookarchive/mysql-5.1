@@ -4521,7 +4521,6 @@ ha_innobase::open_internal(
 	dict_table_t*	ib_table;
 	char		norm_name[1000];
 	THD*		thd;
-	ulint		retries = 0;
 	char*		is_part = NULL;
 	ibool		par_case_name_set = FALSE;
 	char		par_case_name[MAX_FULL_NAME_LEN + 1];
@@ -4567,9 +4566,11 @@ ha_innobase::open_internal(
 	}
 
 	/* We look for pattern #P# to see if the table is partitioned
-	MySQL table. The retry logic for partitioned tables is a
-	workaround for http://bugs.mysql.com/bug.php?id=33349. Look
-	at support issue https://support.mysql.com/view.php?id=21080
+	MySQL table. The retry logic for partitioned tables added as a
+	workaround for http://bugs.mysql.com/bug.php?id=33349 if removed
+	because sleep and retry while holding LOCK_open will slow down
+	the performance if the partition file is actually missing.
+	Look at support issue https://support.mysql.com/view.php?id=21080
 	for more details. */
 #ifdef __WIN__
 	is_part = strstr(norm_name, "#p#");
@@ -4577,12 +4578,10 @@ ha_innobase::open_internal(
 	is_part = strstr(norm_name, "#P#");
 #endif /* __WIN__ */
 
-retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_get(norm_name, TRUE, get_stats);
-
 	if (NULL == ib_table) {
-		if (is_part && retries < 10) {
+		if (is_part) {
 			/* MySQL partition engine hard codes the file name
 			separator as "#P#". The text case is fixed even if
 			lower_case_table_names is set to 1 or 2. This is true
@@ -4625,11 +4624,7 @@ retry:
 				ib_table = dict_table_get(
 					par_case_name, FALSE, get_stats);
 			}
-			if (!ib_table) {
-			++retries;
-			os_thread_sleep(100000);
-			goto retry;
-			} else {
+			if (ib_table) {
 #ifndef __WIN__
 				sql_print_warning("Partition table %s opened "
 						  "after converting to lower "
@@ -4652,12 +4647,6 @@ retry:
 #endif
 				goto table_opened;
 			}
-		}
-
-		if (is_part) {
-			sql_print_error("Failed to open table %s after "
-					"%lu attempts.\n", norm_name,
-					retries);
 		}
 
 		sql_print_error("Cannot find or open table %s from\n"
