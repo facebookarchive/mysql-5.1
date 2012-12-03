@@ -1114,31 +1114,6 @@ static SHOW_VAR innodb_status_variables[]= {
 
 /* General functions */
 
-/*************************************************************//**
-Check that a page_size is correct for InnoDB.  If correct, set the
-associated page_size_shift which is the power of 2 for this page size.
-@return an associated page_size_shift if valid, 0 if invalid. */
-inline
-int
-innodb_page_size_validate(
-/*======================*/
-	ulong	page_size)		/*!< in: Page Size to evaluate */
-{
-	ulong		n;
-
-	DBUG_ENTER("innodb_page_size_validate");
-
-	for (n = UNIV_PAGE_SIZE_SHIFT_MIN;
-	     n <= UNIV_PAGE_SIZE_SHIFT_MAX;
-	     n++) {
-		if (page_size == (ulong) (1 << n)) {
-			DBUG_RETURN(n);
-		}
-	}
-
-	DBUG_RETURN(0);
-}
-
 /******************************************************************//**
 Returns true if the thread is the replication thread on the slave
 server. Used in srv_conc_enter_innodb() to determine if the thread
@@ -1498,7 +1473,6 @@ convert_error_code_to_mysql(
 		/* fall through */
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
-		ut_ad(thd);
 		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				    HA_ERR_ROW_IS_REFERENCED,
 				    "InnoDB: Cannot delete/update "
@@ -2970,24 +2944,6 @@ innobase_change_buffering_inited_ok:
 #ifdef UNIV_LOG_ARCHIVE
 	srv_log_archive_on = (ulint) innobase_log_archive;
 #endif /* UNIV_LOG_ARCHIVE */
-
-	/* Check that the value of system variable innodb_page_size was
-	set correctly.  Its value was put into srv_page_size. If valid,
-	return the associated srv_page_size_shift.*/
-	srv_page_size_shift = innodb_page_size_validate(srv_page_size);
-	if (!srv_page_size_shift) {
-		sql_print_error("InnoDB: Invalid page size=%lu.\n",
-				srv_page_size);
-		goto mem_free_and_error;
-	}
-	if (UNIV_PAGE_SIZE_DEF != srv_page_size) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: innodb-page-size has been changed"
-			" from the default value %d to %lu.\n",
-			UNIV_PAGE_SIZE_DEF, srv_page_size);
-	}
-
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
@@ -3913,28 +3869,11 @@ ha_innobase::max_supported_key_length() const
 /*=========================================*/
 {
 	/* An InnoDB page must store >= 2 keys; a secondary key record
-	must also contain the primary key value.  Therefore, if both
-	the primary key and the secondary key are at this maximum length,
-	it must be less than 1/4th of the free space on a page including
-	record overhead.
-	
-	MySQL imposes its own limit to this number; MAX_KEY_LENGTH = 3072.
-	
-	For page sizes = 16k, InnoDB historically reported 3500 bytes here,
-	But the MySQL limit of 3072 was always used through the handler
-	interface.
-	
-	Note: Handle 16k and 32k pages the same here since the limits
-	are higher than imposed by MySQL. */
-	
-	switch (UNIV_PAGE_SIZE) {
-	case 4096:
-		return(768);
-	case 8192:
-		return(1536);
-	default:
-		return(3500);
-	}
+	must also contain the primary key value: max key length is
+	therefore set to slightly less than 1 / 4 of page size which
+	is 16 kB; but currently MySQL does not work with keys whose
+	size is > MAX_KEY_LENGTH */
+	return(3500);
 }
 
 /****************************************************************//**
@@ -7613,13 +7552,11 @@ create_options_are_valid(
 	if (create_info->key_block_size) {
 		kbs_specified = TRUE;
 		switch (create_info->key_block_size) {
-			ulint	kbs_max;
 		case 1:
 		case 2:
 		case 4:
 		case 8:
 		case 16:
-		case 32:
 			/* Valid KEY_BLOCK_SIZE, check its dependencies. */
 			if (!srv_file_per_table) {
 				push_warning(
@@ -7636,23 +7573,6 @@ create_options_are_valid(
 					"InnoDB: KEY_BLOCK_SIZE requires"
 					" innodb_file_format > Antelope.");
 					ret = FALSE;
-			}
-
-			/* The maximum KEY_BLOCK_SIZE (KBS) is UNIV_PAGE_SIZE.
-			With smaller UNIV_PAGE_SIZE, the maximum
-			KBS is also smaller. */
-			kbs_max = ut_min(
-				1 << (UNIV_PAGE_SSIZE_MAX - 1),
-				1 << (PAGE_ZIP_SSIZE_MAX - 1));
-			if (create_info->key_block_size > kbs_max) {
-				push_warning_printf(
-					thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: KEY_BLOCK_SIZE=%ld"
-					" cannot be larger than %ld.",
-					create_info->key_block_size,
-					kbs_max);
-				ret = FALSE;
 			}
 			break;
 		default:
@@ -7883,6 +7803,9 @@ ha_innobase::create(
 				| DICT_TF_COMPACT
 				| DICT_TF_FORMAT_ZIP
 				<< DICT_TF_FORMAT_SHIFT;
+#if DICT_TF_ZSSIZE_MAX < 1
+# error "DICT_TF_ZSSIZE_MAX < 1"
+#endif
 		}
 	}
 
@@ -12480,29 +12403,29 @@ static MYSQL_SYSVAR_BOOL(log_compressed_pages, srv_log_compressed_pages,
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_DOUBLE(segment_reserve_factor, fseg_reserve_factor,
-  PLUGIN_VAR_RQCMDARG,
+  PLUGIN_VAR_OPCMDARG,
   "If this value is x, then if the number of unused but reserved"
-  " pages in a segment is less than reserved pages * x, and there are"
+  " pages in a segment is less than	reserved pages * x, and there are"
   " at least FSEG_FRAG_LIMIT used pages, then we allow a new empty extent to"
   " be added to the segment in fseg_alloc_free_page. Otherwise, we"
   " use unused pages of the segment.",
   NULL, NULL, 0.01, 0.0003, 0.4, 0);
 
 static MYSQL_SYSVAR_DOUBLE(padding_max_fail_rate,
-  dict_padding_max_fail_rate, PLUGIN_VAR_RQCMDARG,
+  dict_padding_max_fail_rate, PLUGIN_VAR_OPCMDARG,
   "If the compression failure rate of a table is greater than this number"
   " InnoDB will continue to increase the padding size.",
   NULL, NULL, 0.1, 0.01, 0.99, 0);
 
 static MYSQL_SYSVAR_DOUBLE(padding_max,
-  dict_padding_max, PLUGIN_VAR_RQCMDARG,
-  "This determines the maximum amount of empty space that can be reserved on a"
+  dict_padding_max, PLUGIN_VAR_OPCMDARG,
+  "This determines the maximum amount of empty space that can be  reserved on a"
   " page to make the page compressible as a fraction of the page size.",
   NULL, NULL, 0.4, 0.0, 1.0, 0);
 
 static MYSQL_SYSVAR_UINT(padding_rounds_successful_max,
   dict_padding_linear_successful_rounds_max,
-  PLUGIN_VAR_RQCMDARG,
+  PLUGIN_VAR_OPCMDARG,
   "If the compression failure is lower than the desired rate for a fixed number"
   " of consecutive rounds, then the padding is decreased by a fixed value. This"
   " is done to prevent overshooting the padding value, and to accommodate the"
@@ -12510,16 +12433,9 @@ static MYSQL_SYSVAR_UINT(padding_rounds_successful_max,
   NULL, NULL, 2, 1, 10, 0);
 
 static MYSQL_SYSVAR_UINT(padding_algo, dict_padding_algo,
-  PLUGIN_VAR_RQCMDARG,
+  PLUGIN_VAR_OPCMDARG,
   "Padding algorithm to be used for compressed pages.",
   NULL, NULL, PADDING_ALGO_LINEAR, 0, PADDING_ALGO_MAX, 0);
-
-static MYSQL_SYSVAR_UINT(padding_linear_increment,
-  dict_padding_linear_increment,
-  PLUGIN_VAR_RQCMDARG,
-  "Size of the linear increment added to the padding when sufficient "
-  " compression failures are hit.",
-  NULL, NULL, 128, 0, 1024, 0);
 
 static MYSQL_SYSVAR_UINT(simulate_comp_failures, srv_simulate_comp_failures,
   PLUGIN_VAR_NOCMDARG,
@@ -12649,12 +12565,6 @@ static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Helps to save your data in case the disk image of the database becomes corrupt.",
   NULL, NULL, 0, 0, 6, 0);
-
-static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Page size to use for all InnoDB tablespaces.",
-  NULL, NULL, UNIV_PAGE_SIZE_DEF,
-  UNIV_PAGE_SIZE_MIN, UNIV_PAGE_SIZE_MAX, 0);
 
 static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -13065,14 +12975,12 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_arch_dir),
   MYSQL_SYSVAR(log_archive),
 #endif /* UNIV_LOG_ARCHIVE */
-  MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_buffer_size),
   MYSQL_SYSVAR(log_compressed_pages),
   MYSQL_SYSVAR(padding_max_fail_rate),
   MYSQL_SYSVAR(padding_max),
   MYSQL_SYSVAR(padding_algo),
   MYSQL_SYSVAR(padding_rounds_successful_max),
-  MYSQL_SYSVAR(padding_linear_increment),
   MYSQL_SYSVAR(simulate_comp_failures),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),

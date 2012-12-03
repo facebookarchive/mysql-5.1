@@ -1,1 +1,1 @@
---innodb_buffer_pool_size=34M --innodb_max_dirty_pages_pct=1 --innodb-file-per-table
+--innodb_buffer_pool_size=32M --innodb_max_dirty_pages_pct=1 --innodb-file-per-table

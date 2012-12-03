@@ -43,7 +43,7 @@ static ulint buf_buddy_n_frames;
 #endif /* UNIV_DEBUG */
 /** Statistics of the buddy system, indexed by block size.
 Protected by buf_pool_mutex. */
-UNIV_INTERN buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES_MAX + 1];
+UNIV_INTERN buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES + 1];
 
 /** Validate a given zip_free list. */
 #define BUF_BUDDY_LIST_VALIDATE(i)				\
@@ -65,9 +65,7 @@ buf_buddy_get(
 {
 	ut_ad(ut_is_2pow(size));
 	ut_ad(size >= BUF_BUDDY_LOW);
-	ut_ad(BUF_BUDDY_LOW <= UNIV_ZIP_SIZE_MIN);
 	ut_ad(size < BUF_BUDDY_HIGH);
-	ut_ad(BUF_BUDDY_HIGH == UNIV_PAGE_SIZE);
 	ut_ad(!ut_align_offset(page, size));
 
 	if (((ulint) page) & size) {
@@ -127,7 +125,7 @@ buf_buddy_alloc_zip(
 
 	ut_ad(buf_pool_mutex_own());
 	ut_a(i < BUF_BUDDY_SIZES);
-	ut_a(i >= buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN));
+	ut_a(i >= buf_buddy_get_slot(PAGE_ZIP_MIN_SIZE));
 
 	ut_d(BUF_BUDDY_LIST_VALIDATE(i));
 
@@ -239,7 +237,7 @@ buf_buddy_alloc_from(
 {
 	ulint	offs	= BUF_BUDDY_LOW << j;
 	ut_ad(j <= BUF_BUDDY_SIZES);
-	ut_ad(i >= buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN));
+	ut_ad(i >= buf_buddy_get_slot(PAGE_ZIP_MIN_SIZE));
 	ut_ad(j >= i);
 	ut_ad(!ut_align_offset(buf, offs));
 
@@ -281,7 +279,7 @@ buf_buddy_alloc_low(
 	ut_ad(lru);
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));
-	ut_ad(i >= buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN));
+	ut_ad(i >= buf_buddy_get_slot(PAGE_ZIP_MIN_SIZE));
 
 	if (i < BUF_BUDDY_SIZES) {
 		/* Try to allocate from the buddy system. */
@@ -340,7 +338,7 @@ buf_buddy_relocate(
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));
 	ut_ad(!ut_align_offset(src, size));
 	ut_ad(!ut_align_offset(dst, size));
-	ut_ad(i >= buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN));
+	ut_ad(i >= buf_buddy_get_slot(PAGE_ZIP_MIN_SIZE));
 	UNIV_MEM_ASSERT_W(dst, size);
 
 	my_get_fast_timer(&fast_timer);
@@ -440,7 +438,7 @@ buf_buddy_free_low(
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));
 	ut_ad(i <= BUF_BUDDY_SIZES);
-	ut_ad(i >= buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN));
+	ut_ad(i >= buf_buddy_get_slot(PAGE_ZIP_MIN_SIZE));
 	ut_ad(buf_buddy_stat[i].used > 0);
 
 	buf_buddy_stat[i].used--;

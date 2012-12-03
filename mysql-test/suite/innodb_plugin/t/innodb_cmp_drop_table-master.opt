@@ -1,2 +1,2 @@
---innodb-buffer-pool-size=9M
+--innodb-buffer-pool-size=8M
 --innodb_buffer_pool_min_pages_div32=8

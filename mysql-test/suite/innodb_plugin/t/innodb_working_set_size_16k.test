@@ -1,5 +1,4 @@
 --source include/have_innodb_plugin.inc
---source include/have_innodb_16k.inc
 
 let $file_format_check_save = `select @@innodb_file_format_check`;
 let $disable_working_set_size_save = `select @@disable_working_set_size`;
@@ -164,6 +163,5 @@ drop table t2;
 
 # restore innodb_file_format and innodb_file_format_check
 # Wish we did not have to waste time on this -- http://bugs.mysql.com/bug.php?id=62075
---disable_query_log
 eval SET GLOBAL disable_working_set_size = $disable_working_set_size_save;
 eval SET GLOBAL innodb_file_format_check = $file_format_check_save;

@@ -1,5 +1,4 @@
 --source include/have_innodb_plugin.inc
---source include/have_innodb_16k.inc
 
 --disable_warnings
 drop table if exists t1;

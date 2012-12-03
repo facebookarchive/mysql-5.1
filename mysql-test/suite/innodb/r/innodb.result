@@ -1675,12 +1675,12 @@ select count(*) from t1 where x = 18446744073709551601;
 count(*)
 1
 drop table t1;
-SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+SELECT 'OK' AS variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total' AND variable_value IN (8191, 8192);
 variable_value
-{checked_valid}
+OK
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
-{checked_valid}
+16384
 SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
 variable_value - @innodb_rows_deleted_orig
 71

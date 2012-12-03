@@ -913,11 +913,6 @@ dict_index_find_on_id_low(
 	dict_table_t*	table;
 	dict_index_t*	index;
 
-	/* This can happen if the system tablespace is the wrong page size */
-	if (dict_sys == NULL) {
-		return(NULL);
-	}
-
 	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 
 	while (table) {
@@ -5116,7 +5111,7 @@ possible change in data compressibility.
 */
 ulint dict_padding_linear_round_len = 128;
 uint dict_padding_linear_successful_rounds_max = 2;
-uint dict_padding_linear_increment = 128;
+ulint dict_padding_linear_increment = 128;
 
 typedef struct padding_algo_linear_st {
 	os_fast_mutex_t mutex;

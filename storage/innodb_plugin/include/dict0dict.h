@@ -63,9 +63,6 @@ of consecutive rounds, then the padding is decreased by a fixed value. This
 is done to prevent overshooting the padding value, and to accommodate the
 possible change in data compressibility. */
 extern uint dict_padding_linear_successful_rounds_max;
-/** Size of the linear increment added to the padding when sufficient
-compression failures are hit. */
-extern uint dict_padding_linear_increment;
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 UNIV_INTERN
@@ -689,23 +686,6 @@ dict_table_set_format(
 /*==================*/
 	dict_table_t*	table,	/*!< in/out: table */
 	ulint		format);/*!< in: file format version */
-/********************************************************************//**
-Convert a 32 bit integer table flags to the 32 bit integer that is
-written into the tablespace header at the offset FSP_SPACE_FLAGS and is
-also stored in the fil_space_t::flags field.  The following chart shows
-the translation of the low order bit.  Other bits are the same.
-========================= Low order bit ==========================
-                    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
-dict_table_t::flags |     0     |    1    |     1      |    1
-fil_space_t::flags  |     0     |    0    |     1      |    1
-==================================================================
-@return tablespace flags (fil_space_t::flags) */
-UNIV_INLINE
-ulint
-dict_tf_to_fsp_flags(
-/*=================*/
-	ulint	flags)	/*!< in: dict_table_t::flags */
-	__attribute__((const));
 /********************************************************************//**
 Extract the compressed page size from table flags.
 @return	compressed page size, or 0 if not compressed */

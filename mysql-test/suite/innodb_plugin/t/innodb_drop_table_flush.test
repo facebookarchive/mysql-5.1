@@ -24,7 +24,6 @@ insert into t1 select null, 'foobar' from t1;
 dec $loops;
 }
 
---replace_result 10 {checked_valid} 8 {checked_valid} 6 {checked_valid}
 --query_vertical select innodb_buffer_pool_pages from information_schema.table_statistics where table_name = 't1'
 drop table t1;
 

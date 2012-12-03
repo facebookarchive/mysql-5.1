@@ -45,7 +45,7 @@ void*
 buf_buddy_alloc(
 /*============*/
 	ulint	size,	/*!< in: compressed page size
-			(between UNIV_ZIP_SIZE_MIN and UNIV_PAGE_SIZE) */
+			(between PAGE_ZIP_MIN_SIZE and UNIV_PAGE_SIZE) */
 	ibool*	lru)	/*!< in: pointer to a variable that will be assigned
 			TRUE if storage was allocated from the LRU list
 			and buf_pool_mutex was temporarily released */
@@ -76,7 +76,7 @@ typedef struct buf_buddy_stat_struct buf_buddy_stat_t;
 
 /** Statistics of the buddy system, indexed by block size.
 Protected by buf_pool_mutex. */
-extern buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES_MAX + 1];
+extern buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES + 1];
 
 #ifndef UNIV_NONINL
 # include "buf0buddy.ic"

@@ -75,7 +75,7 @@ combination of types */
 /* @{ */
 #define DICT_TF_ZSSIZE_SHIFT		1
 #define DICT_TF_ZSSIZE_MASK		(15 << DICT_TF_ZSSIZE_SHIFT)
-#define DICT_TF_ZSSIZE_MAX (UNIV_PAGE_SIZE_SHIFT - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
+#define DICT_TF_ZSSIZE_MAX (UNIV_PAGE_SIZE_SHIFT - PAGE_ZIP_MIN_SIZE_SHIFT + 1)
 /* @} */
 
 /** File format */

@@ -673,9 +673,7 @@ open_or_create_log_file(
 		which is for this log group */
 
 		fil_space_create(name,
-				 2 * k + SRV_LOG_SPACE_FIRST_ID,
-				 fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-				 FIL_LOG);
+				 2 * k + SRV_LOG_SPACE_FIRST_ID, 0, FIL_LOG);
 	}
 
 	ut_a(fil_validate());
@@ -733,8 +731,6 @@ open_or_create_data_files(
 	ibool	one_opened	= FALSE;
 	ibool	one_created	= FALSE;
 	ulint	size;
-	ulint	flags;
-	ulint	space;
 	ulint	size_high;
 	ulint	rounded_size_pages;
 	char	name[10000];
@@ -912,39 +908,12 @@ open_or_create_data_files(
 				return(DB_ERROR);
 			}
 skip_size_check:
-			fil_read_first_page(
-				files[i], one_opened, &flags, &space,
+			fil_read_flushed_lsn_and_arch_log_no(
+				files[i], one_opened,
 #ifdef UNIV_LOG_ARCHIVE
 				min_arch_log_no, max_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
 				min_flushed_lsn, max_flushed_lsn);
-
-			/* The first file of the system tablespace must
-			have space ID = 0.  The FSP_SPACE_ID field in files
-			greater than ibdata1 are unreliable. */
-			ut_a(one_opened || space == 0);
-
-			/* Check the flags for the first system tablespace
-			file only. */
-			if (!one_opened
-			    && UNIV_PAGE_SIZE
-			    != fsp_flags_get_page_size(flags)) {
-
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: Error: data file %s"
-					" uses page size %lu,\n",
-					name,
-					fsp_flags_get_page_size(flags));
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: but the start-up parameter"
-					" is innodb-page-size=%lu\n",
-					UNIV_PAGE_SIZE);
-
-				return(DB_ERROR);
-			}
-
 			one_opened = TRUE;
 		} else {
 			/* We created the data file and now write it full of
@@ -999,8 +968,7 @@ skip_size_check:
 		ut_a(ret);
 
 		if (i == 0) {
-			flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
-			fil_space_create(name, 0, flags, FIL_TABLESPACE);
+			fil_space_create(name, 0, 0, FIL_TABLESPACE);
 		}
 
 		ut_a(fil_validate());
@@ -1413,9 +1381,7 @@ innobase_start_or_create_for_mysql(void)
 
 	for (i = 0; i < srv_n_data_files; i++) {
 #ifndef __WIN__
-		if (sizeof(off_t) < 5
-		    && srv_data_file_sizes[i]
-		    >= (1 << (32 - UNIV_PAGE_SIZE_SHIFT))) {
+		if (sizeof(off_t) < 5 && srv_data_file_sizes[i] >= 262144) {
 			fprintf(stderr,
 				"InnoDB: Error: file size must be < 4 GB"
 				" with this MySQL binary\n"

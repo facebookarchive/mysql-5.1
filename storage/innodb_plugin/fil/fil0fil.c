@@ -728,7 +728,7 @@ fil_node_open_file(
 	fil_system_t*	system,	/*!< in: tablespace memory cache */
 	fil_space_t*	space)	/*!< in: space */
 {
-	ib_uint64_t	size_bytes;
+	ib_int64_t	size_bytes;
 	ulint		size_low;
 	ulint		size_high;
 	ibool		ret;
@@ -737,7 +737,6 @@ fil_node_open_file(
 	byte*		page;
 	ulint		space_id;
 	ulint		flags;
-	ulint		page_size;
 
 	ut_ad(mutex_own(&(system->mutex)));
 	ut_a(node->n_pending == 0);
@@ -808,7 +807,6 @@ fil_node_open_file(
 				       UNIV_PAGE_SIZE);
 		space_id = fsp_header_get_space_id(page);
 		flags = fsp_header_get_flags(page);
-		page_size = fsp_flags_get_page_size(flags);
 
 		ut_free(buf2);
 
@@ -836,20 +834,6 @@ fil_node_open_file(
 			ut_error;
 		}
 
-		if (UNIV_UNLIKELY(fsp_flags_get_page_size(space->flags)
-				  != page_size)) {
-			fprintf(stderr,
-				"InnoDB: Error: tablespace file %s"
-				" has page size 0x%lx\n"
-				"InnoDB: but the data dictionary"
-				" expects page size 0x%lx!\n",
-				node->name, flags,
-				fsp_flags_get_page_size(space->flags));
-
-			ut_error;
-		}
-
-
 		if (UNIV_UNLIKELY(space->flags != flags)) {
 			fprintf(stderr,
 				"InnoDB: Error: table flags are %lx"
@@ -860,11 +844,9 @@ fil_node_open_file(
 			ut_error;
 		}
 
-		if (size_bytes >= FSP_EXTENT_SIZE * UNIV_PAGE_SIZE) {
-			/* Truncate the size to whole extent size. */
-			size_bytes = ut_2pow_round(size_bytes,
-						   FSP_EXTENT_SIZE *
-						   UNIV_PAGE_SIZE);
+		if (size_bytes >= 1024 * 1024) {
+			/* Truncate the size to whole megabytes. */
+			size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
 		}
 
 		if (!(flags & DICT_TF_ZSSIZE_MASK)) {
@@ -1363,6 +1345,15 @@ fil_space_create(
 	char		table_name[FN_LEN+1];
     unsigned char db_stats_index;
 
+	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
+	ROW_FORMAT=COMPACT
+	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
+	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
+	format, the tablespace flags should equal
+	(table->flags & ~(~0 << DICT_TF_BITS)). */
+	ut_a(flags != DICT_TF_COMPACT);
+	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
+
 	parse_db_and_table(name, db_name, table_name, purpose, id);
     db_stats_index = get_db_stats_index(db_name);
 
@@ -1372,7 +1363,6 @@ try_again:
 	purpose);*/
 
 	ut_a(fil_system);
-	ut_a(fsp_flags_is_valid(flags));
 	ut_a(name);
 
 	mutex_enter(&fil_system->mutex);
@@ -2092,18 +2082,16 @@ fil_write_flushed_lsn_to_data_files(
 }
 
 /*******************************************************************//**
-Reads the flushed lsn, arch no, and tablespace flag fields from a data
-file at database startup. */
+Reads the flushed lsn and arch no fields from a data file at database
+startup. */
 UNIV_INTERN
 void
-fil_read_first_page(
+fil_read_flushed_lsn_and_arch_log_no(
 /*=================================*/
 	os_file_t	data_file,		/*!< in: open data file */
 	ibool		one_read_already,	/*!< in: TRUE if min and max
 						parameters below already
 						contain sensible data */
-	ulint*		flags,			/*!< out: tablespace flags */
-	ulint*		space_id,		/*!< out: tablespace ID */
 #ifdef UNIV_LOG_ARCHIVE
 	ulint*		min_arch_log_no,	/*!< in/out: */
 	ulint*		max_arch_log_no,	/*!< in/out: */
@@ -2120,10 +2108,6 @@ fil_read_first_page(
 	buf = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	os_file_read(data_file, buf, 0, 0, UNIV_PAGE_SIZE);
-
-	*flags = fsp_header_get_flags(buf);
-
-	*space_id = fsp_header_get_space_id(buf);
 
 	flushed_lsn = mach_read_ull(buf + FIL_PAGE_FILE_FLUSH_LSN);
 
@@ -3052,7 +3036,14 @@ fil_create_new_single_table_tablespace(
 	ut_a(space_id > 0);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
-	ut_a(fsp_flags_is_valid(flags));
+	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
+	ROW_FORMAT=COMPACT
+	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
+	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
+	format, the tablespace flags should equal
+	(table->flags & ~(~0 << DICT_TF_BITS)). */
+	ut_a(flags != DICT_TF_COMPACT);
+	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
@@ -3130,9 +3121,6 @@ error_exit2:
 
 	memset(page, '\0', UNIV_PAGE_SIZE);
 
-	/* Add the UNIV_PAGE_SIZE to the table flags and write them to the
-	tablespace header. */
-	flags = fsp_flags_set_page_size(flags, UNIV_PAGE_SIZE);
 	fsp_header_init_fields(page, space_id, flags);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
@@ -3143,7 +3131,7 @@ error_exit2:
 		page_zip_des_t	page_zip;
 		ulint		zip_size;
 
-		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1)
+		zip_size = ((PAGE_ZIP_MIN_SIZE >> 1)
 			    << ((flags & DICT_TF_ZSSIZE_MASK)
 				>> DICT_TF_ZSSIZE_SHIFT));
 
@@ -3309,7 +3297,7 @@ fil_reset_too_high_lsns(
 	fputs(".\n", stderr);
 
 	ut_a(ut_is_2pow(zip_size));
-	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
+	ut_a(zip_size <= UNIV_PAGE_SIZE);
 
 	/* Loop through all the pages in the tablespace and reset the lsn and
 	the page checksum if necessary */
@@ -3429,7 +3417,14 @@ fil_open_single_table_tablespace(
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
-	ut_a(fsp_flags_is_valid(flags));
+	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
+	ROW_FORMAT=COMPACT
+	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
+	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
+	format, the tablespace flags should equal
+	(table->flags & ~(~0 << DICT_TF_BITS)). */
+	ut_a(flags != DICT_TF_COMPACT);
+	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
 	file = os_file_create_simple_no_error_handling(
 		filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
@@ -3739,6 +3734,15 @@ fil_open_single_table_tablespace(
 
 				} else {
 					/* check free page or not */
+					/* These definitions should be same to fsp0fsp.c */
+#define	FSP_HEADER_SIZE		(32 + 5 * FLST_BASE_NODE_SIZE)
+
+#define	XDES_BITMAP		(FLST_NODE_SIZE + 12)
+#define	XDES_BITS_PER_PAGE	2
+#define	XDES_FREE_BIT		0
+#define	XDES_SIZE							\
+	(XDES_BITMAP + UT_BITS_IN_BYTES(FSP_EXTENT_SIZE * XDES_BITS_PER_PAGE))
+#define	XDES_ARR_OFFSET		(FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
 
 					/*descr = descr_page + XDES_ARR_OFFSET + XDES_SIZE * xdes_calc_descriptor_index(zip_size, offset)*/
 					/*xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)*/
@@ -4363,7 +4367,7 @@ fil_load_single_table_tablespace(
 	ulint		flags;
 	ulint		size_low;
 	ulint		size_high;
-	ib_uint64_t	size;
+	ib_int64_t	size;
 #ifdef UNIV_HOTBACKUP
 	fil_space_t*	space;
 #endif
@@ -5509,12 +5513,8 @@ _fil_io(
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(buf);
 	ut_ad(len > 0);
-	ut_ad(UNIV_PAGE_SIZE == (ulong)(1 << UNIV_PAGE_SIZE_SHIFT));
-#if (1 << UNIV_PAGE_SIZE_SHIFT_MAX) != UNIV_PAGE_SIZE_MAX
-# error "(1 << UNIV_PAGE_SIZE_SHIFT_MAX) != UNIV_PAGE_SIZE_MAX"
-#endif
-#if (1 << UNIV_PAGE_SIZE_SHIFT_MIN) != UNIV_PAGE_SIZE_MIN
-# error "(1 << UNIV_PAGE_SIZE_SHIFT_MIN) != UNIV_PAGE_SIZE_MIN"
+#if (1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE
+# error "(1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE"
 #endif
 	ut_ad(fil_validate());
 #ifndef UNIV_HOTBACKUP
@@ -5641,7 +5641,6 @@ _fil_io(
 		case 4096: zip_size_shift = 12; break;
 		case 8192: zip_size_shift = 13; break;
 		case 16384: zip_size_shift = 14; break;
-		case 32768: zip_size_shift = 15; break;
 		default: ut_error;
 		}
 		offset_high = block_offset >> (32 - zip_size_shift);

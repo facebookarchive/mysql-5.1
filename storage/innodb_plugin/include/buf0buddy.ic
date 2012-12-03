@@ -73,7 +73,7 @@ buf_buddy_get_slot(
 	ulint	i;
 	ulint	s;
 
-	ut_ad(size >= UNIV_ZIP_SIZE_MIN);
+	ut_ad(size >= PAGE_ZIP_MIN_SIZE);
 
 	for (i = 0, s = BUF_BUDDY_LOW; s < size; i++, s <<= 1) {
 	}
@@ -93,14 +93,14 @@ void*
 buf_buddy_alloc(
 /*============*/
 	ulint	size,	/*!< in: compressed page size
-			(between UNIV_ZIP_SIZE_MIN and UNIV_PAGE_SIZE) */
+			(between PAGE_ZIP_MIN_SIZE and UNIV_PAGE_SIZE) */
 	ibool*	lru)	/*!< in: pointer to a variable that will be assigned
 			TRUE if storage was allocated from the LRU list
 			and buf_pool_mutex was temporarily released */
 {
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(ut_is_2pow(size));
-	ut_ad(size >= UNIV_ZIP_SIZE_MIN);
+	ut_ad(size >= PAGE_ZIP_MIN_SIZE);
 	ut_ad(size <= UNIV_PAGE_SIZE);
 
 	return((byte*) buf_buddy_alloc_low(buf_buddy_get_slot(size), lru));
@@ -118,7 +118,7 @@ buf_buddy_free(
 {
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(ut_is_2pow(size));
-	ut_ad(size >= UNIV_ZIP_SIZE_MIN);
+	ut_ad(size >= PAGE_ZIP_MIN_SIZE);
 	ut_ad(size <= UNIV_PAGE_SIZE);
 
 	buf_buddy_free_low(buf, buf_buddy_get_slot(size));

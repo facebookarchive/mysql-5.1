@@ -5,12 +5,9 @@ source include/have_innodb.inc;
 drop table if exists t1;
 --enable_warnings
 
---let $innodb_page_size = `SELECT @@innodb_page_size`
-
 CREATE TABLE t1 (a int not null primary key, b blob) engine=innodb;
 
---replace_result $innodb_page_size PAGE_SIZE
-eval insert into t1 values (1, repeat("test", $innodb_page_size / 4));
+insert into t1 values (1, repeat("test", 3000));
 
 # Clear innodb page cache so the read stats can be deterministic
 flush tables t1 with memory cache;
@@ -21,16 +18,12 @@ flush tables t1 with memory cache;
 select * from t1 where a=1;
 --enable_result_log
 
---replace_result $innodb_page_size PAGE_SIZE
-eval select 'should be 3,3,0,1,1,0',
-IO_READ_BYTES DIV $innodb_page_size, IO_READ_REQUESTS, IO_READ_SLOW_IOS,
-IO_READ_BYTES_BLOB DIV $innodb_page_size, IO_READ_REQUESTS_BLOB,
-IO_READ_SLOW_IOS_BLOB
+select 'should be 49152,3,0,16384,1,0',
+IO_READ_BYTES, IO_READ_REQUESTS, IO_READ_SLOW_IOS,
+IO_READ_BYTES_BLOB, IO_READ_REQUESTS_BLOB, IO_READ_SLOW_IOS_BLOB
 from information_schema.table_statistics where table_name like 't1%';
 
---replace_result $innodb_page_size PAGE_SIZE
-eval select USER_NAME, DISK_READ_BYTES DIV $innodb_page_size,
-DISK_READ_REQUESTS, DISK_READ_BYTES_BLOB DIV $innodb_page_size,
+select USER_NAME, DISK_READ_BYTES, DISK_READ_REQUESTS, DISK_READ_BYTES_BLOB,
 DISK_READ_REQUESTS_BLOB from information_schema.user_statistics where
 USER_NAME=substring_index(user(),'@',1);
 

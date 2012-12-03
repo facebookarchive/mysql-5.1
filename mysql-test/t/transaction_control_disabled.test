@@ -7,7 +7,6 @@
 call mtr.add_suppression("Transaction slots in use counter has bad value.*");
 
 SHOW GLOBAL STATUS LIKE "Control_transaction_disabled";
---replace_result 512 {valid} 1024 {valid} 2048 {valid}
 SHOW GLOBAL STATUS LIKE "Control_transaction_max_slots";
 
 grant all on *.* to 'adminc'@'%' with max_concurrent_transactions 1 max_user_connections 100;

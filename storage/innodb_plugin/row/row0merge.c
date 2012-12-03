@@ -94,7 +94,7 @@ This buffer is used for writing or reading a record that spans two
 row_merge_block_t.  Thus, it must be able to hold one merge record,
 whose maximum size is the same as the minimum size of
 row_merge_block_t. */
-typedef byte	mrec_buf_t[UNIV_PAGE_SIZE_MAX];
+typedef byte	mrec_buf_t[UNIV_PAGE_SIZE];
 
 /** @brief Merge record in row_merge_block_t.
 

@@ -78,8 +78,8 @@ rpl_transaction_enabled is enabled, the data can be used to overwrite
 relay-log.info to keep slave state and InnoDB synchronized. When
 _pos == -1, it is invalid. */
 UNIV_INTERN trx_sys_mysql_replication_t trx_sys_mysql_replication[2] = {
-	{"", -1, "", -1, 0},
-	{"", -1, "", -1, 0}
+	{"", -1, "", -1, TRX_SYS_MYSQL_RELAY_INFO},
+	{"", -1, "", -1, TRX_SYS_MYSQL_RELAY_INFO_PREPARED}
 };
 
 #define TRX_SYS_MYSQL_REPLICATION_COMMITTED    0
@@ -750,14 +750,6 @@ trx_sys_get_mysql_replication_for_read(
 					/*!< out: slot to use */
 {
 	uint	i;
-
-	ut_ad(TRX_SYS_MYSQL_RELAY_INFO ==
-	      trx_sys_mysql_replication[
-		      TRX_SYS_MYSQL_REPLICATION_COMMITTED].offset);
-	ut_ad(TRX_SYS_MYSQL_RELAY_INFO_PREPARED ==
-	      trx_sys_mysql_replication[
-		      TRX_SYS_MYSQL_REPLICATION_PREPARED].offset);
-
 	if (!prepare)
 		i = TRX_SYS_MYSQL_REPLICATION_COMMITTED;
 #ifdef UNIV_DEBUG
@@ -1417,11 +1409,6 @@ trx_sys_init_at_db_start(void)
 	UT_LIST_INIT(trx_sys->view_list);
 
 	trx_purge_sys_create();
-
-	trx_sys_mysql_replication[TRX_SYS_MYSQL_REPLICATION_COMMITTED].offset =
-		TRX_SYS_MYSQL_RELAY_INFO;
-	trx_sys_mysql_replication[TRX_SYS_MYSQL_REPLICATION_PREPARED].offset =
-		TRX_SYS_MYSQL_RELAY_INFO_PREPARED;
 
 	mutex_exit(&kernel_mutex);
 

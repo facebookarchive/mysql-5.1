@@ -4,5 +4,5 @@
 --sync_binlog=100
 --innodb_flush_log_at_trx_commit=2
 --force-restart
---innodb_buffer_pool_size=9M
---innodb_buffer_pool_min_pages_div32=7
+--innodb_buffer_pool_size=5M
+--innodb_buffer_pool_min_pages_div32=7 

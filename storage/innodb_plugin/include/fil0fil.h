@@ -593,18 +593,16 @@ fil_write_flushed_lsn_to_data_files(
 	ulint		arch_log_no);	/*!< in: latest archived log
 					file number */
 /*******************************************************************//**
-Reads the flushed lsn, arch no, and tablespace flag fields from a data
-file at database startup. */
+Reads the flushed lsn and arch no fields from a data file at database
+startup. */
 UNIV_INTERN
 void
-fil_read_first_page(
-/*================*/
+fil_read_flushed_lsn_and_arch_log_no(
+/*=================================*/
 	os_file_t	data_file,		/*!< in: open data file */
 	ibool		one_read_already,	/*!< in: TRUE if min and max
 						parameters below already
 						contain sensible data */
-	ulint*		flags,			/*!< out: tablespace flags */
-	ulint*		space_id,		/*!< out: tablespace ID */
 #ifdef UNIV_LOG_ARCHIVE
 	ulint*		min_arch_log_no,	/*!< in/out: */
 	ulint*		max_arch_log_no,	/*!< in/out: */

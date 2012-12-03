@@ -202,8 +202,6 @@ UNIV_INTERN ulint	srv_log_file_size	= ULINT_MAX;
 /* size in database pages */
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
-UNIV_INTERN ulong	srv_page_size		= UNIV_PAGE_SIZE_DEF;
-UNIV_INTERN ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */
@@ -2620,10 +2618,10 @@ srv_export_innodb_status(void)
 	export_vars.innodb_trx_doublewrite_page_no =
 		trx_doublewrite ? trx_doublewrite->block1 : 0;
 
-	for (i = 0; i < PAGE_ZIP_SSIZE_MAX - 1; i++) {
+	for (i = 0; i < PAGE_ZIP_NUM_SSIZE - 1; i++) {
 		page_zip_stat_t*        zip_stat = &page_zip_stat[i];
 
-		ulint page_size = UNIV_ZIP_SIZE_MIN << i;
+		ulint page_size = PAGE_ZIP_MIN_SIZE << i;
 
 		switch (page_size) {
 		case 1024:

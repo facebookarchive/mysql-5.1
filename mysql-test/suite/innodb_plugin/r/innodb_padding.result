@@ -2,20 +2,19 @@
 # Testing different padding algorithms
 #
 SET GLOBAL innodb_padding_algo = 0;
-CREATE TABLE t1(id INT PRIMARY KEY, a INT, b INT, c INT, msg varchar(255))
+CREATE TABLE t1(id INT PRIMARY KEY, msg varchar(255))
 ENGINE=INNODB
 ROW_FORMAT=COMPRESSED
-KEY_BLOCK_SIZE=4;
+KEY_BLOCK_SIZE=2;
 SET GLOBAL innodb_padding_algo = 1;
-SET GLOBAL innodb_padding_linear_increment = 256;
-CREATE TABLE t2(id INT PRIMARY KEY, a INT, b INT, c INT, msg varchar(255))
+CREATE TABLE t2(id INT PRIMARY KEY, msg varchar(255))
 ENGINE=INNODB
 ROW_FORMAT=COMPRESSED
-KEY_BLOCK_SIZE=4;
+KEY_BLOCK_SIZE=2;
 Table	Checksum
-test.t1	1873067211
+test.t1	453064056
 Table	Checksum
-test.t2	1873067211
+test.t2	453064056
 nopad_is_bad
 1
 linear_is_better_than_nopad

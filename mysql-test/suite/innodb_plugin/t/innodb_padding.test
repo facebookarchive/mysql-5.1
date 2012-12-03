@@ -2,18 +2,12 @@
 --echo # Testing different padding algorithms
 --echo #
 --source include/have_innodb.inc
-# TODO(nizamordulu): I (jtolmer) tried manipulating the number of int colummns
-# and the length of the string in order to get this test to pass with 32k
-# pages. I was unable to get padding high enough to make a difference in the
-# compression failure rate.
---source include/have_innodb_16k.inc
 
 # record the file format in order to restore in the end.
 --disable_query_log
 --let $file_format_save = `SELECT @@innodb_file_format`
 --let $file_format_check_save = `SELECT @@innodb_file_format_check`
 --let $padding_algo_save = `SELECT @@innodb_padding_algo`
---let $padding_linear_increment_save = `SELECT @@innodb_padding_linear_increment`
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
 SET GLOBAL INNODB_FILE_FORMAT = 'Barracuda';
@@ -27,21 +21,17 @@ SET GLOBAL innodb_padding_algo = 0;
 let $num_inserts = 20000;
 
 # create the table with compressed pages of size 1K.
-CREATE TABLE t1(id INT PRIMARY KEY, a INT, b INT, c INT, msg varchar(255))
+CREATE TABLE t1(id INT PRIMARY KEY, msg varchar(255))
 ENGINE=INNODB
 ROW_FORMAT=COMPRESSED
-KEY_BLOCK_SIZE=4;
+KEY_BLOCK_SIZE=2;
 let $idx = 1;
 let $num_rows = $num_inserts;
 --disable_query_log
 while ($num_rows) {
   eval
-INSERT INTO t1(id, a, b, c, msg)
-VALUES ($idx,
-        FLOOR(RAND($idx * 3) * 2147483647),
-        FLOOR(RAND($idx * 3 + 1) * 2147483647),
-        FLOOR(RAND($idx * 3 + 2) * 2147483647),
-        REPEAT(PASSWORD($idx), 3));
+INSERT INTO t1(id, msg)
+VALUES ($idx, REPEAT(PASSWORD($idx), 5));
   if (`SELECT $num_rows = 2000`) {
     SELECT compress_ops_ok INTO @ok_before FROM information_schema.table_statistics WHERE table_name='t1';
     SELECT compress_ops INTO @ops_before FROM information_schema.table_statistics WHERE table_name='t1';
@@ -53,22 +43,17 @@ SELECT (compress_ops_ok - @ok_before)/(compress_ops - @ops_before) into @nopad F
 --enable_query_log
 # linear padding
 SET GLOBAL innodb_padding_algo = 1;
-SET GLOBAL innodb_padding_linear_increment = 256;
-CREATE TABLE t2(id INT PRIMARY KEY, a INT, b INT, c INT, msg varchar(255))
+CREATE TABLE t2(id INT PRIMARY KEY, msg varchar(255))
 ENGINE=INNODB
 ROW_FORMAT=COMPRESSED
-KEY_BLOCK_SIZE=4;
+KEY_BLOCK_SIZE=2;
 let $idx = 1;
 let $num_rows = $num_inserts;
 --disable_query_log
 while ($num_rows) {
   eval
-INSERT INTO t2(id, a, b, c, msg)
-VALUES ($idx,
-        FLOOR(RAND($idx * 3) * 2147483647),
-        FLOOR(RAND($idx * 3 + 1) * 2147483647),
-        FLOOR(RAND($idx * 3 + 2) * 2147483647),
-        REPEAT(PASSWORD($idx), 3));
+INSERT INTO t2(id, msg)
+VALUES ($idx, REPEAT(PASSWORD($idx), 5));
   if (`SELECT $num_rows = 2000`) {
     SELECT compress_ops_ok INTO @ok_before FROM information_schema.table_statistics WHERE table_name='t2';
     SELECT compress_ops INTO @ops_before FROM information_schema.table_statistics WHERE table_name='t2';
@@ -97,7 +82,6 @@ DROP TABLE t1, t2;
 eval SET GLOBAL innodb_file_format = \"$file_format_save\";
 eval SET GLOBAL innodb_file_format_check = \"$file_format_check_save\";
 eval SET GLOBAL innodb_padding_algo = $padding_algo_save;
-eval SET GLOBAL innodb_padding_linear_increment = $padding_linear_increment_save;
 --enable_query_log
 
 # clean exit

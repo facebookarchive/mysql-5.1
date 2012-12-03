@@ -38,8 +38,8 @@ extern "C" {
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
 #include "buf0buddy.h" /* for i_s_cmpmem */
-#include "buf0buf.h" /* for buf_pool */
-#include "buf0lru.h" /* for buf_pool */
+#include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
+#include "buf0lru.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
 #include "ha_prototypes.h" /* for innobase_convert_name() */
 #include "srv0start.h" /* for srv_was_started */
 }
@@ -1214,10 +1214,10 @@ i_s_cmp_fill_low(
 
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
-	for (uint i = 0; i < PAGE_ZIP_SSIZE_MAX - 1; i++) {
+	for (uint i = 0; i < PAGE_ZIP_NUM_SSIZE - 1; i++) {
 		page_zip_stat_t*	zip_stat = &page_zip_stat[i];
 		int col = -1;
-		table->field[++col]->store(UNIV_ZIP_SIZE_MIN << i);
+		table->field[++col]->store(PAGE_ZIP_MIN_SIZE << i);
 
 		/* The cumulated counts are not protected by any
 		mutex.  Thus, some operation in page0zip.c could
