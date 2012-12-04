@@ -21,7 +21,7 @@ index dc2e2bb..3bb0a85 100644
  btr_node_ptr_get_child(
  /*===================*/
 diff --git a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
-index 1b90988..cc73dab 100644
+index b075eef..d7e2d5d 100644
 --- a/storage/innodb_plugin/buf/buf0buf.c
 +++ b/storage/innodb_plugin/buf/buf0buf.c
 @@ -450,7 +450,7 @@ buf_page_is_corrupted(
@@ -33,7 +33,20 @@ index 1b90988..cc73dab 100644
  	if (recv_lsn_checks_on) {
  		ib_uint64_t	current_lsn;
  
-@@ -3003,7 +3003,7 @@ corrupt:
+@@ -2120,10 +2120,12 @@ wait_until_unfixed:
+ 			    buf_block_get_page_no(block)) == 0);
+ #endif
+ 
++#ifdef UNDEFINED
+ 	// Update working set size
+ 	if (mode != BUF_PEEK_IF_IN_POOL && space != 0 && block->db_stats_index != 0) {
+ 		update_global_db_stats_access(block->db_stats_index, space, offset);
+ 	}
++#endif
+ 	
+ 	return(block);
+ }
+@@ -3025,7 +3027,7 @@ corrupt:
  			recv_recover_page(TRUE, (buf_block_t*) bpage);
  		}
  
@@ -158,7 +171,7 @@ index d5457a8..9baf678 100644
  
  		node->index = dict_index_get_if_in_cache_low(index_id);
 diff --git a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
-index caaa593..0bbc49e 100644
+index 2118f40..71ada74 100644
 --- a/storage/innodb_plugin/fil/fil0fil.c
 +++ b/storage/innodb_plugin/fil/fil0fil.c
 @@ -56,6 +56,7 @@ Created 10/25/1995 Heikki Tuuri
@@ -242,7 +255,17 @@ index caaa593..0bbc49e 100644
  }
  
  /**********************************************************************//**
-@@ -1729,7 +1744,12 @@ fil_space_get_size(
+@@ -1355,7 +1370,9 @@ fil_space_create(
+ 	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
+ 
+ 	parse_db_and_table(name, db_name, table_name, purpose, id);
++#ifdef UNDEFINED
+     db_stats_index = get_db_stats_index(db_name);
++#endif
+ 
+ try_again:
+ 	/*printf(
+@@ -1732,7 +1749,12 @@ fil_space_get_size(
  		the file yet; the following calls will open it and update the
  		size fields */
  
@@ -256,7 +279,7 @@ index caaa593..0bbc49e 100644
  		fil_node_complete_io(node, fil_system, OS_FILE_READ);
  	}
  
-@@ -1781,7 +1801,12 @@ fil_space_get_flags(
+@@ -1784,7 +1806,12 @@ fil_space_get_flags(
  		the file yet; the following calls will open it and update the
  		size fields */
  
@@ -270,7 +293,7 @@ index caaa593..0bbc49e 100644
  		fil_node_complete_io(node, fil_system, OS_FILE_READ);
  	}
  
-@@ -2232,7 +2257,7 @@ fil_create_directory_for_tablename(
+@@ -2235,7 +2262,7 @@ fil_create_directory_for_tablename(
  	mem_free(path);
  }
  
@@ -279,7 +302,7 @@ index caaa593..0bbc49e 100644
  /********************************************************//**
  Writes a log record about an .ibd file create/rename/delete. */
  static
-@@ -2456,7 +2481,7 @@ fil_op_log_parse_or_replay(
+@@ -2459,7 +2486,7 @@ fil_op_log_parse_or_replay(
  			if (fil_create_new_single_table_tablespace(
  				    space_id, name, FALSE, flags,
  				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
@@ -288,7 +311,7 @@ index caaa593..0bbc49e 100644
  			}
  		}
  
-@@ -2627,7 +2652,7 @@ try_again:
+@@ -2630,7 +2657,7 @@ try_again:
  	}
  
  	if (success) {
@@ -297,7 +320,7 @@ index caaa593..0bbc49e 100644
  		/* Write a log record about the deletion of the .ibd
  		file, so that ibbackup can replay it in the
  		--apply-log phase. We use a dummy mtr and the familiar
-@@ -2985,7 +3010,7 @@ retry:
+@@ -2988,7 +3015,7 @@ retry:
  
  	mutex_exit(&fil_system->mutex);
  
@@ -306,7 +329,7 @@ index caaa593..0bbc49e 100644
  	if (success) {
  		mtr_t		mtr;
  
-@@ -3175,7 +3200,7 @@ error_exit2:
+@@ -3178,7 +3205,7 @@ error_exit2:
  
  	fil_node_create(path, size, space_id, FALSE);
  
@@ -315,7 +338,7 @@ index caaa593..0bbc49e 100644
  	{
  		mtr_t		mtr;
  
-@@ -3436,19 +3461,97 @@ fil_open_single_table_tablespace(
+@@ -3439,19 +3466,97 @@ fil_open_single_table_tablespace(
  		      "InnoDB: open the tablespace file ", stderr);
  		ut_print_filename(stderr, filepath);
  		fputs("!\n"
@@ -423,7 +446,7 @@ index caaa593..0bbc49e 100644
  		return(FALSE);
  	}
  
-@@ -4347,7 +4450,7 @@ fil_make_ibbackup_old_name(
+@@ -4350,7 +4455,7 @@ fil_make_ibbackup_old_name(
  /********************************************************************//**
  Opens an .ibd file and adds the associated single-table tablespace to the
  InnoDB fil0fil.c data structures. */
@@ -432,7 +455,7 @@ index caaa593..0bbc49e 100644
  void
  fil_load_single_table_tablespace(
  /*=============================*/
-@@ -4386,7 +4489,7 @@ fil_load_single_table_tablespace(
+@@ -4389,7 +4494,7 @@ fil_load_single_table_tablespace(
  # endif /* !UNIV_HOTBACKUP */
  #endif
  	file = os_file_create_simple_no_error_handling(
@@ -441,7 +464,7 @@ index caaa593..0bbc49e 100644
  	if (!success) {
  		/* The following call prints an error message */
  		os_file_get_last_error(TRUE);
-@@ -4485,7 +4588,7 @@ fil_load_single_table_tablespace(
+@@ -4488,7 +4593,7 @@ fil_load_single_table_tablespace(
  	cannot be ok. */
  
  	size = (((ib_int64_t)size_high) << 32) + (ib_int64_t)size_low;
@@ -450,7 +473,7 @@ index caaa593..0bbc49e 100644
  	if (size < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
  		fprintf(stderr,
  			"InnoDB: Error: the size of single-table tablespace"
-@@ -4626,7 +4729,7 @@ directory. We retry 100 times if os_file_readdir_next_file() returns -1. The
+@@ -4629,7 +4734,7 @@ directory. We retry 100 times if os_file_readdir_next_file() returns -1. The
  idea is to read as much good data as we can and jump over bad data.
  @return 0 if ok, -1 if error even after the retries, 1 if at the end
  of the directory */
@@ -459,7 +482,7 @@ index caaa593..0bbc49e 100644
  int
  fil_file_readdir_next_file(
  /*=======================*/
-@@ -4925,15 +5028,97 @@ fil_space_for_table_exists_in_mem(
+@@ -4928,15 +5033,97 @@ fil_space_for_table_exists_in_mem(
  				"InnoDB: in InnoDB data dictionary"
  				" has tablespace id %lu,\n"
  				"InnoDB: but tablespace with that id"
@@ -565,7 +588,7 @@ index caaa593..0bbc49e 100644
  		} else {
  			ut_print_timestamp(stderr);
  			fputs("  InnoDB: Error: table ", stderr);
-@@ -5339,7 +5524,7 @@ pending i/o's field in the node and the system appropriately. Takes the node
+@@ -5342,7 +5529,7 @@ pending i/o's field in the node and the system appropriately. Takes the node
  off the LRU list if it is in the LRU list. The caller must hold the fil_sys
  mutex. */
  static
@@ -574,7 +597,7 @@ index caaa593..0bbc49e 100644
  fil_node_prepare_for_io(
  /*====================*/
  	fil_node_t*	node,	/*!< in: file node */
-@@ -5359,10 +5544,13 @@ fil_node_prepare_for_io(
+@@ -5362,10 +5549,13 @@ fil_node_prepare_for_io(
  	}
  
  	if (node->open == FALSE) {
@@ -589,7 +612,7 @@ index caaa593..0bbc49e 100644
  	}
  
  	if (node->n_pending == 0 && space->purpose == FIL_TABLESPACE
-@@ -5375,6 +5563,8 @@ fil_node_prepare_for_io(
+@@ -5378,6 +5568,8 @@ fil_node_prepare_for_io(
  	}
  
  	node->n_pending++;
@@ -598,7 +621,7 @@ index caaa593..0bbc49e 100644
  }
  
  /********************************************************************//**
-@@ -5573,6 +5763,16 @@ _fil_io(
+@@ -5576,6 +5768,16 @@ _fil_io(
  
  	ut_ad((mode != OS_AIO_IBUF) || (space->purpose == FIL_TABLESPACE));
  
@@ -616,10 +639,10 @@ index caaa593..0bbc49e 100644
  
  	for (;;) {
 diff --git a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
-index fd2327a..7c50ef1 100644
+index ab21ef6..7e4da7a 100644
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -12812,28 +12812,32 @@ static MYSQL_SYSVAR_BOOL(adaptive_hash_latch_cache,
+@@ -12750,28 +12750,32 @@ static MYSQL_SYSVAR_BOOL(adaptive_hash_latch_cache,
    NULL, NULL, TRUE);
  
  static MYSQL_SYSVAR_UINT(compression_level, page_compression_level,
@@ -659,9 +682,9 @@ index fd2327a..7c50ef1 100644
 +  "is read-only.",
    NULL, NULL, 0, 0, 4, 0);
  
- static MYSQL_SYSVAR_ULONGLONG(fsync_freq, os_fsync_freq,
+ static MYSQL_SYSVAR_ULONG(expand_import, srv_expand_import,
 diff --git a/storage/innodb_plugin/ibuf/ibuf0ibuf.c b/storage/innodb_plugin/ibuf/ibuf0ibuf.c
-index 69cb5d6..53e8576 100644
+index ffd148d..7a2c9d0 100644
 --- a/storage/innodb_plugin/ibuf/ibuf0ibuf.c
 +++ b/storage/innodb_plugin/ibuf/ibuf0ibuf.c
 @@ -1061,6 +1061,9 @@ ibuf_page(
@@ -733,7 +756,7 @@ index 9f334a3..33fe671 100644
  /********************************************************//**
  Reset the state of the recovery system variables. */
 diff --git a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
-index bcb0c1c..1dfc5f2 100644
+index 70af40c..662ea5a 100644
 --- a/storage/innodb_plugin/include/srv0srv.h
 +++ b/storage/innodb_plugin/include/srv0srv.h
 @@ -117,6 +117,8 @@ on duplicate key checking and foreign key checking */
@@ -1198,10 +1221,10 @@ index d65503b..7487128 100644
  	recv_recovery_on = TRUE;
  	recv_recovery_from_backup_on = TRUE;
 diff --git a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0file.c
-index f0d358f..30dd3ae 100644
+index 7516d20..e101947 100644
 --- a/storage/innodb_plugin/os/os0file.c
 +++ b/storage/innodb_plugin/os/os0file.c
-@@ -628,7 +628,7 @@ os_file_handle_error_no_exit(
+@@ -626,7 +626,7 @@ os_file_handle_error_no_exit(
  }
  
  #undef USE_FILE_LOCK
@@ -1210,7 +1233,7 @@ index f0d358f..30dd3ae 100644
  #if defined(UNIV_HOTBACKUP) || defined(__WIN__) || defined(__NETWARE__)
  /* InnoDB Hot Backup does not lock the data files.
   * On Windows, mandatory locking is used.
-@@ -1435,8 +1435,9 @@ try_again:
+@@ -1433,8 +1433,9 @@ try_again:
  		attributes = 0;
  		ut_error;
  	}
@@ -1221,7 +1244,7 @@ index f0d358f..30dd3ae 100644
  			  GENERIC_READ | GENERIC_WRITE, /* read and write
  							access */
  			  share_mode,	/* File can be read also by other
-@@ -1497,7 +1498,11 @@ try_again:
+@@ -1495,7 +1496,11 @@ try_again:
  	if (create_mode == OS_FILE_OPEN || create_mode == OS_FILE_OPEN_RAW
  	    || create_mode == OS_FILE_OPEN_RETRY) {
  		mode_str = "OPEN";
@@ -1233,7 +1256,7 @@ index f0d358f..30dd3ae 100644
  	} else if (create_mode == OS_FILE_CREATE) {
  		mode_str = "CREATE";
  		create_flag = O_RDWR | O_CREAT | O_EXCL;
-@@ -2787,6 +2792,9 @@ os_file_write(
+@@ -2773,6 +2778,9 @@ os_file_write(
  	ut_a((offset & 0xFFFFFFFFUL) == offset);
  	ut_a((n & 0xFFFFFFFFUL) == n);
  
@@ -1243,7 +1266,7 @@ index f0d358f..30dd3ae 100644
  	os_n_file_writes++;
  
  	ut_ad(file);
-@@ -2914,6 +2922,9 @@ retry:
+@@ -2900,6 +2908,9 @@ retry:
  
  retry_pwrite:
  
@@ -1288,7 +1311,7 @@ index 5bf722d..36b5851 100644
  }
  
 diff --git a/storage/innodb_plugin/page/page0zip.c b/storage/innodb_plugin/page/page0zip.c
-index cfdd138..d21fb3f 100644
+index 00414a6..b5e8632 100644
 --- a/storage/innodb_plugin/page/page0zip.c
 +++ b/storage/innodb_plugin/page/page0zip.c
 @@ -55,7 +55,7 @@ Created June 2005 by Marko Makela
@@ -1300,7 +1323,7 @@ index cfdd138..d21fb3f 100644
  
  /* Please refer to ../include/page0zip.ic for a description of the
  compressed page format. */
-@@ -1192,7 +1192,7 @@ mem_block_cache_t malloc_cache_compress_obj;
+@@ -1176,7 +1176,7 @@ mem_block_cache_t malloc_cache_compress_obj;
  mem_block_cache_t malloc_cache_decompress_obj;
  mem_block_cache_t* malloc_cache_compress;
  mem_block_cache_t* malloc_cache_decompress;
@@ -1309,7 +1332,7 @@ index cfdd138..d21fb3f 100644
  uint page_zip_zlib_strategy = Z_DEFAULT_STRATEGY;
  
  UNIV_INTERN
-@@ -5016,7 +5016,8 @@ page_zip_calc_checksum(
+@@ -4993,7 +4993,8 @@ page_zip_calc_checksum(
  {
  	if (UNIV_UNLIKELY(!srv_use_checksums))
  		return BUF_NO_CHECKSUM_MAGIC;
@@ -1372,7 +1395,7 @@ index e463e24..2cfbaca 100644
  	/* Read clustered index of the table and create files for
  	secondary index entries for merge sort */
 diff --git a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
-index 6ecaa25..65d3b6c 100644
+index 6fa7d9b..41a87b0 100644
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
 @@ -148,6 +148,8 @@ UNIV_INTERN ulint	srv_check_file_format_at_startup = DICT_TF_FORMAT_MAX;
