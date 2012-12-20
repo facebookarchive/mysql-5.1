@@ -9,6 +9,9 @@ ERROR 08004: Too many connections
 SELECT 'con1 should still exist';
 con1 should still exist
 con1 should still exist
+SHOW STATUS LIKE 'Connection_recycle_count';
+Variable_name	Value
+Connection_recycle_count	0
 set @@global.max_connections=2;
 set @@global.connection_recycle = 1;
 set @@global.connection_recycle_min_timeout_ms = 6000;
@@ -24,7 +27,7 @@ con3 should still exist
 SELECT 'con5 connect should succeed';
 con5 connect should succeed
 con5 connect should succeed
-SHOW STATUS LIKE 'connection_recycle_count';
+SHOW STATUS LIKE 'Connection_recycle_count';
 Variable_name	Value
 Connection_recycle_count	1
 SELECT 'con3 should have gone away';
@@ -61,7 +64,7 @@ SELECT 'con8 should still exist (in transaction)';
 con8 should still exist (in transaction)
 con8 should still exist (in transaction)
 ROLLBACK;
-SHOW STATUS LIKE 'connection_recycle_count';
+SHOW STATUS LIKE 'Connection_recycle_count';
 Variable_name	Value
 Connection_recycle_count	3
 set @@global.wait_timeout=4;
@@ -84,7 +87,7 @@ SELECT 'con9 should have gone away';
 Got one of the listed errors
 SELECT 'con10 should have gone away';
 Got one of the listed errors
-SHOW STATUS LIKE 'connection_recycle_count';
+SHOW STATUS LIKE 'Connection_recycle_count';
 Variable_name	Value
 Connection_recycle_count	3
 drop user 'foo'@'%';
