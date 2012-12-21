@@ -74,6 +74,7 @@
 #define LOG_READ_MEM    -5
 #define LOG_READ_TRUNC  -6
 #define LOG_READ_TOO_LARGE -7
+#define LOG_READ_BINLOG_LAST_VALID_POS -9
 
 #define LOG_EVENT_OFFSET 4
 
@@ -973,7 +974,7 @@ public:
                                    *description_event,
                                    int *read_length);
   static int read_log_event(IO_CACHE* file, String* packet,
-			    pthread_mutex_t* log_lock);
+			                      const char *log_file_name);
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG

@@ -334,6 +334,7 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
                         "use '--relay-log=%s' to avoid this problem.", ln);
       name_warning_sent= 1;
     }
+    rli->relay_log.is_relay_log= TRUE;
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
@@ -347,7 +348,6 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
       sql_print_error("Failed in open_log() called from init_relay_log_info()");
       DBUG_RETURN(1);
     }
-    rli->relay_log.is_relay_log= TRUE;
   }
 
 #ifdef HAVE_INNODB_BINLOG

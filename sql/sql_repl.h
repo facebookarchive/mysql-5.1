@@ -17,6 +17,7 @@
 
 #ifdef HAVE_REPLICATION
 #include "slave.h"
+#include "my_atomic.h"
 
 typedef struct st_slave_info
 {
@@ -35,6 +36,7 @@ extern bool server_id_supplied;
 
 extern int max_binlog_dump_events;
 extern my_bool opt_sporadic_binlog_dump_fail;
+extern int64 binlog_last_valid_pos;
 
 int start_slave(THD* thd, Master_info* mi, bool net_report);
 int stop_slave(THD* thd, Master_info* mi, bool net_report);
@@ -62,6 +64,16 @@ typedef struct st_load_file_info
 
 int log_loaded_block(IO_CACHE* file);
 int init_replication_sys_vars();
+
+inline void set_binlog_last_valid_pos(my_off_t pos)
+{
+  my_atomic_store64(&binlog_last_valid_pos, pos);
+}
+
+inline my_off_t get_binlog_last_valid_pos()
+{
+  return my_atomic_load64(&binlog_last_valid_pos);
+}
 
 #endif /* HAVE_REPLICATION */
 

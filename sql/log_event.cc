@@ -28,6 +28,7 @@
 
 #include "mysql_priv.h"
 #include "slave.h"
+#include "sql_repl.h"
 #include "rpl_rli.h"
 #include "rpl_mi.h"
 #include "rpl_filter.h"
@@ -1061,15 +1062,42 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 */
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
-			      pthread_mutex_t* log_lock)
+			                        const char *log_file_name)
 {
   ulong data_len;
   int result=0;
   char buf[LOG_EVENT_MINIMAL_HEADER_LEN];
   DBUG_ENTER("Log_event::read_log_event");
+  
+  /*
+    If the log_file_name is active and we have read up to
+    binlog_last_valid_pos, return LOG_READ_BINLOG_LAST_VALID_POS so that IO
+    thread will wait until binlog is updated
+  */
+  /*
+    Note that even though is_active can give stale value, it doesn't cause
+    problems. Let's say is_active is true although it's actually false
+    this may or may not give LOG_READ_BINLOG_LAST_VALID_POS depending on
+    second condition. If it doesn't give LOG_READ_BINLOG_LAST_VALID_POS,
+    it's fine because we should anyway need to read.
+  
+    If it gives LOG_READ_BINLOG_LAST_VALID_POS, there is is_active check
+    after acquiring lock_log in mysql_binlog_send before going to wait for
+    binlog update. Acquiring log_lock each time we read an event increases
+    mutex contention. This corner case occurs rarely only during binlog is
+    rotated.
 
-  if (log_lock)
-    pthread_mutex_lock(log_lock);
+    get_binlog_last_valid_pos() == my_b_tell(file) ensures that we don't read
+    past the last valid position in binlog.
+  */
+  
+  if (mysql_bin_log.is_active(log_file_name) &&
+      get_binlog_last_valid_pos() == my_b_tell(file))
+  {
+    result = LOG_READ_BINLOG_LAST_VALID_POS;
+    goto end;
+  }
+
   if (my_b_read(file, (uchar*) buf, sizeof(buf)))
   {
     /*
@@ -1126,8 +1154,6 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   }
 
 end:
-  if (log_lock)
-    pthread_mutex_unlock(log_lock);
   DBUG_RETURN(result);
 }
 #endif /* !MYSQL_CLIENT */

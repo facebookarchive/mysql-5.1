@@ -508,6 +508,7 @@ my_bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
 bool opt_endinfo, using_udf_functions;
 my_bool locked_in_memory;
+int64 binlog_last_valid_pos;
 bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
@@ -8780,6 +8781,7 @@ static int mysql_init_variables(void)
     master_ssl_capath= master_ssl_cipher= 0;
   report_user= report_password = report_host= 0;	/* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
+  my_atomic_store64(&binlog_last_valid_pos, 0);
 
   /* Variables in libraries */
   charsets_dir= 0;

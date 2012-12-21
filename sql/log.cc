@@ -2910,6 +2910,17 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
         my_sync(log_file.file, MYF(MY_WME)))
       goto err;
 
+    if (!is_relay_log)
+    {
+      /* 
+        If binlog_last_valid_pos is not set here, read_log_event in 
+        mysql_binlog_send() may hit EOF on the first read itself (since
+        binlog_last_valid_pos is initialized to 0) which causes to reopen
+        binlog again unnecessarily resulting in slowing down of reading
+        binlogs.
+      */
+      set_binlog_last_valid_pos(my_b_tell(&log_file));
+    }
     if (write_file_name_to_index_file)
     {
 #ifdef HAVE_REPLICATION
@@ -6316,6 +6327,15 @@ bool flush_error_log()
 
 void MYSQL_BIN_LOG::signal_update()
 {
+  /*
+    We shouldn't set binlog_last_valid_pos for relay log which results in
+    invalid value in the global variable binlog_last_valid_pos
+  */
+  if (!is_relay_log)
+  {
+      set_binlog_last_valid_pos(my_b_tell(&log_file));
+  }
+
   DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
   pthread_cond_broadcast(&update_cond);
   DBUG_VOID_RETURN;

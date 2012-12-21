@@ -415,7 +415,7 @@ bool purge_master_logs_before_date(THD* thd, time_t purge_time)
 
 int test_for_non_eof_log_read_errors(int error, const char **errmsg)
 {
-  if (error == LOG_READ_EOF)
+  if (error == LOG_READ_EOF || error == LOG_READ_BINLOG_LAST_VALID_POS)
     return 0;
   my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
   switch (error) {
@@ -524,14 +524,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   const char *errmsg = "Unknown error", *tmp_msg;
   NET* net = &thd->net;
   pthread_mutex_t *log_lock;
-  bool binlog_can_be_corrupted= FALSE;
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
 #endif
   int old_max_allowed_packet= thd->variables.max_allowed_packet;
-  /* Optimization for bugs.mysql.com 61545 to avoid holding LOCK_log while
-     reading old binlogs */
-  bool is_active = TRUE;
 
   /* This buffer should be enough for "slave offset: file_name file_pos".
      set_query(state_msg, ...) might be called so set_query("", 0) must be
@@ -619,8 +615,6 @@ impossible position";
     goto err;
   }
 
-  is_active = mysql_bin_log.is_active(log_file_name);
-
   /*
     We need to start a packet with something other than 255
     to distinguish it from error
@@ -695,7 +689,7 @@ impossible position";
        the binlog
      */
      if (!(error = Log_event::read_log_event(&log, packet,
-                                             is_active ? log_lock : NULL)))
+                                             linfo.log_file_name)))
      {
        /*
          The packet has offsets equal to the normal offsets in a binlog
@@ -706,8 +700,6 @@ impossible position";
                    (*packet)[EVENT_TYPE_OFFSET+1]));
        if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
        {
-         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+1] &
-                                       LOG_EVENT_BINLOG_IN_USE_F);
          (*packet)[FLAGS_OFFSET+1] &= ~LOG_EVENT_BINLOG_IN_USE_F;
          /*
            mark that this event with "log_pos=0", so the slave
@@ -762,11 +754,10 @@ impossible position";
   skip_state_update= 0;
   while (!net->error && net->vio != 0 && !thd->killed)
   {
-    my_off_t prev_pos= pos;
+    bool goto_next_binlog = false;
     while (!(error = Log_event::read_log_event(&log, packet,
-                                               is_active ? log_lock: NULL)))
+                                               linfo.log_file_name)))
     {
-      prev_pos= my_b_tell(&log);
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
       {
@@ -795,23 +786,10 @@ impossible position";
                                log_file_name, my_b_tell(&log),
                                &skip_state_update);
 
-      /* If log_file_name is the current binlog, is_active must be set */
-      DBUG_ASSERT(!(mysql_bin_log.is_active(log_file_name) && !is_active));
-      if (mysql_bin_log.is_active(log_file_name) && !is_active)
-      {
-        errmsg = "bad state in mysql_binlog_send";
-        my_errno= ER_UNKNOWN_ERROR;
-        goto err;
-      }
-
       if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
       {
-        binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+1] &
-                                      LOG_EVENT_BINLOG_IN_USE_F);
         (*packet)[FLAGS_OFFSET+1] &= ~LOG_EVENT_BINLOG_IN_USE_F;
       }
-      else if ((*packet)[EVENT_TYPE_OFFSET+1] == STOP_EVENT)
-        binlog_can_be_corrupted= FALSE;
 
       if ((tmp_msg= send_event_to_slave(thd, net, packet)))
       {
@@ -853,18 +831,10 @@ impossible position";
       here we were reading binlog that was not closed properly (as a result
       of a crash ?). treat any corruption as EOF
     */
-    if (error != LOG_READ_EOF)
+    if (error != LOG_READ_EOF && error != LOG_READ_BINLOG_LAST_VALID_POS)
     {
       sql_print_information("Error: mysql_binlog_send got read_log_event "
                             "error %s (%d) ", map_log_read_error(error), error);
-    }
-
-    if (binlog_can_be_corrupted &&
-        error != LOG_READ_MEM && error != LOG_READ_EOF)
-    {
-      sql_print_information("Changed read_log_event error to LOG_READ_EOF");
-      my_b_seek(&log, prev_pos);
-      error=LOG_READ_EOF;
     }
 
     /*
@@ -876,9 +846,8 @@ impossible position";
     */
     if (test_for_non_eof_log_read_errors(error, &errmsg))
       goto err;
-
-    if (!(flags & BINLOG_DUMP_NON_BLOCK) &&
-        mysql_bin_log.is_active(log_file_name))
+ 
+    if (!(flags & BINLOG_DUMP_NON_BLOCK) && error != LOG_READ_EOF)
     {
       /*
 	Block until there is more data in the log
@@ -921,21 +890,52 @@ impossible position";
           has not been updated since last read.
 	*/
 
-	pthread_mutex_lock(log_lock);
-	switch (error= Log_event::read_log_event(&log, packet, (pthread_mutex_t*) 0)) {
+	switch (error= Log_event::read_log_event(&log, packet, linfo.log_file_name)) {
 	case 0:
 	  /* we read successfully, so we'll need to send it to the slave */
-	  pthread_mutex_unlock(log_lock);
 	  read_packet = 1;
 	  break;
 
-	case LOG_READ_EOF:
+  case LOG_READ_EOF:
+    goto_next_binlog = true;
+    break;
+
+	case LOG_READ_BINLOG_LAST_VALID_POS:
+    pthread_mutex_lock(log_lock);
+    /*
+       We might have got stale value from is_active in read_log_event.
+       Make sure the current binlog file is active. This is an edge case
+       where is_active in read_log_event is true and sends LOG_READ_
+       BINLOG_LAST_VALID_POS. It is not necessary to wait for
+       signal_update if the binlog is not active. Instead break and read
+       again which causes us to eventually read all events and open
+       the next binlog file.
+    */
+    if (!mysql_bin_log.is_active(log_file_name))
+    {
+      pthread_mutex_unlock(log_lock);
+      break;
+    }
+    /*
+      This is also to avoid an edge case where before acquiring
+      log_lock here binlog_last_valid_pos may be updated in first step of 
+      ordered_commit() which causes us to miss binlog update. Then we
+      must wait until next signal_update() which is not necessary if 
+      we check that there is a scope for next read.
+    */
+    if (my_b_tell(&log) < get_binlog_last_valid_pos())
+    {
+      pthread_mutex_unlock(log_lock);
+      break;
+    }
+   
+    if (thd->server_id==0) // for mysqlbinlog (mysqlbinlog.server_id==0)
+    {
+      pthread_mutex_unlock(log_lock);
+      goto end;
+    }
+
 	  DBUG_PRINT("wait",("waiting for data in binary log"));
-	  if (thd->server_id==0) // for mysqlbinlog (mysqlbinlog.server_id==0)
-	  {
-	    pthread_mutex_unlock(log_lock);
-	    goto end;
-	  }
 	  if (!thd->killed)
 	  {
 	    /* Note that the following call unlocks lock_log */
@@ -949,7 +949,6 @@ impossible position";
 	  break;
 
 	default:
-	  pthread_mutex_unlock(log_lock);
           test_for_non_eof_log_read_errors(error, &errmsg);
           goto err;
 	}
@@ -977,15 +976,13 @@ impossible position";
       }
     }
     else
+      goto_next_binlog = true;
+    if (goto_next_binlog)
     {
       bool loop_breaker = 0;
       /* need this to break out of the for loop from switch */
 
       my_off_t old_offset = linfo.index_file_offset;
-      char old_log_file_name[FN_REFLEN+1];
-
-      /* Keep the old filename. */
-      strmake(old_log_file_name, log_file_name, FN_REFLEN);
 
       thd_proc_info(thd, "Finished reading one binlog; switching to next binlog");
       skip_state_update= 0;
@@ -1010,21 +1007,7 @@ impossible position";
 
       end_io_cache(&log);
       (void) my_close(file, MYF(MY_WME));
-
-      /*
-         Confirm the same binlog is not served twice because filenames are stored in
-         a .index file.
-       */
-      if (strcmp(old_log_file_name, log_file_name) >= 0)
-      {
-	errmsg = "Re-serving an already served binlog file.";
-	my_errno = ER_MASTER_FATAL_ERROR_READING_BINLOG;
-
-        binlog_switch_file_error(&mysql_bin_log, old_offset, log_file_name,
-                                 &linfo);
-	goto err;
-      }
-
+       
       /*
         Call fake_rotate_event() in case the previous log (the one which
         we have just finished reading) did not contain a Rotate event
@@ -1044,7 +1027,6 @@ impossible position";
 	goto err;
       }
       DBUG_PRINT("info", ("Binlog filename: new binlog %s", log_file_name));
-      is_active = mysql_bin_log.is_active(log_file_name);
 
       packet->length(0);
       packet->append('\0');

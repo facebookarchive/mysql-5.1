@@ -128,11 +128,13 @@ make_atomic_add(64)
 make_atomic_load( 8)
 make_atomic_load(16)
 make_atomic_load(32)
+make_atomic_load(64)
 make_atomic_load(ptr)
 
 make_atomic_store( 8)
 make_atomic_store(16)
 make_atomic_store(32)
+make_atomic_store(64)
 make_atomic_store(ptr)
 
 make_atomic_swap( 8)
