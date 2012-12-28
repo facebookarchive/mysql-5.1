@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop table if exists t1;
 SET @@global.rpl_event_buffer_size=16384;
 SELECT @@global.rpl_event_buffer_size;
@@ -30,3 +26,4 @@ length(f1)	md5(f1)
 ==== clean up ====
 DROP TABLE t1;
 SET @@global.rpl_event_buffer_size= 1048576;
+include/rpl_end.inc

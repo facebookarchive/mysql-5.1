@@ -34,17 +34,13 @@ USE test;
 #
 SET @old_log_warnings = @@log_warnings;
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (a VARCHAR(36), b VARCHAR(10));
+CREATE TABLE t1 (a VARCHAR(36), b VARCHAR(15));
 SET GLOBAL LOG_WARNINGS = 0;
-INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
-Warnings:
-Note	1592	Statement may not be safe to log in statement format.
-SET GLOBAL LOG_WARNINGS = 1;
-INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
+INSERT INTO t1 VALUES(UUID(), 'timestamp');
 Warnings:
 Note	1592	Statement may not be safe to log in statement format.
 SET GLOBAL LOG_WARNINGS = 2;
-INSERT INTO t1 VALUES(UUID(), 'Bug#46265');
+INSERT INTO t1 VALUES(UUID(), 'timestamp');
 Warnings:
 Note	1592	Statement may not be safe to log in statement format.
 DROP TABLE t1;
@@ -70,9 +66,9 @@ set @@global.log_warnings= 0;
 select @@global.log_warnings;
 @@global.log_warnings
 0
-UPDATE t1 SET inUseBy='me' WHERE inUseBy='--log-warnings < 2' limit 1;
+UPDATE t1 SET inUseBy='me' WHERE inUseBy='timestamp --log-warnings < 2' limit 1;
 # When the --log-warnings is set to 0, Test the unsafe
-# warning will be displayed by 'SHOW WARNINGS', but it will not 
+# warning will be displayed by 'SHOW WARNINGS', but it will not
 # be written to error log.
 SHOW WARNINGS;
 Level	Code	Message
@@ -81,9 +77,9 @@ set @@global.log_warnings= 1;
 select @@global.log_warnings;
 @@global.log_warnings
 1
-UPDATE t1 SET inUseBy='me' WHERE inUseBy='--log-warnings < 2' limit 2;
+UPDATE t1 SET inUseBy='me' WHERE inUseBy='timestamp --log-warnings < 2' limit 2;
 # When the --log-warnings is set to 1, Test the unsafe
-# warning will be displayed by 'SHOW WARNINGS', but it will not 
+# warning will be displayed by 'SHOW WARNINGS', but it will not
 # be written to error log.
 SHOW WARNINGS;
 Level	Code	Message
@@ -92,9 +88,9 @@ set @@global.log_warnings= 2;
 select @@global.log_warnings;
 @@global.log_warnings
 2
-UPDATE t1 SET inUseBy='me' WHERE inUseBy='--log-warnings >= 2' limit 3;
+UPDATE t1 SET inUseBy='me' WHERE inUseBy='timestamp --log-warnings >= 2' limit 3;
 # When the --log-warnings is set to 2, Test the unsafe
-# warning will be displayed by 'SHOW WARNINGS', and it also will 
+# warning will be displayed by 'SHOW WARNINGS', and it also will
 # be written to error log.
 SHOW WARNINGS;
 Level	Code	Message
@@ -103,9 +99,9 @@ set @@global.log_warnings= 3;
 select @@global.log_warnings;
 @@global.log_warnings
 3
-UPDATE t1 SET inUseBy='me' WHERE inUseBy='--log-warnings >= 2' limit 4;
+UPDATE t1 SET inUseBy='me' WHERE inUseBy='timestamp --log-warnings >= 2' limit 4;
 # When the --log-warnings is set to 3, Test the unsafe
-# warning will be displayed by 'SHOW WARNINGS', and it also will 
+# warning will be displayed by 'SHOW WARNINGS', and it also will
 # be written to error log.
 SHOW WARNINGS;
 Level	Code	Message
@@ -114,9 +110,9 @@ set @@global.log_warnings= 500;
 select @@global.log_warnings;
 @@global.log_warnings
 500
-UPDATE t1 SET inUseBy='me' WHERE inUseBy='--log-warnings >= 2' limit 5;
+UPDATE t1 SET inUseBy='me' WHERE inUseBy='timestamp --log-warnings >= 2' limit 5;
 # When the --log-warnings is set to 500, Test the unsafe
-# warning will be displayed by 'SHOW WARNINGS', and it also will 
+# warning will be displayed by 'SHOW WARNINGS', and it also will
 # be written to error log.
 SHOW WARNINGS;
 Level	Code	Message

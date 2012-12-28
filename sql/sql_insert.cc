@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Insert of records */
 
@@ -61,6 +62,8 @@
 #include "sql_show.h"
 #include "slave.h"
 #include "rpl_mi.h"
+#include "debug_sync.h"
+
 #include "debug_sync.h"
 
 #ifndef EMBEDDED_LIBRARY
@@ -631,7 +634,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   lock_type= table_list->lock_type;
 
   thd_proc_info(thd, "init");
-  thd->used_tables=0;
+  thd->lex->used_tables=0;
   values= its++;
   value_count= values->elements;
 
@@ -786,7 +789,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     else
     {
-      if (thd->used_tables)			// Column used in values()
+      if (thd->lex->used_tables)		      // Column used in values()
 	restore_record(table,s->default_values);	// Get empty record
       else
       {
@@ -1418,6 +1421,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	error= HA_ERR_FOUND_DUPP_KEY;         /* Database can't find key */
 	goto err;
       }
+      DEBUG_SYNC(thd, "write_row_replace");
+
       /* Read all columns for the row we are going to replace */
       table->use_all_columns();
       /*
@@ -1491,9 +1496,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           table->file->adjust_next_insert_id_after_explicit_value(
             table->next_number_field->val_int());
         info->touched++;
-        if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
-             !bitmap_is_subset(table->write_set, table->read_set)) ||
-            compare_record(table))
+        if (!records_are_comparable(table) || compare_records(table))
         {
           if ((error=table->file->ha_update_row(table->record[1],
                                                 table->record[0])) &&
@@ -1622,6 +1625,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
   }
   else if ((error=table->file->ha_write_row(table->record[0])))
   {
+    DEBUG_SYNC(thd, "write_row_noreplace");
     if (!info->ignore ||
         table->file->is_fatal_error(error, HA_CHECK_DUP))
       goto err;
@@ -3799,7 +3803,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   if (table->s->fields < values.elements)
   {
-    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1);
+    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
     DBUG_RETURN(-1);
   }
 

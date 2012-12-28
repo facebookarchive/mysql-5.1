@@ -58,14 +58,17 @@ CONFIG_HEADER = $(top_builddir)/include/config.h
 CONFIG_CLEAN_FILES =
 LIBRARIES = $(noinst_LIBRARIES)
 libedit_a_AR = $(AR) $(ARFLAGS)
-am_libedit_a_OBJECTS = chared.$(OBJEXT) el.$(OBJEXT) history.$(OBJEXT) \
-	map.$(OBJEXT) prompt.$(OBJEXT) readline.$(OBJEXT) \
-	search.$(OBJEXT) tokenizer.$(OBJEXT) vi.$(OBJEXT) \
-	common.$(OBJEXT) emacs.$(OBJEXT) hist.$(OBJEXT) key.$(OBJEXT) \
-	parse.$(OBJEXT) read.$(OBJEXT) refresh.$(OBJEXT) sig.$(OBJEXT) \
-	term.$(OBJEXT) tty.$(OBJEXT) help.$(OBJEXT) fcns.$(OBJEXT) \
+am_libedit_a_OBJECTS = chared.$(OBJEXT) el.$(OBJEXT) eln.$(OBJEXT) \
+	history.$(OBJEXT) historyn.$(OBJEXT) map.$(OBJEXT) \
+	prompt.$(OBJEXT) chartype.$(OBJEXT) readline.$(OBJEXT) \
+	search.$(OBJEXT) tokenizer.$(OBJEXT) tokenizern.$(OBJEXT) \
+	vi.$(OBJEXT) common.$(OBJEXT) emacs.$(OBJEXT) hist.$(OBJEXT) \
+	keymacro.$(OBJEXT) parse.$(OBJEXT) read.$(OBJEXT) \
+	refresh.$(OBJEXT) sig.$(OBJEXT) terminal.$(OBJEXT) \
+	tty.$(OBJEXT) help.$(OBJEXT) fcns.$(OBJEXT) \
 	filecomplete.$(OBJEXT) unvis.$(OBJEXT) strlcpy.$(OBJEXT) \
-	vis.$(OBJEXT) strlcat.$(OBJEXT) fgetln.$(OBJEXT)
+	vis.$(OBJEXT) strlcat.$(OBJEXT) fgetln.$(OBJEXT) \
+	wcsdup.$(OBJEXT)
 libedit_a_OBJECTS = $(am_libedit_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -350,8 +353,6 @@ plugin_ftexample_shared_target = @plugin_ftexample_shared_target@
 plugin_ftexample_static_target = @plugin_ftexample_static_target@
 plugin_heap_shared_target = @plugin_heap_shared_target@
 plugin_heap_static_target = @plugin_heap_static_target@
-plugin_ibmdb2i_shared_target = @plugin_ibmdb2i_shared_target@
-plugin_ibmdb2i_static_target = @plugin_ibmdb2i_static_target@
 plugin_innobase_shared_target = @plugin_innobase_shared_target@
 plugin_innobase_static_target = @plugin_innobase_static_target@
 plugin_innodb_plugin_shared_target = @plugin_innodb_plugin_shared_target@
@@ -367,8 +368,6 @@ plugin_partition_static_target = @plugin_partition_static_target@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
-pstack_dir = @pstack_dir@
-pstack_libs = @pstack_libs@
 readline_basedir = @readline_basedir@
 readline_dir = @readline_dir@
 readline_h_ln_cmd = @readline_h_ln_cmd@
@@ -403,18 +402,18 @@ ASRC = $(srcdir)/vi.c $(srcdir)/emacs.c $(srcdir)/common.c
 AHDR = vi.h emacs.h common.h
 INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include
 noinst_LIBRARIES = libedit.a
-libedit_a_SOURCES = chared.c el.c history.c map.c prompt.c readline.c \
-			search.c tokenizer.c vi.c common.c emacs.c \
-			hist.c key.c parse.c read.c refresh.c sig.c term.c \
+libedit_a_SOURCES = chared.c el.c eln.c history.c historyn.c map.c prompt.c chartype.c \
+			readline.c search.c tokenizer.c tokenizern.c vi.c common.c emacs.c \
+			hist.c keymacro.c parse.c read.c refresh.c sig.c terminal.c \
 			tty.c help.c fcns.c filecomplete.c \
 			np/unvis.c np/strlcpy.c np/vis.c np/strlcat.c \
-			np/fgetln.c
+			np/fgetln.c np/wcsdup.c
 
 libedit_a_LIBADD = @LIBEDIT_LOBJECTS@
 libedit_a_DEPENDENCIES = @LIBEDIT_LOBJECTS@
 pkginclude_HEADERS = readline/readline.h
-noinst_HEADERS = chared.h el.h el_term.h histedit.h key.h parse.h refresh.h sig.h \
-			sys.h config.h hist.h map.h prompt.h read.h \
+noinst_HEADERS = chared.h chartype.h el.h el_terminal.h histedit.h keymacro.h parse.h \
+			refresh.h sig.h sys.h config.h hist.h map.h prompt.h read.h \
 			search.h tty.h filecomplete.h np/vis.h
 
 EXTRA_DIST = makelist.sh
@@ -468,8 +467,10 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chared.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/chartype.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/common.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/el.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eln.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emacs.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fcns.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fgetln.Po@am__quote@
@@ -477,7 +478,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/help.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hist.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/history.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/key.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/historyn.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/keymacro.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/map.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parse.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/prompt.Po@am__quote@
@@ -488,12 +490,14 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sig.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strlcat.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strlcpy.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/term.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/terminal.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tokenizer.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tokenizern.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tty.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/unvis.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vi.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vis.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wcsdup.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -585,6 +589,20 @@ fgetln.obj: np/fgetln.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='np/fgetln.c' object='fgetln.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o fgetln.obj `if test -f 'np/fgetln.c'; then $(CYGPATH_W) 'np/fgetln.c'; else $(CYGPATH_W) '$(srcdir)/np/fgetln.c'; fi`
+
+wcsdup.o: np/wcsdup.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT wcsdup.o -MD -MP -MF $(DEPDIR)/wcsdup.Tpo -c -o wcsdup.o `test -f 'np/wcsdup.c' || echo '$(srcdir)/'`np/wcsdup.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/wcsdup.Tpo $(DEPDIR)/wcsdup.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='np/wcsdup.c' object='wcsdup.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o wcsdup.o `test -f 'np/wcsdup.c' || echo '$(srcdir)/'`np/wcsdup.c
+
+wcsdup.obj: np/wcsdup.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT wcsdup.obj -MD -MP -MF $(DEPDIR)/wcsdup.Tpo -c -o wcsdup.obj `if test -f 'np/wcsdup.c'; then $(CYGPATH_W) 'np/wcsdup.c'; else $(CYGPATH_W) '$(srcdir)/np/wcsdup.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/wcsdup.Tpo $(DEPDIR)/wcsdup.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='np/wcsdup.c' object='wcsdup.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o wcsdup.obj `if test -f 'np/wcsdup.c'; then $(CYGPATH_W) 'np/wcsdup.c'; else $(CYGPATH_W) '$(srcdir)/np/wcsdup.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -831,22 +849,26 @@ fcns.c: ${AHDR} fcns.h makelist
 
 chared.o: vi.h emacs.h common.h help.h fcns.h
 el.o: vi.h emacs.h common.h help.h fcns.h
+eln.o: vi.h emacs.h common.h help.h fcns.h
 history.o: vi.h emacs.h common.h help.h fcns.h 
+historyn.o: vi.h emacs.h common.h help.h fcns.h 
 map.o: vi.h emacs.h common.h help.h fcns.h
+chartype.o: vi.h emacs.h common.h help.h fcns.h
 prompt.o: vi.h emacs.h common.h help.h fcns.h
 readline.o: vi.h emacs.h common.h help.h fcns.h
 search.o: vi.h emacs.h common.h help.h fcns.h
 tokenizer.o: vi.h emacs.h common.h help.h fcns.h
+tokenizern.o: vi.h emacs.h common.h help.h fcns.h
 vi.o: vi.h emacs.h common.h help.h fcns.h
 common.o: vi.h emacs.h common.h help.h fcns.h
 emacs.o: vi.h emacs.h common.h help.h fcns.h 
 hist.o: vi.h emacs.h common.h help.h fcns.h 
-key.o: vi.h emacs.h common.h help.h fcns.h 
+keymacro.o: vi.h emacs.h common.h help.h fcns.h 
 parse.o: vi.h emacs.h common.h help.h fcns.h
 read.o: vi.h emacs.h common.h help.h fcns.h
 refresh.o: vi.h emacs.h common.h help.h fcns.h
 sig.o: vi.h emacs.h common.h help.h fcns.h
-term.o: vi.h emacs.h common.h help.h fcns.h
+terminal.o: vi.h emacs.h common.h help.h fcns.h
 tty.o: vi.h emacs.h common.h help.h fcns.h 
 help.o: vi.h emacs.h common.h help.h fcns.h
 fcns.o: vi.h emacs.h common.h help.h fcns.h

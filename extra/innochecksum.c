@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2005 MySQL AB & Innobase Oy
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   InnoDB offline file checksum utility.  85% of the code in this file
@@ -23,16 +25,7 @@
   Published with a permission.
 */
 
-/* needed to have access to 64 bit file functions */
-#ifndef _LARGEFILE_SOURCE
-#define _LARGEFILE_SOURCE
-#endif
-#ifndef _LARGEFILE64_SOURCE
-#define _LARGEFILE64_SOURCE
-#endif
-
-#define _XOPEN_SOURCE 600 /* needed to include getopt.h on some platforms and get posix_fadvise */
-
+#include <my_global.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -206,7 +199,6 @@ ut_dulint_create(
 
 	return(res);
 }
-
 
 /* innodb function in name; modified slightly to not have the ASM version (lots of #ifs that didn't apply) */
 ulint mach_read_from_4(uchar *b)
@@ -609,7 +601,7 @@ int find_page_size(FILE *f, ulint *page_size, int *compressed, int debug)
     *compressed = 1;
     if (!*page_size)
       *page_size = ((ulint)PAGE_ZIP_MIN_SIZE >> 1) << zip_ssize;
-    if (*page_size != (PAGE_ZIP_MIN_SIZE >> 1) << zip_ssize) {
+    if (*page_size != ((ulint)PAGE_ZIP_MIN_SIZE >> 1) << zip_ssize) {
       fprintf(stderr, "Wrong page size is specified.\n"
                       "actual page size = %luK\n"
                       "specified page size = %luK\n"
@@ -635,7 +627,7 @@ int find_page_size(FILE *f, ulint *page_size, int *compressed, int debug)
     bytes= fread(p, 1, psize, f);
     rewind(f);
 
-    if (bytes != psize) {
+    if (bytes != (int)psize) {
        fprintf(stderr, "Error in reading the first %lu bytes of the ibd file."
                        "It may be that file is corrupt. You can also try "
                        "specifying page size (-b <size in kb>).\n", psize);
@@ -830,7 +822,7 @@ int main(int argc, char **argv)
       return 0;
     }
 
-    if (bytes != page_size)
+    if (bytes != (int)page_size)
     {
       fprintf(stderr, "bytes read (%d) doesn't match the page size (%lu)\n", bytes, page_size);
       print_stats();

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 STOP SLAVE;
 SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
 SELECT @@global.replicate_events_marked_for_skip;
@@ -154,6 +150,8 @@ BEGIN;
 INSERT INTO t1(a) VALUES (2);
 UPDATE t1 SET b=2 WHERE a=2;
 COMMIT;
+include/wait_for_slave_param.inc [Master_Log_File]
+include/wait_for_slave_param.inc [Read_Master_Log_Pos]
 STOP SLAVE IO_THREAD;
 SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
 START SLAVE;
@@ -176,6 +174,8 @@ BEGIN;
 INSERT INTO t1(a) VALUES (2);
 UPDATE t1 SET b=2 WHERE a=2;
 COMMIT;
+include/wait_for_slave_param.inc [Master_Log_File]
+include/wait_for_slave_param.inc [Read_Master_Log_Pos]
 STOP SLAVE IO_THREAD;
 SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
 START SLAVE;
@@ -199,6 +199,8 @@ BEGIN;
 INSERT INTO t1(a) VALUES (2);
 UPDATE t1 SET b=2 WHERE a=2;
 COMMIT;
+include/wait_for_slave_param.inc [Master_Log_File]
+include/wait_for_slave_param.inc [Read_Master_Log_Pos]
 STOP SLAVE IO_THREAD;
 SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
 START SLAVE;
@@ -211,3 +213,4 @@ DROP TABLE t1,t2;
 STOP SLAVE;
 SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
 START SLAVE;
+include/rpl_end.inc

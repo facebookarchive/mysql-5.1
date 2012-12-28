@@ -25,8 +25,9 @@ connection master;
 CREATE TABLE t1 (id INT, v int);
 sync_slave_with_master;
 
---echo Should be 1
-show global status like "Relay_log_io_connected";
+--disable_result_log
+--let $rlic_old = `show global status like 'Relay_log_io_connected';`
+--enable_result_log
 
 let $sbm = query_get_value(SHOW SLAVE STATUS, Seconds_Behind_Master, 1);
 --echo seconds_behind_master with reset should be 0 and is $sbm
@@ -62,8 +63,12 @@ stop slave;
 start slave;
 --source include/wait_for_slave_io_to_start.inc
 
---echo Should be 2
-show global status like "Relay_log_io_connected";
+--disable_result_log
+--let $rlic_new = `show global status like 'Relay_log_io_connected';`
+--enable_result_log
+--let diff = `SELECT ((substring('$rlic_new', 23)+0) - (substring('$rlic_old', 23)+0));`
+--echo Should be 1
+--echo $diff
 
 connection master;
 
@@ -74,4 +79,5 @@ connection master;
 connection master;
 DROP TABLE t1;
 sync_slave_with_master;
+stop slave;
 set global reset_seconds_behind_master=1;

@@ -73,8 +73,8 @@
 /* Define to 1 if you have the <asm/termbits.h> header file. */
 #undef HAVE_ASM_TERMBITS_H
 
-/* Define to 1 if you have the `atomic_add_long' function. */
-#undef HAVE_ATOMIC_ADD_LONG
+/* Define to 1 if you have the `atomic_add_long_nv' function. */
+#undef HAVE_ATOMIC_ADD_LONG_NV
 
 /* Define to 1 if you have the `atomic_cas_32' function. */
 #undef HAVE_ATOMIC_CAS_32
@@ -84,6 +84,9 @@
 
 /* Define to 1 if you have the `atomic_cas_ulong' function. */
 #undef HAVE_ATOMIC_CAS_ULONG
+
+/* Define to 1 if you have the `atomic_swap_uchar' function. */
+#undef HAVE_ATOMIC_SWAP_UCHAR
 
 /* Define to 1 if you have the `backtrace' function. */
 #undef HAVE_BACKTRACE
@@ -250,6 +253,14 @@
 /* Define to 1 if you have the <cxxabi.h> header file. */
 #undef HAVE_CXXABI_H
 
+/* Define to 1 if you have the declaration of `bzero', and to 0 if you don't.
+   */
+#undef HAVE_DECL_BZERO
+
+/* Define to 1 if you have the declaration of `fdatasync', and to 0 if you
+   don't. */
+#undef HAVE_DECL_FDATASYNC
+
 /* Define to 1 if you have the declaration of `madvise', and to 0 if you
    don't. */
 #undef HAVE_DECL_MADVISE
@@ -304,6 +315,9 @@
 /* Define to 1 if you have the `fdatasync' function. */
 #undef HAVE_FDATASYNC
 
+/* Define to 1 if you have the `fedisableexcept' function. */
+#undef HAVE_FEDISABLEEXCEPT
+
 /* Define to 1 if you have the <fenv.h> header file. */
 #undef HAVE_FENV_H
 
@@ -349,6 +363,15 @@
 /* Define to 1 if you have the `getcwd' function. */
 #undef HAVE_GETCWD
 
+/* Define to 1 if you have the `getegid' function. */
+#undef HAVE_GETEGID
+
+/* Define to 1 if you have the `geteuid' function. */
+#undef HAVE_GETEUID
+
+/* Define to 1 if you have the `getgid' function. */
+#undef HAVE_GETGID
+
 /* Define to 1 if you have the `gethostbyaddr_r' function. */
 #undef HAVE_GETHOSTBYADDR_R
 
@@ -391,6 +414,9 @@
 
 /* Define to 1 if you have the `getrusage' function. */
 #undef HAVE_GETRUSAGE
+
+/* Define to 1 if you have the `getuid' function. */
+#undef HAVE_GETUID
 
 /* Define to 1 if you have the `getwd' function. */
 #undef HAVE_GETWD
@@ -1190,6 +1216,9 @@
 /* The size of `short', as computed by sizeof. */
 #undef SIZEOF_SHORT
 
+/* The size of `time_t', as computed by sizeof. */
+#undef SIZEOF_TIME_T
+
 /* The size of `void*', as computed by sizeof. */
 #undef SIZEOF_VOIDP
 
@@ -1264,9 +1293,6 @@
    rl_compentry_func_t defined) */
 #undef USE_NEW_READLINE_INTERFACE
 
-/* the pstack backtrace library */
-#undef USE_PSTACK
-
 /* Version number of package */
 #undef VERSION
 
@@ -1290,9 +1316,6 @@
 
 /* Include Volatile memory based tables into mysqld */
 #undef WITH_HEAP_STORAGE_ENGINE
-
-/* Include IBM DB2 for i Storage Engine into mysqld */
-#undef WITH_IBMDB2I_STORAGE_ENGINE
 
 /* Include Transactional Tables using InnoDB into mysqld */
 #undef WITH_INNOBASE_STORAGE_ENGINE

@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* Classes in mysql */
@@ -1883,13 +1885,6 @@ public:
   */
   ha_rows    examined_row_count;
 
-  /*
-    The set of those tables whose fields are referenced in all subqueries
-    of the query.
-    TODO: possibly this it is incorrect to have used tables in THD because
-    with more than one subquery, it is not clear what does the field mean.
-  */
-  table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;
   /*
@@ -2097,6 +2092,7 @@ public:
   void cleanup(void);
   void cleanup_after_query();
   bool store_globals();
+  bool restore_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
   {
@@ -2206,7 +2202,7 @@ public:
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 
   { 
-    return (start_time < (time_t) MY_TIME_T_MAX); 
+    return (IS_TIME_T_VALID_FOR_TIMESTAMP(start_time));
   }
   void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
   ulonglong current_utime()  { return my_micro_time(); }
@@ -2361,8 +2357,6 @@ public:
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
-  bool is_context_analysis_only()
-    { return stmt_arena->is_stmt_prepare() || lex->view_prepare_mode; }
   void reset_n_backup_open_tables_state(Open_tables_state *backup);
   void restore_backup_open_tables_state(Open_tables_state *backup);
   void reset_sub_statement_state(Sub_statement_state *backup, uint new_state);
@@ -2525,9 +2519,8 @@ public:
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
-  void set_current_user_used() { current_user_used= TRUE; }
-  bool is_current_user_used() { return current_user_used; }
-  void clean_current_user_used() { current_user_used= FALSE; }
+  void binlog_invoker() { m_binlog_invoker= TRUE; }
+  bool need_binlog_invoker() { return m_binlog_invoker; }
   void get_definer(LEX_USER *definer);
   void set_invoker(const LEX_STRING *user, const LEX_STRING *host)
   {
@@ -2565,7 +2558,7 @@ private:
     Current user will be binlogged into Query_log_event if current_user_used
     is TRUE; It will be stored into invoker_host and invoker_user by SQL thread.
    */
-  bool current_user_used;
+  bool m_binlog_invoker;
 
   /**
     It points to the invoker in the Query_log_event.

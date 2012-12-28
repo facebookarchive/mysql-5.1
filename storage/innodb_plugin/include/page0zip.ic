@@ -408,9 +408,11 @@ page_zip_parse_compress_no_data(
 	page_zip_des_t*	page_zip, /*!< out: compressed page */
 	dict_index_t* index)
 {
+	uchar compression_flags;
+
 	if (end_ptr == ptr)
 		return NULL;
-	uchar compression_flags = mach_read_from_1(ptr);
+	compression_flags = mach_read_from_1(ptr);
 	/* If page compression fails then there must be something wrong
 	   because a compress log record is logged only if the compression
 	   was successful. Crash in this case. */

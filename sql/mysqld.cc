@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
@@ -86,10 +87,8 @@
 #endif
 
 /* stack traces are only supported on linux intel */
-#if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
+#if defined(__linux__)  && defined(__i386__)
 #define	HAVE_STACK_TRACE_ON_SEGV
-#include "../pstack/pstack.h"
-char pstack_file_name[80];
 #endif /* __linux__ */
 
 /* We have HAVE_purify below as this speeds up the shutdown of MySQL */
@@ -141,9 +140,6 @@ extern "C" {					// Because of SCO 3.2V4.2
 
 #ifdef __WIN__ 
 #include <crtdbg.h>
-#define SIGNAL_FMT "exception 0x%x"
-#else
-#define SIGNAL_FMT "signal %d"
 #endif
 
 #ifdef __NETWARE__
@@ -189,12 +185,12 @@ static void getvolumeID(BYTE *volumeName);
 int initgroups(const char *,unsigned int);
 #endif
 
-#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
+#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
 #include <ieeefp.h>
 #ifdef HAVE_FP_EXCEPT				// Fix type conflict
 typedef fp_except fp_except_t;
 #endif
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H && !HAVE_FEDISABLEEXCEPT */
 #ifdef HAVE_SYS_FPU_H
 /* for IRIX to use set_fpc_csr() */
 #include <sys/fpu.h>
@@ -220,19 +216,24 @@ extern "C" my_bool reopen_fstreams(const char *filename,
 
 inline void setup_fpu()
 {
-#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
+#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
   /* We can't handle floating point exceptions with threads, so disable
      this on freebsd
-     Don't fall for overflow, underflow,divide-by-zero or loss of precision
+     Don't fall for overflow, underflow,divide-by-zero or loss of precision.
+     fpsetmask() is deprecated in favor of fedisableexcept() in C99.
   */
-#if defined(__i386__)
+#if defined(FP_X_DNML)
   fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL | FP_X_DZ |
 	      FP_X_IMP));
 #else
   fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
               FP_X_IMP));
-#endif /* __i386__ */
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+#endif /* FP_X_DNML */
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H && !HAVE_FEDISABLEEXCEPT */
+
+#ifdef HAVE_FEDISABLEEXCEPT
+  fedisableexcept(FE_ALL_EXCEPT);
+#endif
 
 #ifdef HAVE_FESETROUND
     /* Set FPU rounding mode to "round-to-nearest" */
@@ -281,7 +282,7 @@ inline void setup_fpu()
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
-extern "C" sig_handler handle_segfault(int sig);
+extern "C" sig_handler handle_fatal_signal(int sig);
 
 #if defined(__linux__)
 #define ENABLE_TEMP_POOL 1
@@ -290,6 +291,8 @@ extern "C" sig_handler handle_segfault(int sig);
 #endif
 
 /* Constants */
+
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 /*
@@ -443,15 +446,20 @@ TYPELIB allow_noncurrent_db_rw_typelib=
 
 /* static variables */
 
+#ifdef HAVE_NPTL
+volatile sig_atomic_t ld_assume_kernel_is_set= 0;
+#endif
+
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
-static bool volatile signal_thread_in_use;
+static bool max_long_data_size_used= false;
+static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread, socket_wake_thread;
 static ulong killed_threads, thread_created;
-static ulong max_used_connections;
+       ulong max_used_connections;
 static ulong my_bind_addr;			/**< the address we bind to */
 static volatile ulong cached_thread_count= 0;
 static volatile ulong cached_thd_thread_count= 0;
@@ -603,7 +611,7 @@ TYPELIB binlog_format_typelib=
 ulong opt_binlog_format_id= (ulong) BINLOG_FORMAT_UNSPEC;
 const char *opt_binlog_format= binlog_format_names[opt_binlog_format_id];
 #ifdef HAVE_INITGROUPS
-static bool calling_initgroups= FALSE; /**< Used in SIGSEGV handler. */
+volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
 #endif
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint mysqld_port_timeout;
@@ -633,6 +641,11 @@ ulong delayed_insert_errors,flush_time;
 ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
+/*
+  Maximum length of parameter value which can be set through
+  mysql_send_long_data() call.
+*/
+ulong max_long_data_size;
 uint  max_user_connections= 0;
 ulong net_compression_level = 6;
 my_bool connection_recycle=0;
@@ -855,7 +868,7 @@ char *opt_logname, *opt_slow_logname;
 
 /* Static variables */
 
-static bool kill_in_progress, segfaulted;
+static volatile sig_atomic_t kill_in_progress;
 #ifdef HAVE_STACK_TRACE_ON_SEGV
 static my_bool opt_do_pstack;
 #endif /* HAVE_STACK_TRACE_ON_SEGV */
@@ -1029,7 +1042,7 @@ static void close_connections(void)
   {
     if (ip_sock != INVALID_SOCKET)
     {
-      (void) shutdown(ip_sock, SHUT_RDWR);
+      (void) mysql_socket_shutdown(ip_sock, SHUT_RDWR);
       (void) closesocket(ip_sock);
       ip_sock= INVALID_SOCKET;
     }
@@ -1061,7 +1074,7 @@ static void close_connections(void)
 #ifdef HAVE_SYS_UN_H
   if (unix_sock != INVALID_SOCKET)
   {
-    (void) shutdown(unix_sock, SHUT_RDWR);
+    (void) mysql_socket_shutdown(unix_sock, SHUT_RDWR);
     (void) closesocket(unix_sock);
     (void) unlink(mysqld_unix_port);
     unix_sock= INVALID_SOCKET;
@@ -1167,7 +1180,7 @@ static void close_server_sock()
   {
     ip_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
-    VOID(shutdown(tmp_sock, SHUT_RDWR));
+    VOID(mysql_socket_shutdown(tmp_sock, SHUT_RDWR));
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it causes MySQL
@@ -1182,7 +1195,7 @@ static void close_server_sock()
   {
     unix_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on unix socket"));
-    VOID(shutdown(tmp_sock, SHUT_RDWR));
+    VOID(mysql_socket_shutdown(tmp_sock, SHUT_RDWR));
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it may cause MySQL
@@ -1720,9 +1733,9 @@ static void set_user(const char *user, struct passwd *user_info_arg)
     calling_initgroups as a flag to the SIGSEGV handler that is then used to
     output a specific message to help the user resolve this problem.
   */
-  calling_initgroups= TRUE;
+  calling_initgroups= 1;
   initgroups((char*) user, user_info_arg->pw_gid);
-  calling_initgroups= FALSE;
+  calling_initgroups= 0;
 #endif
   if (setgid(user_info_arg->pw_gid) == -1)
   {
@@ -2018,6 +2031,12 @@ void unlink_thd(THD *thd)
   pthread_mutex_unlock(&LOCK_connection_count);
 
   (void) pthread_mutex_lock(&LOCK_thread_count);
+  /*
+    Used by binlog_reset_master.  It would be cleaner to use
+    DEBUG_SYNC here, but that's not possible because the THD's debug
+    sync feature has been shut down at this point.
+  */
+  DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
   thread_count--;
   if(thd != NULL)
   {
@@ -2364,7 +2383,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
   __try
   {
     my_set_exception_pointers(ex_pointers);
-    handle_segfault(ex_pointers->ExceptionRecord->ExceptionCode);
+    handle_fatal_signal(ex_pointers->ExceptionRecord->ExceptionCode);
   }
   __except(EXCEPTION_EXECUTE_HANDLER)
   {
@@ -2661,10 +2680,6 @@ static void check_data_home(const char *path)
 
 #endif /*__WIN__ || __NETWARE */
 
-#ifdef HAVE_LINUXTHREADS
-#define UNSAFE_DEFAULT_LINUX_THREADS 200
-#endif
-
 
 #if BACKTRACE_DEMANGLE
 #include <cxxabi.h>
@@ -2674,161 +2689,6 @@ extern "C" char *my_demangle(const char *mangled_name, int *status)
 }
 #endif
 
-
-extern "C" sig_handler handle_segfault(int sig)
-{
-  time_t curr_time;
-  struct tm tm;
-
-  /*
-    Strictly speaking, one needs a mutex here
-    but since we have got SIGSEGV already, things are a mess
-    so not having the mutex is not as bad as possibly using a buggy
-    mutex - so we keep things simple
-  */
-  if (segfaulted)
-  {
-    fprintf(stderr, "Fatal " SIGNAL_FMT " while backtracing\n", sig);
-    exit(1);
-  }
-
-  segfaulted = 1;
-
-  curr_time= my_time(0);
-  localtime_r(&curr_time, &tm);
-
-  fprintf(stderr,"\
-%02d%02d%02d %2d:%02d:%02d - mysqld got " SIGNAL_FMT " ;\n\
-This could be because you hit a bug. It is also possible that this binary\n\
-or one of the libraries it was linked against is corrupt, improperly built,\n\
-or misconfigured. This error can also be caused by malfunctioning hardware.\n",
-          tm.tm_year % 100, tm.tm_mon+1, tm.tm_mday,
-          tm.tm_hour, tm.tm_min, tm.tm_sec,
-	  sig);
-  fprintf(stderr, "\
-We will try our best to scrape up some info that will hopefully help diagnose\n\
-the problem, but since we have already crashed, something is definitely wrong\n\
-and this may fail.\n\n");
-  fprintf(stderr, "key_buffer_size=%lu\n",
-          (ulong) dflt_key_cache->key_cache_mem_size);
-  fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
-  fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
-  fprintf(stderr, "max_threads=%u\n", thread_scheduler.max_threads);
-  fprintf(stderr, "threads_connected=%u\n", thread_count);
-  fprintf(stderr, "It is possible that mysqld could use up to \n\
-key_buffer_size + (read_buffer_size + sort_buffer_size)*max_threads = %lu K\n\
-bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
-		     (global_system_variables.read_buff_size +
-		      global_system_variables.sortbuff_size) *
-		     thread_scheduler.max_threads +
-                     max_connections * sizeof(THD)) / 1024);
-  fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
-
-#if defined(HAVE_LINUXTHREADS)
-  if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
-  {
-    fprintf(stderr, "\
-You seem to be running 32-bit Linux and have %d concurrent connections.\n\
-If you have not changed STACK_SIZE in LinuxThreads and built the binary \n\
-yourself, LinuxThreads is quite likely to steal a part of the global heap for\n\
-the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
-	    thread_count);
-  }
-#endif /* HAVE_LINUXTHREADS */
-
-#ifdef HAVE_STACKTRACE
-  THD *thd=current_thd;
-
-  if (!(test_flags & TEST_NO_STACKTRACE))
-  {
-    fprintf(stderr, "Thread pointer: 0x%lx\n", (long) thd);
-    fprintf(stderr, "Attempting backtrace. You can use the following "
-                    "information to find out\nwhere mysqld died. If "
-                    "you see no messages after this, something went\n"
-                    "terribly wrong...\n");
-    my_print_stacktrace(thd ? (uchar*) thd->thread_stack : NULL,
-                        my_thread_stack_size);
-  }
-  if (thd)
-  {
-    const char *kreason= "UNKNOWN";
-    switch (thd->killed) {
-    case THD::NOT_KILLED:
-      kreason= "NOT_KILLED";
-      break;
-    case THD::KILL_BAD_DATA:
-      kreason= "KILL_BAD_DATA";
-      break;
-    case THD::KILL_CONNECTION:
-      kreason= "KILL_CONNECTION";
-      break;
-    case THD::KILL_QUERY:
-      kreason= "KILL_QUERY";
-      break;
-    case THD::KILLED_NO_VALUE:
-      kreason= "KILLED_NO_VALUE";
-      break;
-    }
-    fprintf(stderr, "\nTrying to get some variables.\n"
-                    "Some pointers may be invalid and cause the dump to abort.\n");
-    fprintf(stderr, "Query (%p): ", thd->query());
-    my_safe_print_str(thd->query(), min(1024, thd->query_length()));
-    fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
-    fprintf(stderr, "Status: %s\n", kreason);
-    fputc('\n', stderr);
-  }
-  fprintf(stderr, "\
-The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains\n\
-information that should help you find out what is causing the crash.\n");
-  fflush(stderr);
-#endif /* HAVE_STACKTRACE */
-
-#ifdef HAVE_INITGROUPS
-  if (calling_initgroups)
-    fprintf(stderr, "\n\
-This crash occured while the server was calling initgroups(). This is\n\
-often due to the use of a mysqld that is statically linked against glibc\n\
-and configured to use LDAP in /etc/nsswitch.conf. You will need to either\n\
-upgrade to a version of glibc that does not have this problem (2.3.4 or\n\
-later when used with nscd), disable LDAP in your nsswitch.conf, or use a\n\
-mysqld that is not statically linked.\n");
-#endif
-
-#ifdef HAVE_NPTL
-  if (thd_lib_detected == THD_LIB_LT && !getenv("LD_ASSUME_KERNEL"))
-    fprintf(stderr,"\n\
-You are running a statically-linked LinuxThreads binary on an NPTL system.\n\
-This can result in crashes on some distributions due to LT/NPTL conflicts.\n\
-You should either build a dynamically-linked binary, or force LinuxThreads\n\
-to be used with the LD_ASSUME_KERNEL environment variable. Please consult\n\
-the documentation for your distribution on how to do that.\n");
-#endif
-  
-  if (locked_in_memory)
-  {
-    fprintf(stderr, "\n\
-The \"--memlock\" argument, which was enabled, uses system calls that are\n\
-unreliable and unstable on some operating systems and operating-system\n\
-versions (notably, some versions of Linux).  This crash could be due to use\n\
-of those buggy OS calls.  You should consider whether you really need the\n\
-\"--memlock\" parameter and/or consult the OS distributer about \"mlockall\"\n\
-bugs.\n");
-  }
-
-#ifdef HAVE_WRITE_CORE
-  if (test_flags & TEST_CORE_ON_SIGNAL)
-  {
-    fprintf(stderr, "Writing a core file\n");
-    fflush(stderr);
-    my_write_core(sig);
-  }
-#endif
-
-#ifndef __WIN__
-  /* On Windows, do not terminate, but pass control to exception filter */
-  exit(1);
-#endif
-}
 
 #if !defined(__WIN__) && !defined(__NETWARE__)
 #ifndef SA_RESETHAND
@@ -2858,9 +2718,9 @@ static void init_signals(void)
     my_init_stacktrace();
 #endif
 #if defined(__amiga__)
-    sa.sa_handler=(void(*)())handle_segfault;
+    sa.sa_handler=(void(*)())handle_fatal_signal;
 #else
-    sa.sa_handler=handle_segfault;
+    sa.sa_handler=handle_fatal_signal;
 #endif
     sigaction(SIGSEGV, &sa, NULL);
     sigaction(SIGABRT, &sa, NULL);
@@ -2993,14 +2853,6 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   if (!opt_bootstrap)
     create_pid_file();
 
-#ifdef HAVE_STACK_TRACE_ON_SEGV
-  if (opt_do_pstack)
-  {
-    sprintf(pstack_file_name,"mysqld-%lu-%%d-%%d.backtrace", (ulong)getpid());
-    pstack_install_segv_action(pstack_file_name);
-  }
-#endif /* HAVE_STACK_TRACE_ON_SEGV */
-
   /*
     signal to start_signal_handler that we are ready
     This works by waiting for start_signal_handler to free mutex,
@@ -3061,7 +2913,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     case SIGHUP:
       if (!abort_loop)
       {
-        bool not_used;
+        int not_used;
 	mysql_print_status();		// Print some debug info
 	reload_acl_and_cache((THD*) 0,
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
@@ -3259,6 +3111,19 @@ const char *load_default_groups[]= {
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
+#endif
+
+
+#ifndef EMBEDDED_LIBRARY
+static
+int
+check_enough_stack_size()
+{
+  uchar stack_top;
+
+  return check_stack_overrun(current_thd, STACK_MIN_SIZE,
+                             &stack_top);
+}
 #endif
 
 
@@ -3467,12 +3332,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   server_start_time= flush_status_time= my_time(0);
-  /* TODO: remove this when my_time_t is 64 bit compatible */
-  if (server_start_time >= (time_t) MY_TIME_T_MAX)
-  {
-    sql_print_error("This MySQL server doesn't support dates later then 2038");
-    return 1;
-  }
 
   rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
@@ -3510,6 +3369,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
     inited before MY_INIT(). So we do it here.
   */
   mysql_bin_log.init_pthread_objects();
+
+  /* TODO: remove this when my_time_t is 64 bit compatible */
+  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(server_start_time))
+  {
+    sql_print_error("This MySQL server doesn't support dates later then 2038");
+    return 1;
+  }
 
   if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
   {
@@ -3645,7 +3511,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #endif
   mysys_uses_curses=0;
 #ifdef USE_REGEX
-  my_regex_init(&my_charset_latin1);
+#ifndef EMBEDDED_LIBRARY
+  my_regex_init(&my_charset_latin1, check_enough_stack_size);
+#else
+  my_regex_init(&my_charset_latin1, NULL);
+#endif
 #endif
   /*
     Process a comma-separated character set list and choose
@@ -4707,6 +4577,10 @@ int win_main(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
+#ifdef HAVE_NPTL
+  ld_assume_kernel_is_set= (getenv("LD_ASSUME_KERNEL") != 0);
+#endif
+
   MY_INIT(argv[0]);		// init my_sys library & pthreads
   /* nothing should come before this line ^^^ */
 
@@ -5723,7 +5597,7 @@ pthread_handler_t handle_connections_socket (void *arg)
 	  if (req.sink)
 	    ((void (*)(int))req.sink)(req.fd);
 
-	  (void) shutdown(new_sock, SHUT_RDWR);
+	  (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
 	  (void) closesocket(new_sock);
 	  continue;
 	}
@@ -6294,7 +6168,8 @@ enum options_mysqld
   OPT_LOG_QUERY_SAMPLE_RATE,
   OPT_LOG_ERROR_SAMPLE_RATE,
   OPT_ENABLE_NO_SLAVE_EXEC,
-  OPT_TMP_TABLE_MAX_FILE_SIZE
+  OPT_TMP_TABLE_MAX_FILE_SIZE,
+  OPT_MAX_LONG_DATA_SIZE
 };
 
 
@@ -6472,9 +6347,10 @@ struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
 #ifdef HAVE_STACK_TRACE_ON_SEGV
-  {"enable-pstack", OPT_DO_PSTACK, "Print a symbolic stack trace on failure.",
-   &opt_do_pstack, &opt_do_pstack, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
+  {"enable-pstack", OPT_DO_PSTACK, "Print a symbolic stack trace on failure. "
+   "This option is deprecated and has no effect; a symbolic stack trace will "
+   "be printed after a crash whenever possible.", &opt_do_pstack, &opt_do_pstack,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* HAVE_STACK_TRACE_ON_SEGV */
   {"engine-condition-pushdown",
    OPT_ENGINE_CONDITION_PUSHDOWN,
@@ -7342,7 +7218,7 @@ thread is in the relay logs.",
    "as much as you can afford; 1GB on a 4GB machine that mainly runs MySQL is "
    "quite common.",
    &dflt_key_cache_var.param_buff_size, NULL, NULL, (GET_ULL | GET_ASK_ADDR),
-   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, SIZE_T_MAX, MALLOC_OVERHEAD,
+   REQUIRED_ARG, KEY_CACHE_SIZE, 0, SIZE_T_MAX, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched "
@@ -7472,6 +7348,13 @@ thread is in the relay logs.",
     &global_system_variables.max_length_for_sort_data,
     &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
+  {"max_long_data_size", OPT_MAX_LONG_DATA_SIZE,
+   "The maximum size of prepared statement parameter which can be provided "
+   "through mysql_send_long_data() API call. "
+   "Deprecated option; use max_allowed_packet instead.",
+   &max_long_data_size,
+   &max_long_data_size, 0, GET_ULONG,
+   REQUIRED_ARG, 1024*1024L, 1024, UINT_MAX32, MALLOC_OVERHEAD, 1, 0},
   {"max_prepared_stmt_count", OPT_MAX_PREPARED_STMT_COUNT,
    "Maximum number of prepared statements in the server.",
    &max_prepared_stmt_count, &max_prepared_stmt_count,
@@ -8828,13 +8711,8 @@ static void usage(void)
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
-  puts("\
-Copyright (C) 2000-2008 MySQL AB, by Monty and others.\n\
-Copyright (C) 2008 Sun Microsystems, Inc.\n\
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license\n\n\
-Starts the MySQL database server.\n");
-
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts("Starts the MySQL database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)
     puts("\nFor more help options (several pages), use mysqld --verbose --help.");
@@ -8911,7 +8789,7 @@ static int mysql_init_variables(void)
   opt_secure_file_priv= 0;
   opt_bootstrap= opt_myisam_log= 0;
   mqh_used= 0;
-  segfaulted= kill_in_progress= 0;
+  kill_in_progress= 0;
   cleanup_done= 0;
   defaults_argc= 0;
   defaults_argv= 0;
@@ -9780,6 +9658,13 @@ mysqld_get_one_option(int optid,
     lower_case_table_names= argument ? atoi(argument) : 1;
     lower_case_table_names_used= 1;
     break;
+#ifdef HAVE_STACK_TRACE_ON_SEGV
+  case OPT_DO_PSTACK:
+    sql_print_warning("'--enable-pstack' is deprecated and will be removed "
+                      "in a future release. A symbolic stack trace will be "
+                      "printed after a crash whenever possible.");
+    break;
+#endif
 #if defined(ENABLED_DEBUG_SYNC)
   case OPT_DEBUG_SYNC_TIMEOUT:
     /*
@@ -9796,6 +9681,10 @@ mysqld_get_one_option(int optid,
     }
     break;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+  case OPT_MAX_LONG_DATA_SIZE:
+    max_long_data_size_used= true;
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--max_long_data_size", "--max_allowed_packet");
+    break;
   }
   return 0;
 }
@@ -9888,6 +9777,14 @@ static int get_options(int *argc,char **argv)
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes) &&
       !opt_slow_log)
     sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes have no effect if --log_slow_queries is not set");
+  if (global_system_variables.net_buffer_length > 
+      global_system_variables.max_allowed_packet)
+  {
+    sql_print_warning("net_buffer_length (%lu) is set to be larger "
+                      "than max_allowed_packet (%lu). Please rectify.",
+                      global_system_variables.net_buffer_length, 
+                      global_system_variables.max_allowed_packet);
+  }
 
 #if defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
@@ -9963,6 +9860,14 @@ static int get_options(int *argc,char **argv)
   else
     pool_of_threads_scheduler(&thread_scheduler);  /* purecov: tested */
 #endif
+
+  /*
+    If max_long_data_size is not specified explicitly use
+    value of max_allowed_packet.
+  */
+  if (!max_long_data_size_used)
+    max_long_data_size= global_system_variables.max_allowed_packet;
+
   return 0;
 }
 
@@ -10041,11 +9946,14 @@ fn_format_relative_to_data_home(char * to, const char *name,
 bool is_secure_file_path(char *path)
 {
   char buff1[FN_REFLEN], buff2[FN_REFLEN];
+  size_t opt_secure_file_priv_len;
   /*
     All paths are secure if opt_secure_file_path is 0
   */
   if (!opt_secure_file_priv)
     return TRUE;
+
+  opt_secure_file_priv_len= strlen(opt_secure_file_priv);
 
   if (strlen(path) >= FN_REFLEN)
     return FALSE;
@@ -10064,10 +9972,23 @@ bool is_secure_file_path(char *path)
       return FALSE;
   }
   convert_dirname(buff2, buff1, NullS);
-  if (strncmp(opt_secure_file_priv, buff2, strlen(opt_secure_file_priv)))
+  if (!lower_case_file_system)
+  {
+    if (strncmp(opt_secure_file_priv, buff2, opt_secure_file_priv_len))
     return FALSE;
+  }
+  else
+  {
+    if (files_charset_info->coll->strnncoll(files_charset_info,
+                                            (uchar *) buff2, strlen(buff2),
+                                            (uchar *) opt_secure_file_priv,
+                                            opt_secure_file_priv_len,
+                                            TRUE))
+      return FALSE;
+  }
   return TRUE;
 }
+
 
 static int fix_paths(void)
 {
@@ -10132,6 +10053,7 @@ static int fix_paths(void)
   {
     if (*opt_secure_file_priv == 0)
     {
+      my_free(opt_secure_file_priv, MYF(0));
       opt_secure_file_priv= 0;
     }
     else

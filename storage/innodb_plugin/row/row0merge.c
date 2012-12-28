@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -584,7 +584,7 @@ row_merge_buf_write(
 						   REC_STATUS_ORDINARY,
 						   entry, n_fields,
 						   &extra_size);
-		ut_ad(size > extra_size);
+		ut_ad(size >= extra_size);
 		ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 		extra_size -= REC_N_NEW_EXTRA_BYTES;
 		size -= REC_N_NEW_EXTRA_BYTES;
@@ -2059,7 +2059,6 @@ row_merge_drop_index(
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
-
 #ifdef UNIV_DEBUG
 	if (srv_fail_ddl_drop_index) {
 		err = trx->error_state = DB_TOO_MANY_CONCURRENT_TRXS;
@@ -2087,7 +2086,7 @@ failed:
 	/* Replace this index with another equivalent index for all
 	foreign key constraints on this table where this index is used */
 
-	dict_table_replace_index_in_foreign_list(table, index);
+	dict_table_replace_index_in_foreign_list(table, index, trx);
 	dict_index_remove_from_cache(table, index);
 
 	trx->op_info = "";
@@ -2405,7 +2404,7 @@ row_merge_rename_tables(
 {
 	ulint		err	= DB_ERROR;
 	pars_info_t*	info;
-	char		old_name[MAX_TABLE_NAME_LEN + 1];
+	char		old_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(old_table != new_table);
@@ -2420,7 +2419,7 @@ row_merge_rename_tables(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: too long table name: '%s', "
 			"max length is %d\n", old_table->name,
-			MAX_TABLE_NAME_LEN);
+			MAX_FULL_NAME_LEN);
 		ut_error;
 	}
 

@@ -1841,11 +1841,11 @@ rl_username_completion_function (text, state)
 #else /* !__WIN32__ && !__OPENNT) */
   static char *username = (char *)NULL;
   static struct passwd *entry;
-#if defined (HAVE_GETPWENT)
-  static int namelen = 0;
-#endif
   static int first_char, first_char_loc;
   char *value;
+#if defined (HAVE_GETPWENT)
+  static int namelen;
+#endif
 
   if (state == 0)
     {

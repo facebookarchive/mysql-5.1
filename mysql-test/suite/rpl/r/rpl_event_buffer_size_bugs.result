@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log:");
 drop table if exists t1;
 include/stop_slave.inc
@@ -23,3 +19,4 @@ i	length(t)
 2	2000
 ==== clean up ====
 DROP TABLE t1;
+include/rpl_end.inc

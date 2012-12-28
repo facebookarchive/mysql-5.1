@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlcheck\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 10/11/2010
+.\"      Date: 04/15/2012
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLCHECK\FR" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLCHECK\FR" "1" "04/15/2012" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -37,7 +37,7 @@ client performs table maintenance: It checks, repairs, optimizes, or analyzes ta
 Each table is locked and therefore unavailable to other sessions while it is being processed, although for check operations, the table is locked with a
 READ
 lock only (see
-Section\ \&12.3.5, \(lqLOCK TABLES and UNLOCK TABLES Syntax\(rq, for more information about
+Section\ \&13.3.5, \(lqLOCK TABLES and UNLOCK TABLES Syntax\(rq, for more information about
 READ
 and
 WRITE
@@ -72,7 +72,7 @@ REPAIR TABLE,
 ANALYZE TABLE, and
 OPTIMIZE TABLE
 in a convenient way for the user\&. It determines which statements to use for the operation you want to perform, and then sends the statements to the server to be executed\&. For details about which storage engines each statement works with, see the descriptions for those statements in
-Section\ \&12.4.2, \(lqTable Maintenance Statements\(rq\&.
+Section\ \&13.7.2, \(lqTable Maintenance Statements\(rq\&.
 .PP
 The
 MyISAM
@@ -101,7 +101,7 @@ note     : The storage engine for the table doesn\'t support check
 If
 \fBmysqlcheck\fR
 is unable to repair a table, see
-Section\ \&2.12.4, \(lqRebuilding or Repairing Tables or Indexes\(rq
+Section\ \&2.13.4, \(lqRebuilding or Repairing Tables or Indexes\(rq
 for manual table repair strategies\&. This will be the case, for example, for
 InnoDB
 tables, which can be checked with
@@ -161,11 +161,18 @@ named
 \fBmysqlrepair\fR\&. If you invoke
 \fBmysqlrepair\fR, it repairs tables\&.
 .PP
-The following names can be used to change
+The names shown in the following table can be used to change
 \fBmysqlcheck\fR
 default behavior\&.
 .TS
 allbox tab(:);
+lB lB.
+T{
+Command
+T}:T{
+Meaning
+T}
+.T&
 l l
 l l
 l l.
@@ -192,7 +199,7 @@ supports the following options, which can be specified on the command line or in
 [mysqlcheck]
 and
 [client]
-option file groups\&.
+groups of an option file\&.
 \fBmysqlcheck\fR
 also supports the options for processing option files described at
 Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -286,12 +293,31 @@ If a checked table is corrupted, automatically fix it\&. Any necessary repairs a
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysqlcheck: bind-address option
+.\" bind-address option: mysqlcheck
+\fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
+.sp
+On a computer having multiple network interfaces, this option can be used to select which interface is employed when connecting to the MySQL server\&.
+.sp
+This option is supported only in the version of
+\fBmysqlcheck\fR
+that is supplied with MySQL Cluster, beginning with MySQL Cluster NDB 6\&.3\&.4\&. It is not available in standard MySQL 5\&.1 releases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysqlcheck: character-sets-dir option
 .\" character-sets-dir option: mysqlcheck
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -450,7 +476,7 @@ Print debugging information and memory and CPU usage statistics when the program
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -609,7 +635,7 @@ option on the command line,
 prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Section\ \&6.1.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -742,7 +768,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&5.5.6.3, \(lqSSL Command Options\(rq\&.
+Section\ \&6.3.6.3, \(lqSSL Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -862,7 +888,7 @@ when these statements should not be sent to replication slaves or run when using
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

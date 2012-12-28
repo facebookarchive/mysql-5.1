@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 	/* Functions to compressed records */
 
@@ -1550,13 +1552,14 @@ my_bool _mi_memmap_file(MI_INFO *info)
 
 void _mi_unmap_file(MI_INFO *info)
 {
-  VOID(my_munmap((char*) info->s->file_map, 
-                 (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN));
+  DBUG_ASSERT(info->s->options & HA_OPTION_COMPRESS_RECORD);
+
+  VOID(my_munmap((char*) info->s->file_map, (size_t) info->s->mmaped_length));
 
   if (myisam_mmap_size != SIZE_T_MAX)
   {
     pthread_mutex_lock(&THR_LOCK_myisam_mmap);
-    myisam_mmap_used-= info->s->mmaped_length + MEMMAP_EXTRA_MARGIN;
+    myisam_mmap_used-= info->s->mmaped_length;
     pthread_mutex_unlock(&THR_LOCK_myisam_mmap);
   }
 }

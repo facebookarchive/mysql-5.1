@@ -37,6 +37,9 @@ Created 1/8/1996 Heikki Tuuri
 # include "lock0lock.h"
 # include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
+#ifdef UNIV_BLOB_DEBUG
+# include "ut0rbt.h"
+#endif /* UNIV_BLOB_DEBUG */
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
@@ -79,8 +82,6 @@ dict_mem_table_create(
 
 #ifndef UNIV_HOTBACKUP
 	table->autoinc_lock = mem_heap_alloc(heap, lock_get_size());
-
-	table->fk_max_recusive_level = 0;
 
 	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 
@@ -329,5 +330,13 @@ dict_mem_index_free(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	dict_padding_state_free(index->padding_algo, index->padding_state);
+
+#ifdef UNIV_BLOB_DEBUG
+	if (index->blobs) {
+		mutex_free(&index->blobs_mutex);
+		rbt_free(index->blobs);
+	}
+#endif /* UNIV_BLOB_DEBUG */
+
 	mem_heap_free(index->heap);
 }

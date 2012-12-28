@@ -49,11 +49,14 @@ connection slave;
 sync_with_master;
 
 # Cleanup
---connection default
+connection server_1;
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+connection default;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
 connection master;
 drop table t1;
-# We'll need the below line when we upgrade to a newer 5.1 build.
-# --source include/rpl_end.inc
+--source include/rpl_end.inc

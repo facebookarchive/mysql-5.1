@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -82,8 +82,7 @@ void
 buf_LRU_insert_zip_clean(
 /*=====================*/
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
-
-#endif
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /******************************************************************//**
 Try to free a block.  If bpage is a descriptor of a compressed-only
@@ -104,7 +103,8 @@ buf_LRU_free_block(
 	buf_page_t*	bpage,	/*!< in: block to be freed */
 	ibool		zip,	/*!< in: TRUE if should remove also the
 				compressed page of an uncompressed page */
-	ibool*		removed);/*!< out: return TRUE if block removed */
+	ibool*		removed)/*!< out: return TRUE if block removed */
+	__attribute__((nonnull));
 /******************************************************************//**
 Try to free a replaceable block.
 @return	TRUE if found and freed */
@@ -135,10 +135,9 @@ LRU list to the free list.
 @return	the free control block, in state BUF_BLOCK_READY_FOR_USE */
 UNIV_INTERN
 buf_block_t*
-buf_LRU_get_free_block(
-/*===================*/
-	ulint	zip_size);	/*!< in: compressed page size in bytes,
-				or 0 if uncompressed tablespace */
+buf_LRU_get_free_block(void)
+/*========================*/
+	__attribute__((warn_unused_result));
 
 /******************************************************************//**
 Puts a block back to the free list. */

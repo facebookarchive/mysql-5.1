@@ -1,0 +1,16 @@
+CREATE TABLE t1(id INT NOT NULL PRIMARY KEY, data text) Engine=InnoDB;
+INSERT INTO t1 VALUES(1, '');
+INSERT INTO t1 VALUES(2, '');
+INSERT INTO t1 VALUES(3, '');
+INSERT INTO t1 VALUES(4, '');
+DELETE FROM t1 WHERE id = 4;
+SET innodb_fake_changes=1;
+INSERT INTO t1 VALUES (4, lpad('a',12000,'b'));
+ERROR HY000: Got error 131 during COMMIT
+SET innodb_fake_changes=0;
+SELECT * FROM t1;
+id	data
+1	
+2	
+3	
+DROP TABLE t1;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -186,6 +186,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
     share->auto_key= create_info->auto_key;
     share->auto_key_type= create_info->auto_key_type;
     share->auto_increment= create_info->auto_increment;
+    share->create_time= (long) time((time_t*) 0);
     /* Must be allocated separately for rename to work */
     if (!(share->name= my_strdup(name,MYF(0))))
     {

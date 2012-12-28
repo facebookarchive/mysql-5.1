@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 STOP SLAVE;
 SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
 SELECT @@global.replicate_events_marked_for_skip;
@@ -29,12 +25,18 @@ SELECT variable_value into @skip2 from information_schema.global_status where va
 select @skip2 - @skip1 as skip_diff_should_be_8;
 skip_diff_should_be_8
 8
+include/wait_for_slave_param.inc [Master_Log_File]
+include/wait_for_slave_param.inc [Read_Master_Log_Pos]
 FLUSH NO_WRITE_TO_BINLOG LOGS;
 INSERT INTO t1(a) SELECT NULL FROM t1;
 INSERT INTO t1(a) SELECT NULL FROM t1;
+include/wait_for_slave_param.inc [Master_Log_File]
+include/wait_for_slave_param.inc [Read_Master_Log_Pos]
 FLUSH NO_WRITE_TO_BINLOG LOGS;
 INSERT INTO t1(a) SELECT NULL FROM t1;
 INSERT INTO t1(a) SELECT NULL FROM t1;
+include/wait_for_slave_param.inc [Master_Log_File]
+include/wait_for_slave_param.inc [Read_Master_Log_Pos]
 SELECT variable_value into @slave_skip1 from information_schema.global_status where variable_name='Binlog_events_skip_slave';
 START SLAVE SQL_THREAD;
 SELECT variable_value into @slave_skip2 from information_schema.global_status where variable_name='Binlog_events_skip_slave';
@@ -69,3 +71,4 @@ count(*)	max(a)
 64	90
 SET skip_replication=0;
 DROP TABLE t1;
+include/rpl_end.inc

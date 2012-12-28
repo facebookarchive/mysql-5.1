@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /*
@@ -415,7 +416,7 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
     my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
   }
   DBUG_PRINT("myrg", ("MyISAM handle: 0x%lx  my_errno: %d",
-                      my_errno ? NULL : (long) myisam, my_errno));
+                      my_errno ? 0L : (long) myisam, my_errno));
 
  err:
   DBUG_RETURN(my_errno ? NULL : myisam);
@@ -459,8 +460,7 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
       problem because all locking is handled by the original MERGE table
       from which this is cloned of.
     */
-    if (!(file= myrg_open(table->s->normalized_path.str, table->db_stat, 
-                                       HA_OPEN_IGNORE_IF_LOCKED)))
+    if (!(file= myrg_open(name, table->db_stat, HA_OPEN_IGNORE_IF_LOCKED)))
     {
       DBUG_PRINT("error", ("my_errno %d", my_errno));
       DBUG_RETURN(my_errno ? my_errno : -1); 
@@ -484,7 +484,7 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
 
    @return A cloned handler instance.
  */
-handler *ha_myisammrg::clone(MEM_ROOT *mem_root)
+handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
 {
   MYRG_TABLE    *u_table,*newu_table;
   ha_myisammrg *new_handler= 
@@ -505,8 +505,8 @@ handler *ha_myisammrg::clone(MEM_ROOT *mem_root)
     return NULL;
   }
 
-  if (new_handler->ha_open(table, table->s->normalized_path.str, table->db_stat,
-                            HA_OPEN_IGNORE_IF_LOCKED, TRUE))
+  if (new_handler->ha_open(table, name, table->db_stat,
+                           HA_OPEN_IGNORE_IF_LOCKED, TRUE))
   {
     delete new_handler;
     return NULL;

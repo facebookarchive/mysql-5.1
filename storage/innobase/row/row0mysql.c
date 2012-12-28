@@ -31,6 +31,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0sea.h"
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
+#include "m_string.h"
+#include "my_sys.h"
 
 /* A dummy variable used to fool the compiler */
 ibool	row_mysql_identically_false	= FALSE;
@@ -400,7 +402,7 @@ row_mysql_convert_row_to_innobase(
 					row is used, as row may contain
 					pointers to this record! */
 {
-	mysql_row_templ_t*	templ;
+	const mysql_row_templ_t*templ;
 	dfield_t*		dfield;
 	ulint			i;
 
@@ -552,7 +554,7 @@ handle_new_error:
 		      " after the startup or when\n"
 		      "InnoDB: you dump the tables, look at\n"
 		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "forcing-recovery.html"
+		      "forcing-innodb-recovery.html"
 		      " for help.\n", stderr);
 
 	} else if (err == DB_FOREIGN_EXCEED_MAX_CASCADE) {
@@ -1373,6 +1375,8 @@ row_update_for_mysql(
 		return(DB_ERROR);
 	}
 
+	DEBUG_SYNC_C("innodb_row_update_for_mysql_begin");
+
 	trx->op_info = "updating or deleting";
 
 	row_mysql_delay_if_needed();
@@ -1948,6 +1952,18 @@ row_create_table_for_mysql(
 							 FALSE);
 			}
 
+		} else if (err == DB_TOO_MANY_CONCURRENT_TRXS) {
+			/* We already have .ibd file here. it should be deleted. */
+			if (table->space
+			    && !fil_delete_tablespace(table->space)) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					"  InnoDB: Error: not able to"
+					" delete tablespace %lu of table ",
+					(ulong) table->space);
+				ut_print_name(stderr, trx, TRUE, table->name);
+				fputs("!\n", stderr);
+			}
 		} else if (err == DB_DUPLICATE_KEY) {
 			ut_print_timestamp(stderr);
 
@@ -1981,6 +1997,7 @@ row_create_table_for_mysql(
 		table already exists */
 
 		trx->error_state = DB_SUCCESS;
+		dict_mem_table_free(table);
 	}
 
 	que_graph_free((que_t*) que_node_get_parent(thr));
@@ -3639,6 +3656,7 @@ row_rename_table_for_mysql(
 	ulint		n_constraints_to_drop	= 0;
 	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
+	ulint		retry			= 0;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(old_name != NULL);
@@ -3735,6 +3753,25 @@ row_rename_table_for_mysql(
 
 			goto funct_exit;
 		}
+	}
+
+	/* Is a foreign key check running on this table? */
+	for (retry = 0; retry < 100
+	     && table->n_foreign_key_checks_running > 0; ++retry) {
+		row_mysql_unlock_data_dictionary(trx);
+		os_thread_yield();
+		row_mysql_lock_data_dictionary(trx);
+	}
+
+	if (table->n_foreign_key_checks_running > 0) {
+		ut_print_timestamp(stderr);
+		fputs(" InnoDB: Error: in ALTER TABLE ", stderr);
+		ut_print_name(stderr, trx, TRUE, old_name);
+		fprintf(stderr, "\n"
+			"InnoDB: a FOREIGN KEY check is running.\n"
+			"InnoDB: Cannot rename table.\n");
+		err = DB_TABLE_IN_FK_CHECK;
+		goto funct_exit;
 	}
 
 	/* We use the private SQL parser of Innobase to generate the query

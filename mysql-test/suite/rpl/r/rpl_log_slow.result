@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop table if exists t1;
 create table t1 (a int);
 insert into t1 values (0);
@@ -55,3 +51,4 @@ update t1 set a = a + 10;
 set global long_slave_query_time=1;
 set global log_slow_extra=0;
 drop table t1;
+include/rpl_end.inc

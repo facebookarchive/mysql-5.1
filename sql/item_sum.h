@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* classes for sum functions */
@@ -339,6 +340,7 @@ public:
     forced_const= TRUE; 
   }
   virtual bool const_item() const { return forced_const; }
+  virtual bool const_during_execution() const { return false; }
   virtual void print(String *str, enum_query_type query_type);
   void fix_num_length_and_dec();
 
@@ -823,7 +825,7 @@ class Item_cache;
 class Item_sum_hybrid :public Item_sum
 {
 protected:
-  Item_cache *value;
+  Item_cache *value, *arg_cache;
   Arg_comparator *cmp;
   Item_result hybrid_type;
   enum_field_types hybrid_field_type;
@@ -832,14 +834,14 @@ protected:
 
   public:
   Item_sum_hybrid(Item *item_par,int sign)
-    :Item_sum(item_par), value(0), cmp(0),
+    :Item_sum(item_par), value(0), arg_cache(0), cmp(0),
     hybrid_type(INT_RESULT), hybrid_field_type(MYSQL_TYPE_LONGLONG),
     cmp_sign(sign), was_values(TRUE)
   { collation.set(&my_charset_bin); }
   Item_sum_hybrid(THD *thd, Item_sum_hybrid *item)
-    :Item_sum(thd, item), value(item->value), hybrid_type(item->hybrid_type),
-    hybrid_field_type(item->hybrid_field_type), cmp_sign(item->cmp_sign),
-    was_values(item->was_values)
+    :Item_sum(thd, item), value(item->value), arg_cache(0),
+    hybrid_type(item->hybrid_type), hybrid_field_type(item->hybrid_field_type),
+    cmp_sign(item->cmp_sign), was_values(item->was_values)
   { }
   bool fix_fields(THD *, Item **);
   void setup_hybrid(Item *item, Item *value_arg);

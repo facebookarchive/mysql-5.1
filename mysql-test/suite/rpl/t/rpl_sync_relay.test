@@ -150,4 +150,4 @@ connection master;
 set global sync_relay_info=0;
 drop table sync_relay_table;
 sync_slave_with_master;
-
+--source include/rpl_end.inc

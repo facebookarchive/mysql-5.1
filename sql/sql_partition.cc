@@ -1,4 +1,4 @@
-/* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -761,6 +761,9 @@ static bool handle_list_of_fields(List_iterator<char> it,
   bool result;
   char *field_name;
   bool is_list_empty= TRUE;
+  int fields_handled = 0;
+  char* field_name_array[MAX_KEY];
+
   DBUG_ENTER("handle_list_of_fields");
 
   while ((field_name= it++))
@@ -776,6 +779,25 @@ static bool handle_list_of_fields(List_iterator<char> it,
       result= TRUE;
       goto end;
     }
+
+    /*
+      Check for duplicate fields in the list.
+      Assuming that there are not many fields in the partition key list.
+      If there were, it would be better to replace the for-loop
+      with a more efficient algorithm.
+    */
+
+    field_name_array[fields_handled] = field_name;
+    for (int i = 0; i < fields_handled; ++i)
+    {
+      if (my_strcasecmp(system_charset_info,
+                        field_name_array[i], field_name) == 0)
+      {
+        my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+    }
+    fields_handled++;
   }
   if (is_list_empty)
   {
@@ -908,9 +930,6 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   const char *save_where;
   char* db_name;
   char db_name_string[FN_REFLEN];
-  bool save_use_only_table_context;
-  uint8 saved_full_group_by_flag;
-  nesting_map saved_allow_sum_func;
   DBUG_ENTER("fix_fields_part_func");
 
   if (part_info->fixed)
@@ -977,23 +996,26 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     of interesting side effects, both desirable and undesirable.
   */
 
-  save_use_only_table_context= thd->lex->use_only_table_context;
-  thd->lex->use_only_table_context= TRUE;
-  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
-  saved_full_group_by_flag= thd->lex->current_select->full_group_by_flag;
-  saved_allow_sum_func= thd->lex->allow_sum_func;
-  thd->lex->allow_sum_func= 0;
+  {
+    const bool save_use_only_table_context= thd->lex->use_only_table_context;
+    thd->lex->use_only_table_context= TRUE;
+    thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
+    const bool save_agg_field= thd->lex->current_select->non_agg_field_used();
+    const bool save_agg_func=  thd->lex->current_select->agg_func_used();
+    const nesting_map saved_allow_sum_func= thd->lex->allow_sum_func;
+    thd->lex->allow_sum_func= 0;
   
-  error= func_expr->fix_fields(thd, (Item**)&func_expr);
+    error= func_expr->fix_fields(thd, (Item**)&func_expr);
 
-  /*
-    Restore full_group_by_flag and allow_sum_func,
-    fix_fields should not affect mysql_select later, see Bug#46923.
-  */
-  thd->lex->current_select->full_group_by_flag= saved_full_group_by_flag;
-  thd->lex->allow_sum_func= saved_allow_sum_func;
-
-  thd->lex->use_only_table_context= save_use_only_table_context;
+    /*
+      Restore agg_field/agg_func and allow_sum_func,
+      fix_fields should not affect mysql_select later, see Bug#46923.
+    */
+    thd->lex->current_select->set_non_agg_field_used(save_agg_field);
+    thd->lex->current_select->set_agg_func_used(save_agg_func);
+    thd->lex->allow_sum_func= saved_allow_sum_func;
+    thd->lex->use_only_table_context= save_use_only_table_context;
+  }
 
   context->table_list= save_table_list;
   context->first_name_resolution_table= save_first_table;
@@ -1014,12 +1036,13 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   }
 
   /*
-    We don't allow creating partitions with timezone-dependent expressions as
-    a (sub)partitioning function, but we want to allow such expressions when
-    opening existing tables for easier maintenance. This exception should be
-    deprecated at some point in future so that we always throw an error.
+    We don't allow creating partitions with expressions with non matching
+    arguments as a (sub)partitioning function,
+    but we want to allow such expressions when opening existing tables for
+    easier maintenance. This exception should be deprecated at some point
+    in future so that we always throw an error.
   */
-  if (func_expr->walk(&Item::is_timezone_dependent_processor,
+  if (func_expr->walk(&Item::check_valid_arguments_processor,
                       0, NULL))
   {
     if (is_create_table_ind)
@@ -5935,6 +5958,12 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (lpt->thd->locked_tables)
   {
     /*
+      Close the table if open, to remove/destroy the already altered
+      table->part_info object, so that it is not reused.
+    */
+    if (lpt->table->db_stat)
+      abort_and_upgrade_lock_and_close_table(lpt);
+    /*
       When we have the table locked, it is necessary to reopen the table
       since all table objects were closed and removed as part of the
       ALTER TABLE of partitioning structure.
@@ -6436,7 +6465,20 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                  table, table_list, FALSE, NULL,
                                  written_bin_log));
 err:
-  close_thread_tables(thd);
+  if (thd->locked_tables)
+  {
+    /*
+      table->part_info was altered in prep_alter_part_table and must be
+      destroyed and recreated, since otherwise it will be reused, since
+      we are under LOCK TABLE.
+    */
+    alter_partition_lock_handling(lpt);
+  }
+  else
+  {
+    /* Force the table to be closed to avoid reuse of the table->part_info */
+    close_thread_tables(thd);
+  }
   DBUG_RETURN(TRUE);
 }
 #endif
@@ -6529,7 +6571,7 @@ void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
 
 void mem_alloc_error(size_t size)
 {
-  my_error(ER_OUTOFMEMORY, MYF(0), size);
+  my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(size));
 }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -6747,8 +6789,8 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
 {
   DBUG_ASSERT(!is_subpart);
   Field *field= part_info->part_field_array[0];
-  uint32             max_endpoint_val;
-  get_endpoint_func  get_endpoint;
+  uint32             UNINIT_VAR(max_endpoint_val);
+  get_endpoint_func  UNINIT_VAR(get_endpoint);
   bool               can_match_multiple_values;  /* is not '=' */
   uint field_len= field->pack_length_in_rec();
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
@@ -6786,8 +6828,8 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     }
   }
   else
-    assert(0);
-  
+    MY_ASSERT_UNREACHABLE();
+
   can_match_multiple_values= (flags || !min_value || !max_value ||
                               memcmp(min_value, max_value, field_len));
   if (can_match_multiple_values &&

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DELETE FROM mysql.user WHERE User LIKE 'smlsuper%';
 DELETE FROM mysql.db WHERE User LIKE 'smlsuper%';
 DELETE FROM mysql.tables_priv WHERE User LIKE 'smlsuper%';
@@ -16,3 +12,4 @@ Grants for smlsuper@localhost
 GRANT USAGE ON *.* TO 'smlsuper'@'localhost'
 show master logs;
 DROP USER smlsuper@localhost;
+include/rpl_end.inc

@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #called from the top level Makefile
 
@@ -135,13 +135,14 @@ am_mysqld_OBJECTS = sql_lex.$(OBJEXT) sql_handler.$(OBJEXT) \
 	discover.$(OBJEXT) time.$(OBJEXT) opt_range.$(OBJEXT) \
 	opt_sum.$(OBJEXT) records.$(OBJEXT) filesort.$(OBJEXT) \
 	handler.$(OBJEXT) ha_partition.$(OBJEXT) debug_sync.$(OBJEXT) \
-	sql_db.$(OBJEXT) sql_table.$(OBJEXT) sql_rename.$(OBJEXT) \
-	sql_crypt.$(OBJEXT) sql_load.$(OBJEXT) mf_iocache.$(OBJEXT) \
-	field_conv.$(OBJEXT) sql_show.$(OBJEXT) sql_udf.$(OBJEXT) \
-	sql_analyse.$(OBJEXT) sql_cache.$(OBJEXT) slave.$(OBJEXT) \
-	sql_repl.$(OBJEXT) rpl_filter.$(OBJEXT) rpl_tblmap.$(OBJEXT) \
-	rpl_utility.$(OBJEXT) rpl_injector.$(OBJEXT) rpl_rli.$(OBJEXT) \
-	rpl_mi.$(OBJEXT) rpl_reporting.$(OBJEXT) sql_union.$(OBJEXT) \
+	signal_handler.$(OBJEXT) sql_db.$(OBJEXT) sql_table.$(OBJEXT) \
+	sql_rename.$(OBJEXT) sql_crypt.$(OBJEXT) sql_load.$(OBJEXT) \
+	mf_iocache.$(OBJEXT) field_conv.$(OBJEXT) sql_show.$(OBJEXT) \
+	sql_udf.$(OBJEXT) sql_analyse.$(OBJEXT) sql_cache.$(OBJEXT) \
+	slave.$(OBJEXT) sql_repl.$(OBJEXT) rpl_filter.$(OBJEXT) \
+	rpl_tblmap.$(OBJEXT) rpl_utility.$(OBJEXT) \
+	rpl_injector.$(OBJEXT) rpl_rli.$(OBJEXT) rpl_mi.$(OBJEXT) \
+	rpl_reporting.$(OBJEXT) sql_union.$(OBJEXT) \
 	sql_derived.$(OBJEXT) sql_client.$(OBJEXT) \
 	repl_failsafe.$(OBJEXT) sql_olap.$(OBJEXT) sql_view.$(OBJEXT) \
 	gstream.$(OBJEXT) spatial.$(OBJEXT) sql_help.$(OBJEXT) \
@@ -472,8 +473,6 @@ plugin_ftexample_shared_target = @plugin_ftexample_shared_target@
 plugin_ftexample_static_target = @plugin_ftexample_static_target@
 plugin_heap_shared_target = @plugin_heap_shared_target@
 plugin_heap_static_target = @plugin_heap_static_target@
-plugin_ibmdb2i_shared_target = @plugin_ibmdb2i_shared_target@
-plugin_ibmdb2i_static_target = @plugin_ibmdb2i_static_target@
 plugin_innobase_shared_target = @plugin_innobase_shared_target@
 plugin_innobase_static_target = @plugin_innobase_static_target@
 plugin_innodb_plugin_shared_target = @plugin_innodb_plugin_shared_target@
@@ -489,8 +488,6 @@ plugin_partition_static_target = @plugin_partition_static_target@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
-pstack_dir = @pstack_dir@
-pstack_libs = @pstack_libs@
 readline_basedir = @readline_basedir@
 readline_dir = @readline_dir@
 readline_h_ln_cmd = @readline_h_ln_cmd@
@@ -544,7 +541,6 @@ mysqld_DEPENDENCIES = @mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la
 LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@ @PERFTOOLS_LIBS@ $(am__append_2)
 mysqld_LDADD = libndb.la \
 			@MYSQLD_EXTRA_LDFLAGS@ \
-			@pstack_libs@ \
 			@mysql_plugin_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
 			$(yassl_libs) $(openssl_libs) @MYSQLD_EXTRA_LIBS@
@@ -607,6 +603,7 @@ mysqld_SOURCES = sql_lex.cc sql_handler.cc sql_partition.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_partition.cc \
 			debug_sync.cc \
+			signal_handler.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
@@ -850,6 +847,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rpl_utility.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/scheduler.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/set_var.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/signal_handler.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/slave.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sp_cache.Po@am__quote@

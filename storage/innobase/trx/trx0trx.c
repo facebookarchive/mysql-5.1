@@ -41,6 +41,9 @@ sess_t*		trx_dummy_sess = NULL;
 /* Number of transactions currently allocated for MySQL: protected by
 the kernel mutex */
 ulint	trx_n_mysql_transactions = 0;
+/* Number of transactions currently in the XA PREPARED state: protected by
+the kernel mutex */
+ulint	trx_n_prepared = 0;
 
 /*****************************************************************
 Starts the transaction if it is not yet started. */
@@ -480,6 +483,7 @@ trx_lists_init_at_db_start(void)
 					if (srv_force_recovery == 0) {
 
 						trx->conc_state = TRX_PREPARED;
+						trx_n_prepared++;
 					} else {
 						fprintf(stderr,
 							"InnoDB: Since"
@@ -558,6 +562,7 @@ trx_lists_init_at_db_start(void)
 
 							trx->conc_state
 								= TRX_PREPARED;
+							trx_n_prepared++;
 						} else {
 							fprintf(stderr,
 								"InnoDB: Since"
@@ -831,6 +836,11 @@ trx_commit_off_kernel(
 	ut_ad(trx->conc_state == TRX_ACTIVE
 	      || trx->conc_state == TRX_PREPARED);
 	ut_ad(mutex_own(&kernel_mutex));
+
+	if (UNIV_UNLIKELY(trx->conc_state == TRX_PREPARED)) {
+		ut_a(trx_n_prepared > 0);
+		trx_n_prepared--;
+	}
 
 	/* The following assignment makes the transaction committed in memory
 	and makes its changes to data visible to other transactions.
@@ -1882,6 +1892,7 @@ trx_prepare_off_kernel(
 
 	/*--------------------------------------*/
 	trx->conc_state = TRX_PREPARED;
+	trx_n_prepared++;
 	/*--------------------------------------*/
 
 	if (must_flush_log) {
@@ -2041,14 +2052,15 @@ which is in the prepared state */
 trx_t*
 trx_get_trx_by_xid(
 /*===============*/
-			/* out: trx or NULL */
-	XID*	xid)	/* in: X/Open XA transaction identification */
+				/* out: trx or NULL;
+				on match, the trx->xid will be invalidated */
+	const XID*	xid)	/* in: X/Open XA transaction identifier */
 {
 	trx_t*	trx;
 
 	if (xid == NULL) {
 
-		return (NULL);
+		return(NULL);
 	}
 
 	mutex_enter(&kernel_mutex);
@@ -2061,10 +2073,16 @@ trx_get_trx_by_xid(
 		of gtrid_lenght+bqual_length bytes should be
 		the same */
 
-		if (xid->gtrid_length == trx->xid.gtrid_length
+		if (trx->conc_state == TRX_PREPARED
+		    && xid->gtrid_length == trx->xid.gtrid_length
 		    && xid->bqual_length == trx->xid.bqual_length
 		    && memcmp(xid->data, trx->xid.data,
 			      xid->gtrid_length + xid->bqual_length) == 0) {
+
+			/* Invalidate the XID, so that subsequent calls
+			will not find it. */
+			memset(&trx->xid, 0, sizeof(trx->xid));
+			trx->xid.formatID = -1;
 			break;
 		}
 
@@ -2073,14 +2091,5 @@ trx_get_trx_by_xid(
 
 	mutex_exit(&kernel_mutex);
 
-	if (trx) {
-		if (trx->conc_state != TRX_PREPARED) {
-
-			return(NULL);
-		}
-
-		return(trx);
-	} else {
-		return(NULL);
-	}
+	return(trx);
 }

@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
@@ -70,9 +72,13 @@ public:
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
-  static void operator delete(void *ptr_arg,size_t size)
-  { TRASH(ptr_arg, size); }
-  static void operator delete(void *ptr_arg, MEM_ROOT *mem_root)
+  static void operator delete(void *ptr_arg, size_t size)
+  {
+    (void) ptr_arg;
+    (void) size;
+    TRASH(ptr_arg, size);
+  }
+  static void operator delete(void *, MEM_ROOT *)
   { /* never called */ }
   ~String() { free(); }
 

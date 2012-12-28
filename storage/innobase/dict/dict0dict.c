@@ -26,6 +26,8 @@ Created 1/8/1996 Heikki Tuuri
 #include "pars0sym.h"
 #include "que0que.h"
 #include "rem0cmp.h"
+#include "m_string.h"
+#include "my_sys.h"
 #ifndef UNIV_HOTBACKUP
 # include "m_ctype.h" /* my_isspace() */
 #endif /* !UNIV_HOTBACKUP */
@@ -1358,6 +1360,12 @@ dict_index_add_to_cache(
 			new_index->heap,
 			(1 + dict_index_get_n_unique(new_index))
 			* sizeof(ib_longlong));
+
+		new_index->stat_n_non_null_key_vals = mem_heap_zalloc(
+			new_index->heap,
+			(1 + dict_index_get_n_unique(new_index))
+			* sizeof(*new_index->stat_n_non_null_key_vals));
+
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */
 
@@ -1883,6 +1891,8 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/* in, own: foreign key struct */
 {
+	ut_a(foreign->foreign_table->n_foreign_key_checks_running == 0);
+
 	mem_heap_free(foreign->heap);
 }
 
@@ -2217,7 +2227,7 @@ dict_scan_to(
 			quote = '\0';
 		} else if (quote) {
 			/* Within quotes: do nothing. */
-		} else if (*ptr == '`' || *ptr == '"') {
+		} else if (*ptr == '`' || *ptr == '"' || *ptr == '\'') {
 			/* Starting quote: remember the quote character. */
 			quote = *ptr;
 		} else {
@@ -3817,6 +3827,10 @@ dict_update_statistics_low(
 			for (i = dict_index_get_n_unique(index); i; ) {
 				index->stat_n_diff_key_vals[i--] = 1;
 			}
+
+			memset(index->stat_n_non_null_key_vals, 0,
+			       (1 + dict_index_get_n_unique(index))
+                               * sizeof(*index->stat_n_non_null_key_vals));
 		}
 
 		index = dict_table_get_next_index(index);

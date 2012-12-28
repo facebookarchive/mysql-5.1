@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright 2004-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 use mtr_match;
 use My::Platform;
 use POSIX qw[ _exit ];
+use IO::Handle qw[ flush ];
 require "mtr_io.pl";
 
 my $tot_real_time= 0;
@@ -129,7 +130,8 @@ sub mtr_report_test ($) {
       # Find out if this test case is an experimental one, so we can treat
       # the failure as an expected failure instead of a regression.
       for my $exp ( @$::experimental_test_cases ) {
-        if ( $exp ne $test_name ) {
+	# Include pattern match for combinations
+        if ( $exp ne $test_name && $test_name !~ /^$exp / ) {
           # if the expression is not the name of this test case, but has
           # an asterisk at the end, determine if the characters up to
           # but excluding the asterisk are the same
@@ -476,6 +478,7 @@ sub mtr_warning (@) {
 
 # Print error to screen and then exit
 sub mtr_error (@) {
+  IO::Handle::flush(\*STDOUT) if IS_WINDOWS;
   print STDERR _name(). _timestamp().
     "mysql-test-run: *** ERROR: ". join(" ", @_). "\n";
   if (IS_WINDOWS)

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -22,6 +22,15 @@ Insert into a table
 
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
+
+#ifdef __WIN__
+/* error LNK2001: unresolved external symbol _debug_sync_C_callback_ptr */
+# define DEBUG_SYNC_C(dummy) ((void) 0)
+#else
+# include "my_global.h" /* HAVE_* */
+# include "m_string.h" /* for my_sys.h */
+# include "my_sys.h" /* DEBUG_SYNC_C */
+#endif
 
 #include "row0ins.h"
 
@@ -345,8 +354,8 @@ row_ins_clust_index_entry_by_modify(
 			return(DB_LOCK_TABLE_FULL);
 
 		}
-		err = btr_cur_pessimistic_update(0, cursor,
-						 heap, big_rec, update,
+		err = btr_cur_pessimistic_update(
+			BTR_KEEP_POS_FLAG, cursor, heap, big_rec, update,
 						 0, thr, mtr);
 	}
 
@@ -434,11 +443,9 @@ row_ins_cascade_calc_update_vec(
 	dict_table_t*	table		= foreign->foreign_table;
 	dict_index_t*	index		= foreign->foreign_index;
 	upd_t*		update;
-	upd_field_t*	ufield;
 	dict_table_t*	parent_table;
 	dict_index_t*	parent_index;
 	upd_t*		parent_update;
-	upd_field_t*	parent_ufield;
 	ulint		n_fields_updated;
 	ulint		parent_field_no;
 	ulint		i;
@@ -474,13 +481,15 @@ row_ins_cascade_calc_update_vec(
 			dict_index_get_nth_col_no(parent_index, i));
 
 		for (j = 0; j < parent_update->n_fields; j++) {
-			parent_ufield = parent_update->fields + j;
+			const upd_field_t*	parent_ufield
+				= &parent_update->fields[j];
 
 			if (parent_ufield->field_no == parent_field_no) {
 
 				ulint			min_size;
 				const dict_col_t*	col;
 				ulint			ufield_len;
+				upd_field_t*		ufield;
 
 				col = dict_index_get_nth_col(index, i);
 
@@ -493,6 +502,8 @@ row_ins_cascade_calc_update_vec(
 				ufield->field_no
 					= dict_table_get_nth_col_pos(
 					table, dict_col_get_no(col));
+
+				ufield->orig_len = 0;
 				ufield->exp = NULL;
 
 				ufield->new_val = parent_ufield->new_val;
@@ -993,10 +1004,9 @@ row_ins_foreign_check_on_constraint(
 		goto nonstandard_exit_func;
 	}
 
-	if ((node->is_delete
-	     && (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL))
-	    || (!node->is_delete
-		&& (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL))) {
+	if (node->is_delete
+	    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
+	    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
 
 		/* Build the appropriate update vector which sets
 		foreign->n_fields first fields in rec to SQL NULL */
@@ -1005,6 +1015,8 @@ row_ins_foreign_check_on_constraint(
 
 		update->info_bits = 0;
 		update->n_fields = foreign->n_fields;
+		UNIV_MEM_INVALID(update->fields,
+				 update->n_fields * sizeof *update->fields);
 
 		for (i = 0; i < foreign->n_fields; i++) {
 			upd_field_t*	ufield = &update->fields[i];
@@ -1090,6 +1102,9 @@ row_ins_foreign_check_on_constraint(
 	release the latch. */
 
 	row_mysql_unfreeze_data_dictionary(thr_get_trx(thr));
+
+	DEBUG_SYNC_C("innodb_dml_cascade_dict_unfreeze");
+
 	row_mysql_freeze_data_dictionary(thr_get_trx(thr));
 
 	mtr_start_trx(mtr, trx);
@@ -1667,7 +1682,7 @@ row_ins_scan_sec_index_for_duplicate(
 	ulint		n_fields_cmp;
 	btr_pcur_t	pcur;
 	ulint		err		= DB_SUCCESS;
-	unsigned	allow_duplicates;
+	ulint		allow_duplicates;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -1698,7 +1713,7 @@ row_ins_scan_sec_index_for_duplicate(
 
 	btr_pcur_open(index, entry, PAGE_CUR_GE, BTR_SEARCH_LEAF, &pcur, &mtr);
 
-	allow_duplicates = thr_get_trx(thr)->duplicates & TRX_DUP_IGNORE;
+	allow_duplicates = thr_get_trx(thr)->duplicates;
 
 	/* Scan index records and check if there is a duplicate */
 
@@ -1786,7 +1801,7 @@ ulint
 row_ins_duplicate_error_in_clust(
 /*=============================*/
 	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
-	dtuple_t*	entry,	/*!< in: entry to insert */
+	const dtuple_t*	entry,	/*!< in: entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -1832,7 +1847,7 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 
-			if (trx->duplicates & TRX_DUP_IGNORE) {
+			if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
@@ -1876,7 +1891,7 @@ row_ins_duplicate_error_in_clust(
 			offsets = rec_get_offsets(rec, cursor->index, offsets,
 						  ULINT_UNDEFINED, &heap);
 
-			if (trx->duplicates & TRX_DUP_IGNORE) {
+			if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
@@ -1982,7 +1997,7 @@ row_ins_index_entry_low(
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry,	/*!< in: index entry to insert */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
@@ -1991,6 +2006,7 @@ row_ins_index_entry_low(
 	ulint		modify = 0; /* remove warning */
 	rec_t*		insert_rec;
 	rec_t*		rec;
+	ulint*		offsets;
 	ulint		err;
 	ulint		n_unique;
 	big_rec_t*	big_rec			= NULL;
@@ -2104,6 +2120,66 @@ row_ins_index_entry_low(
 			err = row_ins_clust_index_entry_by_modify(
 				mode, &cursor, &heap, &big_rec, entry,
 				thr, &mtr);
+
+			if (big_rec) {
+        if (!thr_get_trx(thr)->fake_changes) {
+          ut_a(err == DB_SUCCESS);
+          /* Write out the externally stored
+          columns while still x-latching
+          index->lock and block->lock. Allocate
+          pages for big_rec in the mtr that
+          modified the B-tree, but be sure to skip
+          any pages that were freed in mtr. We will
+          write out the big_rec pages before
+          committing the B-tree mini-transaction. If
+          the system crashes so that crash recovery
+          will not replay the mtr_commit(&mtr), the
+          big_rec pages will be left orphaned until
+          the pages are allocated for something else.
+
+          TODO: If the allocation extends the
+          tablespace, it will not be redo
+          logged, in either mini-transaction.
+          Tablespace extension should be
+          redo-logged in the big_rec
+          mini-transaction, so that recovery
+          will not fail when the big_rec was
+          written to the extended portion of the
+          file, in case the file was somehow
+          truncated in the crash. */
+
+          rec = btr_cur_get_rec(&cursor);
+          offsets = rec_get_offsets(
+            rec, index, NULL,
+            ULINT_UNDEFINED, &heap);
+
+          DEBUG_SYNC_C("before_row_ins_upd_extern");
+          err = btr_store_big_rec_extern_fields(
+            index, btr_cur_get_block(&cursor),
+            rec, offsets, big_rec, &mtr,
+            BTR_STORE_INSERT_UPDATE);
+          DEBUG_SYNC_C("after_row_ins_upd_extern");
+          /* If writing big_rec fails (for
+          example, because of DB_OUT_OF_FILE_SPACE),
+          the record will be corrupted. Even if
+          we did not update any externally
+          stored columns, our update could cause
+          the record to grow so that a
+          non-updated column was selected for
+          external storage. This non-update
+          would not have been written to the
+          undo log, and thus the record cannot
+          be rolled back.
+
+          However, because we have not executed
+          mtr_commit(mtr) yet, the update will
+          not be replayed in crash recovery, and
+          the following assertion failure will
+          effectively "roll back" the operation. */
+          ut_a(err == DB_SUCCESS);
+        }
+				goto stored_big_rec;
+			}
 		} else {
 			ut_ad(!n_ext);
 			err = row_ins_sec_index_entry_by_modify(
@@ -2154,8 +2230,13 @@ function_exit:
 			return(err);
 		}
 
+		DBUG_EXECUTE_IF(
+			"row_ins_extern_checkpoint",
+			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE););
+
 		mtr_start_trx(&mtr, trx);
 
+		DEBUG_SYNC_C("before_row_ins_extern_latch");
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 					    BTR_MODIFY_TREE, &cursor, 0,
 					    __FILE__, __LINE__, &mtr);
@@ -2163,10 +2244,13 @@ function_exit:
 		offsets = rec_get_offsets(rec, index, NULL,
 					  ULINT_UNDEFINED, &heap);
 
+		DEBUG_SYNC_C("before_row_ins_extern");
 		err = btr_store_big_rec_extern_fields(
 			index, btr_cur_get_block(&cursor),
-			rec, offsets, big_rec, &mtr);
+			rec, offsets, big_rec, &mtr, BTR_STORE_INSERT);
+		DEBUG_SYNC_C("after_row_ins_extern");
 
+stored_big_rec:
 		if (modify) {
 			dtuple_big_rec_free(big_rec);
 		} else {
@@ -2193,9 +2277,10 @@ ulint
 row_ins_index_entry(
 /*================*/
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry,	/*!< in: index entry to insert */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	ibool		foreign,/*!< in: TRUE=check foreign key constraints */
+	ibool		foreign,/*!< in: TRUE=check foreign key constraints
+				(foreign=FALSE only during CREATE INDEX) */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	ulint	err;

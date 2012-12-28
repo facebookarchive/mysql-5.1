@@ -98,3 +98,4 @@ SET GLOBAL respect_no_slave_exec = 0;
 connection master;
 drop table t1, t2;
 sync_slave_with_master;
+--source include/rpl_end.inc

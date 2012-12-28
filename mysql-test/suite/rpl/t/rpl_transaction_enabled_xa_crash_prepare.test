@@ -56,6 +56,8 @@ select * from t1;
 connection slave;
 select * from t1;
 
+SET GLOBAL INNODB_FILE_FORMAT_CHECK=`ANTELOPE`;
 connection master;
 DROP TABLE t1;
 sync_slave_with_master;
+stop slave;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -37,6 +37,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0purge.h"
 #include "log0log.h"
 #include "os0file.h"
@@ -255,9 +256,7 @@ trx_sys_create_doublewrite_buf(void)
 {
 	buf_block_t*	block;
 	buf_block_t*	block2;
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_t*	new_block;
-#endif /* UNIV_SYNC_DEBUG */
 	byte*	doublewrite;
 	byte*	fseg_header;
 	ulint	page_no;
@@ -336,10 +335,9 @@ start_again:
 
 		for (i = 0; i < 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
 			     + FSP_EXTENT_SIZE / 2; i++) {
-			page_no = fseg_alloc_free_page(fseg_header,
-						       prev_page_no + 1,
-						       FSP_UP, &mtr);
-			if (page_no == FIL_NULL) {
+			new_block = fseg_alloc_free_page(
+				fseg_header, prev_page_no + 1, FSP_UP, &mtr);
+			if (new_block == NULL) {
 				fprintf(stderr,
 					"InnoDB: Cannot create doublewrite"
 					" buffer: you must\n"
@@ -360,13 +358,8 @@ start_again:
 			the page position in the tablespace, then the page
 			has not been written to in doublewrite. */
 
-#ifdef UNIV_SYNC_DEBUG
-			new_block =
-#endif /* UNIV_SYNC_DEBUG */
-			buf_page_get(TRX_SYS_SPACE, 0, page_no,
-				     RW_X_LATCH, &mtr);
-			buf_block_dbg_add_level(new_block,
-						SYNC_NO_ORDER_CHECK);
+			ut_ad(rw_lock_get_x_lock_count(&new_block->lock) == 1);
+			page_no = buf_block_get_page_no(new_block);
 
 			if (i == FSP_EXTENT_SIZE / 2) {
 				ut_a(page_no == FSP_EXTENT_SIZE);
@@ -1762,10 +1755,12 @@ void
 trx_sys_close(void)
 /*===============*/
 {
+	trx_t*		trx;
 	trx_rseg_t*	rseg;
 	read_view_t*	view;
 
 	ut_ad(trx_sys != NULL);
+	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
 	/* Check that all read views are closed except read view owned
 	by a purge. */
@@ -1796,6 +1791,14 @@ trx_sys_close(void)
 	mutex_free(&trx_doublewrite->mutex);
 	mem_free(trx_doublewrite);
 	trx_doublewrite = NULL;
+
+	/* Only prepared transactions may be left in the system. Free them. */
+	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == trx_n_prepared);
+
+
+	while ((trx = UT_LIST_GET_FIRST(trx_sys->trx_list)) != NULL) {
+		trx_free_prepared(trx);
+	}
 
 	/* There can't be any active transactions. */
 	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);

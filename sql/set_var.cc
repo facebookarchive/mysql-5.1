@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
   @file
@@ -157,6 +159,8 @@ static void sys_default_general_log_path(THD *thd, enum_var_type type);
 static bool sys_update_slow_log_path(THD *thd, set_var * var);
 static void sys_default_slow_log_path(THD *thd, enum_var_type type);
 static uchar *get_myisam_mmap_size(THD *thd);
+static int check_max_allowed_packet(THD *thd,  set_var *var);
+static int check_net_buffer_length(THD *thd,  set_var *var);
 
 /*
   Variable definition list
@@ -378,7 +382,8 @@ static sys_var_const    sys_lower_case_table_names(&vars,
                                                    (uchar*)
                                                    &lower_case_table_names);
 static sys_var_thd_ulong_session_readonly sys_max_allowed_packet(&vars, "max_allowed_packet",
-					       &SV::max_allowed_packet);
+					       &SV::max_allowed_packet,
+                                               check_max_allowed_packet);
 static sys_var_ulonglong_ptr sys_max_binlog_cache_size(&vars, "max_binlog_cache_size",
                                                        &max_binlog_cache_size);
 static sys_var_long_ptr	sys_max_binlog_size(&vars, "max_binlog_size",
@@ -412,6 +417,12 @@ static sys_var_thd_ulong	sys_max_seeks_for_key(&vars, "max_seeks_for_key",
 					      &SV::max_seeks_for_key);
 static sys_var_thd_ulong   sys_max_length_for_sort_data(&vars, "max_length_for_sort_data",
                                                  &SV::max_length_for_sort_data);
+static sys_var_const    sys_max_long_data_size(&vars,
+                                               "max_long_data_size",
+                                               OPT_GLOBAL, SHOW_LONG,
+                                               (uchar*)
+                                               &max_long_data_size);
+
 #ifndef TO_BE_DELETED	/* Alias for max_join_size */
 static sys_var_thd_ha_rows	sys_sql_max_join_size(&vars, "sql_max_join_size",
 					      &SV::max_join_size,
@@ -471,7 +482,8 @@ static sys_var_const            sys_named_pipe(&vars, "named_pipe",
 /* purecov: end */
 #endif
 static sys_var_thd_ulong_session_readonly sys_net_buffer_length(&vars, "net_buffer_length",
-					      &SV::net_buffer_length);
+					      &SV::net_buffer_length,
+                                              check_net_buffer_length);
 static sys_var_thd_ulong	sys_net_read_timeout(&vars, "net_read_timeout",
 					     &SV::net_read_timeout,
 					     0, fix_net_read_timeout);
@@ -1660,44 +1672,6 @@ bool throw_bounds_warning_real(THD *thd, bool fixed, const char *name, double va
 
 
 /**
-  check an unsigned user-supplied value for a systemvariable against bounds.
-
-  TODO: This is a wrapper function to call clipping from within an update()
-        function.  Calling bounds from within update() is fair game in theory,
-        but we can only send warnings from in there, not errors, and besides,
-        it violates our model of separating check from update phase.
-        To avoid breaking out of the server with an ASSERT() in strict mode,
-        we pretend we're not in strict mode when we go through here. Bug#43233
-        was opened to remind us to replace this kludge with The Right Thing,
-        which of course is to do the check in the actual check phase, and then
-        throw an error or warning accordingly.
-
-  @param thd             thread handle
-  @param num             the value to limit
-  @param option_limits   the bounds-record, or NULL if none
- */
-static void bound_unsigned(THD *thd, ulonglong *num,
-                              const struct my_option *option_limits)
-{
-  if (option_limits)
-  {
-    my_bool   fixed     = FALSE;
-    ulonglong unadjusted= *num;
-
-    *num= getopt_ull_limit_value(unadjusted, option_limits, &fixed);
-
-    if (fixed)
-    {
-      ulong ssm= thd->variables.sql_mode;
-      thd->variables.sql_mode&= ~MODE_STRICT_ALL_TABLES;
-      throw_bounds_warning(thd, fixed, TRUE, option_limits->name, unadjusted);
-      thd->variables.sql_mode= ssm;
-    }
-  }
-}
-
-
-/**
   Get unsigned system-variable.
   Negative value does not wrap around, but becomes zero.
   Check user-supplied value for a systemvariable against bounds.
@@ -1815,11 +1789,16 @@ void sys_var_long_ptr_global::set_default(THD *thd, enum_var_type type)
 }
 
 
+bool sys_var_ulonglong_ptr::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var, 0, GET_ULL);
+}
+
+
 bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
   pthread_mutex_lock(&LOCK_global_system_variables);
-  bound_unsigned(thd, &tmp, option_limits);
   *value= (ulonglong) tmp;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
@@ -1911,25 +1890,30 @@ uchar *sys_var_thd_ulong::value_ptr(THD *thd, enum_var_type type,
 }
 
 
+bool sys_var_thd_ha_rows::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var, max_system_variables.*offset,
+#ifdef BIG_TABLES
+                      GET_ULL
+#else
+                      GET_ULONG
+#endif
+                     );
+}
+
+
 bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->save_result.ulonglong_value;
-
-  /* Don't use bigger value than given with --maximum-variable-name=.. */
-  if ((ha_rows) tmp > max_system_variables.*offset)
-    tmp= max_system_variables.*offset;
-
-  bound_unsigned(thd, &tmp, option_limits);
-
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
     pthread_mutex_lock(&LOCK_global_system_variables);    
-    global_system_variables.*offset= (ha_rows) tmp;
+    global_system_variables.*offset= (ha_rows)
+                                     var->save_result.ulonglong_value;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
   else
-    thd->variables.*offset= (ha_rows) tmp;
+    thd->variables.*offset= (ha_rows) var->save_result.ulonglong_value;
   return 0;
 }
 
@@ -2092,7 +2076,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
     }
 
     var->save_result.ulong_value= ((ulong)
-				   find_set(enum_names, res->c_ptr(),
+				   find_set(enum_names, res->c_ptr_safe(),
 					    res->length(),
                                             NULL,
                                             &error, &error_len,
@@ -2451,7 +2435,7 @@ bool sys_var_character_set_client::check(THD *thd, set_var *var)
   if (sys_var_character_set_sv::check(thd, var))
     return 1;
   /* Currently, UCS-2 cannot be used as a client character set */
-  if (var->save_result.charset->mbminlen > 1)
+  if (!is_supported_parser_charset(var->save_result.charset))
   {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, 
              var->save_result.charset->csname);
@@ -2541,6 +2525,12 @@ uchar *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
 }
 
 
+bool sys_var_key_buffer_size::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var, 0, GET_ULL);
+}
+
+
 bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
@@ -2557,7 +2547,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
                             
   if (!key_cache)
   {
-    /* Key cache didn't exists */
+    /* Key cache didn't exist */
     if (!tmp)					// Tried to delete cache
       goto end;					// Ok, nothing to do
     if (!(key_cache= create_key_cache(base_name->str, base_name->length)))
@@ -2579,9 +2569,8 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
   {
     if (key_cache == dflt_key_cache)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                          ER_WARN_CANT_DROP_DEFAULT_KEYCACHE,
-                          ER(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE));
+      error= 1;
+      my_error(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE, MYF(0));
       goto end;					// Ignore default key cache
     }
 
@@ -2607,7 +2596,6 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
     goto end;
   }
 
-  bound_unsigned(thd, &tmp, option_limits);
   key_cache->param_buff_size= (ulonglong) tmp;
 
   /* If key cache didn't exist initialize it, else resize it */
@@ -2624,7 +2612,16 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 
 end:
   pthread_mutex_unlock(&LOCK_global_system_variables);
+
+ var->save_result.ulonglong_value = SIZE_T_MAX;
+
   return error;
+}
+
+
+bool sys_var_key_cache_long::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var, 0, GET_ULONG);
 }
 
 
@@ -2636,7 +2633,6 @@ end:
 */
 bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->value->val_int();
   LEX_STRING *base_name= &var->base;
   bool error= 0;
 
@@ -2661,8 +2657,8 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
   if (key_cache->in_init)
     goto end;
 
-  bound_unsigned(thd, &tmp, option_limits);
-  *((ulong*) (((char*) key_cache) + offset))= (ulong) tmp;
+  *((ulong*) (((char*) key_cache) + offset))= (ulong)
+                                              var->save_result.ulonglong_value;
 
   /*
     Don't create a new key cache if it didn't exist
@@ -2795,7 +2791,7 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
     file_log= logger.get_log_file_handler();
     break;
   default:
-    assert(0);                                  // Impossible
+    MY_ASSERT_UNREACHABLE();
   }
 
   if (!old_value)
@@ -2951,14 +2947,14 @@ int set_var_collation_client::update(THD *thd)
 
 bool sys_var_timestamp::check(THD *thd, set_var *var)
 {
-  time_t val;
+  longlong val;
   var->save_result.ulonglong_value= var->value->val_int();
-  val= (time_t) var->save_result.ulonglong_value;
-  if (val < (time_t) MY_TIME_T_MIN || val > (time_t) MY_TIME_T_MAX)
+  val= (longlong) var->save_result.ulonglong_value;
+  if (val != 0 &&          // this is how you set the default value
+      (val < TIMESTAMP_MIN_VALUE || val > TIMESTAMP_MAX_VALUE))
   {
-    my_message(ER_UNKNOWN_ERROR, 
-               "This version of MySQL doesn't support dates later than 2038",
-               MYF(0));
+    char buf[64];
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", llstr(val, buf));
     return TRUE;
   }
   return FALSE;
@@ -3193,7 +3189,7 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
       return 1;
     }
-    const char *locale_str= res->c_ptr();
+    const char *locale_str= res->c_ptr_safe();
     if (!(locale_match= my_locale_by_name(locale_str)))
     {
       my_printf_error(ER_UNKNOWN_ERROR,
@@ -4700,6 +4696,36 @@ uchar *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
   return (uchar *) Events::get_opt_event_scheduler_str();
 }
 #endif
+
+
+int 
+check_max_allowed_packet(THD *thd,  set_var *var)
+{
+  longlong val= var->value->val_int();
+  if (val < (longlong) global_system_variables.net_buffer_length)
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                        ER_UNKNOWN_ERROR, 
+                        "The value of 'max_allowed_packet' should be no less than "
+                        "the value of 'net_buffer_length'");
+  }
+  return 0;
+}
+
+
+int 
+check_net_buffer_length(THD *thd,  set_var *var)
+{
+  longlong val= var->value->val_int();
+  if (val > (longlong) global_system_variables.max_allowed_packet)
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                        ER_UNKNOWN_ERROR, 
+                        "The value of 'max_allowed_packet' should be no less than "
+                        "the value of 'net_buffer_length'");
+  }
+  return 0;
+}
 
 /****************************************************************************
   Used templates

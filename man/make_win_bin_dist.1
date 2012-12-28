@@ -2,12 +2,12 @@
 .\"     Title: \fBmake_win_bin_dist\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 10/11/2010
+.\"      Date: 04/15/2012
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMAKE_WIN_BIN_DIST" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMAKE_WIN_BIN_DIST" "1" "04/15/2012" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -20,13 +20,13 @@
 .\" -----------------------------------------------------------------
 .\" make_win_bin_dist
 .SH "NAME"
-make_win_bin_dist \- package MySQL distribution as ZIP archive
+make_win_bin_dist \- package MySQL distribution as Zip archive
 .SH "SYNOPSIS"
 .HP \w'\fBmake_win_bin_dist\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIpackage_basename\fR\fR\fB\ [\fR\fB\fIcopy_def\fR\fR\fB\ \&.\&.\&.]\fR\ 'u
 \fBmake_win_bin_dist [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIpackage_basename\fR\fR\fB [\fR\fB\fIcopy_def\fR\fR\fB \&.\&.\&.]\fR
 .SH "DESCRIPTION"
 .PP
-This script is used on Windows after building a MySQL distribution from source to create executable programs\&. It packages the binaries and support files into a ZIP archive that can be unpacked at the location where you want to install MySQL\&.
+This script is used on Windows after building a MySQL distribution from source to create executable programs\&. It packages the binaries and support files into a Zip archive that can be unpacked at the location where you want to install MySQL\&.
 .PP
 \fBmake_win_bin_dist\fR
 is a shell script, so you must have Cygwin installed to use it\&.
@@ -45,7 +45,7 @@ shell> \fBmake_win_bin_dist [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIpackage_basenam
 .PP
 The
 \fIpackage_basename\fR
-argument provides the basename for the resulting ZIP archive\&. This name will be the name of the directory that results from unpacking the archive\&.
+argument provides the basename for the resulting Zip archive\&. This name will be the name of the directory that results from unpacking the archive\&.
 .PP
 Because you might want to include files of directories from other builds, you can instruct this script to copy them in for you, using
 \fIcopy_def\fR
@@ -169,7 +169,7 @@ directories)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

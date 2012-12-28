@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 
@@ -686,7 +688,7 @@ bool mysqld_help(THD *thd, const char *mask)
 
   if (count_topics == 0)
   {
-    int key_id;
+    int UNINIT_VAR(key_id);
     if (!(select=
           prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
                                   used_fields[help_keyword_name].field,

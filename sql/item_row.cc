@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 
@@ -73,12 +75,8 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
     used_tables_cache |= item->used_tables();
     const_item_cache&= item->const_item() && !with_null;
     not_null_tables_cache|= item->not_null_tables();
-    /*
-      Some subqueries transformations aren't done in the view_prepare_mode thus
-      is_null() will fail. So we skip is_null() calculation for CREATE VIEW as
-      not necessary.
-    */
-    if (const_item_cache && !thd->lex->view_prepare_mode)
+
+    if (const_item_cache)
     {
       if (item->cols() > 1)
 	with_null|= item->null_inside();

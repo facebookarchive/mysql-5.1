@@ -6,7 +6,9 @@ source include/master-slave.inc;
 source include/have_binlog_format_statement.inc;
 
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log:");
+call mtr.add_suppression(".*Error initializing relay log position: I/O error reading event at position.*");
 call mtr.add_suppression(".*Event too big.*");
+call mtr.add_suppression(".*net_buffer_length .* is set to be larger than max_allowed_packet.*");
 
 --disable_warnings
 drop database if exists foobar;
@@ -165,3 +167,4 @@ connection slave;
 SET @@global.slave_max_allowed_packet=0;
 
 # End of tests
+--source include/rpl_end.inc

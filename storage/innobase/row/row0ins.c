@@ -6,6 +6,9 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
+#include "my_global.h" /* HAVE_* */
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0ins.h"
 
 #ifdef UNIV_NONINL
@@ -423,11 +426,9 @@ row_ins_cascade_calc_update_vec(
 	dict_table_t*	table		= foreign->foreign_table;
 	dict_index_t*	index		= foreign->foreign_index;
 	upd_t*		update;
-	upd_field_t*	ufield;
 	dict_table_t*	parent_table;
 	dict_index_t*	parent_index;
 	upd_t*		parent_update;
-	upd_field_t*	parent_ufield;
 	ulint		n_fields_updated;
 	ulint		parent_field_no;
 	ulint		i;
@@ -463,12 +464,14 @@ row_ins_cascade_calc_update_vec(
 			dict_index_get_nth_col_no(parent_index, i));
 
 		for (j = 0; j < parent_update->n_fields; j++) {
-			parent_ufield = parent_update->fields + j;
+			const upd_field_t*	parent_ufield
+				= &parent_update->fields[j];
 
 			if (parent_ufield->field_no == parent_field_no) {
 
 				ulint			min_size;
 				const dict_col_t*	col;
+				upd_field_t*		ufield;
 
 				col = dict_index_get_nth_col(index, i);
 
@@ -973,10 +976,9 @@ row_ins_foreign_check_on_constraint(
 		goto nonstandard_exit_func;
 	}
 
-	if ((node->is_delete
-	     && (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL))
-	    || (!node->is_delete
-		&& (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL))) {
+	if (node->is_delete
+	    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
+	    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
 
 		/* Build the appropriate update vector which sets
 		foreign->n_fields first fields in rec to SQL NULL */
@@ -985,6 +987,8 @@ row_ins_foreign_check_on_constraint(
 
 		update->info_bits = 0;
 		update->n_fields = foreign->n_fields;
+		UNIV_MEM_INVALID(update->fields,
+				 update->n_fields * sizeof *update->fields);
 
 		for (i = 0; i < foreign->n_fields; i++) {
 			(update->fields + i)->field_no
@@ -1070,6 +1074,9 @@ row_ins_foreign_check_on_constraint(
 	release the latch. */
 
 	row_mysql_unfreeze_data_dictionary(thr_get_trx(thr));
+
+	DEBUG_SYNC_C("innodb_dml_cascade_dict_unfreeze");
+
 	row_mysql_freeze_data_dictionary(thr_get_trx(thr));
 
 	mtr_start(mtr);
@@ -1672,7 +1679,7 @@ row_ins_scan_sec_index_for_duplicate(
 
 	btr_pcur_open(index, entry, PAGE_CUR_GE, BTR_SEARCH_LEAF, &pcur, &mtr);
 
-	allow_duplicates = thr_get_trx(thr)->duplicates & TRX_DUP_IGNORE;
+	allow_duplicates = thr_get_trx(thr)->duplicates;
 
 	/* Scan index records and check if there is a duplicate */
 
@@ -1812,7 +1819,7 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 
-			if (trx->duplicates & TRX_DUP_IGNORE) {
+			if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
@@ -1854,7 +1861,7 @@ row_ins_duplicate_error_in_clust(
 			offsets = rec_get_offsets(rec, cursor->index, offsets,
 						  ULINT_UNDEFINED, &heap);
 
-			if (trx->duplicates & TRX_DUP_IGNORE) {
+			if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
@@ -2120,16 +2127,24 @@ function_exit:
 
 	if (big_rec) {
 		rec_t*		rec;
+
+		DBUG_EXECUTE_IF(
+			"row_ins_extern_checkpoint",
+			log_make_checkpoint_at(ut_dulint_max, TRUE););
+
 		mtr_start(&mtr);
 
+		DEBUG_SYNC_C("before_row_ins_extern_latch");
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 					    BTR_MODIFY_TREE, &cursor, 0, &mtr);
 		rec = btr_cur_get_rec(&cursor);
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
 
+		DEBUG_SYNC_C("before_row_ins_upd_extern");
 		err = btr_store_big_rec_extern_fields(index, rec,
 						      offsets, big_rec, &mtr);
+		DEBUG_SYNC_C("after_row_ins_upd_extern");
 
 		if (modify) {
 			dtuple_big_rec_free(big_rec);

@@ -298,5 +298,4 @@ flush privileges;
 flush user_resources;
 
 sync_slave_with_master;
-
-
+--source include/rpl_end.inc

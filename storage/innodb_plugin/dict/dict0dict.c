@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,6 +24,8 @@ Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
 #include "dict0dict.h"
+#include "m_string.h"
+#include "my_sys.h"
 
 #ifdef UNIV_NONINL
 #include "dict0dict.ic"
@@ -80,9 +82,18 @@ UNIV_INTERN rw_lock_t	dict_operation_lock;
 /** Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
-/** array of mutexes protecting dict_index_t::stat_n_diff_key_vals[] */
-#define DICT_INDEX_STAT_MUTEX_SIZE	32
-static mutex_t	dict_index_stat_mutex[DICT_INDEX_STAT_MUTEX_SIZE];
+/** array of rw locks protecting
+dict_table_t::stat_initialized
+dict_table_t::stat_n_rows (*)
+dict_table_t::stat_clustered_index_size
+dict_table_t::stat_sum_of_other_index_sizes
+dict_table_t::stat_modified_counter (*)
+dict_table_t::indexes*::stat_n_diff_key_vals[]
+dict_table_t::indexes*::stat_index_size
+dict_table_t::indexes*::stat_n_leaf_pages
+(*) those are not always protected for performance reasons */
+#define DICT_TABLE_STATS_LATCHES_SIZE	64
+static rw_lock_t	dict_table_stats_latches[DICT_TABLE_STATS_LATCHES_SIZE];
 
 /*******************************************************************//**
 Tries to find column names for the index and sets the col field of the
@@ -243,46 +254,68 @@ dict_mutex_exit_for_mysql(void)
 	mutex_exit(&(dict_sys->mutex));
 }
 
-/** Get the mutex that protects index->stat_n_diff_key_vals[] */
-#define GET_INDEX_STAT_MUTEX(index) \
-	(&dict_index_stat_mutex[ut_fold_dulint(index->id) \
-	 			% DICT_INDEX_STAT_MUTEX_SIZE])
+/** Get the latch that protects the stats of a given table */
+#define GET_TABLE_STATS_LATCH(table) \
+	(&dict_table_stats_latches[ut_fold_dulint(table->id) \
+				   % DICT_TABLE_STATS_LATCHES_SIZE])
 
 #undef ndef
 #ifdef ndef
 /**********************************************************************//**
-Lock the appropriate mutex to protect index->stat_n_diff_key_vals[].
-index->id is used to pick the right mutex and it should not change
-before dict_index_stat_mutex_exit() is called on this index. */
+Lock the appropriate latch to protect a given table's statistics.
+table->id is used to pick the corresponding latch from a global array of
+latches. */
 UNIV_INTERN
 void
-dict_index_stat_mutex_enter(
-/*========================*/
-	const dict_index_t*	index)	/*!< in: index */
+dict_table_stats_lock(
+/*==================*/
+	const dict_table_t*	table,		/*!< in: table */
+	ulint			latch_mode)	/*!< in: RW_S_LATCH or
+						RW_X_LATCH */
 {
-	ut_ad(index != NULL);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	ut_ad(index->cached);
-	ut_ad(!index->to_be_dropped);
+	ut_ad(table != NULL);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	mutex_enter(GET_INDEX_STAT_MUTEX(index));
+	switch (latch_mode) {
+	case RW_S_LATCH:
+		rw_lock_s_lock(GET_TABLE_STATS_LATCH(table));
+		break;
+	case RW_X_LATCH:
+		rw_lock_x_lock(GET_TABLE_STATS_LATCH(table));
+		break;
+	case RW_NO_LATCH:
+		/* fall through */
+	default:
+		ut_error;
+	}
 }
 #endif
 
 /**********************************************************************//**
-Unlock the appropriate mutex that protects index->stat_n_diff_key_vals[]. */
+Unlock the latch that has been locked by dict_table_stats_lock() */
 UNIV_INTERN
 void
-dict_index_stat_mutex_exit(
-/*=======================*/
-	const dict_index_t*	index)	/*!< in: index */
+dict_table_stats_unlock(
+/*====================*/
+	const dict_table_t*	table,		/*!< in: table */
+	ulint			latch_mode)	/*!< in: RW_S_LATCH or
+						RW_X_LATCH */
 {
-	ut_ad(index != NULL);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	ut_ad(index->cached);
-	ut_ad(!index->to_be_dropped);
+	ut_ad(table != NULL);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	mutex_exit(GET_INDEX_STAT_MUTEX(index));
+	switch (latch_mode) {
+	case RW_S_LATCH:
+		rw_lock_s_unlock(GET_TABLE_STATS_LATCH(table));
+		break;
+	case RW_X_LATCH:
+		rw_lock_x_unlock(GET_TABLE_STATS_LATCH(table));
+		break;
+	case RW_NO_LATCH:
+		/* fall through */
+	default:
+		ut_error;
+	}
 }
 
 /********************************************************************//**
@@ -671,8 +704,8 @@ dict_init(void)
 
 	mutex_create(&dict_foreign_err_mutex, SYNC_ANY_LATCH);
 
-	for (i = 0; i < DICT_INDEX_STAT_MUTEX_SIZE; i++) {
-		mutex_create(&dict_index_stat_mutex[i], SYNC_INDEX_TREE);
+	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
+		rw_lock_create(&dict_table_stats_latches[i], SYNC_INDEX_TREE);
 	}
 }
 
@@ -708,7 +741,9 @@ dict_table_get(
 		/* If table->ibd_file_missing == TRUE, this will
 		print an error message and return without doing
 		anything. */
-		dict_update_statistics(table, FALSE, TRUE, NULL);
+		dict_update_statistics(table, TRUE /* only update stats
+				       if they have not been initialized */,
+				       TRUE, NULL);
 	}
 
 	return(table);
@@ -905,7 +940,7 @@ dict_table_rename_in_cache(
 	dict_foreign_t*	foreign;
 	dict_index_t*	index;
 	ulint		fold;
-	char		old_name[MAX_TABLE_NAME_LEN + 1];
+	char		old_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_ad(table);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -917,7 +952,7 @@ dict_table_rename_in_cache(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "InnoDB: too long table name: '%s', "
 			"max length is %d\n", table->name,
-			MAX_TABLE_NAME_LEN);
+			MAX_FULL_NAME_LEN);
 		ut_error;
 	}
 
@@ -967,11 +1002,11 @@ dict_table_rename_in_cache(
 		    ut_fold_string(old_name), table);
 
 	if (strlen(new_name) > strlen(table->name)) {
-		/* We allocate MAX_TABLE_NAME_LEN+1 bytes here to avoid
+		/* We allocate MAX_FULL_NAME_LEN + 1 bytes here to avoid
 		memory fragmentation, we assume a repeated calls of
 		ut_realloc() with the same size do not cause fragmentation */
-		ut_a(strlen(new_name) <= MAX_TABLE_NAME_LEN);
-		table->name = ut_realloc(table->name, MAX_TABLE_NAME_LEN + 1);
+		ut_a(strlen(new_name) <= MAX_FULL_NAME_LEN);
+		table->name = ut_realloc(table->name, MAX_FULL_NAME_LEN + 1);
 	}
 	memcpy(table->name, new_name, strlen(new_name) + 1);
 
@@ -1634,7 +1669,9 @@ undo_size_ok:
 	new_index->stat_n_leaf_pages = 1;
 
 	new_index->page = page_no;
-	rw_lock_create(&new_index->lock, SYNC_INDEX_TREE);
+	rw_lock_create(&new_index->lock,
+		       dict_index_is_ibuf(index)
+		       ? SYNC_IBUF_INDEX_TREE : SYNC_INDEX_TREE);
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 
@@ -1642,6 +1679,12 @@ undo_size_ok:
 			new_index->heap,
 			(1 + dict_index_get_n_unique(new_index))
 			* sizeof(ib_int64_t));
+
+		new_index->stat_n_non_null_key_vals = mem_heap_zalloc(
+			new_index->heap,
+			(1 + dict_index_get_n_unique(new_index))
+			* sizeof(*new_index->stat_n_non_null_key_vals));
+
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */
 
@@ -2246,6 +2289,8 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
+	ut_a(foreign->foreign_table->n_foreign_key_checks_running == 0);
+
 	mem_heap_free(foreign->heap);
 }
 
@@ -2669,7 +2714,7 @@ dict_scan_to(
 			quote = '\0';
 		} else if (quote) {
 			/* Within quotes: do nothing. */
-		} else if (*ptr == '`' || *ptr == '"') {
+		} else if (*ptr == '`' || *ptr == '"' || *ptr == '\'') {
 			/* Starting quote: remember the quote character. */
 			quote = *ptr;
 		} else {
@@ -4206,14 +4251,13 @@ Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
 UNIV_INTERN
 void
-dict_update_statistics_low(
-/*=======================*/
+dict_update_statistics(
+/*===================*/
 	dict_table_t*	table,		/*!< in/out: table */
-	ibool		has_dict_mutex __attribute__((unused)),
-					/*!< in: TRUE if the caller has the
-					dictionary mutex */
-	ibool		force,		/*!< in: TRUE if stats are collected
-					when the already exist */
+	ibool		only_calc_if_missing_stats,/*!< in: only
+					update/recalc the stats if they have
+					not been initialized yet, otherwise
+					do nothing */
 	ibool		wait,		/*!< in: TRUE to wait for completion when
 					collection is in progress */
 	trx_t*		trx)
@@ -4226,7 +4270,8 @@ dict_update_statistics_low(
 
 	os_fast_mutex_lock(&(table->stats_mutex));
 
-	if ((!force && table->stat_initialized) || (!wait && table->stats_in_progress)) {
+	if ((only_calc_if_missing_stats && table->stat_initialized)
+	    || (!wait && table->stats_in_progress)) {
 
 		/* Avoid repeating work during "opening tables" dogpile or waiting
 		when requested. */
@@ -4267,22 +4312,36 @@ dict_update_statistics_low(
 		return;
 	}
 
+	// This is the upstream fix for http://bugs.mysql.com/53046
+	// Disabling it because mcallaghan says ours is better.
+	// dict_table_stats_lock(table, RW_X_LATCH);
 
 	do {
 		if (UNIV_LIKELY
 		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
 		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
 			 && dict_index_is_clust(index)))) {
+			mtr_t	mtr;
 			ulint	size;
-			size = btr_get_size(index, BTR_TOTAL_SIZE);
 
-			index->stat_index_size = size;
+			mtr_start(&mtr);
+			mtr_s_lock(dict_index_get_lock(index), &mtr);
 
+			size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
+
+			if (size != ULINT_UNDEFINED) {
 			sum_of_index_sizes += size;
+				index->stat_index_size = size;
+				size = btr_get_size(
+					index, BTR_N_LEAF_PAGES, &mtr);
+			}
 
-			size = btr_get_size(index, BTR_N_LEAF_PAGES);
+			mtr_commit(&mtr);
 
-			if (size == 0) {
+			switch (size) {
+			case ULINT_UNDEFINED:
+				goto fake_statistics;
+			case 0:
 				/* The root node of the tree is a leaf */
 				size = 1;
 			}
@@ -4299,12 +4358,17 @@ dict_update_statistics_low(
 			various means, also via secondary indexes. */
 			ulint	i;
 
+fake_statistics:
 			sum_of_index_sizes++;
 			index->stat_index_size = index->stat_n_leaf_pages = 1;
 
 			for (i = dict_index_get_n_unique(index); i; ) {
 				index->stat_n_diff_key_vals[i--] = 1;
 			}
+
+			memset(index->stat_n_non_null_key_vals, 0,
+			       (1 + dict_index_get_n_unique(index))
+                               * sizeof(*index->stat_n_non_null_key_vals));
 		}
 
 		index = dict_table_get_next_index(index);
@@ -4330,24 +4394,10 @@ dict_update_statistics_low(
 
 	table->stat_modified_counter = 0;
 
+	// This is the upstream fix for http://bugs.mysql.com/53046
+	// Disabling it because mcallaghan says ours is better.
+	// dict_table_stats_unlock(table, RW_X_LATCH);
 	dict_update_statistics_exit(table);
-}
-
-/*********************************************************************//**
-Calculates new estimates for table and index statistics. The statistics
-are used in query optimization. */
-UNIV_INTERN
-void
-dict_update_statistics(
-/*===================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	ibool		force,	/*!< in: whether to force collection
-				when stats exist */
-	ibool		wait,	/*!< in: TRUE to wait for completion when
-				collection is in progress */
-	trx_t*		trx)
-{
-	dict_update_statistics_low(table, FALSE, force, wait, trx);
 }
 
 /**********************************************************************//**
@@ -4427,7 +4477,12 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_update_statistics_low(table, TRUE, TRUE, TRUE, NULL);
+	dict_update_statistics(table, FALSE /* update even if initialized */,
+			       TRUE, NULL);
+
+	// This is the upstream fix for http://bugs.mysql.com/53046
+	// Disabling it because mcallaghan says ours is better.
+	// dict_table_stats_lock(table, RW_S_LATCH);
 
 	fprintf(stderr,
 		"--------------------------------------\n"
@@ -4455,6 +4510,10 @@ dict_table_print_low(
 		dict_index_print_low(index);
 		index = UT_LIST_GET_NEXT(indexes, index);
 	}
+
+	// This is the upstream fix for http://bugs.mysql.com/53046
+	// Disabling it because mcallaghan says ours is better.
+	// dict_table_stats_unlock(table, RW_S_LATCH);
 
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
@@ -4860,7 +4919,8 @@ void
 dict_table_replace_index_in_foreign_list(
 /*=====================================*/
 	dict_table_t*	table,  /*!< in/out: table */
-	dict_index_t*	index)	/*!< in: index to be replaced */
+	dict_index_t*	index,	/*!< in: index to be replaced */
+	const trx_t*	trx)	/*!< in: transaction handle */
 {
 	dict_foreign_t*	foreign;
 
@@ -4871,7 +4931,13 @@ dict_table_replace_index_in_foreign_list(
 		if (foreign->foreign_index == index) {
 			dict_index_t*	new_index
 				= dict_foreign_find_equiv_index(foreign);
-			ut_a(new_index);
+
+			/* There must exist an alternative index if
+			check_foreigns (FOREIGN_KEY_CHECKS) is on, 
+			since ha_innobase::prepare_drop_index had done
+			the check before we reach here. */
+
+			ut_a(new_index || !trx->check_foreigns);
 
 			foreign->foreign_index = new_index;
 		}
@@ -5004,8 +5070,8 @@ dict_close(void)
 	mem_free(dict_sys);
 	dict_sys = NULL;
 
-	for (i = 0; i < DICT_INDEX_STAT_MUTEX_SIZE; i++) {
-		mutex_free(&dict_index_stat_mutex[i]);
+	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
+		rw_lock_free(&dict_table_stats_latches[i]);
 	}
 }
 
@@ -5112,7 +5178,7 @@ static
 void
 padding_algo_linear_success(
 	padding_algo_linear_t *state,
-	ulint page_size)
+	ulint page_size __attribute__((unused)))
 {
 	os_fast_mutex_lock(&state->mutex);
 	++state->success;
@@ -5124,7 +5190,7 @@ static
 void
 padding_algo_linear_fail(
 	padding_algo_linear_t *state,
-	ulint page_size)
+	ulint page_size __attribute__((unused)))
 {
 	os_fast_mutex_lock(&state->mutex);
 	++state->fail;

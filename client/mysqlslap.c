@@ -1,4 +1,5 @@
-/* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
    original idea: Brian Aker via playing with ab for too many years
    coded by: Patrick Galbraith
@@ -131,7 +132,7 @@ const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
-static my_bool opt_preserve= TRUE;
+static my_bool opt_preserve= TRUE, opt_no_drop= FALSE;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool opt_only_print= FALSE;
 static my_bool opt_compress= FALSE, tty_password= FALSE,
@@ -142,7 +143,8 @@ static my_bool opt_compress= FALSE, tty_password= FALSE,
 const char *auto_generate_sql_type= "mixed";
 
 static unsigned long connect_flags= CLIENT_MULTI_RESULTS |
-                                    CLIENT_MULTI_STATEMENTS;
+                                    CLIENT_MULTI_STATEMENTS |
+                                    CLIENT_REMEMBER_OPTIONS;
 
 static int verbose, delimiter_length;
 static uint commit_rate;
@@ -599,6 +601,8 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"iterations", 'i', "Number of times to run the tests.", &iterations,
     &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"no-drop", OPT_SLAP_NO_DROP, "Do not drop the schema after the test.",
+   &opt_no_drop, &opt_no_drop, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
     "Number of VARCHAR columns to create in table if specifying --auto-generate-sql.",
     &num_char_cols_opt, &num_char_cols_opt, 0, GET_STR, REQUIRED_ARG,
@@ -1147,8 +1151,11 @@ get_options(int *argc,char ***argv)
   if (!user)
     user= (char *)"root";
 
-  /* If something is created we clean it up, otherwise we leave schemas alone */
-  if (create_string || auto_generate_sql)
+  /*
+    If something is created and --no-drop is not specified, we drop the
+    schema.
+  */
+  if (!opt_no_drop && (create_string || auto_generate_sql))
     opt_preserve= FALSE;
 
   if (auto_generate_sql && (create_string || user_supplied_query))
@@ -1519,7 +1526,12 @@ generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt)
       exit(1);
     }
 
-    result= mysql_store_result(mysql);
+    if (!(result= mysql_store_result(mysql)))
+    {
+      fprintf(stderr, "%s: Error when storing result: %d %s\n",
+              my_progname, mysql_errno(mysql), mysql_error(mysql));
+      exit(1);
+    }
     primary_keys_number_of= mysql_num_rows(result);
 
     /* So why check this? Blackhole :) */
@@ -1891,10 +1903,15 @@ limit_not_met:
       {
         if (mysql_field_count(mysql))
         {
-          result= mysql_store_result(mysql);
-          while ((row = mysql_fetch_row(result)))
-            counter++;
-          mysql_free_result(result);
+          if (!(result= mysql_store_result(mysql)))
+            fprintf(stderr, "%s: Error when storing result: %d %s\n",
+                    my_progname, mysql_errno(mysql), mysql_error(mysql));
+          else
+          {
+            while ((row= mysql_fetch_row(result)))
+              counter++;
+            mysql_free_result(result);
+          }
         }
       } while(mysql_next_result(mysql) == 0);
       queries++;

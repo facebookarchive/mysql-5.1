@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -156,6 +156,20 @@ page_zip_empty_size(
 #endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************//**
+Gets the number of elements in the dense page directory,
+including deleted records (the free list).
+@return	number of elements in the dense page directory */
+UNIV_INLINE
+ulint
+page_zip_dir_elems(
+/*===============*/
+	const page_zip_des_t*	page_zip)	/*!< in: compressed page */
+{
+	/* Exclude the page infimum and supremum from the record count. */
+	return(page_dir_get_n_heap(page_zip->data) - PAGE_HEAP_NO_USER_LOW);
+}
+
+/*************************************************************//**
 Gets the size of the compressed page trailer (the dense page directory),
 including deleted records (the free list).
 @return	length of dense page directory, in bytes */
@@ -165,12 +179,40 @@ page_zip_dir_size(
 /*==============*/
 	const page_zip_des_t*	page_zip)	/*!< in: compressed page */
 {
-	/* Exclude the page infimum and supremum from the record count. */
-	ulint	size = PAGE_ZIP_DIR_SLOT_SIZE
-		* (page_dir_get_n_heap(page_zip->data)
-		   - PAGE_HEAP_NO_USER_LOW);
-	return(size);
+	return(PAGE_ZIP_DIR_SLOT_SIZE * page_zip_dir_elems(page_zip));
 }
+
+/*************************************************************//**
+Gets an offset to the compressed page trailer (the dense page directory),
+including deleted records (the free list).
+@return	offset of the dense page directory */
+UNIV_INLINE
+ulint
+page_zip_dir_start_offs(
+/*====================*/
+	const page_zip_des_t*	page_zip,	/*!< in: compressed page */
+	ulint			n_dense)	/*!< in: directory size */
+{
+	ut_ad(n_dense * PAGE_ZIP_DIR_SLOT_SIZE < page_zip_get_size(page_zip));
+
+	return(page_zip_get_size(page_zip) - n_dense * PAGE_ZIP_DIR_SLOT_SIZE);
+}
+
+/*************************************************************//**
+Gets a pointer to the compressed page trailer (the dense page directory),
+including deleted records (the free list).
+@param[in] page_zip	compressed page
+@param[in] n_dense	number of entries in the directory
+@return	pointer to the dense page directory */
+#define page_zip_dir_start_low(page_zip, n_dense)			\
+	((page_zip)->data + page_zip_dir_start_offs(page_zip, n_dense))
+/*************************************************************//**
+Gets a pointer to the compressed page trailer (the dense page directory),
+including deleted records (the free list).
+@param[in] page_zip	compressed page
+@return	pointer to the dense page directory */
+#define page_zip_dir_start(page_zip)					\
+	page_zip_dir_start_low(page_zip, page_zip_dir_elems(page_zip))
 
 /*************************************************************//**
 Gets the size of the compressed page trailer (the dense page directory),
@@ -659,7 +701,7 @@ page_zip_dir_encode(
 Allocate memory for zlib. */
 static
 void*
-page_zip_malloc(
+page_zip_zalloc(
 /*============*/
 	void*	opaque,	/*!< in/out: memory heap */
 	uInt	items,	/*!< in: number of items to allocate */
@@ -692,7 +734,7 @@ page_zip_set_alloc(
 {
 	z_stream*	strm = stream;
 
-	strm->zalloc = page_zip_malloc;
+	strm->zalloc = page_zip_zalloc;
 	strm->zfree = page_zip_free;
 	strm->opaque = heap;
 }
@@ -1309,7 +1351,7 @@ page_zip_compress(
 	if (srv_simulate_comp_failures
 	    && index->padding_algo == PADDING_ALGO_NONE
 	    && page_get_n_recs(page) >= 2
-	    && ((rand() % 100) < srv_simulate_comp_failures)) {
+	    && ((ulint)(rand() % 100) < srv_simulate_comp_failures)) {
 #ifdef UNIV_DEBUG
 		fprintf(stderr,
 		        "InnoDB: Simulating a compression failure"
@@ -2407,8 +2449,7 @@ zlib_done:
 	}
 
 	/* Restore the uncompressed columns in heap_no order. */
-	storage	= page_zip->data + page_zip_get_size(page_zip)
-		- n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
+	storage = page_zip_dir_start_low(page_zip, n_dense);
 
 	for (slot = 0; slot < n_dense; slot++) {
 		rec_t*		rec	= recs[slot];
@@ -2893,8 +2934,7 @@ zlib_done:
 		return(FALSE);
 	}
 
-	storage = page_zip->data + page_zip_get_size(page_zip)
-		- n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
+	storage = page_zip_dir_start_low(page_zip, n_dense);
 
 	externs = storage - n_dense
 		* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
@@ -3140,7 +3180,6 @@ zlib_error:
 	/* Subtract the space reserved for
 	the page header and the end marker of the modification log. */
 	d_stream.avail_in = page_zip_get_size(page_zip) - (PAGE_DATA + 1);
-
 	d_stream.next_out = page + PAGE_ZIP_START;
 	d_stream.avail_out = UNIV_PAGE_SIZE - PAGE_ZIP_START;
 
@@ -3694,9 +3733,7 @@ page_zip_write_rec(
 	}
 
 	/* Write the data bytes.  Store the uncompressed bytes separately. */
-	storage = page_zip->data + page_zip_get_size(page_zip)
-		- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
-		* PAGE_ZIP_DIR_SLOT_SIZE;
+	storage = page_zip_dir_start(page_zip);
 
 	if (page_is_leaf(page)) {
 		ulint		len;
@@ -3992,9 +4029,7 @@ corrupt:
 		field = page + offset;
 		storage = page_zip->data + z_offset;
 
-		storage_end = page_zip->data + page_zip_get_size(page_zip)
-			- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
-			* PAGE_ZIP_DIR_SLOT_SIZE;
+		storage_end = page_zip_dir_start(page_zip);
 
 		heap_no = 1 + (storage_end - storage) / REC_NODE_PTR_SIZE;
 
@@ -4030,7 +4065,9 @@ page_zip_write_node_ptr(
 {
 	byte*	field;
 	byte*	storage;
+#ifdef UNIV_DEBUG
 	page_t*	page	= page_align(rec);
+#endif /* UNIV_DEBUG */
 
 	ut_ad(PAGE_ZIP_MATCH(rec, page_zip));
 	ut_ad(page_simple_validate_new(page));
@@ -4047,9 +4084,7 @@ page_zip_write_node_ptr(
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 	UNIV_MEM_ASSERT_RW(rec, size);
 
-	storage = page_zip->data + page_zip_get_size(page_zip)
-		- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
-		* PAGE_ZIP_DIR_SLOT_SIZE
+	storage = page_zip_dir_start(page_zip)
 		- (rec_get_heap_no_new(rec) - 1) * REC_NODE_PTR_SIZE;
 	field = rec + size - REC_NODE_PTR_SIZE;
 
@@ -4098,7 +4133,9 @@ page_zip_write_trx_id_and_roll_ptr(
 {
 	byte*	field;
 	byte*	storage;
+#ifdef UNIV_DEBUG
 	page_t*	page	= page_align(rec);
+#endif /* UNIV_DEBUG */
 	ulint	len;
 
 	ut_ad(PAGE_ZIP_MATCH(rec, page_zip));
@@ -4116,9 +4153,7 @@ page_zip_write_trx_id_and_roll_ptr(
 
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
-	storage = page_zip->data + page_zip_get_size(page_zip)
-		- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
-		* PAGE_ZIP_DIR_SLOT_SIZE
+	storage = page_zip_dir_start(page_zip)
 		- (rec_get_heap_no_new(rec) - 1)
 		* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 
@@ -4182,12 +4217,10 @@ page_zip_clear_rec(
 			   rec_offs_extra_size(offsets));
 
 	if (!page_is_leaf(page)) {
-		/* Clear node_ptr. */
-		storage	= page_zip->data
-			+ page_zip_get_size(page_zip)
-			- (page_dir_get_n_heap(page)
-			   - PAGE_HEAP_NO_USER_LOW)
-			* PAGE_ZIP_DIR_SLOT_SIZE;
+		/* Clear node_ptr. On the compressed page,
+		there is an array of node_ptr immediately before the
+		dense page directory, at the very end of the page. */
+		storage	= page_zip_dir_start(page_zip);
 		ut_ad(dict_index_get_n_unique_in_tree(index) ==
 		      rec_offs_n_fields(offsets) - 1);
 		field	= rec_get_nth_field(rec, offsets,
@@ -4200,18 +4233,15 @@ page_zip_clear_rec(
 		memset(storage - (heap_no - 1) * REC_NODE_PTR_SIZE,
 		       0, REC_NODE_PTR_SIZE);
 	} else if (dict_index_is_clust(index)) {
-		/* Clear trx_id and roll_ptr. */
-		storage	= page_zip->data
-			+ page_zip_get_size(page_zip)
-			- (page_dir_get_n_heap(page)
-			   - PAGE_HEAP_NO_USER_LOW)
-			* PAGE_ZIP_DIR_SLOT_SIZE;
-		field	= rec_get_nth_field(
-			rec, offsets,
-			dict_col_get_clust_pos(
-				dict_table_get_sys_col(
-					index->table, DATA_TRX_ID), index),
-			&len);
+		/* Clear trx_id and roll_ptr. On the compressed page,
+		there is an array of these fields immediately before the
+		dense page directory, at the very end of the page. */
+		const ulint	trx_id_pos
+			= dict_col_get_clust_pos(
+			dict_table_get_sys_col(
+				index->table, DATA_TRX_ID), index);
+		storage	= page_zip_dir_start(page_zip);
+		field	= rec_get_nth_field(rec, offsets, trx_id_pos, &len);
 		ut_ad(len == DATA_TRX_ID_LEN);
 
 		memset(field, 0, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
@@ -4656,7 +4686,7 @@ page_zip_reorganize(
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
 #ifndef UNIV_HOTBACKUP
-	temp_block = buf_block_alloc(0);
+	temp_block = buf_block_alloc();
 	btr_search_drop_page_hash_index(block);
 	block->check_index_page_at_flush = TRUE;
 #else /* !UNIV_HOTBACKUP */
@@ -4667,6 +4697,8 @@ page_zip_reorganize(
 
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
+
+	btr_blob_dbg_remove(page, index, "zip_reorg");
 
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
@@ -4727,7 +4759,7 @@ page_zip_copy_recs(
 	mtr_t*			mtr)		/*!< in: mini-transaction */
 {
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains_page(mtr, (page_t*) src, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, src, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!dict_index_is_ibuf(index));
 #ifdef UNIV_ZIP_DEBUG
 	/* The B-tree operations that call this function may set
@@ -4797,6 +4829,7 @@ page_zip_copy_recs(
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
+	btr_blob_dbg_add(page, index, "page_zip_copy_recs");
 
 	page_zip_compress_write_log(page_zip, page, index, mtr);
 }

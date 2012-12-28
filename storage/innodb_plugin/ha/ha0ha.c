@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -99,56 +99,6 @@ ha_create_func(
 }
 
 /*************************************************************//**
-Empties a hash table and frees the memory heaps. */
-UNIV_INTERN
-void
-ha_clear(
-/*=====*/
-	hash_table_t*	table,	/*!< in, own: hash table */
-	ibool		call_mutex_free)/*!< in, call mutex_free when TRUE */
-{
-	ulint	i;
-	ulint	n;
-
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
-#endif /* UNIV_SYNC_DEBUG */
-
-#ifndef UNIV_HOTBACKUP
-	/* Free the memory heaps. */
-	n = table->n_mutexes;
-
-	for (i = 0; i < n; i++) {
-		mem_heap_free(table->heaps[i]);
-	}
-
-	mem_free(table->heaps);
-	table->heaps = NULL;
-
-	if (call_mutex_free) {
-		/* When this is called by buf_pool_free it is too late to call
-		mutex_free() */
-
-		for (i = 0; i < table->n_mutexes; i++) {
-			mutex_free(table->mutexes + i);
-		}
-	}
-	mem_free(table->mutexes);
-	table->mutexes = NULL;
-
-#endif /* !UNIV_HOTBACKUP */
-
-	/* Clear the hash table. */
-	n = hash_get_n_cells(table);
-
-	for (i = 0; i < n; i++) {
-		hash_get_nth_cell(table, i)->node = NULL;
-	}
-}
-
-/*************************************************************//**
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted. If btr_search_enabled is set to FALSE, we will only allow
@@ -166,7 +116,7 @@ ha_insert_for_fold_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block,	/*!< in: buffer block containing the data */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	void*		data)	/*!< in: data, must not be NULL */
+	const rec_t*	data)	/*!< in: data, must not be NULL */
 {
 	hash_cell_t*	cell;
 	ha_node_t*	node;
@@ -179,7 +129,11 @@ ha_insert_for_fold_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ut_a(block->frame == page_align(data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	ASSERT_HASH_MUTEX_OWN(table, fold);
+	ut_ad(btr_search_enabled);
 
 	hash = hash_calc_hash(fold, table);
 
@@ -199,7 +153,6 @@ ha_insert_for_fold_func(
 				prev_block->n_pointers--;
 				block->n_pointers++;
 			}
-			ut_ad(!btr_search_fully_disabled);
 # endif /* !UNIV_HOTBACKUP */
 
 			prev_node->block = block;
@@ -210,13 +163,6 @@ ha_insert_for_fold_func(
 		}
 
 		prev_node = prev_node->next;
-	}
-
-	/* We are in the process of disabling hash index, do not add
-	new chain node */
-	if (!btr_search_enabled) {
-		ut_ad(!btr_search_fully_disabled);
-		return(TRUE);
 	}
 
 	/* We have to allocate a new chain node */
@@ -276,6 +222,10 @@ ha_delete_hash_node(
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(btr_search_enabled);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 # ifndef UNIV_HOTBACKUP
 	if (table->adaptive) {
@@ -298,11 +248,11 @@ ha_search_and_update_if_found_func(
 /*===============================*/
 	hash_table_t*	table,	/*!< in/out: hash table */
 	ulint		fold,	/*!< in: folded value of the searched data */
-	void*		data,	/*!< in: pointer to the data */
+	const rec_t*	data,	/*!< in: pointer to the data */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	new_block,/*!< in: block containing new_data */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	void*		new_data)/*!< in: new pointer to the data */
+	const rec_t*	new_data)/*!< in: new pointer to the data */
 {
 	ha_node_t*	node;
 
@@ -312,6 +262,13 @@ ha_search_and_update_if_found_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ut_a(new_block->frame == page_align(new_data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	if (!btr_search_enabled) {
+		return FALSE;
+	}
 
 	node = ha_search_with_data(table, fold, data);
 
@@ -351,6 +308,10 @@ ha_remove_all_nodes_to_page(
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ASSERT_HASH_MUTEX_OWN(table, fold);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(btr_search_enabled);
 
 	node = ha_chain_get_first(table, fold);
 

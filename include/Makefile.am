@@ -1,19 +1,19 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 #
-# This library is free software; you can redistribute it and/or
+# This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
 # License as published by the Free Software Foundation; version 2
 # of the License.
 #
-# This library is distributed in the hope that it will be useful,
+# This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Library General Public License for more details.
 #
 # You should have received a copy of the GNU Library General Public
 # License along with this library; if not, write to the Free
-# Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-# MA 02111-1307, USA
+# Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+# MA 02110-1301, USA
 
 BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources
 HEADERS_GEN_CONFIGURE =		mysql_version.h
@@ -37,10 +37,8 @@ noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
 			my_aes.h my_tree.h my_trie.h hash.h thr_alarm.h \
 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
-			my_handler.h my_time.h my_vle.h my_user.h \
-			my_libwrap.h my_stacktrace.h \
-			my_atomic.h atomic/nolock.h atomic/gcc_builtins.h \
-			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h
+			my_compare.h my_time.h my_vle.h my_user.h \
+			my_libwrap.h my_stacktrace.h welcome_copyright_notice.h
 
 EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp
 

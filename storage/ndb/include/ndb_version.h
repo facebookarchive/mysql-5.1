@@ -19,7 +19,7 @@
 #include <ndb_types.h>
 
 /* NDB build version */
-#define NDB_VERSION_BUILD 52
+#define NDB_VERSION_BUILD 63
 
 /* NDB major version */
 #define NDB_VERSION_MAJOR 5

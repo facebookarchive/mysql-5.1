@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -705,7 +707,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
         if (((Field_varstring*) to)->length_bytes !=
             ((Field_varstring*) from)->length_bytes)
           return do_field_string;
-        if (to_length != from_length)
+        else
           return (((Field_varstring*) to)->length_bytes == 1 ?
                   (from->charset()->mbmaxlen == 1 ? do_varstring1 :
                                                     do_varstring1_mb) :
@@ -786,11 +788,8 @@ int field_conv(Field *to,Field *from)
          ((Field_varstring*)from)->length_bytes ==
           ((Field_varstring*)to)->length_bytes))
     {						// Identical fields
-#ifdef HAVE_purify
-      /* This may happen if one does 'UPDATE ... SET x=x' */
-      if (to->ptr != from->ptr)
-#endif
-        memcpy(to->ptr,from->ptr,to->pack_length());
+      // to->ptr==from->ptr may happen if one does 'UPDATE ... SET x=x'
+      memmove(to->ptr, from->ptr, to->pack_length());
       return 0;
     }
   }

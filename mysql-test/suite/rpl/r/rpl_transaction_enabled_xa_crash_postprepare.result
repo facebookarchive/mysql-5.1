@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop table if exists t1;
 call mtr.add_suppression(".*");
 CREATE TABLE t1(a int primary key) engine=innodb;
@@ -21,4 +17,6 @@ select * from t1;
 a
 10
 11
+SET GLOBAL INNODB_FILE_FORMAT_CHECK=`ANTELOPE`;
 DROP TABLE t1;
+stop slave;

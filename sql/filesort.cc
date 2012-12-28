@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB  
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.  
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -41,7 +43,8 @@ if (my_b_write((file),(uchar*) (from),param->ref_length)) \
 
 	/* functions defined in this file */
 
-static char **make_char_array(char **old_pos, register uint fields,
+static size_t char_array_size(uint fields, uint length);
+static uchar **make_char_array(uchar **old_pos, uint fields,
                               uint length, myf my_flag);
 static uchar *read_buffpek_from_file(IO_CACHE *buffer_file, uint count,
                                      uchar *buf);
@@ -144,8 +147,6 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   error= 1;
   bzero((char*) &param,sizeof(param));
   param.sort_length= sortlength(thd, sortorder, s_length, &multi_byte_charset);
-  /* filesort cannot handle zero-length records. */
-  DBUG_ASSERT(param.sort_length);
   param.ref_length= table->file->ref_length;
   param.addon_field= 0;
   param.addon_length= 0;
@@ -223,10 +224,22 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     ulong old_memavl;
     ulong keys= memavl/(param.rec_length+sizeof(char*));
     param.keys=(uint) min(records+1, keys);
+
+    if (table_sort.sort_keys &&
+        table_sort.sort_keys_size != char_array_size(param.keys,
+                                                     param.rec_length))
+    {
+      x_free((uchar*) table_sort.sort_keys);
+      table_sort.sort_keys= NULL;
+      table_sort.sort_keys_size= 0;
+    }
     if ((table_sort.sort_keys=
-	 (uchar **) make_char_array((char **) table_sort.sort_keys,
+         make_char_array(table_sort.sort_keys,
                                     param.keys, param.rec_length, MYF(0))))
+    {
+      table_sort.sort_keys_size= char_array_size(param.keys, param.rec_length);
       break;
+    }
     old_memavl=memavl;
     if ((memavl=memavl/4*3) < min_sort_memory && old_memavl > min_sort_memory)
       memavl= min_sort_memory;
@@ -257,6 +270,9 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   }
   else
   {
+    /* filesort cannot handle zero-length records during merge. */
+    DBUG_ASSERT(param.sort_length != 0);
+
     if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
     {
       x_free(table_sort.buffpek);
@@ -305,6 +321,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   {
     x_free((uchar*) sort_keys);
     table_sort.sort_keys= 0;
+    table_sort.sort_keys_size= 0;
     x_free((uchar*) buffpek);
     table_sort.buffpek= 0;
     table_sort.buffpek_len= 0;
@@ -352,6 +369,7 @@ void filesort_free_buffers(TABLE *table, bool full)
     {
       x_free((uchar*) table->sort.sort_keys);
       table->sort.sort_keys= 0;
+      table->sort.sort_keys_size= 0;
     }
     if (table->sort.buffpek)
     {
@@ -371,19 +389,28 @@ void filesort_free_buffers(TABLE *table, bool full)
 
 /** Make a array of string pointers. */
 
-static char **make_char_array(char **old_pos, register uint fields,
+static size_t char_array_size(uint fields, uint length)
+{
+  return fields * (length + sizeof(uchar*));
+}
+
+
+static uchar **make_char_array(uchar **old_pos, uint fields,
                               uint length, myf my_flag)
 {
-  register char **pos;
-  char *char_pos;
+  register uchar **pos;
+  uchar *char_pos;
   DBUG_ENTER("make_char_array");
 
   if (old_pos ||
-      (old_pos= (char**) my_malloc((uint) fields*(length+sizeof(char*)),
-				   my_flag)))
+      (old_pos= (uchar**) my_malloc(char_array_size(fields, length), my_flag)))
   {
-    pos=old_pos; char_pos=((char*) (pos+fields)) -length;
-    while (fields--) *(pos++) = (char_pos+= length);
+    pos=old_pos;
+    char_pos= ((uchar*)(pos+fields)) -length;
+    while (fields--)
+    {
+      *(pos++) = (char_pos+= length);
+    }
   }
 
   DBUG_RETURN(old_pos);
@@ -959,21 +986,10 @@ static void make_sortkey(register SORTPARAM *param,
       if (addonf->null_bit && field->is_null())
       {
         nulls[addonf->null_offset]|= addonf->null_bit;
-#ifdef HAVE_purify
-	bzero(to, addonf->length);
-#endif
       }
       else
       {
-#ifdef HAVE_purify
-        uchar *end= field->pack(to, field->ptr);
-	uint length= (uint) ((to + addonf->length) - end);
-	DBUG_ASSERT((int) length >= 0);
-	if (length)
-	  bzero(end, length);
-#else
         (void) field->pack(to, field->ptr);
-#endif
       }
       to+= addonf->length;
     }

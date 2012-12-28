@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef SLAVE_H
 #define SLAVE_H
@@ -201,7 +203,7 @@ int purge_relay_logs(Relay_log_info* rli, THD *thd, bool just_reset,
 		     const char** errmsg);
 void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
-void rotate_relay_log(Master_info* mi);
+int rotate_relay_log(Master_info* mi);
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 
 pthread_handler_t handle_slave_io(void *arg);

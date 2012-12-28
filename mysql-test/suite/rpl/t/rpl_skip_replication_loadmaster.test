@@ -66,3 +66,4 @@ sync_slave_with_master;
 STOP SLAVE;
 SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
 START SLAVE;
+--source include/rpl_end.inc

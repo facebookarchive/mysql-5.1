@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -142,11 +144,11 @@ int ha_heap::close(void)
   DESCRIPTION
     Do same as default implementation but use file->s->name instead of 
     table->s->path. This is needed by Windows where the clone() call sees
-    '/'-delimited path in table->s->path, while ha_peap::open() was called 
+    '/'-delimited path in table->s->path, while ha_heap::open() was called 
     with '\'-delimited path.
 */
 
-handler *ha_heap::clone(MEM_ROOT *mem_root)
+handler *ha_heap::clone(const char *name, MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
   if (new_handler && !new_handler->ha_open(table, file->s->name, table->db_stat,
@@ -408,6 +410,7 @@ int ha_heap::info(uint flag)
   stats.index_file_length=    hp_info.index_length;
   stats.max_data_file_length= hp_info.max_records * hp_info.reclength;
   stats.delete_length=        hp_info.deleted * hp_info.reclength;
+  stats.create_time=          (ulong) hp_info.create_time;
   if (flag & HA_STATUS_AUTO)
     stats.auto_increment_value= hp_info.auto_increment;
   /*

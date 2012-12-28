@@ -340,3 +340,4 @@ connection slave;
 STOP SLAVE;
 SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
 START SLAVE;
+--source include/rpl_end.inc

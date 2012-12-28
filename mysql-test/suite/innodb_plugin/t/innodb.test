@@ -43,6 +43,15 @@ drop table if exists t1,t2,t3,t4;
 drop database if exists mysqltest;
 --enable_warnings
 
+# Bug#58912 InnoDB unnecessarily avoids update-in-place on column prefixes
+CREATE TABLE bug58912 (a BLOB, b TEXT, PRIMARY KEY(a(1))) ENGINE=InnoDB;
+INSERT INTO bug58912 VALUES(REPEAT('a',8000),REPEAT('b',8000));
+UPDATE bug58912 SET a=REPEAT('a',7999);
+# The above statements used to trigger a failure during purge when
+# Bug#55284 was fixed while Bug#58912 was not. Defer the DROP TABLE,
+# so that purge gets a chance to run (and a double free of the
+# off-page column can be detected, if one is to occur.)
+
 #
 # Small basic test with ignore
 #
@@ -1030,6 +1039,24 @@ update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id 
 --error 1054
 update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 drop table t3,t2,t1;
+
+# test ON UPDATE CASCADE
+CREATE TABLE t1 (
+        c1 VARCHAR(8), c2 VARCHAR(8),
+	PRIMARY KEY (c1, c2)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+        c0 INT PRIMARY KEY,
+        c1 VARCHAR(8) UNIQUE,
+        FOREIGN KEY (c1) REFERENCES t1 (c1) ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('old', 'somevalu'), ('other', 'anyvalue');
+INSERT INTO t2 VALUES (10, 'old'), (20, 'other');
+-- error ER_FOREIGN_DUPLICATE_KEY
+UPDATE t1 SET c1 = 'other' WHERE c1 = 'old';
+DROP TABLE t2,t1;
 
 #
 # test for recursion depth limit
@@ -2540,6 +2567,20 @@ CONNECTION default;
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 -- enable_query_log
+
+# Clean up after the Bug#55284/Bug#58912 test case.
+DROP TABLE bug58912;
+
+#
+# Test fix for bug 13117023. InnoDB increments HA_READ_KEY_COUNT (aka
+# HANDLER_READ_KEY) when it should not.
+#
+create table t1 (f1 integer primary key) engine=innodb;
+flush status;
+show status like "handler_read_key";
+select f1 from t1;
+show status like "handler_read_key";
+drop table t1;
 
 #######################################################################
 #                                                                     #

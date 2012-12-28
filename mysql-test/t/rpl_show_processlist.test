@@ -15,6 +15,7 @@ SELECT info FROM information_schema.processlist where Command like 'Binlog%';
 
 drop table t1;
 sync_slave_with_master;
+stop slave;
 
 connection master;
 

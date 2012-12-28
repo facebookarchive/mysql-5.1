@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_select_all\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 10/11/2010
+.\"      Date: 04/15/2012
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_SELECT_ALL\FR" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_SELECT_ALL\FR" "1" "04/15/2012" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -31,8 +31,7 @@ prints all rows from an
 NDB
 table to
 stdout\&.
-.PP
-\fBUsage\fR:
+          Usage
 .sp
 .if n \{\
 .RS 4
@@ -43,8 +42,8 @@ ndb_select_all \-c \fIconnect_string\fR \fItbl_name\fR \-d \fIdb_name\fR [> \fIf
 .if n \{\
 .RE
 .\}
-.PP
-\fBAdditional Options\fR:
+.sp
+          Additional Options
 .sp
 .RS 4
 .ie n \{\
@@ -231,7 +230,7 @@ column providing information about the fragments in which rows are stored\&.
 .sp
 Adds a column to the output showing the global checkpoint at which each row was last updated\&. See
 Section\ \&17.1, \(lqMySQL Cluster Overview\(rq, and
-Section\ \&17.5.4.2, \(lqMySQL Cluster Log Events\(rq, for more information about checkpoints\&.
+Section\ \&17.5.5.2, \(lqMySQL Cluster Log Events\(rq, for more information about checkpoints\&.
 .RE
 .sp
 .RS 4
@@ -264,9 +263,8 @@ Scan the table in the order of the tuples\&.
 .sp
 Causes any table data to be omitted\&.
 .RE
-.PP
-\fBSample Output\fR:
-.PP
+          Sample Output
+        .PP
 Output from a MySQL
 SELECT
 statement:
@@ -360,10 +358,30 @@ NDBT_ProgramExit: 0 \- OK
 .if n \{\
 .RE
 .\}
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+In earlier MySQL Cluster NDB 7\&.0 and 7\&.1 releases,
+\fBndb_select_all\fR
+did not print any output for
+NULL
+values as it did in MySQL Cluster NDB 6\&.3 and earlier release series\&. This issue was fixed in MySQL Cluster NDB 7\&.0\&.22 and MySQL Cluster NDB 7\&.1\&.11\&. (Bug #60045)
+.sp .5v
+.RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

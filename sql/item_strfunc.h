@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* This file defines all string functions */
@@ -22,6 +24,16 @@
 
 class Item_str_func :public Item_func
 {
+protected:
+  /**
+     Sets the result value of the function an empty string, using the current
+     character set. No memory is allocated.
+     @retval A pointer to the str_value member.
+   */
+  String *make_empty_result() {
+    str_value.set("", 0, collation.collation);
+    return &str_value; 
+  }
 public:
   Item_str_func() :Item_func() { decimals=NOT_FIXED_DEC; }
   Item_str_func(Item *a) :Item_func(a) {decimals=NOT_FIXED_DEC; }
@@ -876,15 +888,17 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   {
-    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 + 2;
-    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
     collation.set(args[0]->collation);
+    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 +
+                                  2 * collation.collation->mbmaxlen;
+    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
   }
 };
 
 class Item_func_conv_charset :public Item_str_func
 {
   bool use_cached_value;
+  String tmp_value;
 public:
   bool safe;
   CHARSET_INFO *conv_charset; // keep it public

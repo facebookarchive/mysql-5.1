@@ -19,7 +19,12 @@ Created 3/26/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "trx0xa.h"
 
+/* Number of transactions currently allocated for MySQL: protected by
+the kernel mutex */
 extern ulint	trx_n_mysql_transactions;
+/* Number of transactions currently in the XA PREPARED state: protected by
+the kernel mutex */
+extern ulint	trx_n_prepared;
 
 /************************************************************************
 Releases the search latch if trx has reserved it. */
@@ -198,8 +203,9 @@ which is in the prepared state */
 trx_t *
 trx_get_trx_by_xid(
 /*===============*/
-			/* out: trx or NULL */
-	XID*	xid);	/*  in: X/Open XA transaction identification */
+				/* out: trx or NULL;
+				on match, the trx->xid will be invalidated */
+	const XID*	xid);	/*  in: X/Open XA transaction identifier */
 /**************************************************************************
 If required, flushes the log to disk if we called trx_commit_for_mysql()
 with trx->flush_log_later == TRUE. */

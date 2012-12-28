@@ -14,7 +14,7 @@ INSERT INTO t1 VALUES (1), (2);
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
-		<field Field="a" Type="int(11)" Null="YES" Key="MUL" Extra="" />
+		<field Field="a" Type="int(11)" Null="YES" Key="MUL" Extra="" Comment="" />
 		<key Table="t1" Non_unique="1" Key_name="a" Seq_in_index="1" Column_name="a" Collation="A" Null="YES" Index_type="BTREE" Comment="" />
 	</table_structure>
 	<table_data name="t1">
@@ -150,9 +150,9 @@ INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
-		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
-		<field Field="b" Type="text" Null="YES" Key="" Extra="" />
-		<field Field="c" Type="varchar(3)" Null="YES" Key="" Extra="" />
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="b" Type="text" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c" Type="varchar(3)" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -178,7 +178,7 @@ INSERT INTO t1 VALUES ("1\""), ("\"2");
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
-		<field Field="a&quot;b&quot;" Type="char(2)" Null="YES" Key="" Extra="" />
+		<field Field="a&quot;b&quot;" Type="char(2)" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -1612,10 +1612,10 @@ CREATE TABLE `t2` (
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="mysqldump_test_db">
 	<table_structure name="t1">
-		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 	<table_structure name="t2">
-		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 </database>
 </mysqldump>
@@ -1623,10 +1623,10 @@ CREATE TABLE `t2` (
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="mysqldump_test_db">
 	<table_structure name="t1">
-		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 	<table_structure name="t2">
-		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 </database>
 </mysqldump>
@@ -3644,8 +3644,8 @@ INSERT INTO t1 VALUES(1,0xff00fef0);
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
-		<field Field="f1" Type="int(10)" Null="YES" Key="" Extra="" />
-		<field Field="data" Type="mediumblob" Null="YES" Key="" Extra="" />
+		<field Field="f1" Type="int(10)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="data" Type="mediumblob" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -4575,6 +4575,497 @@ SELECT LENGTH(a) FROM t2;
 LENGTH(a)
 800
 DROP TABLE t1, t2;
+#
+# Bug #13618 : mysqldump --xml ommit comment on table field
+#
+CREATE TABLE `comment_table` (i INT COMMENT 'FIELD COMMENT') COMMENT = 'TABLE COMMENT';
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<database name="test">
+	<table_structure name="comment_table">
+		<field Field="i" Type="int(11)" Null="YES" Key="" Extra="" Comment="FIELD COMMENT" />
+	</table_structure>
+	<table_data name="comment_table">
+	</table_data>
+</database>
+</mysqldump>
+DROP TABLE `comment_table`;
+#
+# BUG#11766310 : 59398: MYSQLDUMP 5.1 CAN'T HANDLE A DASH ("-") IN
+#                DATABASE NAMES IN ALTER DATABASE
+#
+CREATE DATABASE `test-database`;
+USE `test-database`;
+CREATE TABLE `test` (`c1` VARCHAR(10)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+CREATE TRIGGER `trig` BEFORE INSERT ON `test` FOR EACH ROW BEGIN
+END |
+ALTER DATABASE `test-database` CHARACTER SET latin1 COLLATE latin1_swedish_ci;
+ALTER DATABASE `test-database` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `test` (
+  `c1` varchar(10) COLLATE utf8_unicode_ci DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+ALTER DATABASE `test-database` CHARACTER SET latin1 COLLATE latin1_swedish_ci ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = latin1 */ ;
+/*!50003 SET character_set_results = latin1 */ ;
+/*!50003 SET collation_connection  = latin1_swedish_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = '' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trig` BEFORE INSERT ON `test` FOR EACH ROW BEGIN
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+ALTER DATABASE `test-database` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
+DROP DATABASE `test-database`;
+USE `test`;
+#
+# BUG#11760384 : 52792: mysqldump in XML mode does not dump routines.
+#
+CREATE DATABASE BUG52792;
+USE BUG52792;
+CREATE TABLE t1 (c1 INT, c2 VARCHAR(20));
+CREATE TABLE t2 (c1 INT);
+INSERT INTO t1 VALUES (1, 'aaa'), (2, 'bbb'), (3, 'ccc');
+INSERT INTO t2 VALUES (1),(2),(3);
+# Stored Procedures.
+CREATE PROCEDURE simpleproc1 (OUT param1 INT)
+BEGIN
+SELECT COUNT(*) INTO param1 FROM t1;
+END//
+CREATE PROCEDURE simpleproc2 (OUT param1 INT)
+BEGIN
+SELECT COUNT(*) INTO param1 FROM t2;
+END//
+# Events.
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE BUG52792;
+CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE BUG52792;
+# Functions.
+CREATE FUNCTION `hello1` (s CHAR(20))
+RETURNS CHAR(50) DETERMINISTIC
+RETURN CONCAT('Hello, ' ,s ,'!');
+CREATE FUNCTION `hello2` (s CHAR(20))
+RETURNS CHAR(50) DETERMINISTIC
+RETURN CONCAT(']]>, ' , s ,'!');
+# Triggers.
+CREATE TRIGGER trig1 BEFORE INSERT ON t2
+FOR EACH ROW BEGIN
+INSERT INTO t2 VALUES(1);
+END;
+|
+CREATE TRIGGER trig2 AFTER INSERT ON t2
+FOR EACH ROW BEGIN
+INSERT INTO t2 VALUES(1, ']]>');
+INSERT INTO t2 VALUES(2, '<![CDATA]]>');
+INSERT INTO t2 VALUES(3, '<![CDATA[');
+INSERT INTO t2 VALUES(4, '< > & \ " _');
+END;
+|
+# Views
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+# Dumping BUG52792 database in xml format.
+
+# Running 'replace_regex on timestamp'
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<database name="BUG52792">
+	<table_structure name="t1">
+		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t1" Engine="MyISAM" Version="10" Row_format="Dynamic" Rows="3" Avg_row_length="20" Data_length="60" Max_data_length="281474976710655" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
+	</table_structure>
+	<table_data name="t1">
+	<row>
+		<field name="c1">1</field>
+		<field name="c2">aaa</field>
+	</row>
+	<row>
+		<field name="c1">2</field>
+		<field name="c2">bbb</field>
+	</row>
+	<row>
+		<field name="c1">3</field>
+		<field name="c2">ccc</field>
+	</row>
+	</table_data>
+	<table_structure name="t2">
+		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t2" Engine="MyISAM" Version="10" Row_format="Fixed" Rows="3" Avg_row_length="7" Data_length="21" Max_data_length="1970324836974591" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
+	</table_structure>
+	<table_data name="t2">
+	<row>
+		<field name="c1">1</field>
+	</row>
+	<row>
+		<field name="c1">2</field>
+	</row>
+	<row>
+		<field name="c1">3</field>
+	</row>
+	</table_data>
+	<triggers name="t2">
+		<trigger Trigger="trig1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t2
+FOR EACH ROW BEGIN
+INSERT INTO t2 VALUES(1);
+END
+]]>
+		</trigger>
+		<trigger Trigger="trig2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` TRIGGER trig2 AFTER INSERT ON t2
+FOR EACH ROW BEGIN
+INSERT INTO t2 VALUES(1, ']]]]><![CDATA[>');
+INSERT INTO t2 VALUES(2, '<![CDATA]]]]><![CDATA[>');
+INSERT INTO t2 VALUES(3, '<![CDATA[');
+INSERT INTO t2 VALUES(4, '< > & \ " _');
+END
+]]>
+		</trigger>
+	</triggers>
+	<table_structure name="v1">
+		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="v1" Comment="VIEW" />
+	</table_structure>
+	<table_structure name="v2">
+		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="v2" Comment="VIEW" />
+	</table_structure>
+	<events>
+		<event Event="e1" sql_mode="" time_zone="SYSTEM" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE EVENT `e1` ON SCHEDULE EVERY 1 SECOND STARTS '--TIME--' ON COMPLETION NOT PRESERVE ENABLE DO DROP DATABASE BUG52792
+]]>
+		</event>
+		<event Event="e2" sql_mode="" time_zone="SYSTEM" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE EVENT `e2` ON SCHEDULE EVERY 1 SECOND STARTS '--TIME--' ON COMPLETION NOT PRESERVE ENABLE DO DROP DATABASE BUG52792
+]]>
+		</event>
+	</events>
+	<routines>
+		<routine Function="hello1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` FUNCTION `hello1`(s CHAR(20)) RETURNS char(50) CHARSET latin1
+    DETERMINISTIC
+RETURN CONCAT('Hello, ' ,s ,'!')
+]]>
+		</routine>
+		<routine Function="hello2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` FUNCTION `hello2`(s CHAR(20)) RETURNS char(50) CHARSET latin1
+    DETERMINISTIC
+RETURN CONCAT(']]]]><![CDATA[>, ' , s ,'!')
+]]>
+		</routine>
+		<routine Procedure="simpleproc1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` PROCEDURE `simpleproc1`(OUT param1 INT)
+BEGIN
+SELECT COUNT(*) INTO param1 FROM t1;
+END
+]]>
+		</routine>
+		<routine Procedure="simpleproc2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` PROCEDURE `simpleproc2`(OUT param1 INT)
+BEGIN
+SELECT COUNT(*) INTO param1 FROM t2;
+END
+]]>
+		</routine>
+	</routines>
+</database>
+</mysqldump>
+
+# Dumping BUG52792 database in xml format with comments.
+
+# Running 'replace_regex on timestamp'
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<database name="BUG52792">
+<!-- 
+-
+- Table structure for table `t1`
+-
+
+ -->
+	<table_structure name="t1">
+		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t1" Engine="MyISAM" Version="10" Row_format="Dynamic" Rows="3" Avg_row_length="20" Data_length="60" Max_data_length="281474976710655" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
+	</table_structure>
+<!-- 
+-
+- Dumping data for table `t1`
+-
+ -->
+	<table_data name="t1">
+	<row>
+		<field name="c1">1</field>
+		<field name="c2">aaa</field>
+	</row>
+	<row>
+		<field name="c1">2</field>
+		<field name="c2">bbb</field>
+	</row>
+	<row>
+		<field name="c1">3</field>
+		<field name="c2">ccc</field>
+	</row>
+	</table_data>
+<!-- 
+-
+- Table structure for table `t2`
+-
+
+ -->
+	<table_structure name="t2">
+		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t2" Engine="MyISAM" Version="10" Row_format="Fixed" Rows="3" Avg_row_length="7" Data_length="21" Max_data_length="1970324836974591" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
+	</table_structure>
+<!-- 
+-
+- Dumping data for table `t2`
+-
+ -->
+	<table_data name="t2">
+	<row>
+		<field name="c1">1</field>
+	</row>
+	<row>
+		<field name="c1">2</field>
+	</row>
+	<row>
+		<field name="c1">3</field>
+	</row>
+	</table_data>
+	<triggers name="t2">
+		<trigger Trigger="trig1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t2
+FOR EACH ROW BEGIN
+INSERT INTO t2 VALUES(1);
+END
+]]>
+		</trigger>
+		<trigger Trigger="trig2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` TRIGGER trig2 AFTER INSERT ON t2
+FOR EACH ROW BEGIN
+INSERT INTO t2 VALUES(1, ']]]]><![CDATA[>');
+INSERT INTO t2 VALUES(2, '<![CDATA]]]]><![CDATA[>');
+INSERT INTO t2 VALUES(3, '<![CDATA[');
+INSERT INTO t2 VALUES(4, '< > & \ " _');
+END
+]]>
+		</trigger>
+	</triggers>
+<!-- 
+-
+- Table structure for table `v1`
+-
+
+ -->
+	<table_structure name="v1">
+		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="v1" Comment="VIEW" />
+	</table_structure>
+<!-- 
+-
+- Table structure for table `v2`
+-
+
+ -->
+	<table_structure name="v2">
+		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="v2" Comment="VIEW" />
+	</table_structure>
+<!-- 
+-
+- Dumping events for database 'BUG52792'
+-
+ -->
+	<events>
+		<event Event="e1" sql_mode="" time_zone="SYSTEM" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE EVENT `e1` ON SCHEDULE EVERY 1 SECOND STARTS '--TIME--' ON COMPLETION NOT PRESERVE ENABLE DO DROP DATABASE BUG52792
+]]>
+		</event>
+		<event Event="e2" sql_mode="" time_zone="SYSTEM" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE EVENT `e2` ON SCHEDULE EVERY 1 SECOND STARTS '--TIME--' ON COMPLETION NOT PRESERVE ENABLE DO DROP DATABASE BUG52792
+]]>
+		</event>
+	</events>
+<!-- 
+-
+- Dumping routines for database 'BUG52792'
+-
+ -->
+	<routines>
+		<routine Function="hello1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` FUNCTION `hello1`(s CHAR(20)) RETURNS char(50) CHARSET latin1
+    DETERMINISTIC
+RETURN CONCAT('Hello, ' ,s ,'!')
+]]>
+		</routine>
+		<routine Function="hello2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` FUNCTION `hello2`(s CHAR(20)) RETURNS char(50) CHARSET latin1
+    DETERMINISTIC
+RETURN CONCAT(']]]]><![CDATA[>, ' , s ,'!')
+]]>
+		</routine>
+		<routine Procedure="simpleproc1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` PROCEDURE `simpleproc1`(OUT param1 INT)
+BEGIN
+SELECT COUNT(*) INTO param1 FROM t1;
+END
+]]>
+		</routine>
+		<routine Procedure="simpleproc2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` PROCEDURE `simpleproc2`(OUT param1 INT)
+BEGIN
+SELECT COUNT(*) INTO param1 FROM t2;
+END
+]]>
+		</routine>
+	</routines>
+</database>
+</mysqldump>
+
+# Test to check 'Insufficient privileges' error.
+
+GRANT ALL PRIVILEGES ON BUG52792.* TO user1;
+# Running 'replace_regex on timestamp'
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<database name="BUG52792">
+	<table_structure name="t1">
+		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t1" Engine="MyISAM" Version="10" Row_format="Dynamic" Rows="3" Avg_row_length="20" Data_length="60" Max_data_length="281474976710655" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
+	</table_structure>
+	<table_data name="t1">
+	<row>
+		<field name="c1">1</field>
+		<field name="c2">aaa</field>
+	</row>
+	<row>
+		<field name="c1">2</field>
+		<field name="c2">bbb</field>
+	</row>
+	<row>
+		<field name="c1">3</field>
+		<field name="c2">ccc</field>
+	</row>
+	</table_data>
+	<table_structure name="t2">
+		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t2" Engine="MyISAM" Version="10" Row_format="Fixed" Rows="3" Avg_row_length="7" Data_length="21" Max_data_length="1970324836974591" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="latin1_swedish_ci" Create_options="" Comment="" />
+	</table_structure>
+	<table_data name="t2">
+	<row>
+		<field name="c1">1</field>
+	</row>
+	<row>
+		<field name="c1">2</field>
+	</row>
+	<row>
+		<field name="c1">3</field>
+	</row>
+	</table_data>
+	<triggers name="t2">
+		<trigger Trigger="trig1" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` TRIGGER trig1 BEFORE INSERT ON t2
+FOR EACH ROW BEGIN
+INSERT INTO t2 VALUES(1);
+END
+]]>
+		</trigger>
+		<trigger Trigger="trig2" sql_mode="" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` TRIGGER trig2 AFTER INSERT ON t2
+FOR EACH ROW BEGIN
+INSERT INTO t2 VALUES(1, ']]]]><![CDATA[>');
+INSERT INTO t2 VALUES(2, '<![CDATA]]]]><![CDATA[>');
+INSERT INTO t2 VALUES(3, '<![CDATA[');
+INSERT INTO t2 VALUES(4, '< > & \ " _');
+END
+]]>
+		</trigger>
+	</triggers>
+	<table_structure name="v1">
+		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="v1" Comment="VIEW" />
+	</table_structure>
+	<table_structure name="v2">
+		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="v2" Comment="VIEW" />
+	</table_structure>
+	<events>
+		<event Event="e1" sql_mode="" time_zone="SYSTEM" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE EVENT `e1` ON SCHEDULE EVERY 1 SECOND STARTS '--TIME--' ON COMPLETION NOT PRESERVE ENABLE DO DROP DATABASE BUG52792
+]]>
+		</event>
+		<event Event="e2" sql_mode="" time_zone="SYSTEM" character_set_client="latin1" collation_connection="latin1_swedish_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE EVENT `e2` ON SCHEDULE EVERY 1 SECOND STARTS '--TIME--' ON COMPLETION NOT PRESERVE ENABLE DO DROP DATABASE BUG52792
+]]>
+		</event>
+	</events>
+	<routines>
+<!-- 
+- insufficient privileges to SHOW CREATE FUNCTION `hello1`
+ -->
+<!-- - does user1 have permissions on mysql.proc?
+
+ -->
+DROP USER user1;
+DROP DATABASE BUG52792;
+# UTF-8
+CREATE DATABASE BUG52792;
+USE BUG52792;
+SET NAMES utf8;
+CREATE FUNCTION `straße` ( c1 CHAR(20))
+RETURNS CHAR(50) DETERMINISTIC
+RETURN CONCAT(']]>, ', s, '!');
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<database name="BUG52792">
+	<routines>
+		<routine Function="straße" sql_mode="" character_set_client="utf8" collation_connection="utf8_general_ci" Database_Collation="latin1_swedish_ci">
+<![CDATA[
+CREATE DEFINER=`root`@`localhost` FUNCTION `straße`( c1 CHAR(20)) RETURNS char(50) CHARSET latin1
+    DETERMINISTIC
+RETURN CONCAT(']]]]><![CDATA[>, ', s, '!')
+]]>
+		</routine>
+	</routines>
+</database>
+</mysqldump>
+DROP DATABASE BUG52792;
+USE test;
 #
 # End of 5.1 tests
 #

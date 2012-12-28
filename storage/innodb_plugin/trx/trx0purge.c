@@ -1111,7 +1111,7 @@ trx_purge(void)
 {
 	que_thr_t*	thr;
 	/*	que_thr_t*	thr2; */
-	ulint		old_pages_handled;
+	ulonglong	old_pages_handled;
 	ulint		purged;
 
 	mutex_enter(&(purge_sys->mutex));

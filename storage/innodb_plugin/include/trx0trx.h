@@ -45,6 +45,9 @@ extern sess_t*	trx_dummy_sess;
 /** Number of transactions currently allocated for MySQL: protected by
 the kernel mutex */
 extern ulint	trx_n_mysql_transactions;
+/** Number of transactions currently in the XA PREPARED state: protected by
+the kernel mutex */
+extern ulint	trx_n_prepared;
 
 /********************************************************************//**
 Releases the search latch if trx has reserved it. */
@@ -114,6 +117,14 @@ void
 trx_free(
 /*=====*/
 	trx_t*	trx);	/*!< in, own: trx object */
+/********************************************************************//**
+At shutdown, frees a transaction object that is in the PREPARED state. */
+UNIV_INTERN
+void
+trx_free_prepared(
+/*==============*/
+	trx_t*	trx)	/*!< in, own: trx object */
+	__attribute__((nonnull));
 /********************************************************************//**
 Frees a transaction object for MySQL. */
 UNIV_INTERN
@@ -223,12 +234,12 @@ trx_recover_for_mysql(
 /*******************************************************************//**
 This function is used to find one X/Open XA distributed transaction
 which is in the prepared state
-@return	trx or NULL */
+@return	trx or NULL; on match, the trx->xid will be invalidated */
 UNIV_INTERN
 trx_t *
 trx_get_trx_by_xid(
 /*===============*/
-	XID*	xid);	/*!< in: X/Open XA transaction identification */
+	const XID*	xid);	/*!< in: X/Open XA transaction identifier */
 /**********************************************************************//**
 If required, flushes the log to disk if we called trx_commit_for_mysql()
 with trx->flush_log_later == TRUE.

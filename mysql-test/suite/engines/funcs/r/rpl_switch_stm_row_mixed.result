@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 set @saved_binlog_format = @@global.binlog_format;
 drop database if exists mysqltest1;
 create database mysqltest1;
@@ -376,7 +372,7 @@ CREATE TABLE t12 (data LONG);
 LOCK TABLES t12 WRITE;
 INSERT INTO t12 VALUES(UUID());
 UNLOCK TABLES;
-show binlog events from <binlog_start>;
-show binlog events from <binlog_start>;
+show binlog events;
+show binlog events;
 drop database mysqltest1;
 set global binlog_format= @saved_binlog_format;

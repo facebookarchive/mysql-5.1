@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Header for NetWare compatible with MySQL */
 
@@ -122,6 +124,7 @@ extern "C" {
 #define CANT_DELETE_OPEN_FILES 1
 
 #define FN_LIBCHAR '\\'
+#define FN_DIRSEP  "/\\"              /* Valid directory separators */
 #define FN_ROOTDIR "\\"
 #define FN_DEVCHAR ':'
 

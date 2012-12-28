@@ -1,5 +1,6 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,9 +61,7 @@ public:
     explicit Mode_BASE(int sz, CipherDir dir, Mode mode) 
         : blockSz_(sz), reg_(reinterpret_cast<byte*>(r_)),
           tmp_(reinterpret_cast<byte*>(t_)), dir_(dir), mode_(mode)
-    { 
-        assert(sz <= MaxBlockSz);
-    }
+    {}
     virtual ~Mode_BASE() {}
 
     virtual void Process(byte*, const byte*, word32);
@@ -95,8 +94,7 @@ inline void Mode_BASE::Process(byte* out, const byte* in, word32 sz)
 {
     if (mode_ == ECB)
         ECB_Process(out, in, sz);
-    else if (mode_ == CBC)
-    {
+    else if (mode_ == CBC) {
         if (dir_ == ENCRYPTION)
             CBC_Encrypt(out, in, sz);
         else

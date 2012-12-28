@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -78,40 +78,19 @@ ut_mem_init(void);
 /*=============*/
 
 /**********************************************************************//**
-Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
-defined and set_to_zero is TRUE.
+Allocates memory.
 @return	own: allocated memory */
 UNIV_INTERN
 void*
 ut_malloc_low(
 /*==========*/
 	ulint	n,			/*!< in: number of bytes to allocate */
-	ibool	set_to_zero,		/*!< in: TRUE if allocated memory
-					should be set to zero if
-					UNIV_SET_MEM_TO_ZERO is defined */
-	ibool	assert_on_error);	/*!< in: if TRUE, we crash mysqld if
+	ibool	assert_on_error)	/*!< in: if TRUE, we crash mysqld if
 					the memory cannot be allocated */
+	__attribute__((malloc));
 /**********************************************************************//**
-Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
-defined.
-@return	own: allocated memory */
-UNIV_INTERN
-void*
-ut_malloc(
-/*======*/
-	ulint	n);	/*!< in: number of bytes to allocate */
-#ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
-out. It cannot be used if we want to return an error message. Prints to
-stderr a message if fails.
-@return	TRUE if succeeded */
-UNIV_INTERN
-ibool
-ut_test_malloc(
-/*===========*/
-	ulint	n);	/*!< in: try to allocate this many bytes */
-#endif /* !UNIV_HOTBACKUP */
+Allocates memory. */
+#define ut_malloc(n) ut_malloc_low(n, TRUE)
 /**********************************************************************//**
 Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
 a nop. */
@@ -208,43 +187,6 @@ ut_strlcpy_rev(
 	char*		dst,	/*!< in: destination buffer */
 	const char*	src,	/*!< in: source buffer */
 	ulint		size);	/*!< in: size of destination buffer */
-
-/**********************************************************************//**
-Compute strlen(ut_strcpyq(str, q)).
-@return	length of the string when quoted */
-UNIV_INLINE
-ulint
-ut_strlenq(
-/*=======*/
-	const char*	str,	/*!< in: null-terminated string */
-	char		q);	/*!< in: the quote character */
-
-/**********************************************************************//**
-Make a quoted copy of a NUL-terminated string.	Leading and trailing
-quotes will not be included; only embedded quotes will be escaped.
-See also ut_strlenq() and ut_memcpyq().
-@return	pointer to end of dest */
-UNIV_INTERN
-char*
-ut_strcpyq(
-/*=======*/
-	char*		dest,	/*!< in: output buffer */
-	char		q,	/*!< in: the quote character */
-	const char*	src);	/*!< in: null-terminated string */
-
-/**********************************************************************//**
-Make a quoted copy of a fixed-length string.  Leading and trailing
-quotes will not be included; only embedded quotes will be escaped.
-See also ut_strlenq() and ut_strcpyq().
-@return	pointer to end of dest */
-UNIV_INTERN
-char*
-ut_memcpyq(
-/*=======*/
-	char*		dest,	/*!< in: output buffer */
-	char		q,	/*!< in: the quote character */
-	const char*	src,	/*!< in: string to be quoted */
-	ulint		len);	/*!< in: length of src */
 
 /**********************************************************************//**
 Return the number of times s2 occurs in s1. Overlapping instances of s2

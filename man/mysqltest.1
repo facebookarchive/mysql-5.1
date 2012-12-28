@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqltest\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 10/11/2010
+.\"      Date: 04/04/2012
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQLTEST\FR" "1" "10/11/2010" "MySQL" "MySQL Database System"
+.TH "\FBMYSQLTEST\FR" "1" "04/04/2012" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -390,6 +390,27 @@ This option is available from MySQL 5\&.1\&.45\&.
 \fB\-\-no\-defaults\fR
 .sp
 Do not read default options from any option files\&. If used, this must be the first option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: plugin-dir option
+.\" plugin-dir option: mysqltest
+\fB\-\-plugin\-dir=\fR\fB\fIpath\fR\fR
+.sp
+The directory in which to look for plugins\&. It may be necessary to specify this option if the
+\fIdefault_auth\fR
+argument is used for the
+connect()
+command to specify an authentication plugin but
+\fBmysqltest\fR
+does not find it\&. This option was added in MySQL 5\&.5\&.7\&.
 .RE
 .sp
 .RS 4
@@ -850,7 +871,7 @@ statement is wrapped inside a view\&. This option was added in MySQL 5\&.0\&.19\
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

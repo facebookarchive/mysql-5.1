@@ -61,3 +61,4 @@ connection master;
 set global rpl_read_size = default;
 drop table t1;
 sync_slave_with_master;
+--source include/rpl_end.inc

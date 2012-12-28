@@ -981,4 +981,91 @@ EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
+--echo #
+
+CREATE TABLE t1 (f1 INT NOT NULL, PRIMARY KEY (f1));
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT NOT NULL, PRIMARY KEY (f1, f2));
+
+INSERT INTO t1 VALUES (4);
+INSERT INTO t2 VALUES (3, 3);
+INSERT INTO t2 VALUES (7, 7);
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4
+GROUP BY t2.f1, t2.f2;
+
+SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4
+GROUP BY t2.f1, t2.f2;
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
+GROUP BY t2.f1, t2.f2;
+
+SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
+GROUP BY t2.f1, t2.f2;
+
+DROP TABLE t1,t2;
+
+
+--echo
+--echo # BUG#12567331 - INFINITE LOOP WHEN RESOLVING AN ALIASED COLUMN
+--echo # USED IN GROUP BY
+--echo 
+CREATE TABLE t1 (
+  col_varchar_1024_latin1_key varchar(1024),
+  col_varchar_10_latin1 varchar(10),
+  col_int int(11),
+  pk int(11)
+);
+CREATE TABLE t2 (
+  col_int_key int(11),
+  col_int int(11),
+  pk int(11)
+);
+
+PREPARE prep_stmt_9846 FROM '
+SELECT alias1.pk AS field1 FROM
+t1 AS alias1
+LEFT JOIN
+( 
+  t2 AS alias2
+  RIGHT  JOIN
+  ( 
+    t2 AS alias3
+    JOIN t1 AS alias4
+    ON 1
+  )
+  ON 1
+)
+ON 1
+GROUP BY field1';
+execute prep_stmt_9846;
+execute prep_stmt_9846;
+drop table t1,t2;
+
+--echo #
+--echo # Bug #11765810	58813: SERVER THREAD HANGS WHEN JOIN + WHERE + GROUP BY
+--echo # IS EXECUTED TWICE FROM P
+--echo #
+CREATE TABLE t1 ( a INT ) ENGINE = MYISAM;
+INSERT INTO t1 VALUES (1);
+PREPARE prep_stmt FROM '
+ SELECT 1 AS f FROM t1
+ LEFT JOIN t1 t2
+  RIGHT JOIN t1 t3
+    JOIN t1 t4
+   ON 1
+  ON 1
+ ON 1
+ GROUP BY f';
+EXECUTE prep_stmt;
+EXECUTE prep_stmt;
+
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests

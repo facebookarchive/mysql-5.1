@@ -1,12 +1,8 @@
 #
 # Check peak_lag_sample_rate
 #
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop table if exists t1;
 Should be 100
 show global variables like "peak_lag_sample_rate";
@@ -23,9 +19,13 @@ CREATE TABLE t1 (id INT, v int);
 insert into t1 values (1,0);
 insert into t1 values (2,0);
 start slave;
+include/wait_for_slave_io_to_start.inc
+include/wait_for_slave_sql_to_start.inc
 stop slave;
 insert into t1 values (3,0);
 start slave;
+include/wait_for_slave_io_to_start.inc
+include/wait_for_slave_sql_to_start.inc
 result
 1
 #
@@ -33,3 +33,4 @@ result
 #
 DROP TABLE t1;
 set global peak_lag_sample_rate=100;
+include/rpl_end.inc

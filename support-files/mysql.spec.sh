@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -133,7 +133,7 @@ Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Version:	@MYSQL_U_SCORE_VERSION@
 Release:	%{release}
-License:	Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}  All rights reserved.  Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
+License:	Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{mysql_license} license as shown in the Description field.
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:		http://www.mysql.com/
 Packager:	%{mysql_vendor} Product Engineering Team <build@mysql.com>
@@ -154,8 +154,7 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 %{mysql_vendor}
 
-Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}  All rights reserved.
-Use is subject to license terms.
+Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved.
 
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
 and you are welcome to modify and redistribute it under the GPL license.
@@ -171,9 +170,11 @@ documentation and the manual for more information.
 %package server
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
-Requires: coreutils grep procps /usr/sbin/useradd /usr/sbin/groupadd /sbin/chkconfig
-Provides:	msqlormysql mysql-server mysql MySQL
-Obsoletes:	MySQL mysql mysql-server
+Requires:	coreutils grep procps /usr/sbin/useradd /usr/sbin/groupadd /sbin/chkconfig
+Provides:	msqlormysql mysql MySQL mysql-server MySQL-server
+Obsoletes:	mysql MySQL mysql-server MySQL-server
+Obsoletes:	MySQL-server-classic MySQL-server-community MySQL-server-enterprise
+Obsoletes:	MySQL-server-advanced MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
 
 %description server
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -182,8 +183,7 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 %{mysql_vendor}
 
-Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}  All rights reserved.
-Use is subject to license terms.
+Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved.
 
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
 and you are welcome to modify and redistribute it under the GPL license.
@@ -204,10 +204,12 @@ package "MySQL-client" as well!
 # ------------------------------------------------------------------------------
 
 %package client
-Summary: MySQL - Client
-Group: Applications/Databases
-Obsoletes: mysql-client
-Provides: mysql-client
+Summary:	MySQL - Client
+Group:		Applications/Databases
+Provides:	mysql-client MySQL-client
+Obsoletes:	mysql-client MySQL-client
+Obsoletes:	MySQL-client-classic MySQL-client-community MySQL-client-enterprise
+Obsoletes:	MySQL-client-advanced MySQL-client-advanced-gpl MySQL-client-enterprise-gpl
 
 %description client
 This package contains the standard MySQL clients and administration tools.
@@ -268,11 +270,14 @@ They should be used with caution.
 # ------------------------------------------------------------------------------
 
 %package test
-Requires: %{name}-client perl
-Summary: MySQL - Test suite
-Group: Applications/Databases
-Provides: mysql-test
-Obsoletes: mysql-bench mysql-test
+Summary:	MySQL - Test suite
+Group:		Applications/Databases
+Requires:	%{name}-client perl
+Provides:	mysql-test MySQL-test
+Obsoletes:	mysql-test MySQL-test
+Obsoletes:	mysql-bench MySQL-bench
+Obsoletes:	MySQL-test-classic MySQL-test-community MySQL-test-enterprise
+Obsoletes:	MySQL-test-advanced MySQL-test-advanced-gpl MySQL-test-enterprise-gpl
 AutoReqProv: no
 
 %description test
@@ -283,10 +288,12 @@ This package contains the MySQL regression test suite.
 # ------------------------------------------------------------------------------
 
 %package devel
-Summary: MySQL - Development header files and libraries
-Group: Applications/Databases
-Provides: mysql-devel
-Obsoletes: mysql-devel
+Summary:	MySQL - Development header files and libraries
+Group:		Applications/Databases
+Provides:	mysql-devel MySQL-devel
+Obsoletes:	mysql-devel MySQL-devel
+Obsoletes:	MySQL-devel-classic MySQL-devel-community MySQL-devel-enterprise
+Obsoletes:	MySQL-devel-advanced MySQL-devel-advanced-gpl MySQL-devel-enterprise-gpl
 
 %description devel
 This package contains the development header files and libraries
@@ -297,8 +304,14 @@ necessary to develop MySQL client applications.
 # ------------------------------------------------------------------------------
 
 %package shared
-Summary: MySQL - Shared libraries
-Group: Applications/Databases
+Summary:	MySQL - Shared libraries
+Group:		Applications/Databases
+Provides:	mysql-shared MySQL-shared
+Obsoletes:	mysql-shared MySQL-shared-standard MySQL-shared-pro
+Obsoletes:	MySQL-shared-pro-cert MySQL-shared-pro-gpl
+Obsoletes:	MySQL-shared-pro-gpl-cert MySQL-shared
+Obsoletes:	MySQL-shared-classic MySQL-shared-community MySQL-shared-enterprise
+Obsoletes:	MySQL-shared-advanced MySQL-shared-advanced-gpl MySQL-shared-enterprise-gpl
 
 %description shared
 This package contains the shared libraries (*.so*) which certain
@@ -309,10 +322,14 @@ languages and applications need to dynamically load and use MySQL.
 %if %{EMBEDDED_BUILD}
 
 %package embedded
-Requires: %{name}-devel
-Summary: MySQL - embedded library
-Group: Applications/Databases
-Obsoletes: mysql-embedded
+Summary:	MySQL - Embedded library
+Group:		Applications/Databases
+Requires:	%{name}-devel
+Provides:	mysql-embedded MySQL-embedded
+Obsoletes:	mysql-embedded MySQL-embedded
+Obsoletes:	MySQL-embedded-pro
+Obsoletes:	MySQL-embedded-classic MySQL-embedded-community MySQL-embedded-enterprise
+Obsoletes:	MySQL-embedded-advanced MySQL-embedded-advanced-gpl MySQL-embedded-enterprise-gpl
 
 %description embedded
 This package contains the MySQL server as an embedded library.
@@ -384,7 +401,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --enable-local-infile \
 	    --with-fast-mutexes \
 	    --with-mysqld-user=%{mysqld_user} \
-	    --with-unix-socket-path=/var/lib/mysql/mysql.sock \
+	    --with-unix-socket-path=%{mysqldatadir}/mysql.sock \
 	    --with-pic \
 	    --prefix=/ \
 %if %{CLUSTER_BUILD}
@@ -610,7 +627,25 @@ touch $RBR%{_sysconfdir}/mysqlmanager.passwd
 ##############################################################################
 
 %pre server
-mysql_datadir=%{mysqldatadir}
+# This is the code running at the beginning of a RPM upgrade action,
+# before replacing the old files with the new ones.
+
+# There are users who deviate from the default file system layout.
+# Check local settings to support them.
+if [ -x %{_bindir}/my_print_defaults ]
+then
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+  PID_FILE_PATT=`%{_bindir}/my_print_defaults server mysqld | grep '^--pid-file=' | sed -n 's/--pid-file=//p'`
+fi
+if [ -z "$mysql_datadir" ]
+then
+  mysql_datadir=%{mysqldatadir}
+fi
+if [ -z "$PID_FILE_PATT" ]
+then
+  PID_FILE_PATT="$mysql_datadir/*.pid"
+fi
+
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
@@ -681,7 +716,7 @@ fi
 
 # We assume that if there is exactly one ".pid" file,
 # it contains the valid PID of a running MySQL server.
-NR_PID_FILES=`ls $mysql_datadir/*.pid 2>/dev/null | wc -l`
+NR_PID_FILES=`ls $PID_FILE_PATT 2>/dev/null | wc -l`
 case $NR_PID_FILES in
 	0 ) SERVER_TO_START=''  ;;  # No "*.pid" file == no running server
 	1 ) SERVER_TO_START='true' ;;
@@ -703,8 +738,8 @@ if [ -f $STATUS_FILE ]; then
 	echo "before repeating the MySQL upgrade."
 	exit 1
 elif [ -n "$SEVERAL_PID_FILES" ] ; then
-	echo "Your MySQL directory '$mysql_datadir' has more than one PID file:"
-	ls -ld $mysql_datadir/*.pid
+	echo "You have more than one PID file:"
+	ls -ld $PID_FILE_PATT
 	echo "Please check which one (if any) corresponds to a running server"
 	echo "and delete all others before repeating the MySQL upgrade."
 	exit 1
@@ -729,17 +764,17 @@ if [ -d $mysql_datadir ] ; then
 	if [ -n "$SERVER_TO_START" ] ; then
 		# There is only one PID file, race possibility ignored
 		echo "PID file:"                           >> $STATUS_FILE
-		ls -l   $mysql_datadir/*.pid               >> $STATUS_FILE
-		cat     $mysql_datadir/*.pid               >> $STATUS_FILE
+		ls -l   $PID_FILE_PATT                     >> $STATUS_FILE
+		cat     $PID_FILE_PATT                     >> $STATUS_FILE
 		echo                                       >> $STATUS_FILE
 		echo "Server process:"                     >> $STATUS_FILE
-		ps -fp `cat $mysql_datadir/*.pid`          >> $STATUS_FILE
+		ps -fp `cat $PID_FILE_PATT`                >> $STATUS_FILE
 		echo                                       >> $STATUS_FILE
 		echo "SERVER_TO_START=$SERVER_TO_START"    >> $STATUS_FILE
 	else
 		# Take a note we checked it ...
 		echo "PID file:"                           >> $STATUS_FILE
-		ls -l   $mysql_datadir/*.pid               >> $STATUS_FILE 2>&1
+		ls -l   $PID_FILE_PATT                     >> $STATUS_FILE 2>&1
 	fi
 fi
 
@@ -754,7 +789,20 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 fi
 
 %post server
-mysql_datadir=%{mysqldatadir}
+# This is the code running at the end of a RPM install or upgrade action,
+# after the (new) files have been written.
+
+# There are users who deviate from the default file system layout.
+# Check local settings to support them.
+if [ -x %{_bindir}/my_print_defaults ]
+then
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+fi
+if [ -z "$mysql_datadir" ]
+then
+  mysql_datadir=%{mysqldatadir}
+fi
+
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 
@@ -769,13 +817,12 @@ else
 fi
 # echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 if [ ! -d $mysql_datadir/mysql ] ; then
-	mkdir $mysql_datadir/mysql;
+	mkdir $mysql_datadir/mysql $mysql_datadir/test
 	echo "MySQL RPM installation of version $NEW_VERSION" >> $STATUS_FILE
 else
 	# If the directory exists, we may assume it is an upgrade.
 	echo "MySQL RPM upgrade to version $NEW_VERSION" >> $STATUS_FILE
 fi
-if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 
 # ----------------------------------------------------------------------
 # Make MySQL start/shutdown automatically when the machine does it.
@@ -808,7 +855,12 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 # ----------------------------------------------------------------------
 # Initiate databases if needed
 # ----------------------------------------------------------------------
-%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+if ! grep '^MySQL RPM upgrade' $STATUS_FILE >/dev/null 2>&1 ; then
+	# Fix bug#45415: no "mysql_install_db" on an upgrade
+	# Do this as a negative to err towards more "install" runs
+	# rather than to miss one.
+	%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+fi
 
 # ----------------------------------------------------------------------
 # Upgrade databases if needed would go here - but it cannot be automated yet
@@ -824,6 +876,13 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 # can read them.
 # ----------------------------------------------------------------------
 chmod -R og-rw $mysql_datadir/mysql
+
+# ----------------------------------------------------------------------
+# Deal with SELinux, if it is installed / used
+# ----------------------------------------------------------------------
+if [ -x /sbin/restorecon ] ; then
+	/sbin/restorecon -R %{mysqldatadir}
+fi
 
 # Was the server running before the upgrade? If so, restart the new one.
 if [ "$SERVER_TO_START" = "true" ] ; then
@@ -1063,7 +1122,6 @@ fi
 
 %files devel
 %defattr(-, root, root, 0755)
-%doc mysql-release-%{mysql_version}/EXCEPTIONS-CLIENT
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
 %dir %attr(755, root, root) %{_includedir}/mysql
@@ -1133,6 +1191,42 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Sep 14 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Let the RPM capabilities ("obsoletes" etc) ensure that an upgrade may replace
+  the RPMs of any configuration (of the current or the preceding release series)
+  by the new ones. This is done by not using the implicitly generated capabilities
+  (which include the configuration name) and relying on more generic ones which
+  just list the function ("server", "client", ...).
+  The implicit generation cannot be prevented, so all these capabilities must be
+  explicitly listed in "Obsoletes:"
+
+* Fri Aug 19 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Fix bug#37165 "((Generic rpm)) fail to install on Fedora 9 x86_64"
+  On Fedora, certain accesses to "/var/lib/mysql/HOSTNAME.err" were blocked
+  by SELinux policy, this made the server start fail with the message
+      Manager of pid-file quit without updating file
+  Calling "/sbin/restorecon -R /var/lib/mysql" fixes this.
+- Replace occurrences of that path name by the spec file variable %{mysqldatadir}.
+
+* Thu Jul 07 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Fix bug#45415: "rpm upgrade recreates test database"
+  Let the creation of the "test" database happen only during a new installation,
+  not in an RPM upgrade.
+  This affects both the "mkdir" and the call of "mysql_install_db".
+
+* Thu Feb 03 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Fix bug#56581: If an installation deviates from the default file locations
+  ("datadir" and "pid-file"), the mechanism to detect a running server (on upgrade)
+  should still work, and use these locations.
+  The problem was that the fix for bug#27072 did not check for local settings.
+
+* Wed Nov 24 2010 Alexander Nozdrin <alexander.nozdrin@oracle.com>
+
+- EXCEPTIONS-CLIENT has been deleted, remove it from here too.
 
 * Tue Jun 15 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 

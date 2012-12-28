@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop table if exists t1;
 create table t1(i int, t longtext);
 show global variables like "rpl_read_size";
@@ -46,6 +42,7 @@ Variable_name	Value
 rpl_read_size	1048576
 stop slave;
 start slave;
+include/wait_for_slave_to_start.inc
 insert into t1 values (0, "");
 select i, length(t) from t1;
 i	length(t)
@@ -58,3 +55,4 @@ i	length(t)
 set global rpl_read_size = default;
 set global rpl_read_size = default;
 drop table t1;
+include/rpl_end.inc

@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* There may be prolems include all of theese. Try to test in
    configure with ones are needed? */
@@ -58,7 +60,9 @@
 # define bfill(A,B,C)           memset((A),(C),(B))
 #endif
 
-#if !defined(bzero) && !defined(HAVE_BZERO)
+#if !defined(bzero) && (!defined(HAVE_BZERO) || !HAVE_DECL_BZERO || defined(_AIX))
+/* See autoconf doku: "HAVE_DECL_symbol" will be defined after configure, to 0 or 1 */
+/* AIX has bzero() as a function, but the declaration prototype is strangely hidden */
 # define bzero(A,B)             memset((A),0,(B))
 #endif
 
@@ -73,7 +77,9 @@ extern "C" {
 extern void *(*my_str_malloc)(size_t);
 extern void (*my_str_free)(void *);
 
-#if defined(HAVE_STPCPY)
+#if defined(HAVE_STPCPY) && MY_GNUC_PREREQ(3, 4) && !defined(__INTEL_COMPILER)
+#define strmov(A,B) __builtin_stpcpy((A),(B))
+#elif defined(HAVE_STPCPY)
 #define strmov(A,B) stpcpy((A),(B))
 #ifndef stpcpy
 extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
@@ -174,6 +180,15 @@ extern int is_prefix(const char *, const char *);
 /* Conversion routines */
 double my_strtod(const char *str, char **end, int *error);
 double my_atof(const char *nptr);
+
+#ifndef NOT_FIXED_DEC
+#define NOT_FIXED_DEC			31
+#endif
+
+/*
+  Max length of a floating point number.
+ */
+#define FLOATING_POINT_BUFFER (311 + NOT_FIXED_DEC)
 
 extern char *llstr(longlong value,char *buff);
 extern char *ullstr(longlong value,char *buff);

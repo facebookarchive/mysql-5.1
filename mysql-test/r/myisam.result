@@ -2412,4 +2412,41 @@ CARDINALITY
 DROP TABLE t1;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 SET myisam_repair_threads=@@global.myisam_repair_threads;
+#
+# BUG#11757032 - 49030: OPTIMIZE TABLE BREAKS MYISAM TABLE WHEN
+#                USING MYISAM_USE_MMAP ON WINDOWS
+#
+SET GLOBAL myisam_use_mmap=1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(2);
+DELETE FROM t1 WHERE a=1;
+FLUSH TABLE t1;
+LOCK TABLE t1 WRITE;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+INSERT INTO t1 VALUES(3);
+UNLOCK TABLES;
+SELECT * FROM t1;
+a
+2
+3
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+SET GLOBAL myisam_use_mmap=default;
+#
+# BUG 11756869 - 48848: MYISAMCHK DOING SORT RECOVER IN CERTAIN
+#                       CASES RESETS DATA POINTER TO SMAL
+#
+CREATE TABLE t1(a INT, KEY(a));
+ALTER TABLE t1 DISABLE KEYS;
+SET @before:= (SELECT MAX_DATA_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test');
+FLUSH TABLES;
+SET @after:= (SELECT MAX_DATA_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test');
+SELECT @before=@after;
+@before=@after
+1
+DROP TABLE t1;
 End of 5.1 tests

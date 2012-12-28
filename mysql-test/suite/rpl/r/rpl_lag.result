@@ -1,12 +1,8 @@
 #
 # Check reset_seconds_behind_master, Relay_log_io_connected
 #
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop table if exists t1;
 Should be ON
 show global variables like "reset_seconds_behind_master";
@@ -23,10 +19,6 @@ show global variables like "reset_seconds_behind_master";
 Variable_name	Value
 reset_seconds_behind_master	ON
 CREATE TABLE t1 (id INT, v int);
-Should be 1
-show global status like "Relay_log_io_connected";
-Variable_name	Value
-Relay_log_io_connected	1
 seconds_behind_master with reset should be 0 and is 0
 set global reset_seconds_behind_master=0;
 Should be OFF
@@ -46,12 +38,12 @@ insert into t1 values (3,0);
 seconds_behind_master with reset should be 0 and is 0
 stop slave;
 start slave;
-Should be 2
-show global status like "Relay_log_io_connected";
-Variable_name	Value
-Relay_log_io_connected	2
+include/wait_for_slave_io_to_start.inc
+Should be 1
+1
 #
 # Cleanup
 #
 DROP TABLE t1;
+stop slave;
 set global reset_seconds_behind_master=1;

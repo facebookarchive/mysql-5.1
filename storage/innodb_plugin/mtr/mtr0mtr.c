@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -211,40 +211,6 @@ mtr_commit(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************//**
-Releases the latches stored in an mtr memo down to a savepoint.
-NOTE! The mtr must not have made changes to buffer pages after the
-savepoint, as these can be handled only by mtr_commit. */
-UNIV_INTERN
-void
-mtr_rollback_to_savepoint(
-/*======================*/
-	mtr_t*	mtr,		/*!< in: mtr */
-	ulint	savepoint)	/*!< in: savepoint */
-{
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-	ulint		offset;
-
-	ut_ad(mtr);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_ACTIVE);
-
-	memo = &(mtr->memo);
-
-	offset = dyn_array_get_data_size(memo);
-	ut_ad(offset >= savepoint);
-
-	while (offset > savepoint) {
-		offset -= sizeof(mtr_memo_slot_t);
-
-		slot = dyn_array_get_element(memo, offset);
-
-		ut_ad(slot->type != MTR_MEMO_MODIFY);
-		mtr_memo_slot_release(mtr, slot);
-	}
-}
-
 /***************************************************//**
 Releases an object in the memo stack. */
 UNIV_INTERN

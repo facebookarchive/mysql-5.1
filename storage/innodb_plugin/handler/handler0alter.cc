@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -649,54 +649,45 @@ ha_innobase::add_index(
 
 	update_thd();
 
-	heap = mem_heap_create(1024);
-
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 	if (prebuilt->trx->fake_changes) {
-		mem_heap_free(heap);
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
-	trx_start_if_not_started(prebuilt->trx);
-
-	/* Create a background transaction for the operations on
-	the data dictionary tables. */
-	trx = innobase_trx_allocate(user_thd);
-	if (trx->fake_changes) {
-		mem_heap_free(heap);
-		trx_general_rollback_for_mysql(trx, NULL);
-		trx_free_for_mysql(trx);
-		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	/* Check if the index name is reserved. */
+	if (innobase_index_name_is_reserved(user_thd, key_info, num_of_keys)) {
+		DBUG_RETURN(-1);
 	}
-
-	trx_start_if_not_started(trx);
 
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE, TRUE);
 
 	if (UNIV_UNLIKELY(!innodb_table)) {
-		error = HA_ERR_NO_SUCH_TABLE;
-		goto err_exit;
+		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
-	/* Check if the index name is reserved. */
-	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
-		error = -1;
-	} else {
 		/* Check that index keys are sensible */
-		error = innobase_check_index_keys(key_info, num_of_keys,
-						  innodb_table);
-	}
+	error = innobase_check_index_keys(key_info, num_of_keys, innodb_table);
 
 	if (UNIV_UNLIKELY(error)) {
-err_exit:
-		mem_heap_free(heap);
+		DBUG_RETURN(error);
+	}
+
+	heap = mem_heap_create(1024);
+	trx_start_if_not_started(prebuilt->trx);
+
+	/* Create a background transaction for the operations on
+	the data dictionary tables. */
+	trx = innobase_trx_allocate(user_thd);
+	trx_start_if_not_started(trx);
+
+	if (trx->fake_changes) {
 		trx_general_rollback_for_mysql(trx, NULL);
 		trx_free_for_mysql(trx);
-		trx_commit_for_mysql(prebuilt->trx);
-		DBUG_RETURN(error);
+		mem_heap_free(heap);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
 	/* Create table containing all indexes to be built in this
@@ -770,8 +761,12 @@ err_exit:
 
 			ut_d(dict_table_check_for_dup_indexes(innodb_table,
 							      FALSE));
+			mem_heap_free(heap);
+			trx_general_rollback_for_mysql(trx, NULL);
 			row_mysql_unlock_data_dictionary(trx);
-			goto err_exit;
+			trx_free_for_mysql(trx);
+			trx_commit_for_mysql(prebuilt->trx);
+			DBUG_RETURN(error);
 		}
 
 		trx->table_id = indexed_table->id;
@@ -793,10 +788,6 @@ err_exit:
 	}
 
 	ut_ad(error == DB_SUCCESS);
-
-	/* We will need to rebuild index translation table. Set
-	valid index entry count in the translation table to zero */
-	share->idx_trans_tbl.index_count = 0;
 
 	/* Commit the data dictionary transaction in order to release
 	the table locks on the system tables.  This means that if
@@ -923,6 +914,14 @@ error:
 		}
 
 convert_error:
+		if (error == DB_SUCCESS) {
+			/* Build index is successful. We will need to
+			rebuild index translation table.  Reset the
+			index entry count in the translation table
+			to zero, so that translation table will be rebuilt */
+			share->idx_trans_tbl.index_count = 0;
+		}
+
 		error = convert_error_code_to_mysql(error,
 						    innodb_table->flags,
 						    user_thd);
@@ -1025,15 +1024,18 @@ ha_innobase::prepare_drop_index(
 			goto func_exit;
 		}
 
+		rw_lock_x_lock(dict_index_get_lock(index));
 		index->to_be_dropped = TRUE;
+		rw_lock_x_unlock(dict_index_get_lock(index));
 	}
 
-	/* If FOREIGN_KEY_CHECK = 1 you may not drop an index defined
+	/* If FOREIGN_KEY_CHECKS = 1 you may not drop an index defined
 	for a foreign key constraint because InnoDB requires that both
-	tables contain indexes for the constraint.  Note that CREATE
-	INDEX id ON table does a CREATE INDEX and DROP INDEX, and we
-	can ignore here foreign keys because a new index for the
-	foreign key has already been created.
+	tables contain indexes for the constraint. Such index can
+	be dropped only if FOREIGN_KEY_CHECKS is set to 0.
+	Note that CREATE INDEX id ON table does a CREATE INDEX and
+	DROP INDEX, and we can ignore here foreign keys because a
+	new index for the foreign key has already been created.
 
 	We check for the foreign key constraints after marking the
 	candidate indexes for deletion, because when we check for an
@@ -1143,7 +1145,9 @@ func_exit:
 			= dict_table_get_first_index(prebuilt->table);
 
 		do {
+			rw_lock_x_lock(dict_index_get_lock(index));
 			index->to_be_dropped = FALSE;
+			rw_lock_x_unlock(dict_index_get_lock(index));
 			index = dict_table_get_next_index(index);
 		} while (index);
 	}
@@ -1209,7 +1213,9 @@ ha_innobase::final_drop_index(
 		for (index = dict_table_get_first_index(prebuilt->table);
 		     index; index = dict_table_get_next_index(index)) {
 
+			rw_lock_x_lock(dict_index_get_lock(index));
 			index->to_be_dropped = FALSE;
+			rw_lock_x_unlock(dict_index_get_lock(index));
 		}
 
 		goto func_exit;

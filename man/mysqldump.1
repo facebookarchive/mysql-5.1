@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 10/11/2010
+.\"      Date: 04/15/2012
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "04/15/2012" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -73,7 +73,7 @@ database by default\&. As of MySQL 5\&.1\&.38,
 \fBmysqldump\fR
 dumps
 INFORMATION_SCHEMA
-if you name it explicitly on the command line, although currently you must also use the
+if you name it explicitly on the command line, although you must also use the
 \fB\-\-skip\-lock\-tables\fR
 option\&. Before 5\&.1\&.38,
 \fBmysqldump\fR
@@ -226,7 +226,7 @@ instead\&.
 .br
 .PP
 \fBmysqldump\fR
-from MySQL 5\&.1\&.21 cannot be used to create dumps from MySQL server 5\&.1\&.20 and older\&. This issue is fixed in MySQL 5\&.1\&.22\&. (\m[blue]\fBBug#30123\fR\m[]\&\s-2\u[1]\d\s+2)
+from MySQL 5\&.1\&.21 cannot be used to create dumps from MySQL server 5\&.1\&.20 and older\&. This issue is fixed in MySQL 5\&.1\&.22\&. (Bug #30123)
 .sp .5v
 .RE
 .PP
@@ -235,7 +235,7 @@ supports the following options, which can be specified on the command line or in
 [mysqldump]
 and
 [client]
-option file groups\&.
+groups of an option file\&.
 \fBmysqldump\fR
 also supports the options for processing option files described at
 Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -331,7 +331,7 @@ statement\&.
 .br
 This option is supported only by
 \fBmysqldump\fR
-as supplied with MySQL Cluster NDB 6\&.3\&.38, MySQL Cluster NDB 7\&.0\&.19, MySQL Cluster NDB 7\&.1\&.8, and later MySQL Cluster release\&. It is not available when using MySQL 5\&.1\&.
+as supplied with MySQL Cluster NDB 6\&.3\&.38, MySQL Cluster NDB 7\&.0\&.19, MySQL Cluster NDB 7\&.1\&.8, and later MySQL Cluster releases\&. It is not available when using MySQL 5\&.1\&.
 .sp .5v
 .RE
 .RE
@@ -353,7 +353,7 @@ LOCK TABLES
 and
 UNLOCK TABLES
 statements\&. This results in faster inserts when the dump file is reloaded\&. See
-Section\ \&7.3.2.1, \(lqSpeed of INSERT Statements\(rq\&.
+Section\ \&8.3.2.1, \(lqSpeed of INSERT Statements\(rq\&.
 .RE
 .sp
 .RS 4
@@ -418,12 +418,31 @@ Permit creation of column names that are keywords\&. This works by prefixing eac
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysqldump: bind-address option
+.\" bind-address option: mysqldump
+\fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
+.sp
+On a computer having multiple network interfaces, this option can be used to select which interface is employed when connecting to the MySQL server\&.
+.sp
+This option is supported only in the version of
+\fBmysqldump\fR
+that is supplied with MySQL Cluster, beginning with MySQL Cluster NDB 6\&.3\&.4\&. It is not available in standard MySQL 5\&.1 releases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysqldump: character-sets-dir option
 .\" character-sets-dir option: mysqldump
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -509,7 +528,7 @@ maxdb,
 no_key_options,
 no_table_options, or
 no_field_options\&. To use several values, separate them by commas\&. These values have the same meaning as the corresponding options for setting the server SQL mode\&. See
-Section\ \&5.1.7, \(lqServer SQL Modes\(rq\&.
+Section\ \&5.1.6, \(lqServer SQL Modes\(rq\&.
 .sp
 This option does not guarantee compatibility with other servers\&. It only enables those SQL mode values that are currently available for making dump output more compatible\&. For example,
 \fB\-\-compatible=oracle\fR
@@ -656,7 +675,7 @@ Print debugging information and memory and CPU usage statistics when the program
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
 \fBmysqldump\fR
 uses
 utf8, and earlier versions use
@@ -725,7 +744,7 @@ and
 /*!40000 ALTER TABLE \fItbl_name\fR ENABLE KEYS */;
 statements\&. This makes loading the dump file faster because the indexes are created after all rows are inserted\&. This option is effective only for nonunique indexes of
 MyISAM
-tables\&.
+tables\&. It has no effect for other tables\&.
 .RE
 .sp
 .RS 4
@@ -830,7 +849,7 @@ option and have the same meaning as the corresponding
 FIELDS
 clauses for
 LOAD DATA INFILE\&. See
-Section\ \&12.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
+Section\ \&13.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1022,7 +1041,7 @@ option and has the same meaning as the corresponding
 LINES
 clause for
 LOAD DATA INFILE\&. See
-Section\ \&12.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
+Section\ \&13.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1184,6 +1203,17 @@ shell> \fBmysqldump \-\-master\-data=2 \-\-all\-databases > dumpfile\fR
 .if n \{\
 .RE
 .\}
+.sp
+Using
+\fB\-\-master\-data=2\fR
+works only if binary logging has been enabled on the slave\&. Otherwise,
+\fBmysqldump\fR
+fails with the error
+Binlogging on server not active\&. In this case you must handle any locking issues in another manner, using one or more of
+\fB\-\-add\-locks\fR,
+\fB\-\-lock\-tables\fR,
+\fB\-\-lock\-all\-tables\fR, or
+\fB\-\-single\-transaction\fR, as required by your application and environment\&.
 .RE
 .sp
 .RS 4
@@ -1469,7 +1499,7 @@ option on the command line,
 prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Section\ \&6.1.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -1640,6 +1670,10 @@ DEFINER
 values are not dumped until MySQL 5\&.1\&.8\&. This means that before 5\&.1\&.8, when routines are reloaded, they will be created with the definer set to the reloading user\&. If you require routines to be re\-created with their original definer, dump and load the contents of the
 mysql\&.proc
 table directly as described earlier\&.
+.sp
+Prior to MySQL 5\&.1\&.62, this option had no effect when used together with the
+\fB\-\-xml\fR
+option\&. (Bug #11760384, Bug #52792)
 .RE
 .sp
 .RS 4
@@ -1790,7 +1824,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&5.5.6.3, \(lqSSL Command Options\(rq\&.
+Section\ \&6.3.6.3, \(lqSSL Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2019,15 +2053,16 @@ value, an empty string, and the string value
 are distinguished from one another in the output generated by this option as follows\&.
 .TS
 allbox tab(:);
-l l
+lB lB.
+T{
+Value:
+T}:T{
+XML Representation:
+T}
+.T&
 l l
 l l
 l l.
-T{
-\fBValue\fR:
-T}:T{
-\fBXML Representation\fR:
-T}
 T{
 NULL (\fIunknown value\fR)
 T}:T{
@@ -2101,8 +2136,11 @@ Collation="latin1_swedish_ci" Create_options="" Comment="" />
 .if n \{\
 .RE
 .\}
-.sp
 .RE
+.PP
+Prior to MySQL 5\&.1\&.62, this option prevented the
+\fB\-\-routines\fR
+option from working correctly\(emthat is, no stored routines, triggers, or events could be dumped in XML format\&. (Bug #11760384, Bug #52792)
 .PP
 You can also set the following variables by using
 \fB\-\-\fR\fB\fIvar_name\fR\fR\fB=\fR\fB\fIvalue\fR\fR
@@ -2281,18 +2319,18 @@ InnoDB
 storage engine\&.
 .PP
 For more information on making backups, see
-Section\ \&6.2, \(lqDatabase Backup Methods\(rq, and
-Section\ \&6.3, \(lqExample Backup and Recovery Strategy\(rq\&.
+Section\ \&7.2, \(lqDatabase Backup Methods\(rq, and
+Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
 .\" mysqldump: views
 .\" mysqldump: problems
 .\" mysqldump: workarounds
 .PP
 If you encounter problems backing up views, please read the section that covers restrictions on views which describes a workaround for backing up views when this fails due to insufficient privileges\&. See
-Section\ \&D.4, \(lqRestrictions on Views\(rq\&.
+Section\ \&E.4, \(lqRestrictions on Views\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -2300,12 +2338,6 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
-.SH "NOTES"
-.IP " 1." 4
-Bug#30123
-.RS 4
-\%http://bugs.mysql.com/bug.php?id=30123
-.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available

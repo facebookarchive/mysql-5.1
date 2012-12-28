@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Defines for Win32 to make it compatible for MySQL */
 
@@ -169,6 +171,11 @@ typedef uint rf_SetTimer;
 #define SIZEOF_LONG		4
 #define SIZEOF_LONG_LONG	8
 #define SIZEOF_OFF_T		8
+/*
+  The size of time_t depends on the compiler.
+  But it's 8 for all the supported VC versions.
+*/
+#define SIZEOF_TIME_T		8
 #ifdef _WIN64
 #define SIZEOF_CHARP		8
 #else
@@ -332,6 +339,7 @@ inline ulonglong double2ulonglong(double d)
 /* File name handling */
 
 #define FN_LIBCHAR	'\\'
+#define FN_DIRSEP       "/\\"               /* Valid directory separators */
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */

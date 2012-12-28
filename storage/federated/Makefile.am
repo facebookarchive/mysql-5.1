@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,14 +37,14 @@ pkgplugin_LTLIBRARIES =	@plugin_federated_shared_target@
 ha_federated_la_LDFLAGS =	-module -rpath $(pkgplugindir)
 ha_federated_la_CXXFLAGS=	$(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_federated_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-ha_federated_la_SOURCES =	ha_federated.cc
+ha_federated_la_SOURCES =	ha_federated.cc $(top_srcdir)/mysys/string.c
 
 
 EXTRA_LIBRARIES =	libfederated.a
 noinst_LIBRARIES =	@plugin_federated_static_target@
 libfederated_a_CXXFLAGS =	$(AM_CXXFLAGS)
 libfederated_a_CFLAGS =	$(AM_CFLAGS)
-libfederated_a_SOURCES=	ha_federated.cc
+libfederated_a_SOURCES=	ha_federated.cc $(top_srcdir)/mysys/string.c
 
 EXTRA_DIST =		CMakeLists.txt plug.in
 # Don't update the files from bitkeeper

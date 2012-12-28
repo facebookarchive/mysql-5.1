@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -545,7 +545,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 
   /* prepare select to resolve all fields */
-  lex->view_prepare_mode= 1;
+  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
   if (unit->prepare(thd, 0, 0))
   {
     /*
@@ -1255,6 +1255,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     TABLE_LIST *view_tables= lex->query_tables;
     TABLE_LIST *view_tables_tail= 0;
     TABLE_LIST *tbl;
+    Security_context *security_ctx;
 
     /*
       Check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
@@ -1264,8 +1265,39 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     if (!table->prelocking_placeholder &&
         (old_lex->sql_command == SQLCOM_SELECT && old_lex->describe))
     {
-      if (check_table_access(thd, SELECT_ACL, view_tables, UINT_MAX, TRUE) &&
-          check_table_access(thd, SHOW_VIEW_ACL, table, UINT_MAX, TRUE))
+      /*
+        The user we run EXPLAIN as (either the connected user who issued
+        the EXPLAIN statement, or the definer of a SUID stored routine
+        which contains the EXPLAIN) should have both SHOW_VIEW_ACL and
+        SELECT_ACL on the view being opened as well as on all underlying
+        views since EXPLAIN will disclose their structure. This user also
+        should have SELECT_ACL on all underlying tables of the view since
+        this EXPLAIN will disclose information about the number of rows in it.
+
+        To perform this privilege check we create auxiliary TABLE_LIST object
+        for the view in order a) to avoid trashing "table->grant" member for
+        original table list element, which contents can be important at later
+        stage for column-level privilege checking b) get TABLE_LIST object
+        with "security_ctx" member set to 0, i.e. forcing check_table_access()
+        to use active user's security context.
+
+        There is no need for creating similar copies of TABLE_LIST elements
+        for underlying tables since they just have been constructed and thus
+        have TABLE_LIST::security_ctx == 0 and fresh TABLE_LIST::grant member.
+
+        Finally at this point making sure we have SHOW_VIEW_ACL on the views
+        will suffice as we implicitly require SELECT_ACL anyway.
+      */
+        
+      TABLE_LIST view_no_suid;
+      bzero(static_cast<void *>(&view_no_suid), sizeof(TABLE_LIST));
+      view_no_suid.db= table->db;
+      view_no_suid.table_name= table->table_name;
+
+      DBUG_ASSERT(view_tables == NULL || view_tables->security_ctx == NULL);
+
+      if (check_table_access(thd, SELECT_ACL, view_tables, UINT_MAX, TRUE) ||
+          check_table_access(thd, SHOW_VIEW_ACL, &view_no_suid, UINT_MAX, TRUE))
       {
         my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
         goto err;
@@ -1396,25 +1428,38 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     if (table->view_suid)
     {
       /*
-        Prepare a security context to check underlying objects of the view
+        For suid views prepare a security context for checking underlying
+        objects of the view.
       */
       if (!(table->view_sctx= (Security_context *)
             thd->stmt_arena->alloc(sizeof(Security_context))))
         goto err;
-      /* Assign the context to the tables referenced in the view */
-      if (view_tables)
-      {
-        DBUG_ASSERT(view_tables_tail);
-        for (tbl= view_tables; tbl != view_tables_tail->next_global;
-             tbl= tbl->next_global)
-          tbl->security_ctx= table->view_sctx;
-      }
-      /* assign security context to SELECT name resolution contexts of view */
-      for(SELECT_LEX *sl= lex->all_selects_list;
-          sl;
-          sl= sl->next_select_in_list())
-        sl->context.security_ctx= table->view_sctx;
+      security_ctx= table->view_sctx;
     }
+    else
+    {
+      /*
+        For non-suid views inherit security context from view's table list.
+        This allows properly handle situation when non-suid view is used
+        from within suid view.
+      */
+      security_ctx= table->security_ctx;
+    }
+
+    /* Assign the context to the tables referenced in the view */
+    if (view_tables)
+    {
+      DBUG_ASSERT(view_tables_tail);
+      for (tbl= view_tables; tbl != view_tables_tail->next_global;
+           tbl= tbl->next_global)
+        tbl->security_ctx= security_ctx;
+    }
+
+    /* assign security context to SELECT name resolution contexts of view */
+    for(SELECT_LEX *sl= lex->all_selects_list;
+        sl;
+        sl= sl->next_select_in_list())
+      sl->context.security_ctx= security_ctx;
 
     /*
       Setup an error processor to hide error messages issued by stored

@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* create and drop of databases */
@@ -26,6 +28,7 @@
 #ifdef __WIN__
 #include <direct.h>
 #endif
+#include "debug_sync.h"
 
 #define MAX_DROP_TABLE_Q_LEN      1024
 
@@ -948,9 +951,6 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     remove_db_from_cache(db);
     pthread_mutex_unlock(&LOCK_open);
 
-    Drop_table_error_handler err_handler(thd->get_internal_handler());
-    thd->push_internal_handler(&err_handler);
-
     error= -1;
     /*
       We temporarily disable the binary log while dropping the objects
@@ -983,8 +983,8 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       error = 0;
       reenable_binlog(thd);
     }
-    thd->pop_internal_handler();
   }
+
   if (!silent && deleted>=0)
   {
     const char *query;
@@ -1197,6 +1197,12 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       VOID(filename_to_tablename(file->name, table_list->table_name,
                                  MYSQL50_TABLE_NAME_PREFIX_LENGTH +
                                  strlen(file->name) + 1));
+
+      /* To be able to correctly look up the table in the table cache. */
+      if (lower_case_table_names)
+        table_list->table_name_length= my_casedn_str(files_charset_info,
+                                                     table_list->table_name);
+
       table_list->alias= table_list->table_name;	// If lower_case_table_names=2
       table_list->internal_tmp_table= is_prefix(file->name, tmp_file_prefix);
       /* Link into list */
@@ -1207,15 +1213,33 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     else
     {
       strxmov(filePath, org_path, "/", file->name, NullS);
-      if (my_delete_with_symlink(filePath,MYF(MY_WME)))
+      /*
+        We ignore ENOENT error in order to skip files that was deleted
+        by concurrently running statement like REAPIR TABLE ...
+      */
+      if (my_delete_with_symlink(filePath, MYF(0)) &&
+          my_errno != ENOENT)
       {
+        my_error(EE_DELETE, MYF(0), filePath, my_errno);
 	goto err;
       }
     }
   }
-  if (thd->killed ||
-      (tot_list && mysql_rm_table_part2(thd, tot_list, 1, 0, 1, 1)))
+
+  if (thd->killed)
     goto err;
+
+  if (tot_list)
+  {
+    int res= 0;
+    Drop_table_error_handler err_handler(thd->get_internal_handler());
+
+    thd->push_internal_handler(&err_handler);
+    res= mysql_rm_table_part2(thd, tot_list, 1, 0, 1, 1);
+    thd->pop_internal_handler();
+    if (res)
+      goto err;
+  }
 
   /* Remove RAID directories */
   {
@@ -1680,6 +1704,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     DBUG_RETURN(TRUE);
   }
 #endif
+
+  DEBUG_SYNC(thd, "before_db_dir_check");
 
   if (check_db_dir_existence(new_db_file_name.str))
   {

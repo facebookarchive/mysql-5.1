@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_show_tables\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 10/11/2010
+.\"      Date: 04/15/2012
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_SHOW_TABLES\F" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_SHOW_TABLES\F" "1" "04/15/2012" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -37,8 +37,7 @@ NDB\-specific indexes, internal triggers, and MySQL Cluster Disk Data objects as
 The following table includes options that are specific to the MySQL Cluster program
 \fBndb_show_tables\fR\&. Additional descriptions follow the table\&. For options common to all MySQL Cluster programs, see
 Section\ \&17.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
-.PP
-\fBUsage\fR:
+          Usage
 .sp
 .if n \{\
 .RS 4
@@ -137,7 +136,7 @@ Can be used to restrict the output to one type of object, specified by an intege
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB1\fR: System table
+1: System table
 .RE
 .sp
 .RS 4
@@ -148,7 +147,7 @@ Can be used to restrict the output to one type of object, specified by an intege
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB2\fR: User\-created table
+2: User\-created table
 .RE
 .sp
 .RS 4
@@ -159,7 +158,7 @@ Can be used to restrict the output to one type of object, specified by an intege
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB3\fR: Unique hash index
+3: Unique hash index
 .RE
 .RS 4
 Any other value causes all
@@ -195,7 +194,7 @@ If specified, this causes unqualified object names to be displayed\&.
 .ps -1
 .br
 .PP
-Only user\-created Cluster tables may be accessed from MySQL; system tables such as
+Only user\-created MySQL Cluster tables may be accessed from MySQL; system tables such as
 SYSTAB_0
 are not visible to
 \fBmysqld\fR\&. However, you can examine the contents of system tables using
@@ -209,7 +208,7 @@ API applications such as
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

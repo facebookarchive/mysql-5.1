@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -194,6 +196,15 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 
   if (select && my_b_inited(&select->file))
     tempfile= &select->file;
+  else if (select && select->quick && select->quick->clustered_pk_range())
+  {
+    /*
+      In case of QUICK_INDEX_MERGE_SELECT with clustered pk range we have to
+      use its own access method(i.e QUICK_INDEX_MERGE_SELECT::get_next()) as
+      sort file does not contain rowids which satisfy clustered pk range.
+    */
+    tempfile= 0;
+  }
   else
     tempfile= table->sort.io_cache;
   if (tempfile && my_b_inited(tempfile)) // Test if ref-records was used

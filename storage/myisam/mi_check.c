@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Describe, check and repair of MyISAM tables */
 
@@ -85,6 +87,7 @@ static SORT_KEY_BLOCKS	*alloc_key_blocks(MI_CHECK *param, uint blocks,
 					  uint buffer_length);
 static ha_checksum mi_byte_checksum(const uchar *buf, uint length);
 static void set_data_file_type(SORT_INFO *sort_info, MYISAM_SHARE *share);
+static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a);
 
 void myisamchk_init(MI_CHECK *param)
 {
@@ -1741,6 +1744,8 @@ err:
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
 	  mi_open_datafile(info,share,name,-1))
 	got_error=1;
+
+      param->retry_repair= 0;
     }
   }
   if (got_error)
@@ -3908,7 +3913,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
   SORT_FT_BUF *ft_buf=sort_info->ft_buf;
   SORT_KEY_BLOCKS *key_block=sort_info->key_block;
 
-  val_len=HA_FT_WLEN+sort_info->info->s->base.rec_reflength;
+  val_len= HA_FT_WLEN + sort_info->info->s->rec_reflength;
   get_key_full_length_rdonly(a_len, (uchar *)a);
 
   if (!ft_buf)
@@ -3918,7 +3923,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
       and row format is NOT static - for _mi_dpointer not to garble offsets
      */
     if ((sort_info->info->s->base.key_reflength <=
-         sort_info->info->s->base.rec_reflength) &&
+         sort_info->info->s->rec_reflength) &&
         (sort_info->info->s->options &
           (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)))
       ft_buf=(SORT_FT_BUF *)my_malloc(sort_param->keyinfo->block_length +
@@ -4309,13 +4314,6 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
     u_ptr->seg=keyseg;
     keyseg+=u_ptr->keysegs+1;
   }
-  if (share.options & HA_OPTION_COMPRESS_RECORD)
-    share.base.records=max_records=info.state->records;
-  else if (share.base.min_pack_length)
-    max_records=(ha_rows) (my_seek(info.dfile,0L,MY_SEEK_END,MYF(0)) /
-			   (ulong) share.base.min_pack_length);
-  else
-    max_records=0;
   unpack= (share.options & HA_OPTION_COMPRESS_RECORD) &&
     (param->testflag & T_UNPACK);
   share.options&= ~HA_OPTION_TEMP_COMPRESS_RECORD;
@@ -4325,10 +4323,17 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   set_if_bigger(file_length,param->max_data_file_length);
   set_if_bigger(file_length,tmp_length);
   set_if_bigger(file_length,(ulonglong) share.base.max_data_file_length);
+ 
+  if (share.options & HA_OPTION_COMPRESS_RECORD)
+    share.base.records= max_records= info.state->records;
+  else if (!(share.options & HA_OPTION_PACK_RECORD))
+    max_records= (ha_rows) (file_length / share.base.pack_reclength);
+  else
+    max_records= 0;
 
   VOID(mi_close(*org_info));
   bzero((char*) &create_info,sizeof(create_info));
-  create_info.max_rows=max(max_records,share.base.records);
+  create_info.max_rows= max_records;
   create_info.reloc_rows=share.base.reloc;
   create_info.old_options=(share.options |
 			   (unpack ? HA_OPTION_TEMP_COMPRESS_RECORD : 0));
@@ -4736,4 +4741,90 @@ set_data_file_type(SORT_INFO *sort_info, MYISAM_SHARE *share)
     mi_setup_functions(&tmp);
     share->delete_record=tmp.delete_record;
   }
+}
+
+/*
+  Find the first NULL value in index-suffix values tuple
+
+  SYNOPSIS
+    ha_find_null()
+      keyseg     Array of keyparts for key suffix
+      a          Key suffix value tuple
+
+  DESCRIPTION
+    Find the first NULL value in index-suffix values tuple.
+    TODO Consider optimizing this fuction or its use so we don't search for
+         NULL values in completely NOT NULL index suffixes.
+
+  RETURN
+    First key part that has NULL as value in values tuple, or the last key part 
+    (with keyseg->type==HA_TYPE_END) if values tuple doesn't contain NULLs.
+*/
+
+static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
+{
+  for (; (enum ha_base_keytype) keyseg->type != HA_KEYTYPE_END; keyseg++)
+  {
+    uchar *end;
+    if (keyseg->null_bit)
+    {
+      if (!*a++)
+        return keyseg;
+    }
+    end= a+ keyseg->length;
+
+   switch ((enum ha_base_keytype) keyseg->type) {
+    case HA_KEYTYPE_TEXT:
+    case HA_KEYTYPE_BINARY:
+    case HA_KEYTYPE_BIT:
+      if (keyseg->flag & HA_SPACE_PACK)
+      {
+        int a_length;
+        get_key_length(a_length, a);
+        a += a_length;
+        break;
+      }
+      else
+        a= end;
+      break;
+    case HA_KEYTYPE_VARTEXT1:
+    case HA_KEYTYPE_VARTEXT2:
+    case HA_KEYTYPE_VARBINARY1:
+    case HA_KEYTYPE_VARBINARY2:
+      {
+        int a_length;
+        get_key_length(a_length, a);
+        a+= a_length;
+        break;
+      }
+    case HA_KEYTYPE_NUM:
+      if (keyseg->flag & HA_SPACE_PACK)
+      {
+        int alength= *a++;
+        end= a+alength;
+      }
+      a= end;
+      break;
+    case HA_KEYTYPE_INT8:
+    case HA_KEYTYPE_SHORT_INT:
+    case HA_KEYTYPE_USHORT_INT:
+    case HA_KEYTYPE_LONG_INT:
+    case HA_KEYTYPE_ULONG_INT:
+    case HA_KEYTYPE_INT24:
+    case HA_KEYTYPE_UINT24:
+#ifdef HAVE_LONG_LONG
+    case HA_KEYTYPE_LONGLONG:
+    case HA_KEYTYPE_ULONGLONG:
+#endif
+    case HA_KEYTYPE_FLOAT:
+    case HA_KEYTYPE_DOUBLE:
+      a= end;
+      break;
+    case HA_KEYTYPE_END:                        /* purecov: inspected */
+      /* keep compiler happy */
+      DBUG_ASSERT(0);
+      break;
+    }
+  }
+  return keyseg;
 }

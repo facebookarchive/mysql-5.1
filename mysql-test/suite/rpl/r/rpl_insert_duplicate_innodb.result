@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (
 a INT UNSIGNED NOT NULL PRIMARY KEY
 ) ENGINE=innodb;
@@ -23,3 +19,4 @@ select * from t1 order by a;
 a
 1
 drop table t1, t2;
+include/rpl_end.inc

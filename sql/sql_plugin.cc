@@ -1,4 +1,5 @@
-/* Copyright (C) 2005 MySQL AB
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 #include <my_pthread.h>
@@ -233,6 +235,26 @@ extern bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
 #endif /* EMBEDDED_LIBRARY */
 
 
+/**
+   Check if the provided path is valid in the sense that it does cause
+   a relative reference outside the directory.
+
+   @note Currently, this function only check if there are any
+   characters in FN_DIRSEP in the string, but it might change in the
+   future.
+
+   @code
+   check_valid_path("../foo.so") -> true
+   check_valid_path("foo.so") -> false
+   @endcode
+ */
+bool check_valid_path(const char *path, size_t len)
+{
+  size_t prefix= my_strcspn(files_charset_info, path, path + len, FN_DIRSEP);
+  return  prefix < len;
+}
+
+
 /****************************************************************************
   Value type thunks, allows the C world to play in the C++ world
 ****************************************************************************/
@@ -356,13 +378,15 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   struct st_plugin_dl *tmp, plugin_dl;
   void *sym;
   DBUG_ENTER("plugin_dl_add");
+  DBUG_PRINT("enter", ("dl->str: '%s', dl->length: %d",
+                       dl->str, (int) dl->length));
   plugin_dir_len= strlen(opt_plugin_dir);
   /*
     Ensure that the dll doesn't have a path.
     This is done to ensure that only approved libraries from the
     plugin directory are used (to make this even remotely secure).
   */
-  if (my_strchr(files_charset_info, dl->str, dl->str + dl->length, FN_LIBCHAR) ||
+  if (check_valid_path(dl->str, dl->length) ||
       check_string_char_length((LEX_STRING *) dl, "", NAME_CHAR_LEN,
                                system_charset_info, 1) ||
       plugin_dir_len + dl->length + 1 >= FN_REFLEN)
@@ -475,9 +499,11 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     {
       free_plugin_mem(&plugin_dl);
       if (report & REPORT_TO_USER)
-        my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
+        my_error(ER_OUTOFMEMORY, MYF(0),
+                 static_cast<int>(plugin_dl.dl.length));
       if (report & REPORT_TO_LOG)
-        sql_print_error(ER(ER_OUTOFMEMORY), plugin_dl.dl.length);
+        sql_print_error(ER(ER_OUTOFMEMORY),
+                        static_cast<int>(plugin_dl.dl.length));
       DBUG_RETURN(0);
     }
     /*
@@ -500,9 +526,10 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   {
     free_plugin_mem(&plugin_dl);
     if (report & REPORT_TO_USER)
-      my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
+      my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(plugin_dl.dl.length));
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_OUTOFMEMORY), plugin_dl.dl.length);
+      sql_print_error(ER(ER_OUTOFMEMORY),
+                      static_cast<int>(plugin_dl.dl.length));
     DBUG_RETURN(0);
   }
   plugin_dl.dl.length= copy_and_convert(plugin_dl.dl.str, plugin_dl.dl.length,
@@ -514,9 +541,11 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   {
     free_plugin_mem(&plugin_dl);
     if (report & REPORT_TO_USER)
-      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(struct st_plugin_dl));
+      my_error(ER_OUTOFMEMORY, MYF(0),
+               static_cast<int>(sizeof(struct st_plugin_dl)));
     if (report & REPORT_TO_LOG)
-      sql_print_error(ER(ER_OUTOFMEMORY), sizeof(struct st_plugin_dl));
+      sql_print_error(ER(ER_OUTOFMEMORY),
+                      static_cast<int>(sizeof(struct st_plugin_dl)));
     DBUG_RETURN(0);
   }
   DBUG_RETURN(tmp);
@@ -2024,7 +2053,7 @@ static int check_func_double(THD *thd, struct st_mysql_sys_var *var,
                              void *save, st_mysql_value *value)
 {
   my_bool fixed;
-  double tmp, def_value, max_value, min_value;
+  double tmp, max_value, min_value;
   sysvar_double_t* dvar= (sysvar_double_t*) var;
 
   value->val_real(value, &tmp);
@@ -2034,12 +2063,11 @@ static int check_func_double(THD *thd, struct st_mysql_sys_var *var,
                PLUGIN_VAR_UNSIGNED |
                PLUGIN_VAR_THDLOCAL)) == PLUGIN_VAR_DOUBLE);
 
-  def_value= dvar->def_val;
   min_value= dvar->min_val;
   max_value= dvar->max_val;
 
   *(double *)save= getopt_double_limit_value(tmp, max_value, min_value,
-                                             def_value, var->name, &fixed);
+                                             var->name, &fixed);
 
   return throw_bounds_warning_real(thd, fixed, var->name, tmp);
 }

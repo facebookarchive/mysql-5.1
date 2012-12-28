@@ -1296,10 +1296,12 @@ UNIV_INTERN
 int
 os_file_set_nocache(
 /*================*/
-	int		fd,		/*!< in: file descriptor to alter */
-	const char*	file_name,	/*!< in: file name, used in the
-					diagnostic message */
-	const char*	operation_name)	/*!< in: "open" or "create"; used in the
+	int		fd		/*!< in: file descriptor to alter */
+	__attribute__((unused)),
+	const char*	file_name	/*!< in: used in the diagnostic message */
+	__attribute__((unused)),
+	const char*	operation_name __attribute__((unused)))
+					/*!< in: "open" or "create"; used in the
 					diagnostic message */
 {
 	/* some versions of Solaris may not have DIRECTIO_ON */
@@ -2504,7 +2506,10 @@ os_file_read(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_reads++;
 	os_bytes_read_since_printout += n;
@@ -2630,7 +2635,10 @@ os_file_read_no_error_handling(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_reads++;
 	os_bytes_read_since_printout += n;
@@ -2760,7 +2768,10 @@ os_file_write(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
-	ut_a((offset & 0xFFFFFFFF) == offset);
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
+	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_writes++;
 
@@ -3556,12 +3567,14 @@ os_aio_array_reserve_slot(
 	ulint		len)	/*!< in: length of the block to read or write */
 {
 	os_aio_slot_t*	slot;
-#ifdef WIN_ASYNC_IO
-	OVERLAPPED*	control;
-#endif
 	ulint		i;
 	ulint		slots_per_seg;
 	ulint		local_seg;
+#ifdef WIN_ASYNC_IO
+	OVERLAPPED*	control;
+
+	ut_a((len & 0xFFFFFFFFUL) == len);
+#endif
 
 	/* No need of a mutex. Only reading constant fields */
 	slots_per_seg = array->n_slots / array->n_segments;
@@ -3847,6 +3860,9 @@ os_aio(
 	ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(os_aio_validate());
+#ifdef WIN_ASYNC_IO
+	ut_ad((n & 0xFFFFFFFFUL) == n);
+#endif
 
 	is_log_write = mode & OS_FILE_LOG;
 	is_double_write = mode & OS_AIO_DOUBLE_WRITE;
@@ -3885,6 +3901,10 @@ os_aio(
 
 		/* These stats are not exact because a mutex is not locked. */
 		if (type == OS_FILE_READ) {
+			ulint page_type;
+			my_io_perf_t* space_index_io_perf= NULL;
+			my_io_perf_t* table_index_io_perf= NULL;
+
 			os_io_perf_update_all(&os_sync_read_perf, n,
 				elapsed_secs, &end_timer, &start_timer);
 			/* Per fil_space_t counters */
@@ -3897,9 +3917,7 @@ os_aio(
 			}
 
 			/* Handle type spacific page IO stats */
-			ulint page_type= fil_page_get_type(buf);
-			my_io_perf_t* space_index_io_perf= NULL;
-			my_io_perf_t* table_index_io_perf= NULL;
+			page_type= fil_page_get_type(buf);
 			if (primary_index_id && FIL_PAGE_INDEX == page_type)
 			{
 				index_id= btr_page_get_index_id((uchar*)buf);
@@ -4169,16 +4187,18 @@ os_aio_windows_handle(
 		/* retry failed read/write operation synchronously.
 		No need to hold array->mutex. */
 
+		ut_a((slot->len & 0xFFFFFFFFUL) == slot->len);
+
 		switch (slot->type) {
 		case OS_FILE_WRITE:
 			ret = WriteFile(slot->file, slot->buf,
-					slot->len, &len,
+					(DWORD) slot->len, &len,
 					&(slot->control));
 
 			break;
 		case OS_FILE_READ:
 			ret = ReadFile(slot->file, slot->buf,
-				       slot->len, &len,
+				       (DWORD) slot->len, &len,
 				       &(slot->control));
 
 			break;

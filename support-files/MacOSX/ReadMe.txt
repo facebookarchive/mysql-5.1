@@ -1,11 +1,11 @@
 
-2.5. Installing MySQL on Mac OS X
+2.4. Installing MySQL on Mac OS X
 
    MySQL for Mac OS X is available in a number of different forms:
 
      * Native Package Installer format, which uses the native Mac OS
        X installer to walk you through the installation of MySQL. For
-       more information, see Section 2.5.2, "Installing MySQL on Mac
+       more information, see Section 2.4.2, "Installing MySQL on Mac
        OS X Using Native Packages." You can use the package installer
        with Mac OS X 10.3 and later, and the package is available for
        both PowerPC and Intel architectures, and 32-bit and 64-bit
@@ -26,8 +26,8 @@
        A Universal Binary, incorporating both Power PC and Intel
        architectures and 32-bit and 64-bit binaries is available.
        In addition to the core installation, the Package Installer
-       also includes Section 2.5.3, "Installing the MySQL Startup
-       Item" and Section 2.5.4, "Installing and Using the MySQL
+       also includes Section 2.4.3, "Installing the MySQL Startup
+       Item" and Section 2.4.4, "Installing and Using the MySQL
        Preference Pane," both of which simplify the management of
        your installation.
 
@@ -35,23 +35,24 @@
        you want to use a more recent version than that supplied with
        the Mac OS X server release, you can make use of the package
        or tar formats. For more information on using the MySQL
-       bundled with Mac OS X, see Section 2.5.5, "Using the Bundled
+       bundled with Mac OS X, see Section 2.4.5, "Using the Bundled
        MySQL on Mac OS X Server."
 
    For additional information on using MySQL on Mac OS X, see Section
-   2.5.1, "General Notes on Installing MySQL on Mac OS X."
+   2.4.1, "General Notes on Installing MySQL on Mac OS X."
 
-2.5.1. General Notes on Installing MySQL on Mac OS X
+2.4.1. General Notes on Installing MySQL on Mac OS X
 
    You should keep the following issues and notes in mind:
 
      * The default location for the MySQL Unix socket is different on
        Mac OS X and Mac OS X Server depending on the installation
-       type you chose. The default locations by installation are as
-       follows:
-       Table 2.13. MySQL Unix Socket locations on Mac OS X by install
-       type
+       type you chose. The following table shows the default
+       locations by installation type.
+       Table 2.11. MySQL Unix Socket Locations on Mac OS X by
+       Installation Type
 
+               Installation Type             Socket Location
        Package Installer from MySQL       /tmp/mysql.sock
        Tarball from MySQL                 /tmp/mysql.sock
        MySQL Bundled with Mac OS X Server /var/mysql/mysql.sock
@@ -108,7 +109,7 @@ alias mysqladmin /usr/local/mysql/bin/mysqladmin
        older versions of the Package Receipt directories located in
        /Library/Receipts/mysql-VERSION.pkg.
 
-2.5.2. Installing MySQL on Mac OS X Using Native Packages
+2.4.2. Installing MySQL on Mac OS X Using Native Packages
 
    You can install MySQL on Mac OS X 10.3.x ("Panther") or newer
    using a Mac OS X binary package in PKG format instead of the
@@ -121,7 +122,7 @@ alias mysqladmin /usr/local/mysql/bin/mysqladmin
    should then mount the image and display its contents.
    Note
 
-   Before proceeding with the installation, be sure to shut down all
+   Before proceeding with the installation, be sure to stop all
    running MySQL server instances by using either the MySQL Manager
    Application (on Mac OS X Server) or mysqladmin shutdown on the
    command line.
@@ -129,17 +130,17 @@ alias mysqladmin /usr/local/mysql/bin/mysqladmin
    When installing from the package version, you should also install
    the MySQL Preference Pane, which will enable you to control the
    startup and execution of your MySQL server from System
-   Preferences. For more information, see Section 2.5.4, "Installing
+   Preferences. For more information, see Section 2.4.4, "Installing
    and Using the MySQL Preference Pane."
 
    When installing using the package installer, the files are
    installed into a directory within /usr/local matching the name of
    the installation version and platform. For example, the installer
    file mysql-5.1.39-osx10.5-x86_64.pkg installs MySQL into
-   /usr/local/mysql-5.1.39-osx10.5-x86_64 . The installation layout
-   of the directory is as shown in the following table:
+   /usr/local/mysql-5.1.39-osx10.5-x86_64 . The following table shows
+   the layout of the installation directory.
 
-   Table 2.14. MySQL Directory Layout on Mac OS X
+   Table 2.12. MySQL Installation Layout on Mac OS X
    Directory Contents of Directory
    bin Client programs and the mysqld server
    data Log files, databases
@@ -148,22 +149,22 @@ alias mysqladmin /usr/local/mysql/bin/mysqladmin
    lib Libraries
    man Unix manual pages
    mysql-test MySQL test suite
-   scripts Contains the mysql_install_db script
-   share/mysql Miscellaneous support files, including error messages,
+   scripts mysql_install_db
+   share Miscellaneous support files, including error messages,
    sample configuration files, SQL for database installation
    sql-bench Benchmarks
    support-files Scripts and sample configuration files
-   /tmp/mysql.sock The location of the MySQL Unix socket
+   /tmp/mysql.sock Location of the MySQL Unix socket
 
    During the package installer process, a symbolic link from
    /usr/local/mysql to the version/platform specific directory
    created during installation will be created automatically.
 
     1. Download and open the MySQL package installer, which is
-       provided on a disk image (.dmg). Double-click to open the disk
-       image, which includes the main MySQL installation package, the
-       MySQLStartupItem.pkg installation package, and the
-       MySQL.prefPane.
+       provided on a disk image (.dmg) that includes the main MySQL
+       installation package, the MySQLStartupItem.pkg installation
+       package, and the MySQL.prefPane. Double-click the disk image
+       to open it.
 
     2. Double-click the MySQL installer package. It will be named
        according to the version of MySQL you have downloaded. For
@@ -179,7 +180,7 @@ alias mysqladmin /usr/local/mysql/bin/mysqladmin
        Continue .
 
     5. If you have downloaded the community version of MySQL, you
-       will be shown a copy of the relevent GNU General Public
+       will be shown a copy of the relevant GNU General Public
        License. Click Continue .
 
     6. Select the drive you want to use to install the MySQL Startup
@@ -189,29 +190,30 @@ alias mysqladmin /usr/local/mysql/bin/mysqladmin
 
     7. You will be asked to confirm the details of the installation,
        including the space required for the installation. To change
-       the drive on which the startup item is installed you can click
-       either Go Back or Change Install Location.... To install the
-       startup item, click Install.
+       the drive on which the startup item is installed, click either
+       Go Back or Change Install Location.... To install the startup
+       item, click Install.
 
     8. Once the installation has been completed successfully, you
        will be shown an Install Succeeded message.
 
-   For convenience, you may also want to install the Section 2.5.3,
-   "Installing the MySQL Startup Item" and Section 2.5.4, "Installing
-   and Using the MySQL Preference Pane."
+   For convenience, you may also want to install the startup item and
+   preference pane. See Section 2.4.3, "Installing the MySQL Startup
+   Item," and Section 2.4.4, "Installing and Using the MySQL
+   Preference Pane."
 
-2.5.3. Installing the MySQL Startup Item
+2.4.3. Installing the MySQL Startup Item
 
    The MySQL Installation Package includes a startup item that can be
-   used to automatically start up and shut down MySQL.
+   used to automatically start and stop MySQL.
 
    To install the MySQL Startup Item:
 
     1. Download and open the MySQL package installer, which is
-       provided on a disk image (.dmg). Double-click to open the disk
-       image, which includes the main MySQL installation package, the
-       MySQLStartupItem.pkg installation package, and the
-       MySQL.prefPane.
+       provided on a disk image (.dmg) that includes the main MySQL
+       installation package, the MySQLStartupItem.pkg installation
+       package, and the MySQL.prefPane. Double-click the disk image
+       to open it.
 
     2. Double-click the MySQLStartItem.pkg file to start the
        installation process.
@@ -231,9 +233,9 @@ alias mysqladmin /usr/local/mysql/bin/mysqladmin
        MySQL Startup Item Installer: Step 3
 
     6. You will be asked to confirm the details of the installation.
-       To change the drive on which the startup item is installed you
-       can click either Go Back or Change Install Location.... To
-       install the startup item, click Install.
+       To change the drive on which the startup item is installed,
+       click either Go Back or Change Install Location.... To install
+       the startup item, click Install.
 
     7. Once the installation has been completed successfully, you
        will be shown an Install Succeeded message.
@@ -245,35 +247,32 @@ alias mysqladmin /usr/local/mysql/bin/mysqladmin
    /etc/hostconfig. If you want to disable the automatic startup of
    MySQL, change this variable to MYSQLCOM=-NO-.
 
-   After the installation, you can start up MySQL by running the
-   following commands in a terminal window. You must have
-   administrator privileges to perform this task.
+   After the installation, you can start and stop MySQL by running
+   the following commands in a terminal window. You must have
+   administrator privileges to perform these tasks, and you may be
+   prompted for your password.
 
    If you have installed the Startup Item, use this command to start
    the server:
 shell> sudo /Library/StartupItems/MySQLCOM/MySQLCOM start
 
-   You may be prompted for your password to complete the startup.
-
    If you have installed the Startup Item, use this command to stop
    the server:
 shell> sudo /Library/StartupItems/MySQLCOM/MySQLCOM stop
 
-   You may be prompted for your password to complete the shutdown.
-
-2.5.4. Installing and Using the MySQL Preference Pane
+2.4.4. Installing and Using the MySQL Preference Pane
 
    The MySQL Package installer disk image also includes a custom
-   MySQL Preference Pane that enables you to start, stop and control
+   MySQL Preference Pane that enables you to start, stop, and control
    automated startup during boot of your MySQL installation.
 
    To install the MySQL Preference Pane:
 
     1. Download and open the MySQL package installer package, which
-       is provided on a disk image (.dmg). Double-click to open the
-       disk image, which includes the main MySQL installation
-       package, the MySQLStartupItem.pkg installation package, and
-       the MySQL.prefPane.
+       is provided on a disk image (.dmg) that includes the main
+       MySQL installation package, the MySQLStartupItem.pkg
+       installation package, and the MySQL.prefPane. Double-click the
+       disk image to open it.
 
     2. Double-click the MySQL.prefPane. The MySQL System Preferences
        will open.
@@ -306,8 +305,8 @@ shell> sudo /Library/StartupItems/MySQLCOM/MySQLCOM stop
    The MySQL Preference Pane shows the current status of the MySQL
    server, showing stopped (in red) if the server is not running and
    running (in green) if the server has already been started. The
-   preference pane will also show the current setting for whether the
-   MySQL server has been set to start up automatically.
+   preference pane also shows the current setting for whether the
+   MySQL server has been set to start automatically.
 
      * To start MySQL using the preference pane: 
        Click Start MySQL Server. You may be prompted for the username
@@ -316,28 +315,28 @@ shell> sudo /Library/StartupItems/MySQLCOM/MySQLCOM stop
 
      * To stop MySQL using the preference pane: 
        Click Stop MySQL Server. You may be prompted for the username
-       and password of a user with administrator privileges to
-       shutdown the MySQL server.
+       and password of a user with administrator privileges to stop
+       the MySQL server.
 
      * To automatically start the MySQL server when the system boots:
-       Check the checkbox next to Automatically Start MySQL Server on
-       Startup.
-
-     * To disable the automatic starting of the MySQL server when the
-       system boots:
-       Uncheck the checkbox next to Automatically Start MySQL Server
+       Check the check box next to Automatically Start MySQL Server
        on Startup.
 
-   You can close the System Preferences... once you have completed
-   your settings.
+     * To disable automatic MySQL server startup when the system
+       boots:
+       Uncheck the check box next to Automatically Start MySQL Server
+       on Startup.
 
-2.5.5. Using the Bundled MySQL on Mac OS X Server
+   You can close the System Preferences... window once you have
+   completed your settings.
+
+2.4.5. Using the Bundled MySQL on Mac OS X Server
 
    If you are running Mac OS X Server, a version of MySQL should
    already be installed. The following table shows the versions of
    MySQL that ship with Mac OS X Server versions.
 
-   Table 2.15. MySQL Versions Pre-installed with Mac OS X Server
+   Table 2.13. MySQL Versions Preinstalled with Mac OS X Server
    Mac OS X Server Version MySQL Version
    10.2-10.2.2             3.23.51
    10.2.3-10.2.6           3.23.53
@@ -347,11 +346,11 @@ shell> sudo /Library/StartupItems/MySQLCOM/MySQLCOM stop
    10.5.0                  5.0.45
    10.6.0                  5.0.82
 
-   The installation layout of MySQL on Mac OS X Server is as shown in
-   the table below:
+   The following table shows the installation layout of MySQL on Mac
+   OS X Server.
 
-   Table 2.16. MySQL Directory Layout for Pre-installed MySQL
-   installations on Mac OS X Server
+   Table 2.14. MySQL Directory Layout for Preinstalled MySQL
+   Installations on Mac OS X Server
    Directory Contents of Directory
    /usr/bin Client programs
    /var/mysql Log files, databases
@@ -361,23 +360,35 @@ shell> sudo /Library/StartupItems/MySQLCOM/MySQLCOM stop
    /usr/share/mysql Miscellaneous support files, including error
    messages, character set files, sample configuration files, SQL for
    database installation
-   /var/mysql/mysql.sock The location of the MySQL Unix socket
-   Note
+   /var/mysql/mysql.sock Location of the MySQL Unix socket
 
-   The MySQL server bundled with Mac OS X Server does not include the
-   MySQL client libraries and header files required if you want to
-   access and use MySQL from a third-party driver, such as Perl DBI
-   or PHP. For more information on obtaining and installing MySQL
-   libraries, see Mac OS X Server version 10.5: MySQL libraries
-   available for download (http://support.apple.com/kb/TA25017).
-   Alternatively, you can ignore the bundled MySQL server and install
-   MySQL from the package or tarball installation.
+Additional Resources
 
-   For more information on managing the bundled MySQL instance in Mac
-   OS X Server 10.5, see Mac OS X Server: Web Technologies
-   Administration For Version 10.5 Leopard
-   (http://images.apple.com/server/macosx/docs/Web_Technologies_Admin
-   _v10.5.pdf). For more information on managing the bundled MySQL
-   instance in Mac OS X Server 10.6, see Mac OS X Server: Web
-   Technologies Administration Version 10.6 Snow Leopard
-   (http://manuals.info.apple.com/en_US/WebTech_v10.6.pdf).
+
+     * For more information on managing the bundled MySQL instance in
+       Mac OS X Server 10.5, see Mac OS X Server: Web Technologies
+       Administration For Version 10.5 Leopard
+       (http://images.apple.com/server/macosx/docs/Web_Technologies_A
+       dmin_v10.5.pdf).
+
+     * For more information on managing the bundled MySQL instance in
+       Mac OS X Server 10.6, see Mac OS X Server: Web Technologies
+       Administration Version 10.6 Snow Leopard
+       (http://manuals.info.apple.com/en_US/WebTech_v10.6.pdf).
+
+     * The MySQL server bundled with Mac OS X Server does not include
+       the MySQL client libraries and header files required to access
+       and use MySQL from a third-party driver, such as Perl DBI or
+       PHP. For more information on obtaining and installing MySQL
+       libraries, see Mac OS X Server version 10.5: MySQL libraries
+       available for download (http://support.apple.com/kb/TA25017).
+       Alternatively, you can ignore the bundled MySQL server and
+       install MySQL from the package or tarball installation.
+
+   Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights
+   reserved. [1]Legal Notices
+
+References
+
+
+   1. file://localhost/data0/users/mysqldoc/docs-build/mysqldoc/refman-5.1/macosx-installation-nolink.html#legalnotice

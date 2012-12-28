@@ -1,3 +1,18 @@
+/* Copyright (c) 2008 MySQL AB
+   Use is subject to license terms.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Errors a handler can give you
@@ -64,6 +79,9 @@ static const char *handler_error_messages[]=
   "File to short; Expected more data in file",
   "Read page with wrong checksum",
   "Too many active concurrent transactions",
-  "tmp_table_max_file_size exceeded"
+  "tmp_table_max_file_size exceeded",
+  "",
+  "",
+  "Table is being used in foreign key check" /* HA_ERR_TABLE_IN_FK_CHECK */
 };
 

@@ -87,6 +87,8 @@ void
 os_sync_init(void)
 /*==============*/
 {
+	ulint i = 0;
+
 	UT_LIST_INIT(os_event_list);
 	UT_LIST_INIT(os_mutex_list);
 
@@ -95,7 +97,6 @@ os_sync_init(void)
 
 	os_sync_mutex = os_mutex_create(NULL);
 
-	int i = 0;
 	os_support = ut_malloc(sizeof(os_event_support_t) * srv_sync_pool_size);
 	for(; i < srv_sync_pool_size; ++i) {
 		os_fast_mutex_init(&os_support[i].os_mutex);
@@ -442,7 +443,7 @@ os_event_wait_low2(
 		os_thread_exit(NULL);
 	}
 #else
-	ib_int64_t	old_signal_count;
+	ib_uint64_t	old_signal_count;
 
 	os_fast_mutex_lock(&(event->sup->os_mutex));
 

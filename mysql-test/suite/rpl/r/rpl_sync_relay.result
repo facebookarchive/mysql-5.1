@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop table if exists sync_relay_table;
 create table sync_relay_table(i int) engine=innodb;
 
@@ -86,3 +82,4 @@ commit;
 set global sync_relay_info=1;
 num_syncs	...must be 1
 1	...must be 1
+include/rpl_end.inc

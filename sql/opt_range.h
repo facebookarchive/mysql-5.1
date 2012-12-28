@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* classes to use when handling where clause */
@@ -265,6 +267,7 @@ public:
 
   virtual bool reverse_sorted() = 0;
   virtual bool unique_key_range() { return false; }
+  virtual bool clustered_pk_range() { return false; }
 
   enum {
     QS_TYPE_RANGE = 0,
@@ -532,6 +535,8 @@ public:
   MEM_ROOT alloc;
   THD *thd;
   int read_keys_and_merge();
+
+  bool clustered_pk_range() { return test(pk_quick_select); }
 
   /* used to get rows collected in Unique */
   READ_RECORD read_record;

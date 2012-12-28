@@ -54,3 +54,4 @@ connection master;
 DROP TABLE t1;
 sync_slave_with_master;
 set global peak_lag_sample_rate=100;
+--source include/rpl_end.inc

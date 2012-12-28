@@ -1,4 +1,5 @@
-/* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifdef __GNUC__
 #pragma interface				/* gcc class implementation */
@@ -55,6 +57,16 @@ typedef struct st_ha_data_partition
                                         HA_DUPLICATE_POS | \
                                         HA_CAN_SQL_HANDLER | \
                                         HA_CAN_INSERT_DELAYED)
+
+/* First 4 bytes in the .par file is the number of 32-bit words in the file */
+#define PAR_WORD_SIZE 4
+/* offset to the .par file checksum */
+#define PAR_CHECKSUM_OFFSET 4
+/* offset to the total number of partitions */
+#define PAR_NUM_PARTS_OFFSET 8
+/* offset to the engines array */
+#define PAR_ENGINES_OFFSET 12
+
 class ha_partition :public handler
 {
 private:
@@ -71,7 +83,7 @@ private:
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
   uint m_open_test_lock;                // Open test_if_locked
-  char *m_file_buffer;                  // Buffer with names
+  char *m_file_buffer;                  // Content of the .par file 
   char *m_name_buffer_ptr;		// Pointer to first partition name
   plugin_ref *m_engine_array;           // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
@@ -134,6 +146,13 @@ private:
   bool m_ordered_scan_ongoing;
 
   /*
+    If set, this object was created with ha_partition::clone and doesn't
+    "own" the m_part_info structure.
+  */
+  ha_partition *m_is_clone_of;
+  MEM_ROOT *m_clone_mem_root;
+  
+  /*
     We keep track if all underlying handlers are MyISAM since MyISAM has a
     great number of extra flags not needed by other handlers.
   */
@@ -169,11 +188,6 @@ private:
   PARTITION_SHARE *share;               /* Shared lock info */
 #endif
 
-  /* 
-    TRUE <=> this object was created with ha_partition::clone and doesn't
-    "own" the m_part_info structure.
-  */
-  bool is_clone;
   bool auto_increment_lock;             /**< lock reading/updating auto_inc */
   /**
     Flag to keep the auto_increment lock through out the statement.
@@ -186,7 +200,7 @@ private:
   /** used for prediction of start_bulk_insert rows */
   enum_monotonicity_info m_part_func_monotonicity_info;
 public:
-  handler *clone(MEM_ROOT *mem_root);
+  handler *clone(const char *name, MEM_ROOT *mem_root);
   virtual void set_part_info(partition_info *part_info)
   {
      m_part_info= part_info;
@@ -205,6 +219,10 @@ public:
   */
     ha_partition(handlerton *hton, TABLE_SHARE * table);
     ha_partition(handlerton *hton, partition_info * part_info);
+    ha_partition(handlerton *hton, TABLE_SHARE *share,
+                 partition_info *part_info_arg,
+                 ha_partition *clone_arg,
+                 MEM_ROOT *clone_mem_root_arg);
    ~ha_partition();
   /*
     A partition handler has no characteristics in itself. It only inherits
@@ -275,7 +293,10 @@ private:
     And one method to read it in.
   */
   bool create_handler_file(const char *name);
-  bool get_from_handler_file(const char *name, MEM_ROOT *mem_root);
+  bool setup_engine_array(MEM_ROOT *mem_root);
+  bool read_par_file(const char *name);
+  bool get_from_handler_file(const char *name, MEM_ROOT *mem_root,
+                             bool is_clone);
   bool new_handlers_from_part_info(MEM_ROOT *mem_root);
   bool create_handlers(MEM_ROOT *mem_root);
   void clear_handler_file();
@@ -542,6 +563,20 @@ public:
   virtual int extra(enum ha_extra_function operation);
   virtual int extra_opt(enum ha_extra_function operation, ulong cachesize);
   virtual int reset(void);
+  /*
+    Do not allow caching of partitioned tables, since we cannot return
+    a callback or engine_data that would work for a generic engine.
+  */
+  virtual my_bool register_query_cache_table(THD *thd, char *table_key,
+                                             uint key_length,
+                                             qc_engine_callback
+                                               *engine_callback,
+                                             ulonglong *engine_data)
+  {
+    *engine_callback= NULL;
+    *engine_data= 0;
+    return FALSE;
+  }
 
 private:
   static const uint NO_CURRENT_PART_ID;

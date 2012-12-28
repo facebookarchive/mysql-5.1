@@ -127,21 +127,26 @@ create view mysqltest.v1 (c,d) as select a+1,b+1 from mysqltest.t1;
 create algorithm=temptable view mysqltest.v2 (c,d) as select a+1,b+1 from mysqltest.t1;
 create view mysqltest.v3 (c,d) as select a+1,b+1 from mysqltest.t2;
 create algorithm=temptable view mysqltest.v4 (c,d) as select a+1,b+1 from mysqltest.t2;
+# v5: SHOW VIEW, but no SELECT
+create view mysqltest.v5 (c,d) as select a+1,b+1 from mysqltest.t1;
 grant select on mysqltest.v1 to mysqltest_1@localhost;
 grant select on mysqltest.v2 to mysqltest_1@localhost;
 grant select on mysqltest.v3 to mysqltest_1@localhost;
 grant select on mysqltest.v4 to mysqltest_1@localhost;
+grant show view on mysqltest.v5 to mysqltest_1@localhost;
 
 connection user1;
-# all selects works
+# all SELECTs works, except v5 which lacks SELECT privs
 select c from mysqltest.v1;
 select c from mysqltest.v2;
 select c from mysqltest.v3;
 select c from mysqltest.v4;
+--error ER_TABLEACCESS_DENIED_ERROR
+select c from mysqltest.v5;
 # test of show coluns
 show columns from mysqltest.v1;
 show columns from mysqltest.v2;
-# but explain/show do not
+# explain/show fail
 --error ER_VIEW_NO_EXPLAIN
 explain select c from mysqltest.v1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -158,15 +163,26 @@ show create view mysqltest.v3;
 explain select c from mysqltest.v4;
 --error ER_TABLEACCESS_DENIED_ERROR
 show create view mysqltest.v4;
+--error ER_TABLEACCESS_DENIED_ERROR
+explain select c from mysqltest.v5;
+show create view mysqltest.v5;
 
-# allow to see one of underlying table
-connection root;
-grant select on mysqltest.t1 to mysqltest_1@localhost;
-connection user1;
-# EXPLAIN of view on above table works
+# missing SELECT on underlying t1, no SHOW VIEW on v1 either.
+--error ER_VIEW_NO_EXPLAIN
 explain select c from mysqltest.v1;
+# missing SHOW VIEW
 --error ER_TABLEACCESS_DENIED_ERROR
 show create view mysqltest.v1;
+# allow to see one of underlying table
+connection root;
+grant show view on mysqltest.v1 to mysqltest_1@localhost;
+grant select on mysqltest.t1 to mysqltest_1@localhost;
+connection user1;
+# EXPLAIN works
+explain select c from mysqltest.v1;
+show create view mysqltest.v1;
+# missing SHOW VIEW
+--error ER_VIEW_NO_EXPLAIN
 explain select c from mysqltest.v2;
 --error ER_TABLEACCESS_DENIED_ERROR
 show create view mysqltest.v2;
@@ -179,6 +195,11 @@ show create view mysqltest.v3;
 explain select c from mysqltest.v4;
 --error ER_TABLEACCESS_DENIED_ERROR
 show create view mysqltest.v4;
+# we have SHOW VIEW on v5, and  SELECT on t1 -- not enough
+--error ER_TABLEACCESS_DENIED_ERROR
+explain select c from mysqltest.v5;
+# we can SHOW CREATE VIEW though
+show create view mysqltest.v5;
 
 # allow to see any view in mysqltest database
 connection root;
@@ -188,8 +209,12 @@ explain select c from mysqltest.v1;
 show create view mysqltest.v1;
 explain select c from mysqltest.v2;
 show create view mysqltest.v2;
+# have SHOW VIEW | SELECT on v3, but no SELECT on t2
+--error ER_VIEW_NO_EXPLAIN
 explain select c from mysqltest.v3;
 show create view mysqltest.v3;
+# have SHOW VIEW | SELECT on v4, but no SELECT on t2
+--error ER_VIEW_NO_EXPLAIN
 explain select c from mysqltest.v4;
 show create view mysqltest.v4;
 
@@ -1237,6 +1262,334 @@ DROP VIEW db1.v1;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
 
+connection default;
+
+
+--echo Bug #11765687/#58677: 
+--echo No privilege on table/view, but can know #rows / underlying table's name
+
+# As a root-like user
+connect (root,localhost,root,,test);
+connection root;
+
+create database mysqltest1;
+create table mysqltest1.t1 (i int);
+create table mysqltest1.t2 (j int);
+create table mysqltest1.t3 (k int, secret int);
+
+create user alice@localhost;
+create user bob@localhost;
+create user cecil@localhost;
+create user dan@localhost;
+create user eugene@localhost;
+create user fiona@localhost;
+create user greg@localhost;
+create user han@localhost;
+create user inga@localhost;
+create user jamie@localhost;
+create user karl@localhost;
+create user lena@localhost;
+create user mhairi@localhost;
+create user noam@localhost;
+create user olga@localhost;
+create user pjotr@localhost;
+create user quintessa@localhost;
+
+grant all privileges on mysqltest1.* to alice@localhost with grant option;
+
+#
+--echo ... as alice
+connect (test11765687,localhost,alice,,mysqltest1);
+connection test11765687;
+
+create view v1 as select * from t1;
+create view v2 as select * from v1, t2;
+create view v3 as select k from t3;
+
+grant select            on mysqltest1.v1 to bob@localhost;
+
+grant show view         on mysqltest1.v1 to cecil@localhost;
+
+grant select, show view on mysqltest1.v1 to dan@localhost;
+grant select            on mysqltest1.t1 to dan@localhost;
+
+grant select            on mysqltest1.*  to eugene@localhost;
+
+grant select, show view on mysqltest1.v2 to fiona@localhost;
+
+grant select, show view on mysqltest1.v2 to greg@localhost;
+grant         show view on mysqltest1.v1 to greg@localhost;
+
+grant select(k)         on mysqltest1.t3 to han@localhost;
+grant select, show view on mysqltest1.v3 to han@localhost;
+
+grant select            on mysqltest1.t1 to inga@localhost;
+grant select            on mysqltest1.t2 to inga@localhost;
+grant select            on mysqltest1.v1 to inga@localhost;
+grant select, show view on mysqltest1.v2 to inga@localhost;
+
+grant select            on mysqltest1.t1 to jamie@localhost;
+grant select            on mysqltest1.t2 to jamie@localhost;
+grant         show view on mysqltest1.v1 to jamie@localhost;
+grant select, show view on mysqltest1.v2 to jamie@localhost;
+
+grant select            on mysqltest1.t1 to karl@localhost;
+grant select            on mysqltest1.t2 to karl@localhost;
+grant select, show view on mysqltest1.v1 to karl@localhost;
+grant select            on mysqltest1.v2 to karl@localhost;
+
+grant select            on mysqltest1.t1 to lena@localhost;
+grant select            on mysqltest1.t2 to lena@localhost;
+grant select, show view on mysqltest1.v1 to lena@localhost;
+grant         show view on mysqltest1.v2 to lena@localhost;
+
+grant select            on mysqltest1.t1 to mhairi@localhost;
+grant select            on mysqltest1.t2 to mhairi@localhost;
+grant select, show view on mysqltest1.v1 to mhairi@localhost;
+grant select, show view on mysqltest1.v2 to mhairi@localhost;
+
+grant select            on mysqltest1.t1 to noam@localhost;
+grant select, show view on mysqltest1.v1 to noam@localhost;
+grant select, show view on mysqltest1.v2 to noam@localhost;
+
+grant select            on mysqltest1.t2 to olga@localhost;
+grant select, show view on mysqltest1.v1 to olga@localhost;
+grant select, show view on mysqltest1.v2 to olga@localhost;
+
+grant select            on mysqltest1.t1 to pjotr@localhost;
+grant select            on mysqltest1.t2 to pjotr@localhost;
+grant select, show view on mysqltest1.v2 to pjotr@localhost;
+
+grant select, show view on mysqltest1.v1 to quintessa@localhost;
+
+disconnect test11765687;
+
+#
+--echo ... as bob
+connect (test11765687,localhost,bob,,mysqltest1);
+connection test11765687;
+
+select * from v1; # Should succeed.
+--error ER_VIEW_NO_EXPLAIN
+explain select * from v1; # fail, no SHOW_VIEW
+
+disconnect test11765687;
+
+#
+--echo ... as cecil
+connect (test11765687,localhost,cecil,,mysqltest1);
+connection test11765687;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+select * from v1; # fail, no SELECT
+--error ER_TABLEACCESS_DENIED_ERROR
+explain select * from v1; # fail, no SELECT
+
+disconnect test11765687;
+
+#
+--echo ... as dan
+connect (test11765687,localhost,dan,,mysqltest1);
+connection test11765687;
+
+select * from v1; # Should succeed.
+explain select * from v1; # Should succeed.
+
+disconnect test11765687;
+
+#
+--echo ... as eugene
+connect (test11765687,localhost,eugene,,mysqltest1);
+connection test11765687;
+
+select * from v1; # Should succeed.
+--error ER_VIEW_NO_EXPLAIN
+explain select * from v1; # fail, no SHOW_VIEW
+
+disconnect test11765687;
+
+#
+--echo ... as fiona
+connect (test11765687,localhost,fiona,,mysqltest1);
+connection test11765687;
+
+select * from v2; # Should succeed.
+show create view v2; # Should succeed, but...
+--error ER_TABLEACCESS_DENIED_ERROR
+explain select * from t1; # fail, shouldn't see t1!
+--error ER_TABLEACCESS_DENIED_ERROR
+# err msg must give view name, no table names!!
+explain select * from v1; # fail, have no privs on v1!
+--error ER_TABLEACCESS_DENIED_ERROR
+explain select * from t2; # fail, have no privs on t2!
+--error ER_VIEW_NO_EXPLAIN
+explain select * from v2; # fail, shouldn't see t2!
+
+disconnect test11765687;
+
+#
+--echo ... as greg
+connect (test11765687,localhost,greg,,mysqltest1);
+connection test11765687;
+
+select * from v2; # Should succeed.
+--error ER_TABLEACCESS_DENIED_ERROR
+explain select * from v1; # fail; no SELECT on v1!
+--error ER_VIEW_NO_EXPLAIN
+explain select * from v2; # fail; no SELECT on v1!
+
+disconnect test11765687;
+
+#
+--echo ... as han
+connect (test11765687,localhost,han,,mysqltest1);
+connection test11765687;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+select * from t3; # don't have privs on all columns,
+--error ER_TABLEACCESS_DENIED_ERROR
+explain select * from t3; # so EXPLAIN on "forbidden" columns should fail.
+select k from t3; # but we do have SELECT on column k though,
+explain select k from t3; # so EXPLAIN just on k should work,
+select * from v3; # and so should SELECT on view only using allowed columns
+explain select * from v3; # as should the associated EXPLAIN
+
+disconnect test11765687;
+
+#
+--echo ... as inga
+connect (test11765687,localhost,inga,,mysqltest1);
+connection test11765687;
+
+select * from v2;
+# has sel/show on v2, sel on t1/t2, only sel v1
+# fail: lacks show on v1
+--error ER_VIEW_NO_EXPLAIN
+explain select * from v2;
+disconnect test11765687;
+
+#
+--echo ... as jamie
+connect (test11765687,localhost,jamie,,mysqltest1);
+connection test11765687;
+
+select * from v2;
+# has sel/show on v2, sel on t1/t2, only show v1
+# fail: lacks sel on v1
+--error ER_VIEW_NO_EXPLAIN
+explain select * from v2;
+disconnect test11765687;
+
+#
+--echo ... as karl
+connect (test11765687,localhost,karl,,mysqltest1);
+connection test11765687;
+
+select * from v2;
+# has sel only on v2, sel on t1/t2, sel/show v1
+# fail: lacks show on v2
+--error ER_VIEW_NO_EXPLAIN
+explain select * from v2;
+disconnect test11765687;
+
+#
+--echo ... as lena
+
+connect (test11765687,localhost,lena,,mysqltest1);
+connection test11765687;
+--error ER_TABLEACCESS_DENIED_ERROR
+select * from v2;
+# has show only on v2, sel on t1/t2, sel/show v1
+# fail: lacks sel on v2
+--error ER_TABLEACCESS_DENIED_ERROR
+explain select * from v2;
+disconnect test11765687;
+
+#
+--echo ... as mhairi
+connect (test11765687,localhost,mhairi,,mysqltest1);
+connection test11765687;
+
+select * from v2;
+# has sel/show on v2, sel on t1/t2, sel/show v1
+explain select * from v2;
+disconnect test11765687;
+
+#
+--echo ... as noam
+connect (test11765687,localhost,noam,,mysqltest1);
+connection test11765687;
+
+select * from v2;
+# has sel/show on v2, sel only on t1, sel/show v1 (no sel on t2!)
+--error ER_VIEW_NO_EXPLAIN
+explain select * from v2;
+disconnect test11765687;
+
+#
+--echo ... as olga
+connect (test11765687,localhost,olga,,mysqltest1);
+connection test11765687;
+
+select * from v2;
+# has sel/show on v2, sel only on t2, sel/show v1 (no sel on t1!)
+--error ER_VIEW_NO_EXPLAIN
+explain select * from v2;
+disconnect test11765687;
+
+#
+--echo ... as pjotr
+connect (test11765687,localhost,pjotr,,mysqltest1);
+connection test11765687;
+
+select * from v2;
+# has sel/show on v2, sel only on t2, nothing on v1
+# fail: lacks show on v1
+--error ER_VIEW_NO_EXPLAIN
+explain select * from v2;
+disconnect test11765687;
+
+#
+--echo ... as quintessa
+connect (test11765687,localhost,quintessa,,mysqltest1);
+connection test11765687;
+
+select * from v1; # Should succeed.
+--error ER_VIEW_NO_EXPLAIN
+explain select * from v1; # fail: lacks select on t1
+
+disconnect test11765687;
+
+# cleanup
+
+#
+--echo ... as root again at last: clean-up time!
+connection root;
+
+drop user alice@localhost;
+drop user bob@localhost;
+drop user cecil@localhost;
+drop user dan@localhost;
+drop user eugene@localhost;
+drop user fiona@localhost;
+drop user greg@localhost;
+drop user han@localhost;
+drop user inga@localhost;
+drop user jamie@localhost;
+drop user karl@localhost;
+drop user lena@localhost;
+drop user mhairi@localhost;
+drop user noam@localhost;
+drop user olga@localhost;
+drop user pjotr@localhost;
+drop user quintessa@localhost;
+
+drop database mysqltest1;
+
+disconnect root;
+
+connection default;
+
 --echo End of 5.0 tests.
 
 
@@ -1503,8 +1856,6 @@ SHOW CREATE VIEW v1;
 DROP TABLE t1;
 DROP VIEW v1;
 
-# Wait till we reached the initial number of concurrent sessions
---source include/wait_until_count_sessions.inc
 
 --echo #
 --echo # Bug #46019: ERROR 1356 When selecting from within another 
@@ -1546,3 +1897,145 @@ CREATE DEFINER=`unknown`@`unknown` SQL SECURITY DEFINER VIEW v1 AS SELECT 1;
 --error ER_NO_SUCH_USER
 LOCK TABLES v1 READ;
 DROP VIEW v1;
+
+
+--echo #
+--echo # Bug #58499 "DEFINER-security view selecting from INVOKER-security view
+--echo #             access check wrong".
+--echo #
+--echo # Check that we correctly handle privileges for various combinations
+--echo # of INVOKER and DEFINER-security views using each other.
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+--enable_warnings
+CREATE DATABASE mysqltest1;
+USE mysqltest1;
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (j INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+--echo #
+--echo # 1) DEFINER-security view uses INVOKER-security view (covers
+--echo #    scenario originally described in the bug report).
+CREATE SQL SECURITY INVOKER VIEW v1_uses_t1 AS SELECT * FROM t1;
+CREATE SQL SECURITY INVOKER VIEW v1_uses_t2 AS SELECT * FROM t2;
+CREATE USER 'mysqluser1'@'%';
+GRANT CREATE VIEW ON mysqltest1.* TO 'mysqluser1'@'%';
+GRANT SELECT ON t1 TO 'mysqluser1'@'%';
+--echo # To be able create 'v2_uses_t2' we also need select on t2. 
+GRANT SELECT ON t2 TO 'mysqluser1'@'%';
+GRANT SELECT ON v1_uses_t1 TO 'mysqluser1'@'%';
+GRANT SELECT ON v1_uses_t2 TO 'mysqluser1'@'%';
+--echo #
+--echo # Connection 'mysqluser1'.
+--connect (mysqluser1, localhost, mysqluser1,,mysqltest1)
+CREATE SQL SECURITY DEFINER VIEW v2_uses_t1 AS SELECT * FROM v1_uses_t1;
+CREATE SQL SECURITY DEFINER VIEW v2_uses_t2 AS SELECT * FROM v1_uses_t2;
+--echo #
+--echo # Connection 'default'.
+--connection default
+CREATE USER 'mysqluser2'@'%';
+GRANT SELECT ON v2_uses_t1 TO 'mysqluser2'@'%';
+GRANT SELECT ON v2_uses_t2 TO 'mysqluser2'@'%';
+GRANT SELECT ON t2 TO 'mysqluser2'@'%';
+GRANT CREATE VIEW ON mysqltest1.* TO 'mysqluser2'@'%';
+--echo # Make 'mysqluser1' unable to access t2.
+REVOKE SELECT ON t2 FROM 'mysqluser1'@'%';
+--echo #
+--echo # Connection 'mysqluser2'.
+--connect (mysqluser2, localhost, mysqluser2,,mysqltest1)
+--echo # The below statement should succeed thanks to suid nature of v2_uses_t1.
+SELECT * FROM v2_uses_t1;
+--echo # The below statement should fail due to suid nature of v2_uses_t2.
+--error ER_VIEW_INVALID
+SELECT * FROM v2_uses_t2;
+--echo #
+--echo # 2) INVOKER-security view uses INVOKER-security view.
+--echo #
+--echo # Connection 'default'.
+--connection default
+DROP VIEW v2_uses_t1, v2_uses_t2;
+CREATE SQL SECURITY INVOKER VIEW v2_uses_t1 AS SELECT * FROM v1_uses_t1;
+CREATE SQL SECURITY INVOKER VIEW v2_uses_t2 AS SELECT * FROM v1_uses_t2;
+GRANT SELECT ON v2_uses_t1 TO 'mysqluser1'@'%';
+GRANT SELECT ON v2_uses_t2 TO 'mysqluser1'@'%';
+GRANT SELECT ON v1_uses_t1 TO 'mysqluser2'@'%';
+GRANT SELECT ON v1_uses_t2 TO 'mysqluser2'@'%';
+--echo #
+--echo # Connection 'mysqluser1'.
+--connection mysqluser1
+--echo # For both versions of 'v2' 'mysqluser1' privileges should be used.
+SELECT * FROM v2_uses_t1;
+--error ER_VIEW_INVALID
+SELECT * FROM v2_uses_t2;
+--echo #
+--echo # Connection 'mysqluser2'.
+--connection mysqluser2
+--echo # And now for both versions of 'v2' 'mysqluser2' privileges should
+--echo # be used.
+--error ER_VIEW_INVALID
+SELECT * FROM v2_uses_t1;
+SELECT * FROM v2_uses_t2;
+--echo #
+--echo # 3) INVOKER-security view uses DEFINER-security view.
+--echo #
+--echo # Connection 'default'.
+--connection default
+DROP VIEW v1_uses_t1, v1_uses_t2;
+--echo # To be able create 'v1_uses_t2' we also need select on t2. 
+GRANT SELECT ON t2 TO 'mysqluser1'@'%';
+--echo #
+--echo # Connection 'mysqluser1'.
+--connection mysqluser1
+CREATE SQL SECURITY DEFINER VIEW v1_uses_t1 AS SELECT * FROM t1;
+CREATE SQL SECURITY DEFINER VIEW v1_uses_t2 AS SELECT * FROM t2;
+--echo #
+--echo # Connection 'default'.
+--connection default
+--echo # Make 'mysqluser1' unable to access t2.
+REVOKE SELECT ON t2 FROM 'mysqluser1'@'%';
+--echo #
+--echo # Connection 'mysqluser2'.
+--connection mysqluser2
+--echo # Due to suid nature of v1_uses_t1 and v1_uses_t2 the first
+--echo # select should succeed and the second select should fail.
+SELECT * FROM v2_uses_t1;
+--error ER_VIEW_INVALID
+SELECT * FROM v2_uses_t2;
+--echo #
+--echo # 4) DEFINER-security view uses DEFINER-security view.
+--echo #
+--echo # Connection 'default'.
+--connection default
+DROP VIEW v2_uses_t1, v2_uses_t2;
+--echo # To be able create 'v2_uses_t2' we also need select on t2. 
+GRANT SELECT ON t2 TO 'mysqluser1'@'%';
+--echo #
+--echo # Connection 'mysqluser2'.
+--connection mysqluser2
+CREATE SQL SECURITY DEFINER VIEW v2_uses_t1 AS SELECT * FROM v1_uses_t1;
+CREATE SQL SECURITY DEFINER VIEW v2_uses_t2 AS SELECT * FROM v1_uses_t2;
+--echo #
+--echo # Connection 'default'.
+--connection default
+--echo # Make 'mysqluser1' unable to access t2.
+REVOKE SELECT ON t2 FROM 'mysqluser1'@'%';
+--echo #
+--echo # Connection 'mysqluser2'.
+--connection mysqluser2
+--echo # Again privileges of creator of innermost views should apply.
+SELECT * FROM v2_uses_t1;
+--error ER_VIEW_INVALID
+SELECT * FROM v2_uses_t2;
+
+--disconnect mysqluser1
+--disconnect mysqluser2
+--connection default
+USE test;
+DROP DATABASE mysqltest1;
+DROP USER 'mysqluser1'@'%';
+DROP USER 'mysqluser2'@'%';
+
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

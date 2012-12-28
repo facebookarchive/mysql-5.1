@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -292,7 +292,7 @@ handler *get_ha_partition(partition_info *part_info)
   }
   else
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(ha_partition));
+    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(ha_partition)));
   }
   DBUG_RETURN(((handler*) partition));
 }
@@ -363,6 +363,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_AUTOINC_ERANGE,         ER(ER_WARN_DATA_OUT_OF_RANGE));
   SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER(ER_TOO_MANY_CONCURRENT_TRXS));
   SETMSG(HA_ERR_TMP_TABLE_MAX_FILE_SIZE_EXCEEDED, ER(ER_TMP_TABLE_MAX_FILE_SIZE_EXCEEDED));
+  SETMSG(HA_ERR_TABLE_IN_FK_CHECK,      "Table being used in foreign key check");
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -1198,7 +1199,7 @@ int ha_commit_trans(THD *thd, bool all, bool async)
     DBUG_ASSERT(thd->ticket == 0);
     thd->ticket= 0;
 
-    DBUG_EXECUTE_IF("crash_commit_before", abort(););
+    DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
 
     /* Close all cursors that can not survive COMMIT */
     if (is_real_trans)                          /* not a statement commit */
@@ -1289,7 +1290,7 @@ int ha_commit_trans(THD *thd, bool all, bool async)
           group_commit_ht= ht;
         }
       }
-      DBUG_EXECUTE_IF("crash_commit_after_prepare", abort(););
+      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
       DBUG_EXECUTE_IF("error_on_prepare", error = 1; );
 
       thd_proc_info(thd, "process commit: binlog");
@@ -1315,7 +1316,7 @@ int ha_commit_trans(THD *thd, bool all, bool async)
 
         goto end;
       }
-      DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
+      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
     }
     else if (is_real_trans && !trans->no_2pc && (rw_ha_count == 1))
     {
@@ -1342,11 +1343,15 @@ int ha_commit_trans(THD *thd, bool all, bool async)
 
     thd_proc_info(thd, "process commit: commit");
     error=ha_commit_one_phase(thd, all, async) ? (cookie ? 2 : 1) : 0;
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", abort(););
+    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
 
     if (cookie)
-      tc_log->unlog(cookie, xid, log_was_full);
-    DBUG_EXECUTE_IF("crash_commit_after", abort(););
+      if(tc_log->unlog(thd, cookie, xid, log_was_full))
+      {
+        error= 2;
+        goto end;
+      }
+    DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
 
 end:
 
@@ -1816,7 +1821,8 @@ int ha_recover(HASH *commit_list)
   }
   if (!info.list)
   {
-    sql_print_error(ER(ER_OUTOFMEMORY), info.len*sizeof(XID));
+    sql_print_error(ER(ER_OUTOFMEMORY),
+                    static_cast<int>(info.len*sizeof(XID)));
     DBUG_RETURN(1);
   }
 
@@ -2283,23 +2289,29 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 /****************************************************************************
 ** General handler functions
 ****************************************************************************/
-handler *handler::clone(MEM_ROOT *mem_root)
+handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
+  handler *new_handler= get_new_handler(table->s, mem_root, ht);
   /*
     Allocate handler->ref here because otherwise ha_open will allocate it
     on this->table->mem_root and we will not be able to reclaim that memory 
     when the clone handler object is destroyed.
   */
-  if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
-    return NULL;
-  if (new_handler && !new_handler->ha_open(table,
-                                           table->s->normalized_path.str,
-                                           table->db_stat,
-                                           HA_OPEN_IGNORE_IF_LOCKED,
-                                           TRUE))
-    return new_handler;
-  return NULL;
+  if (new_handler &&
+     !(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                             ALIGN_SIZE(ref_length)*2)))
+    new_handler= NULL;
+  /*
+    TODO: Implement a more efficient way to have more than one index open for
+    the same table instance. The ha_open call is not cachable for clone.
+  */
+  if (new_handler && new_handler->ha_open(table,
+                                          name,
+                                          table->db_stat,
+                                          HA_OPEN_IGNORE_IF_LOCKED,
+                                          TRUE))
+    new_handler= NULL;
+  return new_handler;
 }
 
 
@@ -2473,7 +2485,8 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   computes the lowest number
   - strictly greater than "nr"
   - of the form: auto_increment_offset + N * auto_increment_increment
-
+  If overflow happened then return MAX_ULONGLONG value as an
+  indication of overflow.
   In most cases increment= offset= 1, in which case we get:
   @verbatim 1,2,3,4,5,... @endverbatim
     If increment=10 and offset=5 and previous number is 1, we get:
@@ -2482,13 +2495,23 @@ int handler::read_first_row(uchar * buf, uint primary_key)
 inline ulonglong
 compute_next_insert_id(ulonglong nr,struct system_variables *variables)
 {
+  const ulonglong save_nr= nr;
+
   if (variables->auto_increment_increment == 1)
-    return (nr+1); // optimization of the formula below
+    nr= nr + 1; // optimization of the formula below
+  else
+  {
   nr= (((nr+ variables->auto_increment_increment -
          variables->auto_increment_offset)) /
        (ulonglong) variables->auto_increment_increment);
-  return (nr* (ulonglong) variables->auto_increment_increment +
+    nr= (nr* (ulonglong) variables->auto_increment_increment +
           variables->auto_increment_offset);
+}
+
+  if (unlikely(nr <= save_nr))
+    return ULONGLONG_MAX;
+
+  return nr;
 }
 
 
@@ -2710,7 +2733,7 @@ int handler::update_auto_increment()
                          variables->auto_increment_increment,
                          nb_desired_values, &nr,
                          &nb_reserved_values);
-      if (nr == ~(ulonglong) 0)
+      if (nr == ULONGLONG_MAX)
         DBUG_RETURN(HA_ERR_AUTOINC_READ_FAILED);  // Mark failure
 
       /*
@@ -2740,6 +2763,9 @@ int handler::update_auto_increment()
       DBUG_PRINT("info",("auto_increment: special not-first-in-index"));
     }
   }
+
+  if (unlikely(nr == ULONGLONG_MAX))
+      DBUG_RETURN(HA_ERR_AUTOINC_ERANGE); 
 
   DBUG_PRINT("info",("auto_increment: %lu", (ulong) nr));
 
@@ -2984,7 +3010,13 @@ void handler::print_error(int error, myf errflag)
       char key[MAX_KEY_LENGTH];
       String str(key,sizeof(key),system_charset_info);
       /* Table is opened and defined at this point */
-      key_unpack(&str,table,(uint) key_nr);
+      key_unpack(&str,table,0 /* Use 0 instead of key_nr because key_nr
+                 is a key number in the child FK table, not in our 'table'. See
+		 Bug#12661768 UPDATE IGNORE CRASHES SERVER IF TABLE IS INNODB
+		 AND IT IS PARENT FOR OTHER ONE
+		 This bug gets a better fix in MySQL 5.6, but it is too risky
+		 to get that in 5.1 and 5.5 (extending the handler interface
+		 and adding new error message codes */);
       max_length= (MYSQL_ERRMSG_SIZE-
                    (uint) strlen(ER(ER_FOREIGN_DUPLICATE_KEY)));
       if (str.length() >= max_length)
@@ -3109,6 +3141,7 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_TMP_TABLE_MAX_FILE_SIZE_EXCEEDED:
     textno= ER_TMP_TABLE_MAX_FILE_SIZE_EXCEEDED;
     break;
+  case HA_ERR_TABLE_IN_FK_CHECK:
   default:
     {
       /* The error was "unknown" to this function.
@@ -4478,7 +4511,7 @@ int handler::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 */
 int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
 {
-  int result;
+  int UNINIT_VAR(result);
   DBUG_ENTER("handler::read_multi_range_next");
 
   /* We should not be called after the last call returned EOF. */
@@ -5070,6 +5103,7 @@ int handler::ha_reset()
   free_io_cache(table);
   /* reset the bitmaps to point to defaults */
   table->default_column_bitmaps();
+  pushed_cond= NULL;
   DBUG_RETURN(reset());
 }
 

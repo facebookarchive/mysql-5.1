@@ -291,13 +291,19 @@ btr_pcur_restore_position(
 	/* Save the old search mode of the cursor */
 	old_mode = cursor->search_mode;
 
-	if (UNIV_LIKELY(cursor->rel_pos == BTR_PCUR_ON)) {
+	switch (cursor->rel_pos) {
+	case BTR_PCUR_ON:
 		mode = PAGE_CUR_LE;
-	} else if (cursor->rel_pos == BTR_PCUR_AFTER) {
+		break;
+	case BTR_PCUR_AFTER:
 		mode = PAGE_CUR_G;
-	} else {
-		ut_ad(cursor->rel_pos == BTR_PCUR_BEFORE);
+		break;
+	case BTR_PCUR_BEFORE:
 		mode = PAGE_CUR_L;
+		break;
+	default:
+		ut_error;
+		mode = 0; /* silence a warning */
 	}
 
 	btr_pcur_open_with_no_init(index, tuple, mode, latch_mode,
@@ -306,26 +312,45 @@ btr_pcur_restore_position(
 	/* Restore the old search mode */
 	cursor->search_mode = old_mode;
 
-	if (cursor->rel_pos == BTR_PCUR_ON
-	    && btr_pcur_is_on_user_rec(cursor, mtr)
-	    && 0 == cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor),
-				   rec_get_offsets(
-					   btr_pcur_get_rec(cursor), index,
-					   NULL, ULINT_UNDEFINED, &heap))) {
+	if (btr_pcur_is_on_user_rec(cursor, mtr)) {
+		switch (cursor->rel_pos) {
+		case BTR_PCUR_ON:
+			if (!cmp_dtuple_rec(
+				    tuple, btr_pcur_get_rec(cursor),
+				    rec_get_offsets(btr_pcur_get_rec(cursor),
+						    index, NULL,
+						    ULINT_UNDEFINED, &heap))) {
 
-		/* We have to store the NEW value for the modify clock, since
-		the cursor can now be on a different page! But we can retain
-		the value of old_rec */
+				/* We have to store the NEW value for
+				the modify clock, since the cursor can
+				now be on a different page! But we can
+				retain the value of old_rec */
 
-		cursor->block_when_stored = buf_block_align(
-			btr_pcur_get_page(cursor));
-		cursor->modify_clock = buf_block_get_modify_clock(
-			cursor->block_when_stored);
-		cursor->old_stored = BTR_PCUR_OLD_STORED;
+				cursor->block_when_stored =
+					buf_block_align(
+						btr_pcur_get_page(cursor));
+				cursor->modify_clock =
+					buf_block_get_modify_clock(
+						cursor->block_when_stored);
+				cursor->old_stored = BTR_PCUR_OLD_STORED;
 
-		mem_heap_free(heap);
+				mem_heap_free(heap);
 
-		return(TRUE);
+				return(TRUE);
+			}
+
+			break;
+		case BTR_PCUR_BEFORE:
+			page_cur_move_to_next(btr_pcur_get_page_cur(cursor));
+			break;
+		case BTR_PCUR_AFTER:
+			page_cur_move_to_prev(btr_pcur_get_page_cur(cursor));
+			break;
+#ifdef UNIV_DEBUG
+		default:
+			ut_error;
+#endif /* UNIV_DEBUG */
+		}
 	}
 
 	mem_heap_free(heap);
@@ -337,33 +362,6 @@ btr_pcur_restore_position(
 	btr_pcur_store_position(cursor, mtr);
 
 	return(FALSE);
-}
-
-/******************************************************************
-If the latch mode of the cursor is BTR_LEAF_SEARCH or BTR_LEAF_MODIFY,
-releases the page latch and bufferfix reserved by the cursor.
-NOTE! In the case of BTR_LEAF_MODIFY, there should not exist changes
-made by the current mini-transaction to the data protected by the
-cursor latch, as then the latch must not be released until mtr_commit. */
-
-void
-btr_pcur_release_leaf(
-/*==================*/
-	btr_pcur_t*	cursor, /* in: persistent cursor */
-	mtr_t*		mtr)	/* in: mtr */
-{
-	page_t*	page;
-
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
-	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
-
-	page = btr_cur_get_page(btr_pcur_get_btr_cur(cursor));
-
-	btr_leaf_page_release(page, cursor->latch_mode, mtr);
-
-	cursor->latch_mode = BTR_NO_LATCHES;
-
-	cursor->pos_state = BTR_PCUR_WAS_POSITIONED;
 }
 
 /*************************************************************

@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /* Function items used by mysql */
@@ -189,6 +190,7 @@ public:
     null_value=1;
     return 0.0;
   }
+
   bool has_timestamp_args()
   {
     DBUG_ASSERT(fixed == TRUE);
@@ -200,6 +202,45 @@ public:
     }
     return FALSE;
   }
+
+  bool has_date_args()
+  {
+    DBUG_ASSERT(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+      if (args[i]->type() == Item::FIELD_ITEM &&
+          (args[i]->field_type() == MYSQL_TYPE_DATE ||
+           args[i]->field_type() == MYSQL_TYPE_DATETIME))
+        return TRUE;
+    }
+    return FALSE;
+  }
+
+  bool has_time_args()
+  {
+    DBUG_ASSERT(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+      if (args[i]->type() == Item::FIELD_ITEM &&
+          (args[i]->field_type() == MYSQL_TYPE_TIME ||
+           args[i]->field_type() == MYSQL_TYPE_DATETIME))
+        return TRUE;
+    }
+    return FALSE;
+  }
+
+  bool has_datetime_args()
+  {
+    DBUG_ASSERT(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+      if (args[i]->type() == Item::FIELD_ITEM &&
+          args[i]->field_type() == MYSQL_TYPE_DATETIME)
+        return TRUE;
+    }
+    return FALSE;
+  }
+
   /*
     We assume the result of any function that has a TIMESTAMP argument to be
     timezone-dependent, since a TIMESTAMP value in both numeric and string
@@ -208,7 +249,7 @@ public:
     representation of a TIMESTAMP argument verbatim, and thus does not depend on
     the timezone.
    */
-  virtual bool is_timezone_dependent_processor(uchar *bool_arg)
+  virtual bool check_valid_arguments_processor(uchar *bool_arg)
   {
     return has_timestamp_args();
   }
@@ -1531,7 +1572,7 @@ public:
        join_key(0), ft_handler(0), table(0), master(0), concat_ws(0) { }
   void cleanup()
   {
-    DBUG_ENTER("Item_func_match");
+    DBUG_ENTER("Item_func_match::cleanup");
     Item_real_func::cleanup();
     if (!master && ft_handler)
       ft_handler->please->close_search(ft_handler);

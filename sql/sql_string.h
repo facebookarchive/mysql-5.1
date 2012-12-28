@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
@@ -84,9 +86,13 @@ public:
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
   { return (void*) alloc_root(mem_root, (uint) size); }
-  static void operator delete(void *ptr_arg,size_t size)
-  { TRASH(ptr_arg, size); }
-  static void operator delete(void *ptr_arg, MEM_ROOT *mem_root)
+  static void operator delete(void *ptr_arg, size_t size)
+  {
+    (void) ptr_arg;
+    (void) size;
+    TRASH(ptr_arg, size);
+  }
+  static void operator delete(void *, MEM_ROOT *)
   { /* never called */ }
   ~String() { free(); }
 
@@ -102,8 +108,7 @@ public:
   inline const char *ptr() const { return Ptr; }
   inline char *c_ptr()
   {
-    // See http://bugs.mysql.com/bug.php?id=48053
-    DBUG_ASSERT(!alloced || !Ptr || !Alloced_length ||
+    DBUG_ASSERT(!alloced || !Ptr || !Alloced_length || 
                 (Alloced_length >= (str_length + 1)));
 
     if (!Ptr || Ptr[str_length])		/* Should be safe */
@@ -136,6 +141,16 @@ public:
       Alloced_length=0;
     str_charset=str.str_charset;
   }
+
+
+  /**
+     Points the internal buffer to the supplied one. The old buffer is freed.
+     @param str Pointer to the new buffer.
+     @param arg_length Length of the new buffer in characters, excluding any 
+            null character.
+     @param cs Character set to use for interpreting string data.
+     @note The new buffer will not be null terminated.
+  */
   inline void set(char *str,uint32 arg_length, CHARSET_INFO *cs)
   {
     free();

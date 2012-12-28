@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,20 +123,6 @@ void Item_subselect::cleanup()
 }
 
 
-/*
-   We cannot use generic Item::safe_charset_converter() because
-   Subselect transformation does not happen in view_prepare_mode
-   and thus we can not evaluate val_...() for const items.
-*/
-
-Item *Item_subselect::safe_charset_converter(CHARSET_INFO *tocs)
-{
-  Item_func_conv_charset *conv=
-    new Item_func_conv_charset(this, tocs, thd->lex->view_prepare_mode ? 0 : 1);
-  return conv->safe ? conv : NULL;
-}
-
-
 void Item_singlerow_subselect::cleanup()
 {
   DBUG_ENTER("Item_singlerow_subselect::cleanup");
@@ -187,6 +173,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
 
       (*ref)= substitution;
       substitution->name= name;
+      substitution->name_length= name_length;
       if (have_to_be_excluded)
 	engine->exclude();
       substitution= 0;
@@ -271,6 +258,7 @@ bool Item_subselect::exec()
   if (thd->is_error() || thd->killed)
     return 1;
 
+  DBUG_ASSERT(!thd->lex->context_analysis_only);
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.
@@ -307,7 +295,7 @@ table_map Item_subselect::used_tables() const
 
 bool Item_subselect::const_item() const
 {
-  return const_item_cache;
+  return thd->lex->context_analysis_only ? FALSE : const_item_cache;
 }
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
@@ -1029,6 +1017,20 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	it.replace(item);
       }
 
+      DBUG_EXECUTE("where",
+                   print_where(item, "rewrite with MIN/MAX", QT_ORDINARY););
+      if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+      {
+        /*
+          If the argument is a field, we assume that fix_fields() has
+          tagged the select_lex with non_agg_field_used.
+          We reverse that decision after this rewrite with MIN/MAX.
+         */
+        if (item->get_arg(0)->type() == Item::FIELD_ITEM)
+          DBUG_ASSERT(select_lex->non_agg_field_used());
+        select_lex->set_non_agg_field_used(false);
+      }
+
       save_allow_sum_func= thd->lex->allow_sum_func;
       thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
       /*
@@ -1638,7 +1640,8 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 {
   bool result = 0;
   
-  if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed)
+  if ((thd_arg->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
+      left_expr && !left_expr->fixed)
     result = left_expr->fix_fields(thd_arg, &left_expr);
 
   return result || Item_subselect::fix_fields(thd_arg, ref);
@@ -1683,7 +1686,7 @@ subselect_single_select_engine(st_select_lex *select,
 			       select_subselect *result_arg,
 			       Item_subselect *item_arg)
   :subselect_engine(item_arg, result_arg),
-   prepared(0), optimized(0), executed(0),
+   prepared(0), optimized(0), executed(0), optimize_error(0),
    select_lex(select), join(0)
 {
   select_lex->master_unit()->item= item_arg;
@@ -1693,7 +1696,7 @@ subselect_single_select_engine(st_select_lex *select,
 void subselect_single_select_engine::cleanup()
 {
   DBUG_ENTER("subselect_single_select_engine::cleanup");
-  prepared= optimized= executed= 0;
+  prepared= optimized= executed= optimize_error= 0;
   join= 0;
   result->cleanup();
   DBUG_VOID_RETURN;
@@ -1889,6 +1892,10 @@ int join_read_next_same_or_null(READ_RECORD *info);
 int subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
+
+  if (optimize_error)
+    DBUG_RETURN(1);
+
   char const *save_where= thd->where;
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;
@@ -1896,31 +1903,39 @@ int subselect_single_select_engine::exec()
   {
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
 
+    DBUG_EXECUTE_IF("bug11747970_simulate_error",
+                    DBUG_SET("+d,bug11747970_raise_error"););
+
     optimized= 1;
     unit->set_limit(unit->global_parameters);
     if (join->optimize())
     {
       thd->where= save_where;
-      executed= 1;
+      optimize_error= 1;
       thd->lex->current_select= save_select;
       DBUG_RETURN(join->error ? join->error : 1);
     }
     if (!select_lex->uncacheable && thd->lex->describe && 
-        !(join->select_options & SELECT_DESCRIBE) && 
-        join->need_tmp)
+        !(join->select_options & SELECT_DESCRIBE))
     {
       item->update_used_tables();
       if (item->const_item())
       {
+        /*
+          It's necessary to keep original JOIN table because
+          create_sort_index() function may overwrite original
+          JOIN_TAB::type and wrong optimization method can be
+          selected on re-execution.
+        */
+        select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
+        select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
         /*
           Force join->join_tmp creation, because this subquery will be replaced
           by a simple select from the materialization temp table by optimize()
           called by EXPLAIN and we need to preserve the initial query structure
           so we can display it.
         */
-        select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
-        select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
-        if (join->init_save_join_tab())
+        if (join->need_tmp && join->init_save_join_tab())
           DBUG_RETURN(1);                        /* purecov: inspected */
       }
     }

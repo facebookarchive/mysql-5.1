@@ -1,8 +1,10 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   Note that we can't have assertion on file descriptors;  The reason for
@@ -20,7 +23,14 @@
   the file descriptior.
 */
 
+#ifdef __WIN__
+  #include <winsock2.h>
+  #include <MSWSock.h>
+  #pragma comment(lib, "ws2_32.lib")
+#endif
 #include "vio_priv.h"
+
+
 
 int vio_errno(Vio *vio __attribute__((unused)))
 {
@@ -266,6 +276,37 @@ vio_was_interrupted(Vio *vio __attribute__((unused)))
 }
 
 
+int
+mysql_socket_shutdown(my_socket mysql_socket, int how)
+{
+  int result;
+
+#ifdef __WIN__
+  static LPFN_DISCONNECTEX DisconnectEx = NULL;
+  if (DisconnectEx == NULL)
+  {
+    DWORD dwBytesReturned;
+    GUID guidDisconnectEx = WSAID_DISCONNECTEX;
+    WSAIoctl(mysql_socket, SIO_GET_EXTENSION_FUNCTION_POINTER,
+             &guidDisconnectEx, sizeof(GUID),
+             &DisconnectEx, sizeof(DisconnectEx), 
+             &dwBytesReturned, NULL, NULL);
+  }
+#endif
+
+  /* Non instrumented code */
+#ifdef __WIN__
+  if (DisconnectEx)
+    result= (DisconnectEx(mysql_socket, (LPOVERLAPPED) NULL,
+                          (DWORD) 0, (DWORD) 0) == TRUE) ? 0 : -1;
+  else
+#endif
+    result= shutdown(mysql_socket, how);
+
+  return result;
+}
+
+
 int vio_close(Vio * vio)
 {
   int r=0;
@@ -278,7 +319,7 @@ int vio_close(Vio * vio)
       vio->type == VIO_TYPE_SSL);
 
     DBUG_ASSERT(vio->sd >= 0);
-    if (shutdown(vio->sd, SHUT_RDWR))
+    if (mysql_socket_shutdown(vio->sd, SHUT_RDWR))
       r= -1;
     if (closesocket(vio->sd))
       r= -1;
@@ -650,7 +691,7 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
 {
   size_t length;
   size_t remain_local;
-  char *current_postion;
+  char *current_position;
   HANDLE events[2];
 
   DBUG_ENTER("vio_read_shared_memory");
@@ -658,7 +699,7 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
                        size));
 
   remain_local = size;
-  current_postion=buf;
+  current_position=buf;
 
   events[0]= vio->event_server_wrote;
   events[1]= vio->event_conn_closed;
@@ -692,11 +733,11 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
     if (length > remain_local)
        length = remain_local;
 
-    memcpy(current_postion,vio->shared_memory_pos,length);
+    memcpy(current_position,vio->shared_memory_pos,length);
 
     vio->shared_memory_remain-=length;
     vio->shared_memory_pos+=length;
-    current_postion+=length;
+    current_position+=length;
     remain_local-=length;
 
     if (!vio->shared_memory_remain)
@@ -716,7 +757,7 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
 {
   size_t length, remain, sz;
   HANDLE pos;
-  const uchar *current_postion;
+  const uchar *current_position;
   HANDLE events[2];
 
   DBUG_ENTER("vio_write_shared_memory");
@@ -724,7 +765,7 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
                        size));
 
   remain = size;
-  current_postion = buf;
+  current_position = buf;
 
   events[0]= vio->event_server_read;
   events[1]= vio->event_conn_closed;
@@ -742,9 +783,9 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
 
     int4store(vio->handle_map,sz);
     pos = vio->handle_map + 4;
-    memcpy(pos,current_postion,sz);
+    memcpy(pos,current_position,sz);
     remain-=sz;
-    current_postion+=sz;
+    current_position+=sz;
     if (!SetEvent(vio->event_client_wrote))
       DBUG_RETURN((size_t) -1);
   }

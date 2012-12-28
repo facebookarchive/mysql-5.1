@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define MYSQL_LEX 1
 #include "mysql_priv.h"
@@ -35,7 +37,7 @@ my_atomic_bigint transaction_control_fails= 0;
 #include "sp_cache.h"
 #include "events.h"
 #include "sql_trigger.h"
-#include "my_atomic.h"
+#include "debug_sync.h"
 
 #ifdef HAVE_JEMALLOC
 #include "jemalloc/jemalloc.h"
@@ -505,6 +507,8 @@ static void handle_bootstrap_impl(THD *thd)
     query= (char *) thd->memdup_w_gap(buff, length + 1,
                                       thd->db_length + 1 +
                                       QUERY_CACHE_FLAGS_SIZE);
+    size_t db_len= 0;
+    memcpy(query + length + 1, (char *) &db_len, sizeof(size_t));
     thd->set_query(query, length);
     DBUG_PRINT("query",("%-.4096s", thd->query()));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
@@ -1298,13 +1302,22 @@ skip_ac:
 
     if (ptr < packet_end)
     {
+      CHARSET_INFO *cs;
       if (ptr + 2 > packet_end)
       {
         my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
         break;
       }
 
-      cs_number= uint2korr(ptr);
+      if ((cs_number= uint2korr(ptr)) &&
+          (cs= get_charset(cs_number, MYF(0))) &&
+          !is_supported_parser_charset(cs))
+      {
+        /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+        my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+                 cs->csname);
+        break;
+      }        
     }
 
     /* Convert database name to utf8 */
@@ -1350,7 +1363,12 @@ skip_ac:
 
       if (cs_number)
       {
-        thd_init_client_charset(thd, cs_number);
+        /*
+          We have checked charset earlier,
+          so thd_init_client_charset cannot fail.
+        */
+        if (thd_init_client_charset(thd, cs_number))
+          DBUG_ASSERT(0);
         thd->update_charset();
       }
     }
@@ -1639,7 +1657,15 @@ skip_ac:
 #endif
   case COM_REFRESH:
   {
-    bool not_used;
+    int not_used;
+
+    /*
+      Initialize thd->lex since it's used in many base functions, such as
+      open_tables(). Otherwise, it remains unitialized and may cause crash
+      during execution of COM_REFRESH.
+    */
+    lex_start(thd);
+    
     status_var_increment(thd->status_var.com_stat[SQLCOM_FLUSH]);
     ulong options= (ulong) (uchar) packet[0];
     if (check_global_access(thd,RELOAD_ACL))
@@ -1918,8 +1944,9 @@ void log_slow_statement(THD *thd, struct system_status_var* query_start_status)
       error_sample_rate = opt_log_error_sample_rate;
     }
 
-    if ((((end_utime_of_query - thd->utime_after_lock) >
-         thd->variables.long_query_time ||
+    if (((((end_utime_of_query > thd->utime_after_lock) &&
+          ((end_utime_of_query - thd->utime_after_lock) >
+           thd->variables.long_query_time)) ||
          (query_sample_rate && ((query_sample_counter % query_sample_rate) == 0)) ||
          (error_sample_rate && ((error_sample_counter % error_sample_rate) == 0)) ||
          ((thd->server_status &
@@ -2231,13 +2258,30 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
     pos--;
     packet_length--;
   }
-  /* We must allocate some extra memory for query cache */
+  /* We must allocate some extra memory for query cache 
+
+    The query buffer layout is:
+       buffer :==
+            <statement>   The input statement(s)
+            '\0'          Terminating null char  (1 byte)
+            <length>      Length of following current database name (size_t)
+            <db_name>     Name of current database
+            <flags>       Flags struct
+  */
   if (! (query= (char*) thd->memdup_w_gap(packet,
                                           packet_length,
-                                          1 + thd->db_length +
+                                          1 + sizeof(size_t) + thd->db_length +
                                           QUERY_CACHE_FLAGS_SIZE)))
       return TRUE;
   query[packet_length]= '\0';
+  /*
+    Space to hold the name of the current database is allocated.  We
+    also store this length, in case current database is changed during
+    execution.  We might need to reallocate the 'query' buffer
+  */
+  char *len_pos = (query + packet_length + 1);
+  memcpy(len_pos, (char *) &thd->db_length, sizeof(size_t));
+    
   thd->set_query(query, packet_length);
 
   /* Reclaim some memory */
@@ -3100,6 +3144,12 @@ mysql_execute_command(THD *thd,
       goto end_with_restore_list;
 #endif
     /*
+      If no engine type was given, work out the default now
+      rather than at parse-time.
+    */
+    if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
+      create_info.db_type= ha_default_handlerton(thd);
+    /*
       If we are using SET CHARSET without DEFAULT, add an implicit
       DEFAULT to not confuse old users. (This may change).
     */
@@ -3734,7 +3784,11 @@ end_with_restore_list:
       {
         Incident_log_event ev(thd, incident);
         (void) mysql_bin_log.write(&ev);        /* error is ignored */
-        mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE, true);
+        if (mysql_bin_log.rotate_and_purge(thd, RP_FORCE_ROTATE, true))
+        {
+          res= 1;
+          break;
+        }
       }
       DBUG_PRINT("debug", ("Just after generate_incident()"));
     }
@@ -3766,6 +3820,15 @@ end_with_restore_list:
       thd->first_successful_insert_id_in_cur_stmt=
         thd->first_successful_insert_id_in_prev_stmt;
 
+    DBUG_EXECUTE_IF("after_mysql_insert",
+                    {
+                      const char act[]=
+                        "now "
+                        "wait_for signal.continue";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
     break;
   }
   case SQLCOM_REPLACE_SELECT:
@@ -4421,6 +4484,10 @@ end_with_restore_list:
     if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 1, 0) &&
         check_global_access(thd,CREATE_USER_ACL))
       break;
+
+    /* Replicate current user as grantor */
+    thd->binlog_invoker();
+
     /* Conditionally writes to binlog */
     if (!(res = mysql_revoke_all(thd, lex->users_list)))
       my_ok(thd);
@@ -4441,6 +4508,9 @@ end_with_restore_list:
                      is_schema_db(select_lex->db) : 0))
       goto error;
 
+    /* Replicate current user as grantor */
+    thd->binlog_invoker();
+
     if (thd->security_ctx->user)              // If not replication
     {
       LEX_USER *user, *tmp_user;
@@ -4454,8 +4524,7 @@ end_with_restore_list:
             hostname_requires_resolving(user->host.str))
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_WARN_HOSTNAME_WONT_WORK,
-                              ER(ER_WARN_HOSTNAME_WONT_WORK),
-                              user->host.str);
+                              ER(ER_WARN_HOSTNAME_WONT_WORK));
         // Are we trying to change a password of another user
         DBUG_ASSERT(user->host.str != 0);
         if (strcmp(thd->security_ctx->user, user->user.str) ||
@@ -4542,7 +4611,7 @@ end_with_restore_list:
     lex->no_write_to_binlog= 1;
   case SQLCOM_FLUSH:
   {
-    bool write_to_binlog;
+    int write_to_binlog;
     if (check_global_access(thd,RELOAD_ACL))
       goto error;
 
@@ -4563,11 +4632,21 @@ end_with_restore_list:
       /*
         Presumably, RESET and binlog writing doesn't require synchronization
       */
-      if (!lex->no_write_to_binlog && write_to_binlog)
+
+      if (write_to_binlog > 0)  // we should write
       {
-        if ((res= write_bin_log(thd, FALSE, thd->query(), thd->query_length())))
-          break;
+        if (!lex->no_write_to_binlog)
+          res= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+      } else if (write_to_binlog < 0) 
+      {
+        /* 
+           We should not write, but rather report error because 
+           reload_acl_and_cache binlog interactions failed 
+         */
+        res= 1;
       }
+
+      if (!res)
       my_ok(thd);
     } 
     
@@ -6467,17 +6546,10 @@ mysql_new_select(LEX *lex, bool move_down)
   lex->nest_level++;
   if (lex->nest_level > (int) MAX_SELECT_NESTING)
   {
-    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT,MYF(0),MAX_SELECT_NESTING);
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
     DBUG_RETURN(1);
   }
   select_lex->nest_level= lex->nest_level;
-  /*
-    Don't evaluate this subquery during statement prepare even if
-    it's a constant one. The flag is switched off in the end of
-    mysqld_stmt_prepare.
-  */
-  if (thd->stmt_arena->is_stmt_prepare())
-    select_lex->uncacheable|= UNCACHEABLE_PREPARE;
   if (move_down)
   {
     SELECT_LEX_UNIT *unit;
@@ -7494,7 +7566,10 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
   @param thd Thread handler (can be NULL!)
   @param options What should be reset/reloaded (tables, privileges, slave...)
   @param tables Tables to flush (if any)
-  @param write_to_binlog True if we can write to the binlog.
+  @param write_to_binlog < 0 if there was an error while interacting with the binary log inside
+                         reload_acl_and_cache, 
+                         0 if we should not write to the binary log, 
+                         > 0 if we can write to the binlog.
                
   @note Depending on 'options', it may be very bad to write the
     query to the binlog (e.g. FLUSH SLAVE); this is a
@@ -7508,11 +7583,11 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
 */
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
-                          bool *write_to_binlog)
+                          int *write_to_binlog)
 {
   bool result=0;
   select_errors=0;				/* Write if more errors */
-  bool tmp_write_to_binlog= 1;
+  int tmp_write_to_binlog= *write_to_binlog= 1;
 
   DBUG_ASSERT(!thd || !thd->in_sub_stmt);
 
@@ -7544,7 +7619,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
           When an error is returned, my_message may have not been called and
           the client will hang waiting for a response.
         */
-        my_error(ER_UNKNOWN_ERROR, MYF(0), "FLUSH PRIVILEGES failed");
+        my_error(ER_UNKNOWN_ERROR, MYF(0));
       }
     }
 
@@ -7575,12 +7650,16 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     tmp_write_to_binlog= 0;
     if( mysql_bin_log.is_open() )
     {
-      mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE, true);
+      if (mysql_bin_log.rotate_and_purge(thd, RP_FORCE_ROTATE, true))
+        *write_to_binlog= -1;
     }
 #ifdef HAVE_REPLICATION
+    int rotate_error= 0;
     pthread_mutex_lock(&LOCK_active_mi);
-    rotate_relay_log(active_mi);
+    rotate_error= rotate_relay_log(active_mi);
     pthread_mutex_unlock(&LOCK_active_mi);
+    if (rotate_error)
+      *write_to_binlog= -1;
 #endif
 
     /* flush slow and general logs */
@@ -7589,7 +7668,14 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     if (ha_flush_logs(NULL))
       result=1;
     if (flush_error_log())
+    {
+      /*
+        When flush_error_log() failed, my_error() has not been called.
+        So, we have to do it here to keep the protocol.
+      */
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
       result=1;
+  }
   }
 #ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
@@ -7638,7 +7724,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 	return 1;                               // Killed
       if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
                               FALSE : TRUE, TRUE, FALSE))
+      {
+        /*
+          NOTE: my_error() has been already called by reopen_tables() within
+          close_cached_tables().
+        */
           result= 1;
+      }
       
       if (make_global_read_lock_block_commit(thd)) // Killed
       {
@@ -7652,7 +7744,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
                               FALSE : TRUE, FALSE,
                               (options & REFRESH_MEMORY_CACHE) ? TRUE: FALSE))
+      {
+        /*
+          NOTE: my_error() has been already called by reopen_tables() within
+          close_cached_tables().
+        */
         result= 1;
+      }
     }
     my_dbopt_cleanup();
   }
@@ -7669,6 +7767,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     tmp_write_to_binlog= 0;
     if (reset_master(thd))
     {
+      /* NOTE: my_error() has been already called by reset_master(). */
       result=1;
     }
   }
@@ -7677,7 +7776,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
    if (options & REFRESH_DES_KEY_FILE)
    {
      if (des_key_file && load_des_key_file(des_key_file))
+     {
+       /* NOTE: my_error() has been already called by load_des_key_file(). */
          result= 1;
+   }
    }
 #endif
 #ifdef HAVE_REPLICATION
@@ -7686,7 +7788,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
    tmp_write_to_binlog= 0;
    pthread_mutex_lock(&LOCK_active_mi);
    if (reset_slave(thd, active_mi))
+   {
+     /* NOTE: my_error() has been already called by reset_slave(). */
      result=1;
+   }
    pthread_mutex_unlock(&LOCK_active_mi);
  }
 #endif
@@ -7699,7 +7804,9 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     reset_global_user_stats();
   }
 
- *write_to_binlog= tmp_write_to_binlog;
+ if (*write_to_binlog != -1)
+   *write_to_binlog= tmp_write_to_binlog;
+
  /*
    If the query was killed then this function must fail.
  */
@@ -8584,10 +8691,14 @@ bool parse_sql(THD *thd,
 
   bool mysql_parse_status= MYSQLparse(thd) != 0;
 
-  /* Check that if MYSQLparse() failed, thd->is_error() is set. */
+  /*
+    Check that if MYSQLparse() failed, thd->is_error() is set (unless
+    we have an error handler installed, which might have silenced error).
+  */
 
   DBUG_ASSERT(!mysql_parse_status ||
-              (mysql_parse_status && thd->is_error()));
+              (mysql_parse_status && thd->is_error()) ||
+              (mysql_parse_status && thd->get_internal_handler()));
 
   /* Reset parser state. */
 

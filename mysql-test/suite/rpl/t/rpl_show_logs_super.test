@@ -27,3 +27,4 @@ show master logs;
 --disconnect sml_conn
 DROP USER smlsuper@localhost;
 
+--source include/rpl_end.inc

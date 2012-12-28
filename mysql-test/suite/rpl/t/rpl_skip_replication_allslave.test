@@ -112,3 +112,4 @@ SET skip_replication=0;
 DROP TABLE t1;
 
 sync_slave_with_master;
+--source include/rpl_end.inc

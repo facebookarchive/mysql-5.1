@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlmanager\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 10/11/2010
+.\"      Date: 04/15/2012
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLMANAGER\FR" "8" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLMANAGER\FR" "8" "04/15/2012" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -47,7 +47,7 @@ MySQL Instance Manager has been deprecated and is removed in MySQL 5\&.5\&.
 is the MySQL Instance Manager (IM)\&. This program monitors and manages MySQL Database Server instances\&. MySQL Instance Manager is available for Unix\-like operating systems, as well as Windows\&. It runs as a daemon that listens on a TCP/IP port\&. On Unix, it also listens on a Unix socket file\&.
 .PP
 MySQL Instance Manager can be used in place of the
-mysqld_safe
+\fBmysqld_safe\fR
 script to start and stop one or more instances of MySQL Server\&. Because Instance Manager can manage multiple server instances, it can also be used in place of the
 \fBmysqld_multi\fR
 script\&. Instance Manager offers these capabilities:
@@ -992,7 +992,7 @@ binary resides\&. If there are multiple instances, it may also be necessary to s
 \fBdatadir\fR
 and
 \fBport\fR, to ensure that each instance has a different data directory and TCP/IP port number\&.
-Section\ \&5.6, \(lqRunning Multiple MySQL Servers on the Same Machine\(rq, discusses the configuration values that must differ for each instance when you run multiple instance on the same machine\&.
+Section\ \&5.3, \(lqRunning Multiple MySQL Instances on One Machine\(rq, discusses the configuration values that must differ for each instance when you run multiple instance on the same machine\&.
 .if n \{\
 .sp
 .\}
@@ -1129,7 +1129,7 @@ Instance Manager accounts differ somewhat from MySQL Server accounts:
 .IP \(bu 2.3
 .\}
 MySQL Server accounts are associated with a host name, user name, and password (see
-Section\ \&5.5.1, \(lqUser Names and Passwords\(rq)\&.
+Section\ \&6.3.1, \(lqUser Names and Passwords\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1441,7 +1441,13 @@ SHOW INSTANCE STATUS
 commands\&.
 .TS
 allbox tab(:);
-l l
+lB lB.
+T{
+State
+T}:T{
+Meaning
+T}
+.T&
 l l
 l l
 l l
@@ -1449,11 +1455,6 @@ l l
 l l
 l l
 l l.
-T{
-\fBState\fR
-T}:T{
-\fBMeaning\fR
-T}
 T{
 offline
 T}:T{
@@ -1529,7 +1530,7 @@ MySQL Instance Manager has been deprecated and is removed in MySQL 5\&.5\&.
 .sp .5v
 .RE
 .PP
-After you set up a password file for the MySQL Instance Manager and Instance Manager is running, you can connect to it\&. The MySQL client\-server protocol is used to communicate with the Instance Manager\&. For example, you can connect to it using the standard
+After you set up a password file for the MySQL Instance Manager and Instance Manager is running, you can connect to it\&. The MySQL client/server protocol is used to communicate with the Instance Manager\&. For example, you can connect to it using the standard
 \fBmysql\fR
 client program:
 .sp
@@ -1543,7 +1544,7 @@ shell> \fBmysql \-\-port=2273 \-\-host=im\&.example\&.org \-\-user=mysql \-\-pas
 .RE
 .\}
 .PP
-Instance Manager supports the version of the MySQL client\-server protocol used by the client tools and libraries distributed with MySQL 4\&.1 or later, so other programs that use the MySQL C API also can connect to it\&.
+Instance Manager supports the version of the MySQL client/server protocol used by the client tools and libraries distributed with MySQL 4\&.1 or later, so other programs that use the MySQL C API also can connect to it\&.
 .SH "MYSQL INSTANCE MANAGER COMMANDS"
 .if n \{\
 .sp
@@ -2062,7 +2063,7 @@ Query OK, 0 rows affected (0\&.04 sec)
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

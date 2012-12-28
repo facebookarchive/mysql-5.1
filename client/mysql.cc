@@ -1,4 +1,5 @@
-/* Copyright 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
-#define COPYRIGHT_NOTICE "\
-Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.\n\
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL v2 license\n"
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* mysql command tool
  * Commands compatible with mSQL by David J. Hughes
@@ -118,6 +115,7 @@ extern "C" {
 #endif
 
 #include "completion_hash.h"
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
@@ -1131,6 +1129,8 @@ int main(int argc,char *argv[])
   if (status.batch && !status.line_buff &&
       !(status.line_buff= batch_readline_init(MAX_BATCH_BUFFER_SIZE, stdin)))
   {
+    put_info("Can't initialize batch_readline - may be the input source is "
+             "a directory or a block device.", INFO_ERROR, 0);
     free_defaults(defaults_argv);
     my_end(0);
     exit(1);
@@ -1182,7 +1182,7 @@ int main(int argc,char *argv[])
                    INFO_INFO);
   }
 
-  put_info(COPYRIGHT_NOTICE, INFO_INFO);
+  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"), INFO_INFO);
 
 #ifdef HAVE_READLINE
   initialize_readline((char*) my_progname);
@@ -1465,8 +1465,8 @@ static struct my_option my_long_options[] =
    &opt_sigint_ignore,  &opt_sigint_ignore, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"one-database", 'o',
-   "Only update the default database. This is useful for skipping updates "
-   "to other database in the update log.",
+   "Ignore statements except those that occur while the default "
+   "database is the one named at the command line.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef USE_POPEN
   {"pager", OPT_PAGER,
@@ -1605,7 +1605,7 @@ static void usage(int version)
 
   if (version)
     return;
-  printf("%s", COPYRIGHT_NOTICE);
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
@@ -1888,14 +1888,13 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
-  bool truncated= 0;
   status.exit_status=1;
   
   for (;;)
   {
     if (!interactive)
     {
-      line=batch_readline(status.line_buff, &truncated);
+      line=batch_readline(status.line_buff);
       /*
         Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
         Editors like "notepad" put this marker in
@@ -1969,8 +1968,12 @@ static int read_and_execute(bool interactive)
       if (opt_outfile && line)
 	fprintf(OUTFILE, "%s\n", line);
     }
-    if (!line)					// End of file
+    // End of file or system error
+    if (!line)
     {
+      if (status.line_buff && status.line_buff->error)
+        status.exit_status= 1;
+      else
       status.exit_status=0;
       break;
     }
@@ -1992,7 +1995,8 @@ static int read_and_execute(bool interactive)
 #endif
       continue;
     }
-    if (add_line(glob_buffer,line,&in_string,&ml_comment, truncated))
+    if (add_line(glob_buffer, line, &in_string, &ml_comment,
+                 status.line_buff ? status.line_buff->truncated : 0))
       break;
   }
   /* if in batch mode, send last query even if it doesn't end with \g or go */
@@ -2751,6 +2755,10 @@ static int reconnect(void)
 static void get_current_db()
 {
   MYSQL_RES *res;
+
+  /* If one_database is set, current_db is not supposed to change. */
+  if (one_database)
+    return;
 
   my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
   current_db= NULL;
@@ -3741,7 +3749,8 @@ print_tab_data(MYSQL_RES *result)
 }
 
 static int
-com_tee(String *buffer, char *line __attribute__((unused)))
+com_tee(String *buffer __attribute__((unused)),
+        char *line __attribute__((unused)))
 {
   char file_name[FN_REFLEN], *end, *param;
 
@@ -3800,7 +3809,8 @@ com_notee(String *buffer __attribute__((unused)),
 
 #ifdef USE_POPEN
 static int
-com_pager(String *buffer, char *line __attribute__((unused)))
+com_pager(String *buffer __attribute__((unused)),
+          char *line __attribute__((unused)))
 {
   char pager_name[FN_REFLEN], *end, *param;
 
@@ -3927,7 +3937,8 @@ com_rehash(String *buffer __attribute__((unused)),
 
 #ifdef USE_POPEN
 static int
-com_shell(String *buffer, char *line __attribute__((unused)))
+com_shell(String *buffer __attribute__((unused)),
+          char *line __attribute__((unused)))
 {
   char *shell_cmd;
 
@@ -4019,7 +4030,8 @@ com_connect(String *buffer, char *line)
 }
 
 
-static int com_source(String *buffer, char *line)
+static int com_source(String *buffer __attribute__((unused)),
+                      char *line)
 {
   char source_name[FN_REFLEN], *end, *param;
   LINE_BUFFER *line_buff;
@@ -4304,7 +4316,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   {
     char init_command[100];
     sprintf(init_command,
-	    "SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=%lu,SQL_MAX_JOIN_SIZE=%lu",
+	    "SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=%lu,MAX_JOIN_SIZE=%lu",
 	    select_limit,max_join_size);
     mysql_options(&mysql, MYSQL_INIT_COMMAND, init_command);
   }
@@ -4934,7 +4946,8 @@ static void init_username()
   }
 }
 
-static int com_prompt(String *buffer, char *line)
+static int com_prompt(String *buffer __attribute__((unused)),
+                      char *line)
 {
   char *ptr=strchr(line, ' ');
   prompt_counter = 0;

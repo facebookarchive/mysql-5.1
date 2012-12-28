@@ -1,1624 +1,218 @@
 ------------------------------------------------------------
-revno: 3497
-author: karen.langford@oracle.com
-committer: Karen Langford <karen.langford@oracle.com>
-branch nick: mysql-5.1.52-release
-timestamp: Mon 2010-10-11 22:13:47 +0200
-message:
-  Fix bug #57345
-------------------------------------------------------------
-revno: 3496
-tags: clone-5.1.52-build
-committer: Jimmy Yang <jimmy.yang@oracle.com>
-branch nick: mysql-5.1-security
-timestamp: Wed 2010-10-06 03:41:26 -0700
-message:
-  Fix Bug #57255 Cascade Delete results in "Got error -1 from storage engine".
-  
-  rb://477 approved by Marko
-------------------------------------------------------------
-revno: 3495 [merge]
+revno: 3659 [merge]
+tags: clone-5.1.63-build
 committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
 branch nick: merge-5.1-security
-timestamp: Wed 2010-10-06 11:58:31 +0300
+timestamp: Tue 2012-04-10 14:21:57 +0300
 message:
-  merge of 5.1-bugteam into 5.1-security
+  merge mysql-5.1->mysql-5.1-security
     ------------------------------------------------------------
-    revno: 3452.1.70 [merge]
+    revno: 3560.6.139
+    committer: Venkata Sidagam <venkata.sidagam@oracle.com>
+    branch nick: mysql-5.1-59107
+    timestamp: Mon 2012-04-09 16:42:41 +0530
+    message:
+      Bug #11766072 59107: MYSQLSLAP CRASHES IF STARTED WITH NO ARGUMENTS ON WINDOWS
+      
+      This bug is a duplicate of Bug #31173, which was pushed to the 
+      mysql-trunk 5.6 on 4th Aug, 2010. This is just a back-port of 
+      the fix
+    ------------------------------------------------------------
+    revno: 3560.6.138
+    committer: Mayank Prasad <mayank.prasad@oracle.com>
+    branch nick: 5.1
+    timestamp: Fri 2012-04-06 17:03:13 +0530
+    message:
+      BUG#13738989 : 62136 : FAILED TO FETCH SELECT RESULT USING EMBEDDED MYSQLD
+      
+      Background : 
+      In mysql-5.1, in a fix for bug#47485, code has been changed for 
+      mysql client (libmysql/libmysql.c) but corresponding code was not
+      changed for embedded mysql. In that code change, after execution
+      of a statement, mysql_stmt_store_result() checks for mysql->state
+      to be MYSQL_STATUS_STATEMENT_GET_RESULT, instead of
+      MYSQL_STATUS_GET_RESULT (earlier).
+      
+      Reason:
+      In embedded mysql code, after execution, mysql->state was not
+      set to MYSQL_STATUS_STATEMENT_GET_RESULT, so it was throwing
+      OUT_OF_SYNC error.
+      
+      Fix:
+      Fixed the code in libmysqld/lib_sql.cc to have mysql->state
+      to be set to MYSQL_STATUS_STATEMENT_GET_RESULT after execution.
+    ------------------------------------------------------------
+    revno: 3560.6.137
+    committer: Praveenkumar Hulakund <praveenkumar.hulakund@oracle.com>
+    branch nick: mysql_5_1
+    timestamp: Wed 2012-03-28 12:05:31 +0530
+    message:
+      Bug#11763507 - 56224: FUNCTION NAME IS CASE-SENSITIVE
+      
+      Analysis:
+      -------------------------------
+      According to the Manual
+      (http://dev.mysql.com/doc/refman/5.1/en/identifier-case-sensitivity.html):
+      "Column, index, stored routine, and event names are not case sensitive on any
+      platform, nor are column aliases."
+      
+      In other words, 'lower_case_table_names' does not affect the behaviour of 
+      those identifiers.
+      
+      On the other hand, trigger names are case sensitive on some platforms,
+      and case insensitive on others. 'lower_case_table_names' does not affect
+      the behaviour of trigger names either.
+      
+      The bug was that SHOW statements did case sensitive comparison
+      for stored procedure / stored function / event names.
+      
+      Fix:
+      Modified the code so that comparison in case insensitive for routines 
+      and events for "SHOW" operation.
+      
+      As part of this commit, only fixing the test failures due to the actual code fix.
+    ------------------------------------------------------------
+    revno: 3560.6.136 [merge]
+    committer: Sunny Bains <Sunny.Bains@Oracle.Com>
+    branch nick: 5.1
+    timestamp: Wed 2012-03-28 13:35:44 +1100
+    message:
+      Merge from mysql-5.0
+        ------------------------------------------------------------
+        revno: 1810.4001.13
+        committer: Sunny Bains <Sunny.Bains@Oracle.Com>
+        branch nick: mysql-5.0
+        timestamp: Wed 2012-03-28 13:08:25 +1100
+        message:
+          Bug# 13847885 - PURGING STALLS WHEN PURGE_SYS->N_PAGES_HANDLED OVERFLOWS
+          
+          Change the type of purge_sys_t::n_pages_handled and purge_sys_t::handle_limit
+          to ulonglong from ulint. On a 32 bit system doing ~700 deletes per second the
+          counters can overflow in ~3.5 months, if they are 32 bit.
+          
+          Approved by Jimmy Yang over IM.
+    ------------------------------------------------------------
+    revno: 3560.6.135
+    committer: Tor Didriksen <tor.didriksen@oracle.com>
+    branch nick: 5.1
+    timestamp: Tue 2012-03-27 14:39:27 +0200
+    message:
+      Backport of fix for Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
+    ------------------------------------------------------------
+    revno: 3560.6.134
+    committer: Praveenkumar Hulakund <praveenkumar.hulakund@oracle.com>
+    branch nick: mysql_5_1
+    timestamp: Tue 2012-03-27 12:42:11 +0530
+    message:
+      Bug#11763507 - 56224: FUNCTION NAME IS CASE-SENSITIVE
+      
+      Analysis:
+      -------------------------------
+      According to the Manual
+      (http://dev.mysql.com/doc/refman/5.1/en/identifier-case-sensitivity.html):
+      "Column, index, stored routine, and event names are not case sensitive on any
+      platform, nor are column aliases."
+      
+      In other words, 'lower_case_table_names' does not affect the behaviour of 
+      those identifiers.
+      
+      On the other hand, trigger names are case sensitive on some platforms,
+      and case insensitive on others. 'lower_case_table_names' does not affect
+      the behaviour of trigger names either.
+      
+      The bug was that SHOW statements did case sensitive comparison
+      for stored procedure / stored function / event names.
+      
+      Fix:
+      Modified the code so that comparison in case insensitive for routines 
+      and events for "SHOW" operation.
+------------------------------------------------------------
+revno: 3658
+committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
+branch nick: B13934049-5.1-security
+timestamp: Fri 2012-04-06 12:04:07 +0300
+message:
+  Bug #13934049: 64884: LOGINS WITH INCORRECT PASSWORD ARE ALLOWED
+  
+  Fixed an improper type conversion on return that can make the server accept
+  logins with a wrong password.
+------------------------------------------------------------
+revno: 3657
+committer: Sergey Glukhov <sergey.glukhov@oracle.com>
+branch nick: mysql-5.1-security
+timestamp: Wed 2012-04-04 13:29:45 +0400
+message:
+  Bug#11766300 59387: FAILING ASSERTION: CURSOR->POS_STATE == 1997660512 (BTR_PCUR_IS_POSITIONE
+  Bug#13639204 64111: CRASH ON SELECT SUBQUERY WITH NON UNIQUE INDEX
+  The crash happened due to wrong calculation
+  of key length during creation of reference for
+  sort order index. The problem is that
+  keyuse->used_tables can have OUTER_REF_TABLE_BIT enabled
+  but used_tables parameter(create_ref_for_key() func) does
+  not have it. So key parts which have OUTER_REF_TABLE_BIT
+  are ommited and it could lead to incorrect key length
+  calculation(zero key length).
+------------------------------------------------------------
+revno: 3656 [merge]
+committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
+branch nick: merge-5.1-security
+timestamp: Wed 2012-03-21 14:58:27 +0200
+message:
+  empty weave merge mysql-5.0-security->mysql-5.1-security
+    ------------------------------------------------------------
+    revno: 1810.3997.46 [merge]
     committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
-    branch nick: merge-5.1-bugteam
-    timestamp: Tue 2010-10-05 17:24:01 +0300
+    branch nick: merge-5.0-security
+    timestamp: Wed 2012-03-21 14:35:25 +0200
     message:
-      merge
-        ------------------------------------------------------------
-        revno: 1810.3995.10
-        committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
-        branch nick: merge-5.0-bugteam
-        timestamp: Tue 2010-10-05 17:05:37 +0300
-        message:
-          Bug #56428: Replace copyright notice removed from SHA1 code (.h)
-        ------------------------------------------------------------
-        revno: 1810.3995.9
-        committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
-        branch nick: merge-5.0-bugteam
-        timestamp: Tue 2010-10-05 17:03:04 +0300
-        message:
-          Bug #56427 : Replace copyright notice removed from SHA1 code
-    ------------------------------------------------------------
-    revno: 3452.1.69
-    committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
-    branch nick: merge-5.1-bugteam
-    timestamp: Tue 2010-10-05 11:47:03 +0300
-    message:
-      merged
-    ------------------------------------------------------------
-    revno: 3452.1.68 [merge]
-    committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
-    branch nick: merge-5.1-bugteam
-    timestamp: Tue 2010-10-05 11:24:45 +0300
-    message:
-      merged 5.0-bugteam into 5.1-bugteam
-        ------------------------------------------------------------
-        revno: 1810.3995.8
-        committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
-        branch nick: merge-5.0-bugteam
-        timestamp: Tue 2010-10-05 11:03:14 +0300
-        message:
-          Disable NDB tests to run by default.
-        ------------------------------------------------------------
-        revno: 1810.3995.7 [merge]
-        committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
-        branch nick: merge-5.0-bugteam
-        timestamp: Tue 2010-10-05 10:25:19 +0300
-        message:
-          merge
-    ------------------------------------------------------------
-    revno: 3452.1.67 [merge]
-    committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
-    branch nick: merge-5.1-bugteam
-    timestamp: Tue 2010-10-05 11:11:56 +0300
-    message:
-      merged mysql-5.1 into mysql-5.1-bugteam
-        ------------------------------------------------------------
-        revno: 3461.1.9 [merge]
-        author: karen.langford@sun.com
-        committer: smenon <sunanda.menon@sun.com>
-        branch nick: mysql-5.1
-        timestamp: Tue 2010-09-28 10:33:22 +0200
-        message:
-          Merge from mysql-5.1.51-release
-        ------------------------------------------------------------
-        revno: 3461.1.8
-        committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
-        branch nick: fix-version-5.1
-        timestamp: Mon 2010-09-13 17:17:50 +0300
-        message:
-           Raise version number after cloning 5.1.51
-    ------------------------------------------------------------
-    revno: 3452.1.66 [merge]
-    committer: Vasil Dimov <vasil.dimov@oracle.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Mon 2010-10-04 14:26:56 +0300
-    message:
-      Merge mysql-5.1-innodb -> mysql-5.1-bugteam
-        ------------------------------------------------------------
-        revno: 3351.14.258
-        committer: Marko Mäkelä <marko.makela@oracle.com>
-        branch nick: 5.1-innodb
-        timestamp: Mon 2010-10-04 13:06:41 +0300
-        message:
-          Bug#56716 InnoDB locks a record gap without locking the table
-          
-          row_search_for_mysql(): Acquire an intention lock on the table
-          before locking the first record gap.
-        ------------------------------------------------------------
-        revno: 3351.14.257
-        committer: Marko Mäkelä <marko.makela@oracle.com>
-        branch nick: 5.1-innodb
-        timestamp: Mon 2010-10-04 13:05:21 +0300
-        message:
-          Bug#56716 InnoDB locks a record gap without locking the table
-          
-          row_search_for_mysql(): Acquire an intention lock on the table
-          before locking the first record gap.
-        ------------------------------------------------------------
-        revno: 3351.14.256 [merge]
-        committer: Vasil Dimov <vasil.dimov@oracle.com>
-        branch nick: mysql-5.1-innodb
-        timestamp: Mon 2010-10-04 12:49:58 +0300
-        message:
-          Merge mysql-5.1-bugteam -> mysql-5.1-innodb
-    ------------------------------------------------------------
-    revno: 3452.1.65
-    committer: Bjorn Munch <bjorn.munch@oracle.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Sun 2010-10-03 19:39:28 +0200
-    message:
-      Small test fix after 56753
-    ------------------------------------------------------------
-    revno: 3452.1.64 [merge]
-    committer: Bjorn Munch <bjorn.munch@oracle.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Sun 2010-10-03 19:37:58 +0200
-    message:
-      merge from 5.1-mtr
-        ------------------------------------------------------------
-        revno: 2728.17.168
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: hangreap-51
-        timestamp: Fri 2010-10-01 11:00:18 +0200
-        message:
-          Bug #20304 mysqltest: reap with no preceding statement hangs forever
-          Added sanity check, similar to the one preventing send without reap
-        ------------------------------------------------------------
-        revno: 2728.17.167
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: mtr-51
-        timestamp: Thu 2010-09-30 12:42:37 +0200
-        message:
-          Bug #52828 Tests that use perl fail when perl is not in path
-          Trying to run perl fails, just like it does when perl is started but fails
-          Trap the case that perl was not found/could not be started, and skip test
-          Also force a restart of servers since test may already have done something
-          mtr now also appends path of current perl to PATH to aid mysqltest
-        ------------------------------------------------------------
-        revno: 2728.17.166
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: mtr-51
-        timestamp: Thu 2010-09-30 10:28:22 +0200
-        message:
-          Small test fix after 56753
-        ------------------------------------------------------------
-        revno: 2728.17.165 [merge]
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: mtr-51
-        timestamp: Wed 2010-09-29 12:56:10 +0200
-        message:
-          merge from 5.1
-        ------------------------------------------------------------
-        revno: 2728.17.164
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: ecl-51
-        timestamp: Tue 2010-09-28 15:58:01 +0200
-        message:
-          Bug #56125 MTR2 start-and-exit removes server tmpdir, server becomes not operational
-          This happens when creating new tmpdir due to too long socket path
-          Don't delete it if --start-and-exit, but warn user to do it.
-        ------------------------------------------------------------
-        revno: 2728.17.163
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: ecl-51
-        timestamp: Wed 2010-09-22 10:57:10 +0200
-        message:
-          Bug #56921 It should be possible to log connection statements in mysqltest
-          Added --enable-connect-log, somewhet similar to --enable-query-log
-          If query log is disabled, disable connect log too
-          Also some related cleanup in mysqltest.test: removing duplicate test loop
-        ------------------------------------------------------------
-        revno: 2728.17.162
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: btfix-51
-        timestamp: Tue 2010-09-21 11:16:20 +0200
-        message:
-          test fixes after 56753
-        ------------------------------------------------------------
-        revno: 2728.17.161
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: backtick-51
-        timestamp: Mon 2010-09-20 11:21:27 +0200
-        message:
-          Bug #55426 mysqltest crashes when trying to unlock not acquired mutex
-          Follow-up: don't call pthread_join() on Windows
-          This change only valid for 5.1
-        ------------------------------------------------------------
-        revno: 2728.17.160
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: backtick-51
-        timestamp: Wed 2010-09-15 14:56:22 +0200
-        message:
-          Bug #56753 mtr silently ignores junk after backticks
-          When stepping backward to end of `` expression, check for illegal chars
-        ------------------------------------------------------------
-        revno: 2728.17.159
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: valgreap-51
-        timestamp: Tue 2010-09-14 14:04:37 +0200
-        message:
-          Bug #55426 mysqltest crashes when trying to unlock not acquired mutex
-          Bug #55546 mysqltest fails to create a new thread on HPUX
-          Missing call to pthread_join(), in embedded mode
-          This independently solves both problems, see 55426 for details.
-          Addendum: cannot test against a pthread_t, adds boolean flag instead
-        ------------------------------------------------------------
-        revno: 2728.17.158
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: valgreap-51
-        timestamp: Fri 2010-09-10 13:08:06 +0200
-        message:
-          Bug #56647 Valgrind warnings for memory leak in mysqltest.cc
-          Moved an init_dynamic_string() from before to after potential die()
-    ------------------------------------------------------------
-    revno: 3452.1.63 [merge]
-    committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Fri 2010-10-01 23:56:55 +0400
-    message:
-      Automerge.
-        ------------------------------------------------------------
-        revno: 3452.14.8 [merge]
-        committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-        branch nick: topush-51-bugteam_2
-        timestamp: Fri 2010-10-01 18:29:40 +0200
-        message:
-          merge
-            ------------------------------------------------------------
-            revno: 3452.16.2 [merge]
-            committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-            branch nick: topush-51-bugteam
-            timestamp: Fri 2010-10-01 15:41:27 +0200
-            message:
-              merge
-                ------------------------------------------------------------
-                revno: 3452.11.3
-                committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-                branch nick: b55458-51-bt
-                timestamp: Thu 2010-09-30 15:57:33 +0200
-                message:
-                  Bug#55458: Partitioned MyISAM table gets crashed by multi-table update
-                  Bug#57113: ha_partition::extra(ha_extra_function):
-                              Assertion `m_extra_cache' failed
-                  
-                  Fix for bug#55458 included DBUG_ASSERTS causing
-                  debug builds of the server to crash on
-                  another multi-table update.
-                  
-                  Removed the asserts since they where wrong.
-                  (updated after testing the patch in 5.5).
-            ------------------------------------------------------------
-            revno: 3452.16.1 [merge]
-            committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-            branch nick: topush-51-bugteam
-            timestamp: Fri 2010-10-01 13:39:49 +0200
-            message:
-              merge
-                ------------------------------------------------------------
-                revno: 3452.15.1
-                committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-                branch nick: b51851-51-bt_small
-                timestamp: Fri 2010-10-01 13:39:04 +0200
-                message:
-                  Bug#51851: Server with SBR locks mutex twice on
-                  LOAD DATA into partitioned MyISAM table
-                  
-                  Problem was that both partitioning and myisam
-                  used the same table_share->mutex for different protections
-                  (auto inc and repair).
-                  
-                  Solved by adding a specific mutex for the partitioning
-                  auto_increment.
-                  
-                  Also adding destroying the ha_data structure in
-                  free_table_share (which is to be propagated
-                  into 5.5).
-                  
-                  This is a 5.1 ONLY patch, already fixed in 5.5+.
-        ------------------------------------------------------------
-        revno: 3452.14.7 [merge]
-        committer: Vasil Dimov <vasil.dimov@oracle.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Fri 2010-10-01 15:39:44 +0300
-        message:
-          Merge mysql-5.1-innodb -> mysql-5.1-bugteam
-            ------------------------------------------------------------
-            revno: 3351.14.255
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Thu 2010-09-30 15:48:44 +0300
-            message:
-              Fix Bug#56340 innodb updates index stats too frequently after non-index updates
-              
-              This is a simple optimization issue. All stats are related to only indexed
-              columns, index size or number of rows in the whole table. UPDATEs that touch
-              only non-indexed columns cannot affect stats and we can avoid calling the
-              function row_update_statistics_if_needed() which may result in unnecessary I/O.
-              
-              Approved by:	Marko (rb://466)
-            ------------------------------------------------------------
-            revno: 3351.14.254
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Thu 2010-09-30 13:26:18 +0300
-            message:
-              Fix a potential bug when using __sync_lock_test_and_set()
-              
-              TYPE __sync_lock_test_and_set (TYPE *ptr, TYPE value, ...)
-              
-              it is not documented what happens if the two arguments are of different
-              type like it was before: the first one was lock_word_t (byte) and the
-              second one was 1 or 0 (int).
-              
-              Approved by:	Marko (via IRC)
-            ------------------------------------------------------------
-            revno: 3351.14.253
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-28 15:31:33 +0300
-            message:
-              Increment InnoDB Plugin version to 1.0.13.
-              InnoDB Plugin 1.0.12 has been released with MySQL 5.1.51.
-            ------------------------------------------------------------
-            revno: 3351.14.252
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-28 11:12:34 +0300
-            message:
-              Silence a GCC warning about reaching the end of non-void func
-              
-              Spotted by:	Marko
-            ------------------------------------------------------------
-            revno: 3351.14.251 [merge]
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-28 09:38:33 +0300
-            message:
-              Merge mysql-5.1-bugteam -> mysql-5.1-innodb
-            ------------------------------------------------------------
-            revno: 3351.14.250
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 19:58:36 +0300
-            message:
-              Fix typo, should be UNIV_SYNC_DEBUG.
-            ------------------------------------------------------------
-            revno: 3351.14.249
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 19:50:05 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0undo.c: In function 'trx_undo_truncate_end':
-              trx/trx0undo.c:1069:14: error: variable 'rseg' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.248
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 19:49:25 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0undo.c: In function 'trx_undo_set_state_at_prepare':
-              trx/trx0undo.c:1871:16: error: variable 'page_hdr' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.247
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 19:48:37 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0trx.c: In function 'trx_prepare_off_kernel':
-              trx/trx0trx.c:1808:11: error: variable 'update_hdr_page' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.246
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 19:47:35 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0sys.c: In function 'trx_sys_create_doublewrite_buf':
-              trx/trx0sys.c:244:15: error: variable 'new_block' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.245
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 19:06:31 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warnings:
-              trx/trx0roll.c: In function 'trx_undo_arr_remove_info':
-              trx/trx0roll.c:744:9: error: variable 'n' set but not used [-Werror=unused-but-set-variable]
-              trx/trx0roll.c:743:9: error: variable 'n_used' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.244
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 19:05:35 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0purge.c: In function 'trx_purge_rec_release':
-              trx/trx0purge.c:1071:18: error: variable 'arr' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.243
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:47:14 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0purge.c: In function 'trx_purge_rseg_get_next_history_log':
-              trx/trx0purge.c:660:15: error: variable 'seg_hdr' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.242
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:45:57 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0purge.c: In function 'trx_purge_add_update_undo_to_history':
-              trx/trx0purge.c:307:15: error: variable 'seg_header' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.241
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:44:55 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0purge.c: In function 'trx_purge_add_update_undo_to_history':
-              trx/trx0purge.c:309:16: error: variable 'page_header' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.240
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:43:07 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              row/row0vers.c: In function 'row_vers_impl_x_locked_off_kernel':
-              row/row0vers.c:74:9: error: variable 'err' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.239
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:41:35 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              row/row0umod.c: In function 'row_undo_mod_clust_low':
-              row/row0umod.c:117:9: error: variable 'success' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.238
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:37:24 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              row/row0purge.c: In function 'row_purge_step':
-              row/row0purge.c:687:9: error: variable 'err' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.237
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:35:59 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              que/que0que.c: In function 'que_run_threads_low':
-              que/que0que.c:1287:9: error: variable 'cumul_resource' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.236
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:35:11 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warnings:
-              os/os0file.c: In function 'os_file_create':
-              os/os0file.c:1371:14: error: variable 'purpose_str' set but not used [-Werror=unused-but-set-variable]
-              os/os0file.c:1370:14: error: variable 'type_str' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.235
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:32:12 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              log/log0recv.c: In function 'recv_synchronize_groups':
-              log/log0recv.c:562:14: error: variable 'limit_lsn' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.234
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:31:16 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              log/log0recv.c: In function 'recv_recovery_from_checkpoint_start_func':
-              log/log0recv.c:2894:14: error: variable 'archived_lsn' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.233
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:25:24 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              handler/i_s.cc: In function 'int trx_i_s_common_fill_table(THD*, TABLE_LIST*, COND*)':
-              handler/i_s.cc:931:8: error: variable 'ret' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.232
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:10:10 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              handler/ha_innodb.cc: In function 'void innobase_drop_database(handlerton*, char*)':
-              handler/ha_innodb.cc:7010:6: error: variable 'error' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.231
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:06:46 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              handler/ha_innodb.cc: In function 'bool innodb_show_status(handlerton*, THD*, bool (*)(THD*, const char*, uint, const char*, uint, const char*, uint))':
-              handler/ha_innodb.cc:8851:7: error: variable 'result' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.230
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:03:24 +0300
-            message:
-              Remove redundant variable
-            ------------------------------------------------------------
-            revno: 3351.14.229
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:02:26 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              eval/eval0eval.c: In function 'eval_notfound':
-              eval/eval0eval.c:388:14: error: variable 'arg2' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.228
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 18:00:49 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              dict/dict0dict.c: In function 'dict_index_print_low':
-              dict/dict0dict.c:4444:14: error: variable 'type_string' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.227
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 11:33:49 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              dict/dict0crea.c: In function 'dict_create_index_tree_step':
-              dict/dict0crea.c:630:16: error: variable 'table' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.226
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 11:30:57 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              buf/buf0flu.c: In function 'buf_flush_batch':
-              buf/buf0flu.c:1274:9: error: variable 'old_page_count' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.225
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Wed 2010-09-15 11:29:51 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              buf/buf0flu.c: In function 'buf_flush_delete_from_flush_rbt':
-              buf/buf0flu.c:131:8: error: variable 'ret' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.224
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 21:36:29 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              btr/btr0sea.c: In function 'btr_search_update_hash_on_delete':
-              btr/btr0sea.c:1498:9: error: variable 'found' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.223
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 21:35:37 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              btr/btr0pcur.c: In function 'btr_pcur_move_backward_from_page':
-              btr/btr0pcur.c:455:9: error: variable 'space' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.222
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 21:33:02 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              btr/btr0cur.c: In function 'btr_free_externally_stored_field':
-              btr/btr0cur.c:4281:16: error: variable 'rec_block' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.221
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 21:30:37 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              btr/btr0cur.c: In function 'btr_cur_optimistic_update':
-              btr/btr0cur.c:1839:10: error: variable 'orig_rec' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.220
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 21:14:42 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              btr/btr0btr.c: In function 'btr_compress':
-              btr/btr0btr.c:2564:9: error: variable 'level' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.219
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 21:12:19 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              btr/btr0btr.c: In function 'btr_page_split_and_insert':
-              btr/btr0btr.c:1898:11: error: variable 'insert_page' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.218
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 20:58:02 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              ./include/ut0rnd.ic: In function 'ut_rnd_gen_ulint':
-              ./include/ut0rnd.ic:88:8: error: variable 'n_bits' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.217
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 18:25:41 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              handler/ha_innodb.cc: In function 'bool innodb_show_status(handlerton*, THD*, bool (*)(THD*, const char*, uint, const char*, uint, const char*, uint))':
-              handler/ha_innodb.cc:7539:7: error: variable 'result' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.216
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 18:22:30 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              handler/ha_innodb.cc: In function 'void innobase_drop_database(handlerton*, char*)':
-              handler/ha_innodb.cc:5969:6: error: variable 'error' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.215
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 17:55:44 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0undo.c: In function 'trx_undo_set_state_at_prepare':
-              trx/trx0undo.c:1798:16: error: variable 'page_hdr' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.214
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 17:53:49 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0undo.c: In function 'trx_undo_truncate_end':
-              trx/trx0undo.c:1015:14: error: variable 'rseg' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.213
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 15:30:26 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0trx.c: In function 'trx_prepare_off_kernel':
-              trx/trx0trx.c:1830:11: error: variable 'update_hdr_page' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.212
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 15:28:48 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0sys.c: In function 'trx_sys_create_doublewrite_buf':
-              trx/trx0sys.c:168:10: error: variable 'new_page' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.211
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 15:21:32 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warnings:
-              trx/trx0roll.c: In function 'trx_undo_arr_remove_info':
-              trx/trx0roll.c:717:9: error: variable 'n' set but not used [-Werror=unused-but-set-variable]
-              trx/trx0roll.c:716:9: error: variable 'n_used' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.210
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 15:19:04 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0purge.c: In function 'trx_purge_rec_release':
-              trx/trx0purge.c:1007:18: error: variable 'arr' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.209
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 15:17:48 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0purge.c: In function 'trx_purge_rseg_get_next_history_log':
-              trx/trx0purge.c:599:15: error: variable 'seg_hdr' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.208
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 15:04:03 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              trx/trx0purge.c: In function 'trx_purge_add_update_undo_to_history':
-              trx/trx0purge.c:254:16: error: variable 'page_header' set but not used [-Werror=unused-but-set-variable]
-              trx/trx0purge.c:252:15: error: variable 'seg_header' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.207
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 14:50:13 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              row/row0vers.c: In function 'row_vers_impl_x_locked_off_kernel':
-              row/row0vers.c:62:9: error: variable 'err' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.206
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 14:46:13 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              row/row0upd.c: In function 'row_upd_in_place_in_select':
-              row/row0upd.c:2040:9: error: variable 'err' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.205
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 14:09:36 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              row/row0umod.c: In function 'row_undo_mod_clust_low':
-              row/row0umod.c:92:9: error: variable 'success' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.204
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 13:56:29 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              row/row0purge.c: In function 'row_purge_step':
-              row/row0purge.c:660:9: error: variable 'err' set but not used [-Werror=unused-but-set-variable]
-              
-              (row_purge() always returns DB_SUCCESS)
-            ------------------------------------------------------------
-            revno: 3351.14.203
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 13:39:52 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              que/que0que.c: In function 'que_thr_dec_refer_count':
-              que/que0que.c:805:11: error: variable 'sess' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.202
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 13:38:21 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              que/que0que.c: In function 'que_run_threads_low':
-              que/que0que.c:1295:9: error: variable 'cumul_resource' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.201
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 13:01:25 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warnings:
-              os/os0file.c: In function 'os_file_create':
-              os/os0file.c:1318:14: error: variable 'purpose_str' set but not used [-Werror=unused-but-set-variable]
-              os/os0file.c:1317:14: error: variable 'type_str' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.200
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 12:46:23 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              log/log0recv.c: In function 'recv_synchronize_groups':
-              log/log0recv.c:403:10: error: variable 'limit_lsn' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.199
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 12:41:00 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              log/log0recv.c: In function 'recv_recovery_from_checkpoint_start':
-              log/log0recv.c:2509:10: error: variable 'archived_lsn' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.198
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 12:37:03 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              lock/lock0lock.c: In function 'lock_print_info_all_transactions':
-              lock/lock0lock.c:4299:10: error: variable 'page' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.197
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 12:11:00 +0300
-            message:
-              Remove redundant variable
-            ------------------------------------------------------------
-            revno: 3351.14.196
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 12:06:47 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              eval/eval0eval.c: In function 'eval_notfound':
-              eval/eval0eval.c:371:14: error: variable 'arg2' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.195
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 12:00:58 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              buf/buf0flu.c: In function 'buf_flush_batch':
-              buf/buf0flu.c:844:9: error: variable 'old_page_count' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.194
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 11:39:34 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warnings:
-              btr/btr0sea.c: In function 'btr_search_update_hash_on_delete':
-              btr/btr0sea.c:1404:9: error: variable 'found' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.193
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 11:38:59 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-               
-              Fix compiler warnings:
-              btr/btr0pcur.c: In function 'btr_pcur_move_backward_from_page':
-              btr/btr0pcur.c:432:8: error: variable 'space' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.192
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Tue 2010-09-14 11:37:21 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warnings:
-              btr/btr0cur.c: In function 'btr_store_big_rec_extern_fields':
-              btr/btr0cur.c:3368:10: error: variable 'rec_page' set but not used [-Werror=unused-but-set-variable]
-              btr/btr0cur.c: In function 'btr_free_externally_stored_field':
-              btr/btr0cur.c:3542:8: error: variable 'offset' set but not used [-Werror=unused-but-set-variable]
-              btr/btr0cur.c:3539:10: error: variable 'rec_page' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.191
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Mon 2010-09-13 16:39:40 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              
-              btr/btr0btr.c:2063:9: error: variable 'level' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.190
-            committer: Vasil Dimov <vasil.dimov@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Mon 2010-09-13 16:33:25 +0300
-            message:
-              (partially) Fix Bug#55227 Fix compiler warnings in innodb with gcc 4.6
-              
-              Fix compiler warning:
-              
-              storage/innobase/include/ut0rnd.ic:70:8: error: variable 'n_bits' set but not used [-Werror=unused-but-set-variable]
-            ------------------------------------------------------------
-            revno: 3351.14.189
-            committer: Jimmy Yang <jimmy.yang@oracle.com>
-            branch nick: mysql-5.1-innodb
-            timestamp: Mon 2010-09-06 22:41:37 -0700
-            message:
-              Port fix for bug #53756 from 5.1 built-in to 5.1 plugin.
-        ------------------------------------------------------------
-        revno: 3452.14.6
-        committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
-        branch nick: B53296-5.1-bugteam
-        timestamp: Mon 2010-08-16 16:43:21 +0300
-        message:
-          Bug #53296: LONG BLOB value types are not recognized
-          
-          Fixed the length of system variables to be 2^24 - 1 
-          as it is documented for MEDIUMBLOB instead of 
-          2^24.
-        ------------------------------------------------------------
-        revno: 3452.14.5
-        committer: Davi Arnaut <davi.arnaut@oracle.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Fri 2010-09-24 19:13:51 -0300
-        message:
-          Bug#45288: pb2 returns a lot of compilation warnings on linux
-          
-          Use UNINIT_VAR workaround instead of LINT_INIT. The former can
-          also be used to silence false-positives in non-debug builds as
-          it actually does not cause new code to be generated.
-        ------------------------------------------------------------
-        revno: 3452.14.4
-        committer: Davi Arnaut <davi.arnaut@oracle.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Fri 2010-09-24 09:36:31 -0300
-        message:
-          Bug#45288: pb2 returns a lot of compilation warnings on linux
-          
-          Temporarily disable strict aliasing warnings in order to get
-          wider coverage for optimized builds. Once the violations are
-          fixed and false-positives silenced, this flag should be removed.
-        ------------------------------------------------------------
-        revno: 3452.14.3
-        committer: Dmitry Shulga <Dmitry.Shulga@Sun.COM>
-        branch nick: 5.1-bugteam-bug42503
-        timestamp: Fri 2010-09-24 19:03:28 +0700
-        message:
-          Follow-up for Bug#42503: fix a compilation warning.
-        ------------------------------------------------------------
-        revno: 3452.14.2
-        committer: Dmitry Shulga <Dmitry.Shulga@Sun.COM>
-        branch nick: 5.1-bugteam-bug56821
-        timestamp: Wed 2010-09-22 19:53:06 +0700
-        message:
-          Fixed bug#56821 - failure to start the MySQL Service.
-        ------------------------------------------------------------
-        revno: 3452.14.1 [merge]
-        committer: Ingo Struewing <ingo.struewing@oracle.com>
-        branch nick: mysql-5.1-bug46339-3
-        timestamp: Tue 2010-09-21 16:37:18 +0200
-        message:
-          Bug#46339 - crash on REPAIR TABLE merge table USE_FRM
-          Merge from saved bundle.
-            ------------------------------------------------------------
-            revno: 3351.60.1
-            committer: Ingo Struewing <ingo.struewing@sun.com>
-            branch nick: mysql-5.1-bug46339-1
-            timestamp: Mon 2010-04-26 15:44:10 +0200
-            message:
-              Bug#46339 - crash on REPAIR TABLE merge table USE_FRM
-              
-              REPAIR TABLE ... USE_FRM crashed debug servers.
-              
-              A wrong assert assumed that this operation would not be executed
-              for MERGE tables.
-              
-              Removed the assert.
-    ------------------------------------------------------------
-    revno: 3452.1.62
-    committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Wed 2010-09-22 23:33:18 +0400
-    message:
-      Bug #56709: Memory leaks at running the 5.1 test suite
-      
-      Fixed a number of memory leaks discovered by valgrind.
-    ------------------------------------------------------------
-    revno: 3452.1.61 [merge]
-    committer: Alfranio Correia <alfranio.correia@oracle.com>
-    branch nick: mysql-5.1-bugteam-merge
-    timestamp: Fri 2010-09-17 14:55:23 +0100
-    message:
-      merge mysql-5.1-bugteam (local) --> mysql-5.1-bugteam
-        ------------------------------------------------------------
-        revno: 3452.13.1
-        committer: Alfranio Correia <alfranio.correia@oracle.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Thu 2010-09-02 14:05:06 +0100
-        message:
-          BUG#55961 Savepoint Identifier should be enclosed with backticks
-          
-          Added backticks to the savepoint identifier.
-    ------------------------------------------------------------
-    revno: 3452.1.60
-    committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Thu 2010-09-16 16:13:53 +0400
-    message:
-      Bug#50402 Optimizer producing wrong results when using Index Merge on InnoDB 
-      Subselect executes twice, at JOIN::optimize stage
-      and at JOIN::execute stage. At optimize stage
-      Innodb prebuilt struct which is used for the
-      retrieval of column values is initialized in.
-      ha_innobase::index_read(), prebuilt->sql_stat_start is true.
-      After QUICK_ROR_INTERSECT_SELECT finished his job it
-      restores read_set/write_set bitmaps with initial values
-      and deactivates one of the handlers used by
-      QUICK_ROR_INTERSECT_SELECT in JOIN::cleanup
-      (it's the case when we reuse original handler as one of
-       handlers required by QUICK_ROR_INTERSECT_SELECT object).
-      On second subselect execution inactive handler is activated
-      in  QUICK_RANGE_SELECT::reset, file->ha_index_init().
-      In ha_index_init Innodb prebuilt struct is reinitialized
-      with inappropriate read_set/write_set bitmaps. Further
-      reinitialization in ha_innobase::index_read() does not
-      happen as prebuilt->sql_stat_start is false.
-      It leads to partial retrieval of required field values
-      and we get a mix of field values from different records
-      in the record buffer.
-      The fix is to reset
-      read_set/write_set bitmaps as these values
-      are required for proper intialization of
-      internal InnoDB struct which is used for
-      the retrieval of column values
-      (see build_template(), ha_innodb.cc)
-    ------------------------------------------------------------
-    revno: 3452.1.59
-    committer: Magne Mahre <magne.mahre@sun.com>
-    branch nick: mysql-5.1-bugteam-54606
-    timestamp: Thu 2010-09-16 12:51:08 +0200
-    message:
-      Bug #54606 innodb fast alter table + pack_keys=0 prevents 
-                 adding new indexes
-      
-      A fast alter table requires that the existing (old) table
-      and indices are unchanged (i.e only new indices can be
-      added).  To verify this, the layout and flags of the old
-      table/indices are compared for equality with the new.
-      
-      The PACK_KEYS option is a no-op in InnoDB, but the flag
-      exists, and is used in the table compare.  We need to
-      check this (table) option flag before deciding whether an 
-      index should be packed or not.  If the table has
-      explicitly set PACK_KEYS to 0, the created indices should
-      not be marked as packed/packable. 
-    ------------------------------------------------------------
-    revno: 3452.1.58
-    committer: Dmitry Shulga <Dmitry.Shulga@Sun.COM>
-    branch nick: 5.1-bugteam-bug42503
-    timestamp: Thu 2010-09-16 17:24:27 +0700
-    message:
-      Fixed bug#42503 - "Lost connection" errors when using
-      compression protocol.
-      
-      The loss of connection was caused by a malformed packet
-      sent by the server in case when query cache was in use.
-      When storing data in the query cache, the query  cache
-      memory allocation algorithm had a tendency to reduce
-      the amount of memory block necessary to store a result
-      set, up to finally storing the entire result set in a single
-      block. With a significant result set, this memory block
-      could turn out to be quite large - 30, 40 MB and on.
-      When such a result set was sent to the client, the entire
-      memory block was compressed and written to network as a
-      single network packet. However, the length of the
-      network packet is limited by 0xFFFFFF (16MB), since
-      the packet format only allows 3 bytes for packet length.
-      As a result, a malformed, overly large packet
-      with truncated length would be sent to the client
-      and break the client/server protocol.
-      
-      The solution is, when sending result sets from the query
-      cache, to ensure that the data is chopped into
-      network packets of size <= 16MB, so that there
-      is no corruption of packet length. This solution,
-      however, has a shortcoming: since the result set
-      is still stored in the query cache as a single block,
-      at the time of sending, we've lost boundaries of individual
-      logical packets (one logical packet = one row of the result
-      set) and thus can end up sending a truncated logical
-      packet in a compressed network packet.
-      
-      As a result, on the client we may require more memory than 
-      max_allowed_packet to keep, both, the truncated
-      last logical packet, and the compressed next packet.
-      This never (or in practice never) happens without compression,
-      since without compression it's very unlikely that
-      a) a truncated logical packet would remain on the client
-      when it's time to read the next packet
-      b) a subsequent logical packet that is being read would be
-      so large that size-of-new-packet + size-of-old-packet-tail >
-      max_allowed_packet.
-      To remedy this issue, we send data in 1MB sized packets,
-      that's below the current client default of 16MB for
-      max_allowed_packet, but large enough to ensure there is no
-      unnecessary overhead from too many syscalls per result set.
-    ------------------------------------------------------------
-    revno: 3452.1.57
-    committer: Mikael Ronstrom <mikael@dator8>
-    branch nick: mysql-5.1-build-push
-    timestamp: Thu 2010-09-16 08:53:58 +0200
-    message:
-      Updated build_mccge.sh and added support for more cpu's in check-cpu
-    ------------------------------------------------------------
-    revno: 3452.1.56 [merge]
-    committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-    branch nick: topush-51-bugteam_2
-    timestamp: Mon 2010-09-13 16:07:50 +0200
-    message:
-      merge
-        ------------------------------------------------------------
-        revno: 3452.12.1
-        committer: Martin Hansson <martin.hansson@sun.com>
-        branch nick: 5.1bt-commit
-        timestamp: Mon 2010-09-13 13:33:19 +0200
-        message:
-          Bug #50394: Regression in EXPLAIN with index scan, LIMIT, GROUP BY and
-          ORDER BY computed col
-                
-          GROUP BY implies ORDER BY in the MySQL dialect of SQL. Therefore, when an
-          index on the first table in the query is used, and that index satisfies
-          ordering according to the GROUP BY clause, the query optimizer estimates the
-          number of tuples that need to be read from this index. If there is a LIMIT
-          clause, table statistics on tables following this 'sort table' are employed.
-          
-          There may be a separate ORDER BY clause however, which mandates reading the
-          whole 'sort table' anyway. But the previous estimate was left untouched.
-          
-          Fixed by removing the estimate from EXPLAIN output if GROUP BY is used in
-          conjunction with an ORDER BY clause that mandates using a temporary table.
-    ------------------------------------------------------------
-    revno: 3452.1.55 [merge]
-    committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-    branch nick: topush-51-bugteam_2
-    timestamp: Mon 2010-09-13 15:14:17 +0200
-    message:
-      merge
-        ------------------------------------------------------------
-        revno: 3452.10.2 [merge]
-        committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-        branch nick: topush-51-bugteam
-        timestamp: Fri 2010-09-10 11:52:35 +0200
-        message:
-          merge
-            ------------------------------------------------------------
-            revno: 3452.11.2
-            committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-            branch nick: b55458-51-bt
-            timestamp: Tue 2010-09-07 17:56:43 +0200
-            message:
-              Bug#55458: Partitioned MyISAM table gets crashed by multi-table update
-              
-              Updated according to reviewers comments.
-            ------------------------------------------------------------
-            revno: 3452.11.1
-            committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-            branch nick: b55458-51-bt
-            timestamp: Tue 2010-08-10 10:43:12 +0200
-            message:
-              Bug#55458: Partitioned MyISAM table gets crashed by multi-table update
-              
-              Problem was that the handler call ::extra(HA_EXTRA_CACHE) was cached
-              but the ::extra(HA_EXTRA_PREPARE_FOR_UPDATE) was not.
-              
-              Solution was to also cache the other call and forward it when moving
-              to a new partition to scan.
-        ------------------------------------------------------------
-        revno: 3452.10.1 [merge]
-        committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-        branch nick: topush-51-bugteam
-        timestamp: Fri 2010-09-10 11:50:38 +0200
-        message:
-          merge
-            ------------------------------------------------------------
-            revno: 3452.9.2
-            committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-            branch nick: b46754-51-bt
-            timestamp: Fri 2010-08-27 10:43:51 +0200
-            message:
-              Bug#53806: Wrong estimates for range query in partitioned MyISAM table
-              Bug#46754: 'rows' field doesn't reflect partition pruning
-                
-              Update of test results after fixing the above bugs.
-              (fix in separate commit).
-            ------------------------------------------------------------
-            revno: 3452.9.1
-            committer: Mattias Jonsson <mattias.jonsson@oracle.com>
-            branch nick: b46754-51-bt
-            timestamp: Thu 2010-08-26 17:14:18 +0200
-            message:
-              Bug#53806: Wrong estimates for range query in partitioned MyISAM table
-              Bug#46754: 'rows' field doesn't reflect partition pruning
-              
-              The EXPLAIN's result in 'rows' field
-              was evaluated to number of rows when the table was opened
-              (not from the table cache) and only the partitions left
-              after pruning was updated with its correct number
-              of rows.
-              
-              The evaluation of the 'rows' field was using handler::records()
-              which is a potentially expensive call, and ignores the partitioning
-              pruning.
-              
-              The fix was to use the handlers stats.records after updating it
-              with ::info(HA_STATUS_VARIABLE) instead.
-    ------------------------------------------------------------
-    revno: 3452.1.54
-    committer: Gleb Shchepa <gshchepa@mysql.com>
-    branch nick: 55779-5.1-bugteam
-    timestamp: Mon 2010-09-13 11:18:35 +0400
-    message:
-      Bug #55779: select does not work properly in mysql server
-                  Version "5.1.42 SUSE MySQL RPM"
-      
-      When a query was using a DATE or DATETIME value formatted
-      using different formatting than "yyyy-mm-dd HH:MM:SS", a
-      query with a greater-or-equal '>=' condition matched only
-      greater values in an indexed TIMESTAMP column.
-      
-      The problem was introduced by the fix for the bug 46362
-      and partially solved (for DATE and DATETIME columns only)
-      by the fix for the bug 47925.
-      
-      The stored_field_cmp_to_item function has been modified
-      to take into account TIMESTAMP columns like we do for
-      DATE and DATETIME columns.
-    ------------------------------------------------------------
-    revno: 3452.1.53 [merge]
-    committer: Bjorn Munch <bjorn.munch@oracle.com>
-    branch nick: merge-51
-    timestamp: Fri 2010-09-10 09:58:26 +0200
-    message:
-      merge 55178,55413,56383
-        ------------------------------------------------------------
-        revno: 2728.17.157
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: restart-51
-        timestamp: Tue 2010-08-31 11:27:57 +0200
-        message:
-          Bug #56383 provide option to restart mysqld after each mtr test
-          Added --force-restart
-        ------------------------------------------------------------
-        revno: 2728.17.156 [merge]
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: testto-51
-        timestamp: Mon 2010-08-30 11:26:40 +0200
-        message:
-          merge 55413
-            ------------------------------------------------------------
-            revno: 2728.45.1
-            committer: Bjorn Munch <bjorn.munch@oracle.com>
-            branch nick: letbs-51
-            timestamp: Tue 2010-08-10 12:13:58 +0200
-            message:
-              Bug #55413 mysqltest gives parse error for lines matching "^let.*\\.*;$"
-              Allow escaped quotes also in statements not starting with --
-              But will not support single unescaped ' or `
-        ------------------------------------------------------------
-        revno: 2728.17.155
-        committer: Bjorn Munch <bjorn.munch@oracle.com>
-        branch nick: testto-51
-        timestamp: Mon 2010-08-30 11:25:10 +0200
-        message:
-          Bug #55178 Set timeout on test-to-test-basis
-          Allow --testcase-timeout=<mins> to be set in .opt file for test
-    ------------------------------------------------------------
-    revno: 3452.1.52
-    committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Thu 2010-09-09 18:44:53 +0400
-    message:
-      Addendum patch for bug #54190.
-      
-      The patch caused some test failures when merged to 5.5 because,
-      unlike 5.1, it utilizes Item_cache_row to actually cache row
-      values. The problem was that Item_cache_row::bring_value()
-      essentially did nothing. In particular, it did not update its
-      null_value, so all Item_cache_row objects were always having
-      their null_values set to TRUE. This went unnoticed previously,
-      but now when Arg_comparator::compare_row() actually depends on
-      the row's null_value to evaluate the comparison, the problem
-      has surfaced.
-      
-      Fixed by calling the underlying item's bring_value() and
-      updating null_value in Item_cache_row::bring_value().
-      
-      Since the problem also exists in 5.1 code (albeit hidden, since
-      the relevant code is not used anywhere), the addendum patch is
-      against 5.1.
-    ------------------------------------------------------------
-    revno: 3452.1.51 [merge]
-    committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Thu 2010-09-09 16:48:06 +0400
-    message:
-      Automerge.
-        ------------------------------------------------------------
-        revno: 3452.8.1
-        committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-        branch nick: 5.1-bugteam
-        timestamp: Thu 2010-09-09 16:46:13 +0400
-        message:
-          Bug #54190: Comparison to row subquery produces incorrect
-                      result
-          
-          Row subqueries producing no rows were not handled as UNKNOWN
-          values in row comparison expressions.
-          
-          That was a result of the following two problems:
-          
-          1. Item_singlerow_subselect did not mark the resulting row
-          value as NULL/UNKNOWN when no rows were produced.
-          
-          2. Arg_comparator::compare_row() did not take into account that
-          a whole argument may be NULL rather than just individual scalar
-          values.
-          
-          Before bug#34384 was fixed, the above problems were hidden
-          because an uninitialized (i.e. without any stored value) cached
-          object would appear as NULL for scalar values in a row subquery
-          returning an empty result. After the fix
-          Arg_comparator::compare_row() would try to evaluate
-          uninitialized cached objects.
-          
-          Fixed by removing the aforementioned problems.
-    ------------------------------------------------------------
-    revno: 3452.1.50
-    committer: Martin Hansson <martin.hansson@sun.com>
-    branch nick: 5.1bt
-    timestamp: Tue 2010-09-07 11:21:09 +0200
-    message:
-      Bug#51070: Query with a NOT IN subquery predicate returns a wrong result set
-            
-      The EXISTS transformation has additional switches to catch the known corner
-      cases that appear when transforming an IN predicate into EXISTS. Guarded
-      conditions are used which are deactivated when a NULL value is seen in the
-      outer expression's row. When the inner query block supplies NULL values,
-      however, they are filtered out because no distinction is made between the
-      guarded conditions; guarded NOT x IS NULL conditions in the HAVING clause that
-      filter out NULL values cannot be de-activated in isolation from those that
-      match values or from the outer expression or NULL's.
-      
-      The above problem is handled by making the guarded conditions remember whether
-      they have rejected a NULL value or not, and index access methods are taking
-      this into account as well. 
-      
-      The bug consisted of 
-      
-      1) Not resetting the property for every nested loop iteration on the inner
-         query's result.
-      
-      2) Not propagating the NULL result properly from inner query to IN optimizer.
-      
-      3) A hack that may or may not have been needed at some point. According to a
-         comment it was aimed to fix #2 by returning NULL when FALSE was actually
-         the result. This caused failures when #2 was properly fixed. The hack is
-         now removed.
-      
-      The fix resolves all three points.
-    ------------------------------------------------------------
-    revno: 3452.1.49
-    committer: Dmitry Shulga <Dmitry.Shulga@Sun.COM>
-    branch nick: 5.1-bugteam-bug55421
-    timestamp: Tue 2010-09-07 15:53:46 +0700
-    message:
-      Fixed bug #55421 - Protocol::end_statement(): Assertion `0' on
-      multi-table UPDATE IGNORE.
-      The problem was that if there was an active SELECT statement
-      during trigger execution, an error risen during the execution
-      may cause a crash. The fix is to temporary reset LEX::current_select
-      before trigger execution and restore it afterwards. This way
-      errors risen during the trigger execution are processed as
-      if there was no active SELECT.
-    ------------------------------------------------------------
-    revno: 3452.1.48
-    committer: Martin Hansson <martin.hansson@oracle.com>
-    branch nick: 5.1bt-commit
-    timestamp: Tue 2010-09-07 09:58:05 +0200
-    message:
-      Bug#54543: update ignore with incorrect subquery leads to assertion failure:
-      inited==INDEX
-      
-      When an error occurs while sending the data in a temporary table there was no
-      cleanup performed. This caused a failed assertion in the case when different
-      access methods were used for populating the table vs. retrieving the data from
-      the table if IGNORE was specified and sql_safe_updates = 0. In this case
-      execution continues, but the handler expects to continue with the access
-      method used for row retrieval.
-      
-      Fixed by doing the cleanup even if errors occur.
-    ------------------------------------------------------------
-    revno: 3452.1.47
-    committer: Dmitry Shulga <Dmitry.Shulga@Sun.COM>
-    branch nick: 5.1-bugteam-bug47485
-    timestamp: Tue 2010-09-07 14:18:01 +0700
-    message:
-      Fixed bug #47485 - mysql_store_result returns a not NULL result set
-      for a prepared statement.
-    ------------------------------------------------------------
-    revno: 3452.1.46
-    committer: Magne Mahre <magne.mahre@sun.com>
-    branch nick: mysql-5.1-bugteam-39932
-    timestamp: Wed 2010-09-01 19:38:34 +0200
-    message:
-      Bug#39932 "create table fails if column for FK is in different
-                case than in corr index".
-            
-      Server was unable to find existing or explicitly created supporting
-      index for foreign key if corresponding statement clause used field
-      names in case different than one used in key specification and created
-      yet another supporting index.
-      In cases when name of constraint (and thus name of generated index)
-      was the same as name of existing/explicitly created index this led
-      to duplicate key name error.
-            
-      The problem was that unlike all other code Key_part_spec::operator==()
-      compared field names in case sensitive fashion. As result routines
-      responsible for getting rid of redundant generated supporting indexes
-      for foreign key were not working properly for versions of field names
-      using different cases.
-      
-      (backported from mysql-trunk)
+      weave merge mysql-5.0->mysql-5.0-security
 ------------------------------------------------------------
-revno: 3494
-committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-branch nick: mysql-5.1-security
-timestamp: Mon 2010-10-04 12:51:26 +0400
+revno: 3655 [merge]
+committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
+branch nick: merge-5.1-security
+timestamp: Wed 2012-03-21 14:53:09 +0200
 message:
-  result fix
-------------------------------------------------------------
-revno: 3493
-committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-branch nick: mysql-5.1-security
-timestamp: Fri 2010-10-01 14:08:38 +0400
-message:
-  Bug#54488 crash when using explain and prepared statements with subqueries
-  The crash happens because original join table is replaced with temporary table
-  at execution stage and later we attempt to use this temporary table in
-  select_describe. It might happen that
-  Item_subselect::update_used_tables() method which sets const_item flag
-  is not called by some reasons (no where/having conditon in subquery for example).
-  It prevents JOIN::join_tmp creation and breaks original join.
-  The fix is to call ::update_used_tables() before ::const_item() check.
-------------------------------------------------------------
-revno: 3492
-committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-branch nick: mysql-5.1-security
-timestamp: Thu 2010-09-23 10:43:51 +0400
-message:
-  Bug#54494 crash with explain extended and prepared statements
-  In case of outer join and emtpy WHERE conditon
-  'always true' condition is created for WHERE clasue.
-  Later in mysql_select() original SELECT_LEX WHERE
-  condition is overwritten with created cond.
-  However SELECT_LEX condition is also used as inital
-  condition in mysql_select()->JOIN::prepare().
-  On second execution of PS modified SELECT_LEX condition
-  is taken and it leads to crash.
-  The fix is to restore original SELECT_LEX condition
-  (set to NULL if original cond is NULL) in
-   reinit_stmt_before_use().
-  HAVING clause is fixed too for safety reason
-  (no test case as I did not manage to think out
-   appropriate example).
-------------------------------------------------------------
-revno: 3491
-author: karen.langford@oracle.com
-committer: MySQL Build Team <build@mysql.com>
-branch nick: mysql-5.1-security
-timestamp: Mon 2010-09-13 15:26:29 +0200
-message:
-  Raise version number after cloning 5.1.51
-------------------------------------------------------------
-revno: 3490
-tags: mysql-5.1.51, clone-5.1.51-build
-committer: Alfranio Correia <alfranio.correia@oracle.com>
-branch nick: mysql-5.1-security
-timestamp: Fri 2010-09-10 11:49:57 +0100
-message:
-  BUG#55675 rpl.rpl_log_pos fails sporadically with error binlog truncated in the middle
-    
-  Disabled the test case.
+  merge mysql-5.1->mysql-5.1-security
+    ------------------------------------------------------------
+    revno: 3560.6.133 [merge]
+    committer: Joerg Bruehe <joerg.bruehe@oracle.com>
+    branch nick: mysql-5.1
+    timestamp: Wed 2012-03-21 11:18:21 +0100
+    message:
+      Upmerge an empty merge changeset (backmerge of 5.0.96 into main 5.0),
+      solve a conflict in ".bzr-mysql/default.conf".
+        ------------------------------------------------------------
+        revno: 1810.4001.12 [merge]
+        author: karen.langford@oracle.com
+        committer: hery.ramilison@oracle.com
+        branch nick: mysql-5.0
+        timestamp: Tue 2012-03-20 17:30:49 +0100
+        message:
+          Merge from mysql-5.0.96-release
+    ------------------------------------------------------------
+    revno: 3560.6.132 [merge]
+    author: karen.langford@oracle.com
+    committer: hery.ramilison@oracle.com
+    branch nick: mysql-5.1
+    timestamp: Tue 2012-03-20 17:35:41 +0100
+    message:
+      Merge from mysql-5.1.62-release
+        ------------------------------------------------------------
+        revno: 3641.2.3 [merge]
+        tags: mysql-5.1.62
+        committer: Joerg Bruehe <joerg.bruehe@oracle.com>
+        branch nick: clone-5.1
+        timestamp: Fri 2012-03-02 13:18:12 +0100
+        message:
+          Upmerge the yaSSL upgrade (to 2.2.0) from MySQL 5.0 to 5.1.
+            ------------------------------------------------------------
+            revno: 1810.4003.2
+            tags: mysql-5.0.96
+            committer: Joerg Bruehe <joerg.bruehe@oracle.com>
+            branch nick: clone-5.0
+            timestamp: Fri 2012-03-02 13:12:07 +0100
+            message:
+              Further upgrade the yaSSL library to version 2.2.0
+              to pick up some new security fixes that are in it.
+              
+              Patch provided by Georgi Kodinov.

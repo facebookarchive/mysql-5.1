@@ -21,3 +21,4 @@ SELECT * FROM foobar;
 # clean up
 connection master;
 DROP TABLE foobar;
+--source include/rpl_end.inc

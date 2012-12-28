@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -157,6 +157,7 @@ typedef struct st_filesort_info
 {
   IO_CACHE *io_cache;           /* If sorted through filesort */
   uchar     **sort_keys;        /* Buffer for sorting keys */
+  size_t    sort_keys_size;     /* Number of bytes allocated */
   uchar     *buffpek;           /* Buffer for buffpek structures */
   uint      buffpek_len;        /* Max number of buffpeks in the buffer */
   uchar     *addon_buf;         /* Pointer to a buffer if sorted with fields */

@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-# Copyright 2000-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -356,8 +356,6 @@ plugin_ftexample_shared_target = @plugin_ftexample_shared_target@
 plugin_ftexample_static_target = @plugin_ftexample_static_target@
 plugin_heap_shared_target = @plugin_heap_shared_target@
 plugin_heap_static_target = @plugin_heap_static_target@
-plugin_ibmdb2i_shared_target = @plugin_ibmdb2i_shared_target@
-plugin_ibmdb2i_static_target = @plugin_ibmdb2i_static_target@
 plugin_innobase_shared_target = @plugin_innobase_shared_target@
 plugin_innobase_static_target = @plugin_innobase_static_target@
 plugin_innodb_plugin_shared_target = @plugin_innodb_plugin_shared_target@
@@ -373,8 +371,6 @@ plugin_partition_static_target = @plugin_partition_static_target@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
-pstack_dir = @pstack_dir@
-pstack_libs = @pstack_libs@
 readline_basedir = @readline_basedir@
 readline_dir = @readline_dir@
 readline_h_ln_cmd = @readline_h_ln_cmd@
@@ -409,11 +405,10 @@ AUTOMAKE_OPTIONS = foreign
 
 # These are built from source in the Docs directory
 EXTRA_DIST = INSTALL-SOURCE INSTALL-WIN-SOURCE \
-			README COPYING EXCEPTIONS-CLIENT CMakeLists.txt
+			README COPYING CMakeLists.txt
 
 SUBDIRS = . include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
-			@pstack_dir@ \
 			@sql_union_dirs@ unittest \
 			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
@@ -422,7 +417,6 @@ SUBDIRS = . include @docs_dirs@ @zlib_dir@ \
 
 DIST_SUBDIRS = . include Docs zlib \
 			cmd-line-utils sql-common scripts \
-			pstack \
 			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
 			vio sql man tests \
 			netware libmysqld \

@@ -120,6 +120,10 @@ select * from errors limit 1000;
 DROP TABLE errors;
 DROP TABLE t1;
 sync_slave_with_master;
+
+--connection slave
+stop slave;
+
 connection master;
 
 # restore innodb_file_format and innodb_file_format_check

@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB & Sasha
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "mysql_priv.h"
 #ifdef HAVE_REPLICATION
@@ -22,6 +24,7 @@
 #include "rpl_filter.h"
 #include <my_dir.h>
 #include "my_atomic.h"
+#include "debug_sync.h"
 
 int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
@@ -759,9 +762,11 @@ impossible position";
   skip_state_update= 0;
   while (!net->error && net->vio != 0 && !thd->killed)
   {
+    my_off_t prev_pos= pos;
     while (!(error = Log_event::read_log_event(&log, packet,
                                                is_active ? log_lock: NULL)))
     {
+      prev_pos= my_b_tell(&log);
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
       {
@@ -771,6 +776,20 @@ impossible position";
 	goto err;
       }
 #endif
+
+      DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
+                      {
+                        if ((*packet)[EVENT_TYPE_OFFSET+1] == XID_EVENT)
+                        {
+                          net_flush(net);
+                          const char act[]=
+                            "now "
+                            "wait_for signal.continue";
+                          DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                          DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                             STRING_WITH_LEN(act)));
+                        }
+                      });
 
       processlist_slave_offset(state_msg, state_msg_len, thd,
                                log_file_name, my_b_tell(&log),
@@ -801,6 +820,26 @@ impossible position";
 	goto err;
       }
 
+      DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
+                      {
+                        if ((*packet)[EVENT_TYPE_OFFSET+1] == XID_EVENT)
+                        {
+                          net_flush(net);
+                        }
+                      });
+
+      DBUG_PRINT("info", ("log event code %d",
+			  (*packet)[LOG_EVENT_OFFSET+1] ));
+      if ((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
+      {
+	if (send_file(thd))
+	{
+	  errmsg = "failed in send_file()";
+	  my_errno= ER_UNKNOWN_ERROR;
+	  goto err;
+	}
+      }
+
       /*
          packet_buffer is only used in this case as it is the common case and
          I prefer to reduce the size of the diff.
@@ -820,10 +859,11 @@ impossible position";
                             "error %s (%d) ", map_log_read_error(error), error);
     }
 
-    if (binlog_can_be_corrupted && error != LOG_READ_MEM)
+    if (binlog_can_be_corrupted &&
+        error != LOG_READ_MEM && error != LOG_READ_EOF)
     {
-      if (error != LOG_READ_EOF)
-        sql_print_information("Changed read_log_event error to LOG_READ_EOF");
+      sql_print_information("Changed read_log_event error to LOG_READ_EOF");
+      my_b_seek(&log, prev_pos);
       error=LOG_READ_EOF;
     }
 

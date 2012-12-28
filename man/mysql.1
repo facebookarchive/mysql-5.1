@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 10/11/2010
+.\"      Date: 04/15/2012
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "04/15/2012" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -32,9 +32,7 @@ mysql \- the MySQL command\-line tool
 .SH "DESCRIPTION"
 .PP
 \fBmysql\fR
-is a simple SQL shell (with GNU
-readline
-capabilities)\&. It supports interactive and noninteractive use\&. When used interactively, query results are presented in an ASCII\-table format\&. When used noninteractively (for example, as a filter), the result is presented in tab\-separated format\&. The output format can be changed using command options\&.
+is a simple SQL shell with input line editing capabilities\&. It supports interactive and noninteractive use\&. When used interactively, query results are presented in an ASCII\-table format\&. When used noninteractively (for example, as a filter), the result is presented in tab\-separated format\&. The output format can be changed using command options\&.
 .PP
 If you have problems due to insufficient memory for large result sets, use the
 \fB\-\-quick\fR
@@ -77,11 +75,11 @@ Then type an SQL statement, end it with
 \eG
 and press Enter\&.
 .PP
-As of MySQL 5\&.1\&.10, typing Control\-C causes
+As of MySQL 5\&.1\&.10, typing Control+C causes
 \fBmysql\fR
-to attempt to kill the current statement\&. If this cannot be done, or Control\-C is typed again before the statement is killed,
+to attempt to kill the current statement\&. If this cannot be done, or Control+C is typed again before the statement is killed,
 \fBmysql\fR
-exits\&. Previously, Control\-C caused
+exits\&. Previously, Control+C caused
 \fBmysql\fR
 to exit in all cases\&.
 .PP
@@ -112,7 +110,7 @@ supports the following options, which can be specified on the command line or in
 [mysql]
 and
 [client]
-option file groups\&.
+groups of an option file\&.
 \fBmysql\fR
 also supports the options for processing option files described at
 Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -188,12 +186,31 @@ option\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysql: bind-address option
+.\" bind-address option: mysql
+\fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
+.sp
+On a computer having multiple network interfaces, this option can be used to select which interface is employed when connecting to the MySQL server\&.
+.sp
+This option is supported only in the version of the
+\fBmysql\fR
+client that is supplied with MySQL Cluster, beginning with MySQL Cluster NDB 6\&.3\&.4\&. It is not available in standard MySQL 5\&.1 releases\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysql: character-sets-dir option
 .\" character-sets-dir option: mysql
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -356,7 +373,7 @@ latin1
 character set by default\&. You can usually fix such issues by using this option to force the client to use the system character set instead\&.
 .sp
 See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq, for more information\&.
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -480,7 +497,7 @@ Produce HTML output\&.
 Ignore spaces after function names\&. The effect of this is described in the discussion for the
 IGNORE_SPACE
 SQL mode (see
-Section\ \&5.1.7, \(lqServer SQL Modes\(rq)\&.
+Section\ \&5.1.6, \(lqServer SQL Modes\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -796,7 +813,7 @@ option on the command line,
 prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Section\ \&6.1.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -1023,7 +1040,7 @@ Cause warnings to be shown after each statement if there are any\&. This option 
 .sp
 Ignore
 SIGINT
-signals (typically the result of typing Control\-C)\&.
+signals (typically the result of typing Control+C)\&.
 .RE
 .sp
 .RS 4
@@ -1110,7 +1127,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&5.5.6.3, \(lqSSL Command Options\(rq\&.
+Section\ \&6.3.6.3, \(lqSSL Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1327,8 +1344,7 @@ shell> \fBmysql \-\-xml \-uroot \-e "SHOW VARIABLES LIKE \'version%\'"\fR
 .RE
 .\}
 .sp
-(See
-\m[blue]\fBBug#25946\fR\m[]\&\s-2\u[1]\d\s+2\&.)
+(See Bug #25946\&.)
 .RE
 .PP
 You can also set the following variables by using
@@ -1480,10 +1496,10 @@ comments is not supported\&.
 .\}
 .\" mysql: help command
 .\" help command: mysql
-\fBhelp [\fR\fB\fIarg\fR\fR\fB]\fR,
-\fB\eh [\fR\fB\fIarg\fR\fR\fB]\fR,
-\fB\e? [\fR\fB\fIarg\fR\fR\fB]\fR,
-\fB? [\fR\fB\fIarg\fR\fR\fB]\fR
+help [\fIarg\fR],
+\eh [\fIarg\fR],
+\e? [\fIarg\fR],
+? [\fIarg\fR]
 .sp
 Display a help message listing the available
 \fBmysql\fR
@@ -1507,8 +1523,8 @@ the section called \(lqMYSQL SERVER-SIDE HELP\(rq\&.
 .\}
 .\" mysql: charset command
 .\" charset command: mysql
-\fBcharset \fR\fB\fIcharset_name\fR\fR,
-\fB\eC \fR\fB\fIcharset_name\fR\fR
+charset \fIcharset_name\fR,
+\eC \fIcharset_name\fR
 .sp
 Change the default character set and issue a
 SET NAMES
@@ -1527,8 +1543,8 @@ is run with auto\-reconnect enabled (which is not recommended), because the spec
 .\}
 .\" mysql: clear command
 .\" clear command: mysql
-\fBclear\fR,
-\fB\ec\fR
+clear,
+\ec
 .sp
 Clear the current input\&. Use this if you change your mind about executing the statement that you are entering\&.
 .RE
@@ -1543,8 +1559,8 @@ Clear the current input\&. Use this if you change your mind about executing the 
 .\}
 .\" mysql: connect command
 .\" connect command: mysql
-\fBconnect [\fR\fB\fIdb_name\fR\fR\fB \fR\fB\fIhost_name\fR\fR\fB]]\fR,
-\fB\er [\fR\fB\fIdb_name\fR\fR\fB \fR\fB\fIhost_name\fR\fR\fB]]\fR
+connect [\fIdb_name\fR \fIhost_name\fR]],
+\er [\fIdb_name\fR \fIhost_name\fR]]
 .sp
 Reconnect to the server\&. The optional database name and host name arguments may be given to specify the default database or the host where the server is running\&. If omitted, the current values are used\&.
 .RE
@@ -1559,14 +1575,27 @@ Reconnect to the server\&. The optional database name and host name arguments ma
 .\}
 .\" mysql: delimiter command
 .\" delimiter command: mysql
-\fBdelimiter \fR\fB\fIstr\fR\fR,
-\fB\ed \fR\fB\fIstr\fR\fR
+delimiter \fIstr\fR,
+\ed \fIstr\fR
 .sp
 Change the string that
 \fBmysql\fR
 interprets as the separator between SQL statements\&. The default is the semicolon character (\(lq;\(rq)\&.
 .sp
-The delimiter can be specified as an unquoted or quoted argument\&. Quoting can be done with either single quote (\') or douple quote (") characters\&. To include a quote within a quoted string, either quote the string with the other quote character or escape the quote with a backslash (\(lq\e\(rq) character\&. Backslash should be avoided outside of quoted strings because it is the escape character for MySQL\&. For an unquoted argument, the delmiter is read up to the first space or end of line\&. For a quoted argument, the delimiter is read up to the matching quote on the line\&.
+The delimiter string can be specified as an unquoted or quoted argument on the
+delimiter
+command line\&. Quoting can be done with either single quote (\'), double quote ("), or backtick (`) characters\&. To include a quote within a quoted string, either quote the string with a different quote character or escape the quote with a backslash (\(lq\e\(rq) character\&. Backslash should be avoided outside of quoted strings because it is the escape character for MySQL\&. For an unquoted argument, the delimiter is read up to the first space or end of line\&. For a quoted argument, the delimiter is read up to the matching quote on the line\&.
+.sp
+\fBmysql\fR
+interprets instances of the delimiter string as a statement delimiter anywhere it occurs, except within quoted strings\&. Be careful about defining a delimiter that might occur within other words\&. For example, if you define the delimiter as
+X, you will be unable to use the word
+INDEX
+in statements\&.
+\fBmysql\fR
+interprets this as
+INDE
+followed by the delimiter
+X\&.
 .sp
 When the delimiter recognized by
 \fBmysql\fR
@@ -1588,8 +1617,8 @@ Section\ \&19.1, \(lqDefining Stored Programs\(rq)\&.
 .\}
 .\" mysql: edit command
 .\" edit command: mysql
-\fBedit\fR,
-\fB\ee\fR
+edit,
+\ee
 .sp
 Edit the current input statement\&.
 \fBmysql\fR
@@ -1602,7 +1631,7 @@ environment variables to determine which editor to use\&. The default editor is
 if neither variable is set\&.
 .sp
 The
-\fBedit\fR
+edit
 command works only in Unix\&.
 .RE
 .sp
@@ -1616,8 +1645,8 @@ command works only in Unix\&.
 .\}
 .\" mysql: ego command
 .\" ego command: mysql
-\fBego\fR,
-\fB\eG\fR
+ego,
+\eG
 .sp
 Send the current statement to the server to be executed and display the result using vertical format\&.
 .RE
@@ -1632,8 +1661,8 @@ Send the current statement to the server to be executed and display the result u
 .\}
 .\" mysql: exit command
 .\" exit command: mysql
-\fBexit\fR,
-\fB\eq\fR
+exit,
+\eq
 .sp
 Exit
 \fBmysql\fR\&.
@@ -1649,8 +1678,8 @@ Exit
 .\}
 .\" mysql: go command
 .\" go command: mysql
-\fBgo\fR,
-\fB\eg\fR
+go,
+\eg
 .sp
 Send the current statement to the server to be executed\&.
 .RE
@@ -1665,14 +1694,14 @@ Send the current statement to the server to be executed\&.
 .\}
 .\" mysql: nopager command
 .\" nopager command: mysql
-\fBnopager\fR,
-\fB\en\fR
+nopager,
+\en
 .sp
 Disable output paging\&. See the description for
-\fBpager\fR\&.
+pager\&.
 .sp
 The
-\fBnopager\fR
+nopager
 command works only in Unix\&.
 .RE
 .sp
@@ -1686,11 +1715,11 @@ command works only in Unix\&.
 .\}
 .\" mysql: notee command
 .\" notee command: mysql
-\fBnotee\fR,
-\fB\et\fR
+notee,
+\et
 .sp
 Disable output copying to the tee file\&. See the description for
-\fBtee\fR\&.
+tee\&.
 .RE
 .sp
 .RS 4
@@ -1703,8 +1732,8 @@ Disable output copying to the tee file\&. See the description for
 .\}
 .\" mysql: nowarning command
 .\" nowarning command: mysql
-\fBnowarning\fR,
-\fB\ew\fR
+nowarning,
+\ew
 .sp
 Enable display of warnings after each statement\&.
 .RE
@@ -1719,8 +1748,8 @@ Enable display of warnings after each statement\&.
 .\}
 .\" mysql: pager command
 .\" pager command: mysql
-\fBpager [\fR\fB\fIcommand\fR\fR\fB]\fR,
-\fB\eP [\fR\fB\fIcommand\fR\fR\fB]\fR
+pager [\fIcommand\fR],
+\eP [\fIcommand\fR]
 .sp
 Enable output paging\&. By using the
 \fB\-\-pager\fR
@@ -1734,18 +1763,18 @@ PAGER
 environment variable and sets the pager to that\&. Pager functionality works only in interactive mode\&.
 .sp
 Output paging can be enabled interactively with the
-\fBpager\fR
+pager
 command and disabled with
-\fBnopager\fR\&. The command takes an optional argument; if given, the paging program is set to that\&. With no argument, the pager is set to the pager that was set on the command line, or
+nopager\&. The command takes an optional argument; if given, the paging program is set to that\&. With no argument, the pager is set to the pager that was set on the command line, or
 stdout
 if no pager was specified\&.
 .sp
 Output paging works only in Unix because it uses the
 popen()
 function, which does not exist on Windows\&. For Windows, the
-\fBtee\fR
+tee
 option can be used instead to save query output, although it is not as convenient as
-\fBpager\fR
+pager
 for browsing output in some situations\&.
 .RE
 .sp
@@ -1759,8 +1788,8 @@ for browsing output in some situations\&.
 .\}
 .\" mysql: print command
 .\" print command: mysql
-\fBprint\fR,
-\fB\ep\fR
+print,
+\ep
 .sp
 Print the current input statement without executing it\&.
 .RE
@@ -1775,8 +1804,8 @@ Print the current input statement without executing it\&.
 .\}
 .\" mysql: prompt command
 .\" prompt command: mysql
-\fBprompt [\fR\fB\fIstr\fR\fR\fB]\fR,
-\fB\eR [\fR\fB\fIstr\fR\fR\fB]\fR
+prompt [\fIstr\fR],
+\eR [\fIstr\fR]
 .sp
 Reconfigure the
 \fBmysql\fR
@@ -1800,8 +1829,8 @@ mysql>\&.
 .\}
 .\" mysql: quit command
 .\" quit command: mysql
-\fBquit\fR,
-\fB\eq\fR
+quit,
+\eq
 .sp
 Exit
 \fBmysql\fR\&.
@@ -1817,8 +1846,8 @@ Exit
 .\}
 .\" mysql: rehash command
 .\" rehash command: mysql
-\fBrehash\fR,
-\fB\e#\fR
+rehash,
+\e#
 .sp
 Rebuild the completion hash that enables database, table, and column name completion while you are entering statements\&. (See the description for the
 \fB\-\-auto\-rehash\fR
@@ -1835,8 +1864,8 @@ option\&.)
 .\}
 .\" mysql: source command
 .\" source command: mysql
-\fBsource \fR\fB\fIfile_name\fR\fR,
-\fB\e\&. \fR\fB\fIfile_name\fR\fR
+source \fIfile_name\fR,
+\e\&. \fIfile_name\fR
 .sp
 Read the named file and executes the statements contained therein\&. On Windows, you can specify path name separators as
 /
@@ -1854,8 +1883,8 @@ or
 .\}
 .\" mysql: status command
 .\" status command: mysql
-\fBstatus\fR,
-\fB\es\fR
+status,
+\es
 .sp
 Provide status information about the connection and the server you are using\&. If you are running in
 \fB\-\-safe\-updates\fR
@@ -1876,13 +1905,13 @@ variables that affect your queries\&.
 .\}
 .\" mysql: system command
 .\" system command: mysql
-\fBsystem \fR\fB\fIcommand\fR\fR,
-\fB\e! \fR\fB\fIcommand\fR\fR
+system \fIcommand\fR,
+\e! \fIcommand\fR
 .sp
 Execute the given command using your default command interpreter\&.
 .sp
 The
-\fBsystem\fR
+system
 command works only in Unix\&.
 .RE
 .sp
@@ -1896,8 +1925,8 @@ command works only in Unix\&.
 .\}
 .\" mysql: tee command
 .\" tee command: mysql
-\fBtee [\fR\fB\fIfile_name\fR\fR\fB]\fR,
-\fB\eT [\fR\fB\fIfile_name\fR\fR\fB]\fR
+tee [\fIfile_name\fR],
+\eT [\fIfile_name\fR]
 .sp
 By using the
 \fB\-\-tee\fR
@@ -1907,13 +1936,13 @@ option when you invoke
 flushes results to the file after each statement, just before it prints its next prompt\&. Tee functionality works only in interactive mode\&.
 .sp
 You can enable this feature interactively with the
-\fBtee\fR
+tee
 command\&. Without a parameter, the previous file is used\&. The
-\fBtee\fR
+tee
 file can be disabled with the
-\fBnotee\fR
+notee
 command\&. Executing
-\fBtee\fR
+tee
 again re\-enables logging\&.
 .RE
 .sp
@@ -1927,8 +1956,8 @@ again re\-enables logging\&.
 .\}
 .\" mysql: use command
 .\" use command: mysql
-\fBuse \fR\fB\fIdb_name\fR\fR,
-\fB\eu \fR\fB\fIdb_name\fR\fR
+use \fIdb_name\fR,
+\eu \fIdb_name\fR
 .sp
 Use
 \fIdb_name\fR
@@ -1945,14 +1974,14 @@ as the default database\&.
 .\}
 .\" mysql: warnings command
 .\" warnings command: mysql
-\fBwarnings\fR,
-\fB\eW\fR
+warnings,
+\eW
 .sp
 Enable display of warnings after each statement (if there are any)\&.
 .RE
 .PP
 Here are a few tips about the
-\fBpager\fR
+pager
 command:
 .sp
 .RS 4
@@ -2077,48 +2106,54 @@ and
 .RE
 .PP
 You can also combine the
-\fBtee\fR
+tee
 and
-\fBpager\fR
+pager
 functions\&. Have a
-\fBtee\fR
+tee
 file enabled and
-\fBpager\fR
+pager
 set to
 \fBless\fR, and you are able to browse the results using the
 \fBless\fR
 program and still have everything appended into a file the same time\&. The difference between the Unix
-\fBtee\fR
+tee
 used with the
-\fBpager\fR
+pager
 command and the
 \fBmysql\fR
 built\-in
-\fBtee\fR
+tee
 command is that the built\-in
-\fBtee\fR
+tee
 works even if you do not have the Unix
 \fBtee\fR
 available\&. The built\-in
-\fBtee\fR
+tee
 also logs everything that is printed on the screen, whereas the Unix
 \fBtee\fR
 used with
-\fBpager\fR
+pager
 does not log quite that much\&. Additionally,
-\fBtee\fR
+tee
 file logging can be turned on and off interactively from within
 \fBmysql\fR\&. This is useful when you want to log some queries to a file, but not others\&.
 .\" mysql prompt command
 .PP
 The
-\fBprompt\fR
+prompt
 command reconfigures the default
 mysql>
 prompt\&. The string for defining the prompt can contain the following special sequences\&.
 .TS
 allbox tab(:);
-l l
+lB lB.
+T{
+Option
+T}:T{
+Description
+T}
+.T&
 l l
 l l
 l l
@@ -2147,11 +2182,6 @@ l l
 l l
 l l
 l l.
-T{
-\fBOption\fR
-T}:T{
-\fBDescription\fR
-T}
 T{
 \ec
 T}:T{
@@ -2453,7 +2483,7 @@ environment variable\&.
 The
 \&.mysql_history
 should be protected with a restrictive access mode because sensitive information might be written to it, such as the text of SQL statements that contain passwords\&. See
-Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+Section\ \&6.1.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .PP
 It is possible to suppress logging of statements to the history file by using the
 \fB\-\-batch\fR
@@ -2791,7 +2821,7 @@ SET sql_safe_updates=1, sql_select_limit=1000, sql_max_join_size=1000000;
 .\}
 .PP
 See
-Section\ \&5.1.4, \(lqServer System Variables\(rq\&.
+Section\ \&5.1.3, \(lqServer System Variables\(rq\&.
 .PP
 The
 SET
@@ -2917,7 +2947,7 @@ Section\ \&21.9.11, \(lqControlling Automatic Reconnection Behavior\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -2925,12 +2955,6 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
-.SH "NOTES"
-.IP " 1." 4
-Bug#25946
-.RS 4
-\%http://bugs.mysql.com/bug.php?id=25946
-.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available

@@ -205,3 +205,4 @@ disconnect con4;
 
 connection default;
 sync_slave_with_master slave;
+stop slave;

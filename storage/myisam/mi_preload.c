@@ -1,4 +1,5 @@
-/* Copyright (C) 2003, 2005 MySQL AB
+/*
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   Preload indexes into key cache
@@ -52,6 +54,9 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
 
   if (!keys || !mi_is_any_key_active(key_map) || key_file_length == pos)
     DBUG_RETURN(0);
+
+  /* Preload into a non initialized key cache should never happen. */
+  DBUG_ASSERT(share->key_cache->key_cache_inited);
 
   block_length= keyinfo[0].block_length;
 

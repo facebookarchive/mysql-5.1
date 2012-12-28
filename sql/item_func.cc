@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -158,7 +157,14 @@ Item_func::fix_fields(THD *thd, Item **ref)
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
+  /*
+    Use stack limit of STACK_MIN_SIZE * 2 since
+    on some platforms a recursive call to fix_fields
+    requires more than STACK_MIN_SIZE bytes (e.g. for
+    MIPS, it takes about 22kB to make one recursive
+    call to Item_func::fix_fields())
+  */
+  if (check_stack_overrun(thd, STACK_MIN_SIZE * 2, buff))
     return TRUE;				// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
@@ -476,7 +482,10 @@ bool Item_func::is_expensive_processor(uchar *arg)
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);
-  int2my_decimal(E_DEC_FATAL_ERROR, val_int(), unsigned_flag, decimal_value);
+  longlong nr= val_int();
+  if (null_value)
+    return 0; /* purecov: inspected */
+  int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
   return decimal_value;
 }
 
@@ -834,7 +843,7 @@ longlong Item_func_numhybrid::val_int()
       return 0;
 
     char *end= (char*) res->ptr() + res->length();
-    CHARSET_INFO *cs= str_value.charset();
+    CHARSET_INFO *cs= res->charset();
     return (*(cs->cset->strtoll10))(cs, res->ptr(), &end, &err_not_used);
   }
   default:
@@ -1057,7 +1066,7 @@ err:
   push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                       ER_WARN_DATA_OUT_OF_RANGE,
                       ER(ER_WARN_DATA_OUT_OF_RANGE),
-                      name, 1);
+                      name, 1L);
   return dec;
 }
 
@@ -1323,9 +1332,14 @@ void Item_func_div::fix_length_and_dec()
   {
     decimals=max(args[0]->decimals,args[1]->decimals)+prec_increment;
     set_if_smaller(decimals, NOT_FIXED_DEC);
-    max_length=args[0]->max_length - args[0]->decimals + decimals;
     uint tmp=float_length(decimals);
+    if (decimals == NOT_FIXED_DEC)
+      max_length= tmp;
+    else
+    {
+    max_length=args[0]->max_length - args[0]->decimals + decimals;
     set_if_smaller(max_length,tmp);
+    }
     break;
   }
   case INT_RESULT:
@@ -1357,9 +1371,13 @@ longlong Item_func_int_div::val_int()
     signal_divide_by_null();
     return 0;
   }
-  return (unsigned_flag ?
-	  (ulonglong) value / (ulonglong) val2 :
-	  value / val2);
+
+  if (unsigned_flag)
+    return  ((ulonglong) value / (ulonglong) val2);
+  else if (value == LONGLONG_MIN && val2 == -1)
+    return LONGLONG_MIN;
+  else
+    return value / val2;
 }
 
 
@@ -1393,9 +1411,9 @@ longlong Item_func_mod::int_op()
   if (args[0]->unsigned_flag)
     result= args[1]->unsigned_flag ? 
       ((ulonglong) value) % ((ulonglong) val2) : ((ulonglong) value) % val2;
-  else
-    result= args[1]->unsigned_flag ?
-      value % ((ulonglong) val2) : value % val2;
+  else result= args[1]->unsigned_flag ?
+         value % ((ulonglong) val2) :
+         (val2 == -1) ? 0 : value % val2;
 
   return result;
 }
@@ -1788,9 +1806,10 @@ void Item_func_integer::fix_length_and_dec()
 
 void Item_func_int_val::fix_num_length_and_dec()
 {
-  max_length= args[0]->max_length - (args[0]->decimals ?
-                                     args[0]->decimals + 1 :
-                                     0) + 2;
+  ulonglong tmp_max_length= (ulonglong ) args[0]->max_length - 
+    (args[0]->decimals ? args[0]->decimals + 1 : 0) + 2;
+  max_length= tmp_max_length > (ulonglong) max_field_size ?
+    max_field_size : (uint32) tmp_max_length;
   uint tmp= float_length(decimals);
   set_if_smaller(max_length,tmp);
   decimals= 0;
@@ -1954,6 +1973,9 @@ void Item_func_round::fix_length_and_dec()
   }
 
   val1= args[1]->val_int();
+  if ((null_value= args[1]->is_null()))
+    return;
+
   val1_unsigned= args[1]->unsigned_flag;
   if (val1 < 0)
     decimals_to_set= val1_unsigned ? INT_MAX : 0;
@@ -2103,10 +2125,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   if (!(null_value= (args[0]->null_value || args[1]->null_value ||
                      my_decimal_round(E_DEC_FATAL_ERROR, value, (int) dec,
                                       truncate, decimal_value) > 1))) 
-  {
-    decimal_value->frac= decimals;
     return decimal_value;
-  }
   return 0;
 }
 
@@ -2835,7 +2854,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
   if (!tmp_udf)
   {
-    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str, errno);
+    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str);
     DBUG_RETURN(TRUE);
   }
   u_d=tmp_udf;
@@ -3836,6 +3855,7 @@ Item_func_set_user_var::fix_length_and_dec()
   maybe_null=args[0]->maybe_null;
   max_length=args[0]->max_length;
   decimals=args[0]->decimals;
+  unsigned_flag= args[0]->unsigned_flag;
   collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
 }
 
@@ -3925,7 +3945,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
       length--;					// Fix length change above
       entry->value[length]= 0;			// Store end \0
     }
-    memcpy(entry->value,ptr,length);
+    memmove(entry->value, ptr, length);
     if (type == DECIMAL_RESULT)
       ((my_decimal*)entry->value)->fix_buffer_pointer();
     entry->length= length;
@@ -4065,7 +4085,7 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
     int2my_decimal(E_DEC_FATAL_ERROR, *(longlong*) value, 0, val);
     break;
   case DECIMAL_RESULT:
-    val= (my_decimal *)value;
+    my_decimal2decimal((my_decimal *) value, val);
     break;
   case STRING_RESULT:
     str2my_decimal(E_DEC_FATAL_ERROR, value, length, collation.collation, val);
@@ -4877,7 +4897,7 @@ void Item_func_get_system_var::fix_length_and_dec()
       decimals=0;
       break;
     case SHOW_LONGLONG:
-      unsigned_flag= FALSE;
+      unsigned_flag= TRUE;
       max_length= MY_INT64_NUM_DECIMAL_DIGITS;
       decimals=0;
       break;
@@ -5018,7 +5038,7 @@ longlong Item_func_get_system_var::val_int()
   {
     case SHOW_INT:      get_sys_var_safe (uint);
     case SHOW_LONG:     get_sys_var_safe (ulong);
-    case SHOW_LONGLONG: get_sys_var_safe (longlong);
+    case SHOW_LONGLONG: get_sys_var_safe (ulonglong);
     case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);
     case SHOW_BOOL:     get_sys_var_safe (bool);
     case SHOW_MY_BOOL:  get_sys_var_safe (my_bool);
@@ -5309,7 +5329,17 @@ void Item_func_match::init_search(bool no_order)
 
   /* Check if init_search() has been called before */
   if (ft_handler)
+  {
+    /*
+      We should reset ft_handler as it is cleaned up
+      on destruction of FT_SELECT object
+      (necessary in case of re-execution of subquery).
+      TODO: FT_SELECT should not clean up ft_handler.
+    */
+    if (join_key)
+      table->file->ft_handler= ft_handler;
     DBUG_VOID_RETURN;
+  }
 
   if (key == NO_SUCH_KEY)
   {
@@ -6057,7 +6087,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   if (res)
     DBUG_RETURN(res);
 
-  if (thd->lex->view_prepare_mode)
+  if (thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)
   {
     /*
       Here we check privileges of the stored routine only during view

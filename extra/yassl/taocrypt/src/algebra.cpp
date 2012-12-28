@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -247,7 +247,6 @@ void AbstractGroup::SimultaneousMultiply(Integer *results, const Integer &base,
 
     for (i=0; i<expCount; i++)
     {
-        assert(expBegin->NotNegative());
         exponents.push_back(WindowSlider(*expBegin++, InversionIsFast(), 0));
         exponents[i].FindNextWindow();
         buckets[i].resize(1<<(exponents[i].windowSize-1), Identity());
@@ -288,7 +287,7 @@ void AbstractGroup::SimultaneousMultiply(Integer *results, const Integer &base,
         r = buckets[i][buckets[i].size()-1];
         if (buckets[i].size() > 1)
         {
-            for (int j= (unsigned int) (buckets[i].size()) - 2; j >= 1; j--)
+            for (size_t j = buckets[i].size()-2; j >= 1; j--)
             {
                 Accumulate(buckets[i][j], buckets[i][j+1]);
                 Accumulate(r, buckets[i][j]);

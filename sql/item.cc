@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -926,8 +928,12 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   }
   else
   {
-    longlong value= val_int();
     int was_cut;
+    longlong value= val_int();
+
+    if (null_value)
+      goto err;
+
     if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == LL(-1))
     {
       char buff[22], *end;
@@ -1712,16 +1718,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
 
     if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-    {
-      /*
-        We should disable const subselect item evaluation because
-        subselect transformation does not happen in view_prepare_mode
-        and thus val_...() methods can not be called for const items.
-      */
-      bool resolve_const= ((*arg)->type() == Item::SUBSELECT_ITEM &&
-                           thd->lex->view_prepare_mode) ? FALSE : TRUE;
-      conv= new Item_func_conv_charset(*arg, coll.collation, resolve_const);
-    }
+      conv= new Item_func_conv_charset(*arg, coll.collation, 1);
 
     if (!conv)
     {
@@ -2751,6 +2748,16 @@ bool Item_param::set_longdata(const char *str, ulong length)
     (here), and first have to concatenate all pieces together,
     write query to the binary log and only then perform conversion.
   */
+  if (str_value.length() + length > max_long_data_size)
+  {
+    my_message(ER_UNKNOWN_ERROR,
+               "Parameter of prepared statement which is set through "
+               "mysql_send_long_data() is longer than "
+               "'max_long_data_size' bytes",
+               MYF(0));
+    DBUG_RETURN(true);
+  }
+
   if (str_value.append(str, length, &my_charset_bin))
     DBUG_RETURN(TRUE);
   state= LONG_DATA_VALUE;
@@ -3078,7 +3085,7 @@ String *Item_param::val_str(String* str)
     that binary log contains wrong statement 
 */
 
-const String *Item_param::query_val_str(String* str) const
+const String *Item_param::query_val_str(THD *thd, String* str) const
 {
   switch (state) {
   case INT_VALUE:
@@ -3116,7 +3123,8 @@ const String *Item_param::query_val_str(String* str) const
   case LONG_DATA_VALUE:
     {
       str->length(0);
-      append_query_string(value.cs_info.character_set_client, &str_value, str);
+      append_query_string(thd, value.cs_info.character_set_client, &str_value,
+                          str);
       break;
     }
   case NULL_VALUE:
@@ -3249,7 +3257,7 @@ void Item_param::print(String *str, enum_query_type query_type)
     char buffer[STRING_BUFFER_USUAL_SIZE];
     String tmp(buffer, sizeof(buffer), &my_charset_bin);
     const String *res;
-    res= query_val_str(&tmp);
+    res= query_val_str(current_thd, &tmp);
     str->append(*res);
   }
 }
@@ -4459,14 +4467,14 @@ mark_non_agg_field:
     SELECT_LEX *select_lex= cached_table ? 
       cached_table->select_lex : context->select_lex;
     if (!thd->lex->in_sum_func)
-      select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+      select_lex->set_non_agg_field_used(true);
     else
     {
       if (outer_fixed)
         thd->lex->in_sum_func->outer_fields.push_back(this);
       else if (thd->lex->in_sum_func->nest_level !=
           thd->lex->current_select->nest_level)
-        select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+        select_lex->set_non_agg_field_used(true);
     }
   }
   return FALSE;
@@ -5286,8 +5294,17 @@ static uint nr_of_decimals(const char *str, const char *end)
 
 
 /**
-  This function is only called during parsing. We will signal an error if
-  value is not a true double value (overflow)
+  This function is only called during parsing:
+  - when parsing SQL query from sql_yacc.yy
+  - when parsing XPath query from item_xmlfunc.cc
+  We will signal an error if value is not a true double value (overflow):
+  eng: Illegal %s '%-.192s' value found during parsing
+  
+  Note: the string is NOT null terminated when called from item_xmlfunc.cc,
+  so this->name will contain some SQL query tail behind the "length" bytes.
+  This is Ok for now, as this Item is never seen in SHOW,
+  or EXPLAIN, or anywhere else in metadata.
+  Item->name should be fixed to use LEX_STRING eventually.
 */
 
 Item_float::Item_float(const char *str_arg, uint length)
@@ -5298,12 +5315,9 @@ Item_float::Item_float(const char *str_arg, uint length)
                     &error);
   if (error)
   {
-    /*
-      Note that we depend on that str_arg is null terminated, which is true
-      when we are in the parser
-    */
-    DBUG_ASSERT(str_arg[length] == 0);
-    my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", (char*) str_arg);
+    char tmp[NAME_LEN + 1];
+    my_snprintf(tmp, sizeof(tmp), "%.*s", length, str_arg);
+    my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", tmp);
   }
   presentation= name=(char*) str_arg;
   decimals=(uint8) nr_of_decimals(str_arg, str_arg+length);
@@ -5575,6 +5589,10 @@ bool Item::send(Protocol *protocol, String *buffer)
     String *res;
     if ((res=val_str(buffer)))
       result= protocol->store(res->ptr(),res->length(),res->charset());
+    else
+    {
+      DBUG_ASSERT(null_value);
+    }
     break;
   }
   case MYSQL_TYPE_TINY:
@@ -6106,7 +6124,7 @@ void Item_ref::print(String *str, enum_query_type query_type)
     {
       THD *thd= current_thd;
       append_identifier(thd, str, (*ref)->real_item()->name,
-                        (*ref)->real_item()->name_length);
+                        strlen((*ref)->real_item()->name));
     }
     else
       (*ref)->print(str, query_type);
@@ -6639,20 +6657,12 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
   }
 
   if (arg->type() == REF_ITEM)
+    arg= static_cast<Item_ref *>(arg)->ref[0];
+  if (arg->type() != FIELD_ITEM)
   {
-    Item_ref *ref= (Item_ref *)arg;
-    if (ref->ref[0]->type() != FIELD_ITEM)
-    {
-      my_error(ER_BAD_FIELD_ERROR, MYF(0), "", "VALUES() function");
-      return TRUE;
-    }
-    arg= ref->ref[0];
+    my_error(ER_BAD_FIELD_ERROR, MYF(0), "", "VALUES() function");
+    return TRUE;
   }
-  /*
-    According to our SQL grammar, VALUES() function can reference
-    only to a column.
-  */
-  DBUG_ASSERT(arg->type() == FIELD_ITEM);
 
   Item_field *field_arg= (Item_field *)arg;
 
@@ -6989,7 +6999,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 
       return my_time_compare(&field_time, &item_time);
     }
-    return stringcmp(field_result, item_result);
+    return sortcmp(field_result, item_result, field->charset());
   }
   if (res_type == INT_RESULT)
     return 0;					// Both are of type int
@@ -7001,7 +7011,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
     if (item->null_value)
       return 0;
     field_val= field->val_decimal(&field_buf);
-    return my_decimal_cmp(item_val, field_val);
+    return my_decimal_cmp(field_val, item_val);
   }
   double result= item->val_real();
   if (item->null_value)
@@ -7094,7 +7104,7 @@ String *Item_cache_int::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (!value_cached && !cache_value())
     return NULL;
-  str->set(value, default_charset());
+  str->set_int(value, unsigned_flag, default_charset());
   return str;
 }
 

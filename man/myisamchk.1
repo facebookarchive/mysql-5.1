@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisamchk\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 10/11/2010
+.\"      Date: 04/15/2012
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYISAMCHK\FR" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYISAMCHK\FR" "1" "04/15/2012" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -45,8 +45,8 @@ REPAIR TABLE
 statements to check and repair
 MyISAM
 tables\&. See
-Section\ \&12.4.2.3, \(lqCHECK TABLE Syntax\(rq, and
-Section\ \&12.4.2.6, \(lqREPAIR TABLE Syntax\(rq\&.
+Section\ \&13.7.2.3, \(lqCHECK TABLE Syntax\(rq, and
+Section\ \&13.7.2.6, \(lqREPAIR TABLE Syntax\(rq\&.
 .PP
 The use of
 \fBmyisamchk\fR
@@ -184,7 +184,7 @@ the section called \(lqMYISAMCHK MEMORY USAGE\(rq\&.
 .PP
 For additional information about using
 \fBmyisamchk\fR, see
-Section\ \&6.6, \(lqMyISAM Table Maintenance and Crash Recovery\(rq\&.
+Section\ \&7.6, \(lqMyISAM Table Maintenance and Crash Recovery\(rq\&.
 .if n \{\
 .sp
 .\}
@@ -233,14 +233,14 @@ CHECK TABLE
 instead of
 \fBmyisamchk\fR
 to check tables\&. See
-Section\ \&12.4.2.3, \(lqCHECK TABLE Syntax\(rq\&.
+Section\ \&13.7.2.3, \(lqCHECK TABLE Syntax\(rq\&.
 .sp .5v
 .RE
 .PP
 \fBmyisamchk\fR
 supports the following options, which can be specified on the command line or in the
 [myisamchk]
-option file group\&.
+group of an option file\&.
 \fBmyisamchk\fR
 also supports the options for processing option files described at
 Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -397,7 +397,13 @@ syntax:
 .\" write_buffer_size myisamchk variable
 .TS
 allbox tab(:);
-l l
+lB lB.
+T{
+Variable
+T}:T{
+Default Value
+T}
+.T&
 l l
 l l
 l l
@@ -409,11 +415,6 @@ l l
 l l
 l l
 l l.
-T{
-\fBVariable\fR
-T}:T{
-\fBDefault Value\fR
-T}
 T{
 decode_bits
 T}:T{
@@ -538,8 +539,8 @@ myisam_stats_method
 system variable\&. For more information, see the description of
 myisam_stats_method
 in
-Section\ \&5.1.4, \(lqServer System Variables\(rq, and
-Section\ \&7.5.4, \(lqMyISAM Index Statistics Collection\(rq\&.
+Section\ \&5.1.3, \(lqServer System Variables\(rq, and
+Section\ \&8.5.4, \(lqInnoDB and MyISAM Index Statistics Collection\(rq\&.
 .PP
 ft_min_word_len
 and
@@ -670,6 +671,8 @@ If you are using
 and have plenty of memory, setting the
 key_buffer_size
 variable to a large value helps the repair operation run faster\&.
+.sp
+See also the description of this option under table repair options\&.
 .sp
 For a description of the output format, see
 the section called \(lqOBTAINING TABLE INFORMATION WITH MYISAMCHK\(rq\&.
@@ -831,7 +834,7 @@ file as
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -880,6 +883,8 @@ The maximum length of the data file (when re\-creating data file when it is
 \fB\-e\fR
 .sp
 Do a repair that tries to recover every possible row from the data file\&. Normally, this also finds a lot of garbage rows\&. Do not use this option unless you are desperate\&.
+.sp
+See also the description of this option under table checking options\&.
 .sp
 For a description of the output format, see
 the section called \(lqOBTAINING TABLE INFORMATION WITH MYISAMCHK\(rq\&.
@@ -1596,7 +1601,7 @@ The number of rows in the table\&.
 Deleted blocks
 .sp
 How many deleted blocks still have reserved space\&. You can optimize your table to minimize this space\&. See
-Section\ \&6.6.4, \(lqMyISAM Table Optimization\(rq\&.
+Section\ \&7.6.4, \(lqMyISAM Table Optimization\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1624,7 +1629,7 @@ Data records\&.
 Deleted data
 .sp
 How many bytes of unreclaimed deleted data there are\&. You can optimize your table to minimize this space\&. See
-Section\ \&6.6.4, \(lqMyISAM Table Optimization\(rq\&.
+Section\ \&7.6.4, \(lqMyISAM Table Optimization\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2066,8 +2071,7 @@ Key:  2:  Keyblocks used:  99%  Packed:   97%  Max levels:  3
 \- check data record references index: 3
 Key:  3:  Keyblocks used:  98%  Packed:  \-14%  Max levels:  3
 Total:    Keyblocks used:  98%  Packed:   89%
-\- check records and index references
-\fI*** LOTS OF ROW NUMBERS DELETED ***\fR
+\- check records and index references\fI*** LOTS OF ROW NUMBERS DELETED ***\fR
 Records:            306688  M\&.recordlength:       25  Packed:            83%
 Recordspace used:       97% Empty space:           2% Blocks/Record:   1\&.00
 Record blocks:      306688  Delete blocks:         0
@@ -2111,7 +2115,7 @@ The number of rows in the table\&.
 Deleted blocks
 .sp
 How many deleted blocks still have reserved space\&. You can optimize your table to minimize this space\&. See
-Section\ \&6.6.4, \(lqMyISAM Table Optimization\(rq\&.
+Section\ \&7.6.4, \(lqMyISAM Table Optimization\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2249,7 +2253,7 @@ What percentage of the data file is unused\&.
 Blocks/Record
 .sp
 Average number of blocks per row (that is, how many links a fragmented row is composed of)\&. This is always 1\&.0 for fixed\-format tables\&. This value should stay as close to 1\&.0 as possible\&. If it gets too large, you can reorganize the table\&. See
-Section\ \&6.6.4, \(lqMyISAM Table Optimization\(rq\&.
+Section\ \&7.6.4, \(lqMyISAM Table Optimization\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2458,7 +2462,7 @@ instead of
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

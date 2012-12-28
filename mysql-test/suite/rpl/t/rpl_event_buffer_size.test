@@ -45,4 +45,4 @@ DROP TABLE t1;
 eval SET @@global.rpl_event_buffer_size= $old_rpl_event_buffer_size;
 
 sync_slave_with_master;
-connection master;
+--source include/rpl_end.inc

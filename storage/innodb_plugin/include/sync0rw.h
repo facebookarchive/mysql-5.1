@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -491,6 +491,7 @@ UNIV_INTERN
 void
 rw_lock_debug_print(
 /*================*/
+	FILE*			f,	/*!< in: output stream */
 	rw_lock_debug_t*	info);	/*!< in: debug struct */
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -564,7 +565,8 @@ struct rw_lock_struct {
 };
 
 #ifdef UNIV_SYNC_DEBUG
-/** The structure for storing debug info of an rw-lock */
+/** The structure for storing debug info of an rw-lock.  All access to this
+structure must be protected by rw_lock_debug_mutex_enter(). */
 struct	rw_lock_debug_struct {
 
 	os_thread_id_t thread_id;  /*!< The thread id of the thread which

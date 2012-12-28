@@ -47,6 +47,11 @@ extern ibool			trx_doublewrite_buf_is_being_created;
 extern ibool			trx_doublewrite_must_reset_space_ids;
 extern ibool			trx_sys_multiple_tablespace_format;
 
+#ifdef UNIV_DEBUG
+/* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
+extern uint			trx_rseg_n_slots_debug;
+#endif
+
 /********************************************************************
 Creates the doublewrite buffer to a new InnoDB installation. The header of the
 doublewrite buffer is placed on the trx system header page. */
@@ -256,6 +261,16 @@ trx_in_trx_list(
 /*============*/
 			/* out: TRUE if is in */
 	trx_t*	in_trx);/* in: trx */
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+/********************************************************
+Assert that a transaction is active. */
+UNIV_INLINE
+ibool
+trx_assert_active(
+/*==============*/
+				/* out: TRUE */
+	dulint	trx_id);	/* in: transaction identifier */
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 /*********************************************************************
 Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL

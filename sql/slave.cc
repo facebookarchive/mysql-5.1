@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -180,7 +182,7 @@ static const char *reconnect_messages[SLAVE_RECON_ACT_MAX][SLAVE_RECON_MSG_MAX]=
 registration on master",
     "Reconnecting after a failed registration on master",
     "failed registering on master, reconnecting to try again, \
-log '%s' at postion %s",
+log '%s' at position %s",
     "COM_REGISTER_SLAVE",
     "Slave I/O thread killed during or after reconnect"
   },
@@ -188,7 +190,7 @@ log '%s' at postion %s",
     "Waiting to reconnect after a failed binlog dump request",
     "Slave I/O thread killed while retrying master dump",
     "Reconnecting after a failed binlog dump request",
-    "failed dump request, reconnecting to try again, log '%s' at postion %s",
+    "failed dump request, reconnecting to try again, log '%s' at position %s",
     "COM_BINLOG_DUMP",
     "Slave I/O thread killed during or after reconnect"
   },
@@ -197,7 +199,7 @@ log '%s' at postion %s",
     "Slave I/O thread killed while waiting to reconnect after a failed read",
     "Reconnecting after a failed master event read",
     "Slave I/O thread: Failed reading log event, reconnecting to retry, \
-log '%s' at postion %s",
+log '%s' at position %s",
     "",
     "Slave I/O thread killed during or after a reconnect done to recover from \
 failed read"
@@ -491,17 +493,6 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
   int error,force_all = (thread_mask & SLAVE_FORCE_ALL);
   pthread_mutex_t *sql_lock = &mi->rli.run_lock, *io_lock = &mi->run_lock;
 
-  if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
-  {
-    DBUG_PRINT("info",("Terminating IO thread"));
-    mi->abort_slave=1;
-    if ((error=terminate_slave_thread(mi->io_thd, io_lock,
-                                      &mi->stop_cond,
-                                      &mi->slave_running,
-                                      skip_lock)) &&
-        !force_all)
-      DBUG_RETURN(error);
-  }
   if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
   {
     DBUG_PRINT("info",("Terminating SQL thread"));
@@ -509,6 +500,17 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
     if ((error=terminate_slave_thread(mi->rli.sql_thd, sql_lock,
                                       &mi->rli.stop_cond,
                                       &mi->rli.slave_running,
+                                      skip_lock)) &&
+        !force_all)
+      DBUG_RETURN(error);
+  }
+  if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
+  {
+    DBUG_PRINT("info",("Terminating IO thread"));
+    mi->abort_slave=1;
+    if ((error=terminate_slave_thread(mi->io_thd, io_lock,
+                                      &mi->stop_cond,
+                                      &mi->slave_running,
                                       skip_lock)) &&
         !force_all)
       DBUG_RETURN(error);
@@ -683,8 +685,12 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
       thd->exit_cond(old_msg);
       pthread_mutex_lock(cond_lock); // re-acquire it as exit_cond() released
       if (thd->killed)
+      {
+        if (start_lock)
+          pthread_mutex_unlock(start_lock);
         DBUG_RETURN(thd->killed_errno());
     }
+  }
   }
   if (start_lock)
     pthread_mutex_unlock(start_lock);
@@ -823,8 +829,17 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
   DBUG_ASSERT(rli->slave_running == 1);// tracking buffer overrun
   if (abort_loop || thd->killed || rli->abort_slave)
   {
+    /*
+      The transaction should always be binlogged if OPTION_KEEP_LOG is set
+      (it implies that something can not be rolled back). And such case
+      should be regarded similarly as modifing a non-transactional table
+      because retrying of the transaction will lead to an error or inconsistency
+      as well.
+      Example: OPTION_KEEP_LOG is set if a temporary table is created or dropped.
+    */
     if (rli->abort_slave && rli->is_in_group() &&
-        thd->transaction.all.modified_non_trans_table)
+        (thd->transaction.all.modified_non_trans_table ||
+         (thd->options & OPTION_KEEP_LOG)))
       DBUG_RETURN(0);
     /*
       If we are in an unsafe situation (stopping could corrupt replication),
@@ -1561,6 +1576,54 @@ Waiting for the slave SQL thread to free enough relay log space");
          !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
     pthread_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
+
+  /* 
+    Makes the IO thread read only one event at a time
+    until the SQL thread is able to purge the relay 
+    logs, freeing some space.
+
+    Therefore, once the SQL thread processes this next 
+    event, it goes to sleep (no more events in the queue),
+    sets ignore_log_space_limit=true and wakes the IO thread. 
+    However, this event may have been enough already for 
+    the SQL thread to purge some log files, freeing 
+    rli->log_space_total .
+
+    This guarantees that the SQL and IO thread move
+    forward only one event at a time (to avoid deadlocks), 
+    when the relay space limit is reached. It also 
+    guarantees that when the SQL thread is prepared to
+    rotate (to be able to purge some logs), the IO thread
+    will know about it and will rotate.
+
+    NOTE: The ignore_log_space_limit is only set when the SQL
+          thread sleeps waiting for events.
+
+   */
+  if (rli->ignore_log_space_limit)
+  {
+#ifndef DBUG_OFF
+    {
+      char llbuf1[22], llbuf2[22];
+      DBUG_PRINT("info", ("log_space_limit=%s "
+                          "log_space_total=%s "
+                          "ignore_log_space_limit=%d "
+                          "sql_force_rotate_relay=%d", 
+                        llstr(rli->log_space_limit,llbuf1),
+                        llstr(rli->log_space_total,llbuf2),
+                        (int) rli->ignore_log_space_limit,
+                        (int) rli->sql_force_rotate_relay));
+    }
+#endif
+    if (rli->sql_force_rotate_relay)
+    {
+      rotate_relay_log(rli->mi);
+      rli->sql_force_rotate_relay= false;
+    }
+
+    rli->ignore_log_space_limit= false;
+  }
+
   thd->exit_cond(save_proc_info);
   DBUG_RETURN(slave_killed);
 }
@@ -2520,7 +2583,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
 
     if (slave_trans_retries)
     {
-      int temp_err;
+      int UNINIT_VAR(temp_err);
       if (exec_res && (temp_err= has_temporary_error(thd)))
       {
         const char *errmsg;
@@ -2551,7 +2614,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
           else
           {
             exec_res= 0;
-            end_trans(thd, ROLLBACK);
+            rli->cleanup_context(thd, 1);
             /* chance for concurrent connection to get more locks */
             safe_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                        (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli);
@@ -2728,6 +2791,7 @@ pthread_handler_t handle_slave_io(void *arg)
 
   thd= new THD; // note that contructor of THD uses DBUG_ !
   THD_CHECK_SENTRY(thd);
+  DBUG_ASSERT(mi->io_thd == 0);
   mi->io_thd = thd;
 
   pthread_detach_this_thread();
@@ -3390,6 +3454,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
     request is detected only by the present function, not by events), so we
     must "proactively" clear playgrounds:
   */
+  thd->clear_error();
   rli->cleanup_context(thd, 1);
   /*
     Some extra safety, which should not been needed (normally, event deletion
@@ -3620,8 +3685,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
     Rotate the relay log makes binlog format detection easier (at next slave
     start or mysqlbinlog)
   */
-  rotate_relay_log(mi); /* will take the right mutexes */
-  DBUG_RETURN(0);
+  DBUG_RETURN(rotate_relay_log(mi) /* will take the right mutexes */);
 }
 
 /*
@@ -4551,19 +4615,45 @@ static Log_event* next_event(Relay_log_info* rli)
           constraint, because we do not want the I/O thread to block because of
           space (it's ok if it blocks for any other reason (e.g. because the
           master does not send anything). Then the I/O thread stops waiting
-          and reads more events.
-          The SQL thread decides when the I/O thread should take log_space_limit
-          into account again : ignore_log_space_limit is reset to 0
-          in purge_first_log (when the SQL thread purges the just-read relay
-          log), and also when the SQL thread starts. We should also reset
-          ignore_log_space_limit to 0 when the user does RESET SLAVE, but in
-          fact, no need as RESET SLAVE requires that the slave
+          and reads one more event and starts honoring log_space_limit again.
+
+          If the SQL thread needs more events to be able to rotate the log (it
+          might need to finish the current group first), then it can ask for one
+          more at a time. Thus we don't outgrow the relay log indefinitely,
+          but rather in a controlled manner, until the next rotate.
+
+          When the SQL thread starts it sets ignore_log_space_limit to false. 
+          We should also reset ignore_log_space_limit to 0 when the user does 
+          RESET SLAVE, but in fact, no need as RESET SLAVE requires that the slave
           be stopped, and the SQL thread sets ignore_log_space_limit to 0 when
           it stops.
         */
         pthread_mutex_lock(&rli->log_space_lock);
-        // prevent the I/O thread from blocking next times
-        rli->ignore_log_space_limit= 1;
+
+        /* 
+          If we have reached the limit of the relay space and we
+          are going to sleep, waiting for more events:
+
+          1. If outside a group, SQL thread asks the IO thread 
+             to force a rotation so that the SQL thread purges 
+             logs next time it processes an event (thus space is
+             freed).
+
+          2. If in a group, SQL thread asks the IO thread to 
+             ignore the limit and queues yet one more event 
+             so that the SQL thread finishes the group and 
+             is are able to rotate and purge sometime soon.
+         */
+        if (rli->log_space_limit && 
+            rli->log_space_limit < rli->log_space_total)
+        {
+          /* force rotation if not in an unfinished group */
+          rli->sql_force_rotate_relay= !rli->is_in_group();
+
+          /* ask for one more event */
+          rli->ignore_log_space_limit= true;
+        }
+
         /*
           If the I/O thread is blocked, unblock it.  Ok to broadcast
           after unlock, because the mutex is only destroyed in
@@ -4575,7 +4665,7 @@ static Log_event* next_event(Relay_log_info* rli)
         // Note that wait_for_update unlocks lock_log !
         rli->relay_log.wait_for_update(rli->sql_thd,
                                        "Has read all relay log; waiting for"
-                                       "the I/O slave thread to update it");
+                                       " the slave I/O thread to update it");
         // re-acquire data lock since we released it earlier
         pthread_mutex_lock(&rli->data_lock);
         rli->last_master_timestamp= save_timestamp;
@@ -4725,12 +4815,66 @@ static Log_event* next_event(Relay_log_info* rli)
         DBUG_ASSERT(rli->cur_log_fd == -1);
 
         /*
-          Read pointer has to be at the start since we are the only
-          reader.
-          We must keep the LOCK_log to read the 4 first bytes, as this is a hot
-          log (same as when we call read_log_event() above: for a hot log we
-          take the mutex).
+           When the SQL thread is [stopped and] (re)started the
+           following may happen:
+
+           1. Log was hot at stop time and remains hot at restart
+
+              SQL thread reads again from hot_log (SQL thread was
+              reading from the active log when it was stopped and the
+              very same log is still active on SQL thread restart).
+
+              In this case, my_b_seek is performed on cur_log, while
+              cur_log points to relay_log.get_log_file();
+
+           2. Log was hot at stop time but got cold before restart
+
+              The log was hot when SQL thread stopped, but it is not
+              anymore when the SQL thread restarts.
+
+              In this case, the SQL thread reopens the log, using
+              cache_buf, ie, cur_log points to &cache_buf, and thence
+              its coordinates are reset.
+
+           3. Log was already cold at stop time
+
+              The log was not hot when the SQL thread stopped, and, of
+              course, it will not be hot when it restarts.
+
+              In this case, the SQL thread opens the cold log again,
+              using cache_buf, ie, cur_log points to &cache_buf, and
+              thence its coordinates are reset.
+
+           4. Log was hot at stop time, DBA changes to previous cold
+              log and restarts SQL thread
+
+              The log was hot when the SQL thread was stopped, but the
+              user changed the coordinates of the SQL thread to
+              restart from a previous cold log.
+
+              In this case, at start time, cur_log points to a cold
+              log, opened using &cache_buf as cache, and coordinates
+              are reset. However, as it moves on to the next logs, it
+              will eventually reach the hot log. If the hot log is the
+              same at the time the SQL thread was stopped, then
+              coordinates were not reset - the cur_log will point to
+              relay_log.get_log_file(), and not a freshly opened
+              IO_CACHE through cache_buf. For this reason we need to
+              deploy a my_b_seek before calling check_binlog_magic at
+              this point of the code (see: BUG#55263 for more
+              details).
+          
+          NOTES: 
+            - We must keep the LOCK_log to read the 4 first bytes, as
+              this is a hot log (same as when we call read_log_event()
+              above: for a hot log we take the mutex).
+
+            - Because of scenario #4 above, we need to have a
+              my_b_seek here. Otherwise, we might hit the assertion
+              inside check_binlog_magic.
         */
+
+        my_b_seek(cur_log, (my_off_t) 0);
         if (check_binlog_magic(cur_log,&errmsg))
         {
           if (!hot_log) pthread_mutex_unlock(log_lock);
@@ -4794,13 +4938,11 @@ err:
   is void).
 */
 
-void rotate_relay_log(Master_info* mi)
+int rotate_relay_log(Master_info* mi)
 {
   DBUG_ENTER("rotate_relay_log");
   Relay_log_info* rli= &mi->rli;
-
-  /* We don't lock rli->run_lock. This would lead to deadlocks. */
-  pthread_mutex_lock(&mi->run_lock);
+  int error= 0;
 
   /*
      We need to test inited because otherwise, new_file() will attempt to lock
@@ -4813,7 +4955,8 @@ void rotate_relay_log(Master_info* mi)
   }
 
   /* If the relay log is closed, new_file() will do nothing. */
-  rli->relay_log.new_file();
+  if ((error= rli->relay_log.new_file()))
+    goto end;
 
   /*
     We harvest now, because otherwise BIN_LOG_HEADER_SIZE will not immediately
@@ -4830,8 +4973,7 @@ void rotate_relay_log(Master_info* mi)
   */
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 end:
-  pthread_mutex_unlock(&mi->run_lock);
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(error);
 }
 
 

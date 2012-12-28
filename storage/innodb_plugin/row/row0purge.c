@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -387,8 +387,11 @@ Purges an update of an existing record. Also purges an update of a delete
 marked record if that record contained an externally stored field. */
 static
 void
-row_purge_upd_exist_or_extern(
-/*==========================*/
+row_purge_upd_exist_or_extern_func(
+/*===============================*/
+#ifdef UNIV_DEBUG
+	const que_thr_t*thr,	/*!< in: query thread */
+#endif /* UNIV_DEBUG */
 	purge_node_t*	node)	/*!< in: row purge node */
 {
 	mem_heap_t*	heap;
@@ -403,7 +406,8 @@ row_purge_upd_exist_or_extern(
 
 	ut_ad(node);
 
-	if (node->rec_type == TRX_UNDO_UPD_DEL_REC) {
+	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
+	    || (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 
 		goto skip_secondaries;
 	}
@@ -413,8 +417,8 @@ row_purge_upd_exist_or_extern(
 	while (node->index != NULL) {
 		index = node->index;
 
-		if (row_upd_changes_ord_field_binary(NULL, node->index,
-						     node->update)) {
+		if (row_upd_changes_ord_field_binary(node->index, node->update,
+						     thr, NULL, NULL)) {
 			/* Build the older version of the index entry */
 			entry = row_build_index_entry(node->row, NULL,
 						      index, heap);
@@ -496,6 +500,14 @@ skip_secondaries:
 	}
 }
 
+#ifdef UNIV_DEBUG
+# define row_purge_upd_exist_or_extern(thr,node)	\
+	row_purge_upd_exist_or_extern_func(thr,node)
+#else /* UNIV_DEBUG */
+# define row_purge_upd_exist_or_extern(thr,node)	\
+	row_purge_upd_exist_or_extern_func(node)
+#endif /* UNIV_DEBUG */
+
 /***********************************************************//**
 Parses the row reference and other info in a modify undo log record.
 @return TRUE if purge operation required: NOTE that then the CALLER
@@ -519,13 +531,13 @@ row_purge_parse_undo_rec(
 	roll_ptr_t	roll_ptr;
 	ulint		info_bits;
 	ulint		type;
-	ulint		cmpl_info;
 
 	ut_ad(node && thr);
 
 	trx = thr_get_trx(thr);
 
-	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info,
+	ptr = trx_undo_rec_get_pars(
+		node->undo_rec, &type, &node->cmpl_info,
 				    updated_extern, &undo_no, &table_id);
 	node->rec_type = type;
 
@@ -539,7 +551,8 @@ row_purge_parse_undo_rec(
 	node->table = NULL;
 
 	if (type == TRX_UNDO_UPD_EXIST_REC
-	    && cmpl_info & UPD_NODE_NO_ORD_CHANGE && !(*updated_extern)) {
+	    && node->cmpl_info & UPD_NODE_NO_ORD_CHANGE
+	    && !(*updated_extern)) {
 
 		/* Purge requires no changes to indexes: we may return */
 
@@ -590,7 +603,7 @@ err_exit:
 
 	/* Read to the partial row the fields that occur in indexes */
 
-	if (!(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+	if (!(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 		ptr = trx_undo_rec_get_partial_row(
 			ptr, clust_index, &node->row,
 			type == TRX_UNDO_UPD_DEL_REC,
@@ -603,47 +616,32 @@ err_exit:
 /***********************************************************//**
 Fetches an undo log record and does the purge for the recorded operation.
 If none left, or the current purge completed, returns the control to the
-parent node, which is always a query thread node.
-@return	DB_SUCCESS if operation successfully completed, else error code */
-static
-ulint
+parent node, which is always a query thread node. */
+static __attribute__((nonnull))
+void
 row_purge(
 /*======*/
 	purge_node_t*	node,	/*!< in: row purge node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	roll_ptr_t	roll_ptr;
-	ibool		purge_needed;
 	ibool		updated_extern;
-	trx_t*		trx;
 
-	ut_ad(node && thr);
+	ut_ad(node);
+	ut_ad(thr);
 
-	trx = thr_get_trx(thr);
-
-	node->undo_rec = trx_purge_fetch_next_rec(&roll_ptr,
-						  &(node->reservation),
+	node->undo_rec = trx_purge_fetch_next_rec(&node->roll_ptr,
+						  &node->reservation,
 						  node->heap);
 	if (!node->undo_rec) {
 		/* Purge completed for this query thread */
 
 		thr->run_node = que_node_get_parent(node);
 
-		return(DB_SUCCESS);
+		return;
 	}
 
-	node->roll_ptr = roll_ptr;
-
-	if (node->undo_rec == &trx_purge_dummy_rec) {
-		purge_needed = FALSE;
-	} else {
-		purge_needed = row_purge_parse_undo_rec(node, &updated_extern,
-							thr);
-		/* If purge_needed == TRUE, we must also remember to unfreeze
-		data dictionary! */
-	}
-
-	if (purge_needed) {
+	if (node->undo_rec != &trx_purge_dummy_rec
+	    && row_purge_parse_undo_rec(node, &updated_extern, thr)) {
 		node->found_clust = FALSE;
 
 		node->index = dict_table_get_next_index(
@@ -655,14 +653,14 @@ row_purge(
 		} else if (updated_extern
 			   || node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
 
-			row_purge_upd_exist_or_extern(node);
+			row_purge_upd_exist_or_extern(thr, node);
 		}
 
 		if (node->found_clust) {
 			btr_pcur_close(&(node->pcur));
 		}
 
-		row_mysql_unfreeze_data_dictionary(trx);
+		row_mysql_unfreeze_data_dictionary(thr_get_trx(thr));
 	}
 
 	/* Do some cleanup */
@@ -670,8 +668,6 @@ row_purge(
 	mem_heap_empty(node->heap);
 
 	thr->run_node = node;
-
-	return(DB_SUCCESS);
 }
 
 /***********************************************************//**
@@ -685,9 +681,6 @@ row_purge_step(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	purge_node_t*	node;
-#ifdef UNIV_DEBUG
-	ulint		err;
-#endif /* UNIV_DEBUG */
 
 	ut_ad(thr);
 
@@ -695,12 +688,7 @@ row_purge_step(
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_PURGE);
 
-#ifdef UNIV_DEBUG
-	err =
-#endif /* UNIV_DEBUG */
 	row_purge(node, thr);
-
-	ut_ad(err == DB_SUCCESS);
 
 	return(thr);
 }

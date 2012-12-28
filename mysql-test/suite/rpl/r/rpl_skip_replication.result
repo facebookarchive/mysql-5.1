@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE USER 'nonsuperuser'@'127.0.0.1';
 GRANT ALTER,CREATE,DELETE,DROP,EVENT,INSERT,PROCESS,REPLICATION SLAVE,
 SELECT,UPDATE ON *.* TO 'nonsuperuser'@'127.0.0.1';
@@ -209,6 +205,8 @@ SET skip_replication= 1;
 INSERT INTO t1(a) VALUES (1);
 SET skip_replication= 0;
 INSERT INTO t1(a) VALUES (2);
+include/wait_for_slave_param.inc [Master_Log_File]
+include/wait_for_slave_param.inc [Read_Master_Log_Pos]
 STOP SLAVE IO_THREAD;
 SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
 START SLAVE;
@@ -224,6 +222,8 @@ SET skip_replication= 1;
 INSERT INTO t1(a) VALUES (1);
 SET skip_replication= 0;
 INSERT INTO t1(a) VALUES (2);
+include/wait_for_slave_param.inc [Master_Log_File]
+include/wait_for_slave_param.inc [Read_Master_Log_Pos]
 STOP SLAVE IO_THREAD;
 SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
 START SLAVE;
@@ -236,3 +236,4 @@ DROP TABLE t1,t2;
 STOP SLAVE;
 SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
 START SLAVE;
+include/rpl_end.inc

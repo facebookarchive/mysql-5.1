@@ -334,7 +334,7 @@ buf_page_is_corrupted(
 				"InnoDB: tablespace but not the InnoDB "
 				"log files. See\n"
 				"InnoDB: http://dev.mysql.com/doc/refman/"
-				"5.1/en/forcing-recovery.html\n"
+				"5.1/en/forcing-innodb-recovery.html\n"
 				"InnoDB: for more information.\n",
 				(ulong) mach_read_from_4(read_buf
 							 + FIL_PAGE_OFFSET),
@@ -634,7 +634,7 @@ buf_pool_init(
 		/*----------------------------------------*/
 	} else {
 		buf_pool->frame_mem = os_mem_alloc_large(
-			UNIV_PAGE_SIZE * (n_frames + 1), TRUE, FALSE);
+			UNIV_PAGE_SIZE * (n_frames + 1), FALSE);
 	}
 
 	if (buf_pool->frame_mem == NULL) {
@@ -756,12 +756,8 @@ buf_pool_init(
 		block = buf_pool_get_nth_block(buf_pool, i);
 
 		if (block->frame) {
-			/* Wipe contents of frame to eliminate a Purify
-			warning */
+			UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 
-#ifdef HAVE_purify
-			memset(block->frame, '\0', UNIV_PAGE_SIZE);
-#endif
 			if (srv_use_awe) {
 				/* Add to the list of blocks mapped to
 				frames */
@@ -1009,29 +1005,6 @@ buf_page_peek_block(
 }
 
 /************************************************************************
-Resets the check_index_page_at_flush field of a page if found in the buffer
-pool. */
-
-void
-buf_reset_check_index_page_at_flush(
-/*================================*/
-	ulint	space,	/* in: space id */
-	ulint	offset)	/* in: page number */
-{
-	buf_block_t*	block;
-
-	mutex_enter_fast(&(buf_pool->mutex));
-
-	block = buf_page_hash_get(space, offset);
-
-	if (block) {
-		block->check_index_page_at_flush = FALSE;
-	}
-
-	mutex_exit(&(buf_pool->mutex));
-}
-
-/************************************************************************
 Returns the current state of is_hashed of a page. FALSE if the page is
 not in the pool. NOTE that this operation does not fix the page in the
 pool if it is found there. */
@@ -1269,6 +1242,30 @@ loop:
 
 		buf_awe_map_page_to_frame(block, TRUE);
 	}
+
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	if (mode == BUF_GET_IF_IN_POOL && ibuf_debug) {
+		/* Try to evict the block from the buffer pool, to use the
+		insert buffer as much as possible. */
+
+		if (buf_LRU_free_block(block)) {
+			mutex_exit(&buf_pool->mutex);
+			mutex_exit(&block->mutex);
+			fprintf(stderr,
+				"innodb_change_buffering_debug evict %u %u\n",
+				(unsigned) space, (unsigned) offset);
+			return(NULL);
+		} else if (buf_flush_page_try(block)) {
+			fprintf(stderr,
+				"innodb_change_buffering_debug flush %u %u\n",
+				(unsigned) space, (unsigned) offset);
+			guess = block->frame;
+			goto loop;
+		}
+
+		/* Failed to evict the page; change it directly */
+	}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_buf_fix_inc_debug(block, file, line);
@@ -2043,7 +2040,7 @@ buf_page_io_complete(
 			      " table for corruption.\n"
 			      "InnoDB: See also"
 			      " http://dev.mysql.com/doc/refman/5.1/en/"
-			      "forcing-recovery.html\n"
+			      "forcing-innodb-recovery.html\n"
 			      "InnoDB: about forcing recovery.\n", stderr);
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {

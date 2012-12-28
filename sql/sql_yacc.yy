@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* sql_yacc.yy */
 
@@ -1857,7 +1859,6 @@ create:
             lex->change=NullS;
             bzero((char*) &lex->create_info,sizeof(lex->create_info));
             lex->create_info.options=$2 | $4;
-            lex->create_info.db_type= ha_default_handlerton(thd);
             lex->create_info.default_table_charset= NULL;
             lex->name.str= 0;
             lex->name.length= 0;
@@ -1866,7 +1867,8 @@ create:
           {
             LEX *lex= YYTHD->lex;
             lex->current_select= &lex->select_lex; 
-            if (!lex->create_info.db_type)
+            if ((lex->create_info.used_fields & HA_CREATE_USED_ENGINE) &&
+                !lex->create_info.db_type)
             {
               lex->create_info.db_type= ha_default_handlerton(YYTHD);
               push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -2045,16 +2047,19 @@ opt_ev_status:
         | ENABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::ENABLED;
+            Lex->event_parse_data->status_changed= true;
             $$= 1;
           }
         | DISABLE_SYM ON SLAVE
           {
             Lex->event_parse_data->status= Event_parse_data::SLAVESIDE_DISABLED;
+            Lex->event_parse_data->status_changed= true; 
             $$= 1;
           }
         | DISABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::DISABLED;
+            Lex->event_parse_data->status_changed= true;
             $$= 1;
           }
         ;
@@ -2548,9 +2553,15 @@ sp_decl:
             sp_instr_hpush_jump *i=
               new sp_instr_hpush_jump(sp->instructions(), ctx, $2,
 	                              ctx->current_var_count());
-            if (i == NULL ||
-	        sp->add_instr(i) ||
-                sp->push_backpatch(i, ctx->push_label((char *)"", 0)))
+            if (i == NULL || sp->add_instr(i))
+              MYSQL_YYABORT;
+
+            /* For continue handlers, mark end of handler scope. */
+            if ($2 == SP_HANDLER_CONTINUE &&
+                sp->push_backpatch(i, ctx->last_label()))
+              MYSQL_YYABORT;
+
+            if (sp->push_backpatch(i, ctx->push_label(empty_c_string, 0)))
               MYSQL_YYABORT;
           }
           sp_hcond_list sp_proc_stmt
@@ -8054,6 +8065,11 @@ function_call_generic:
             Create_func *builder;
             Item *item= NULL;
 
+            if (check_routine_name(&$1))
+            {
+              MYSQL_YYABORT;
+            }
+
             /*
               Implementation note:
               names are resolved with the following order:
@@ -8116,6 +8132,16 @@ function_call_generic:
               - MySQL.version() is the SQL 2003 syntax for the native function
               version() (a vendor can specify any schema).
             */
+
+            if (!$1.str || check_db_name(&$1))
+            {
+              my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
+            if (check_routine_name(&$3))
+            {
+              MYSQL_YYABORT;
+            }
 
             builder= find_qualified_function_builder(thd);
             DBUG_ASSERT(builder);
@@ -11636,6 +11662,12 @@ user:
                                          system_charset_info, 0) ||
                 check_host_name(&$$->host))
               MYSQL_YYABORT;
+            /*
+              Convert hostname part of username to lowercase.
+              It's OK to use in-place lowercase as long as
+              the character set is utf8.
+            */
+            my_casedn_str(system_charset_info, $$->host.str);
           }
         | CURRENT_USER optional_braces
           {

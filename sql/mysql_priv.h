@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
   @file
@@ -571,17 +573,42 @@ protected:
 
 #define MY_CHARSET_BIN_MB_MAXLEN 1
 
+/*
+  Flags below are set when we perform
+  context analysis of the statement and make
+  subqueries non-const. It prevents subquery
+  evaluation at context analysis stage.
+*/
+
+/*
+  Don't evaluate this subquery during statement prepare even if
+  it's a constant one. The flag is switched off in the end of
+  mysqld_stmt_prepare.
+*/ 
+#define CONTEXT_ANALYSIS_ONLY_PREPARE 1
+/*
+  Special JOIN::prepare mode: changing of query is prohibited.
+  When creating a view, we need to just check its syntax omitting
+  any optimizations: afterwards definition of the view will be
+  reconstructed by means of ::print() methods and written to
+  to an .frm file. We need this definition to stay untouched.
+*/ 
+#define CONTEXT_ANALYSIS_ONLY_VIEW    2
+/*
+  Don't evaluate this subquery during derived table prepare even if
+  it's a constant one.
+*/
+#define CONTEXT_ANALYSIS_ONLY_DERIVED 4
+
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT   1
 #define UNCACHEABLE_RAND        2
 #define UNCACHEABLE_SIDEEFFECT	4
 /// forcing to save JOIN for explain
 #define UNCACHEABLE_EXPLAIN     8
-/** Don't evaluate subqueries in prepare even if they're not correlated */
-#define UNCACHEABLE_PREPARE    16
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
-#define UNCACHEABLE_UNITED     32
-#define UNCACHEABLE_CHECKOPTION   64
+#define UNCACHEABLE_UNITED     16
+#define UNCACHEABLE_CHECKOPTION 32
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
@@ -650,6 +677,10 @@ enum enum_check_fields
 extern "C" THD *_current_thd_noinline();
 #define _current_thd() _current_thd_noinline()
 #else
+/*
+  THR_THD is a key which will be used to set/get THD* for a thread,
+  using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
+*/
 extern pthread_key(THD*, THR_THD);
 inline THD *_current_thd(void)
 {
@@ -775,7 +806,7 @@ bool delete_precheck(THD *thd, TABLE_LIST *tables);
 bool insert_precheck(THD *thd, TABLE_LIST *tables);
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
-int append_query_string(CHARSET_INFO *csinfo,
+int append_query_string(THD *thd, CHARSET_INFO *csinfo,
                         String const *from, String *to);
 
 void get_default_definer(THD *thd, LEX_USER *definer);
@@ -812,7 +843,7 @@ void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 void sql_print_information(const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 typedef void (*sql_print_message_func)(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  ATTRIBUTE_FORMAT_FPTR(printf, 1, 2);
 extern sql_print_message_func sql_print_message_handlers[];
 
 int error_log_print(enum loglevel level, const char *format,
@@ -1007,7 +1038,11 @@ void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 void decrease_user_connections(USER_CONN *uc);
-void thd_init_client_charset(THD *thd, uint cs_number);
+bool thd_init_client_charset(THD *thd, uint cs_number);
+inline bool is_supported_parser_charset(CHARSET_INFO *cs)
+{
+  return test(cs->mbminlen == 1);
+}
 bool setup_connection_thread_globals(THD *thd);
 
 int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
@@ -1067,7 +1102,8 @@ bool write_log_to_socket(int sockfd, THD *thd, ulonglong end_utime_of_query,
                          struct system_status_var* query_start_status);
 void setup_datagram_socket(THD *thd, enum_var_type type);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
-bool compare_record(TABLE *table);
+bool records_are_comparable(const TABLE *table);
+bool compare_records(const TABLE *table);
 bool append_file_to_dir(THD *thd, const char **filename_ptr, 
                         const char *table_name);
 void wait_while_table_is_used(THD *thd, TABLE *table,
@@ -1082,7 +1118,7 @@ uint cached_table_definitions(void);
 void kill_mysql(void);
 void close_connection(THD *thd, uint errcode, bool lock);
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
-                          bool *write_to_binlog);
+                          int *write_to_binlog);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
 		  bool no_grant, bool no_errors, bool schema_db);
@@ -1461,13 +1497,6 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, COND *conds,
                         bool allow_null_cond,  int *error);
 extern Item **not_found_item;
-
-/*
-  A set of constants used for checking non aggregated fields and sum
-  functions mixture in the ONLY_FULL_GROUP_BY_MODE.
-*/
-#define NON_AGG_FIELD_USED  1
-#define SUM_FUNC_USED       2
 
 /*
   This enumeration type is used only by the function find_item_in_list
@@ -2018,6 +2047,7 @@ extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options;
+extern ulong max_long_data_size;
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
@@ -2082,6 +2112,10 @@ extern TABLE_LIST general_log, slow_log;
 extern FILE *bootstrap_file;
 extern int bootstrap_error;
 extern FILE *stderror_file;
+/*
+  THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
+  using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
+*/
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
 extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open, LOCK_lock_db,
        LOCK_mapped_file,LOCK_user_locks, LOCK_status,

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlslap\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 10/11/2010
+.\"      Date: 04/15/2012
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLSLAP\FR" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLSLAP\FR" "1" "04/15/2012" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -94,14 +94,14 @@ Clean up (disconnect, drop table if specified)\&. This stage uses a single clien
 .PP
 Examples:
 .PP
-Supply your own create and query SQL statements, with 50 clients querying and 200 selects for each:
+Supply your own create and query SQL statements, with 50 clients querying and 200 selects for each (enter the command on a single line):
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-mysqlslap \-\-delimiter=";" \e
-  \-\-create="CREATE TABLE a (b int);INSERT INTO a VALUES (23)" \e
+mysqlslap \-\-delimiter=";"
+  \-\-create="CREATE TABLE a (b int);INSERT INTO a VALUES (23)"
   \-\-query="SELECT * FROM a" \-\-concurrency=50 \-\-iterations=200
 .fi
 .if n \{\
@@ -120,8 +120,8 @@ columns\&. Use five clients querying 20 times each\&. Do not create the table or
 .RS 4
 .\}
 .nf
-mysqlslap \-\-concurrency=5 \-\-iterations=20 \e
-  \-\-number\-int\-cols=2 \-\-number\-char\-cols=3 \e
+mysqlslap \-\-concurrency=5 \-\-iterations=20
+  \-\-number\-int\-cols=2 \-\-number\-char\-cols=3
   \-\-auto\-generate\-sql
 .fi
 .if n \{\
@@ -142,8 +142,8 @@ file will have multiple queries delimited by
 .RS 4
 .\}
 .nf
-mysqlslap \-\-concurrency=5 \e
-  \-\-iterations=5 \-\-query=query\&.sql \-\-create=create\&.sql \e
+mysqlslap \-\-concurrency=5
+  \-\-iterations=5 \-\-query=query\&.sql \-\-create=create\&.sql
   \-\-delimiter=";"
 .fi
 .if n \{\
@@ -155,7 +155,7 @@ supports the following options, which can be specified on the command line or in
 [mysqlslap]
 and
 [client]
-option file groups\&.
+groups of an option file\&.
 \fBmysqlslap\fR
 also supports the options for processing option files described at
 Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -400,11 +400,49 @@ The file or string containing the statement to use for creating the table\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysqlslap: create-and-drop-schema option
+.\" create-and-drop-schema option: mysqlslap
+\fB\-\-create\-and\-drop\-schema=\fR\fB\fIvalue\fR\fR
+.sp
+The schema in which to run the tests\&.
+\fBmysqlslap\fR
+drops the schema at the end of the test run\&. This option was added in MySQL 5\&.1\&.57\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysqlslap: create-schema option
 .\" create-schema option: mysqlslap
 \fB\-\-create\-schema=\fR\fB\fIvalue\fR\fR
 .sp
 The schema in which to run the tests\&. This option was added in MySQL 5\&.1\&.5\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+If the
+\fB\-\-auto\-generate\-sql\fR
+option is also given,
+\fBmysqlslap\fR
+drops the schema at the end of the test run\&. To avoid this, use the
+\fB\-\-create\-and\-drop\-schema\fR
+option instead\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4
@@ -684,7 +722,7 @@ option on the command line,
 prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Section\ \&6.1.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -920,7 +958,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&5.5.6.3, \(lqSSL Command Options\(rq\&.
+Section\ \&6.3.6.3, \(lqSSL Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -994,7 +1032,7 @@ Display version information and exit\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

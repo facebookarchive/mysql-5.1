@@ -331,8 +331,16 @@ eval select $mysql_errno as "after_!errno_masked_error" ;
 --exec illegal_command
 --cat_file does_not_exist
 --perl
-  exit(1);
+  exit(2);
 EOF
+
+# ----------------------------------------------------------------------------
+# Check backtick and query_get_value, result should be empty
+# ----------------------------------------------------------------------------
+let $empty= `garbage`;
+echo $empty is empty;
+let $empty= query_get_value(nonsense, blabla, 1);
+echo $empty is empty;
 
 # ----------------------------------------------------------------------------
 # Switch the abort on error on and check the effect on $mysql_errno
@@ -363,6 +371,23 @@ select 3 from t1 ;
 --error 1
 --exec echo "disable_abort_on_error; enable_abort_on_error; error 1064; select 3 from t1; select 3 from t1;" | $MYSQL_TEST  2>&1
 
+
+# ----------------------------------------------------------------------------
+# Test --error with backtick operator or query_get_value
+# ----------------------------------------------------------------------------
+
+--error 0,ER_NO_SUCH_TABLE
+let $empty= `SELECT foo from bar`;
+echo $empty is empty;
+
+--error 0,ER_BAD_FIELD_ERROR
+let $empty= query_get_value(SELECT bar as foo, baz, 1);
+echo $empty is empty;
+
+--error 0,ER_NO_SUCH_TABLE
+if (!`SELECT foo from bar`) {
+  echo "Yes it's empty";
+}
 
 # ----------------------------------------------------------------------------
 # Test comments
@@ -854,6 +879,19 @@ let $var2= `failing query`;
 echo $var2;
 EOF
 
+create table t1 (a varchar(100));
+insert into t1 values ('`select 42`');
+let $a= `select * from t1`;
+# This should output `select 42`, not evaluate it again to 42
+echo $a;
+insert into t1 values ('$dollar');
+# These should also output the string without evaluating it.
+let $a= query_get_value(select * from t1 order by a, a, 1);
+echo $a;
+let $a= query_get_value(select * from t1 order by a, a, 2);
+echo $a;
+drop table t1;
+
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/let.sql 2>&1
 
@@ -1131,6 +1169,11 @@ if (!$counter)
 {
   echo Counter is not 0, (counter=10);
 }
+if (! $counter)
+{
+  let $counter=5;
+}
+echo Counter should still be 10, is $counter;
 let $counter=0;
 if($counter)
 {
@@ -1139,6 +1182,10 @@ if($counter)
 if (!$counter)
 {
   echo Counter is not 0, (counter=0);
+}
+if (! $counter)
+{
+  echo Not space var works;
 }
 
 # ----------------------------------------------------------------------------
@@ -1920,6 +1967,7 @@ EOF
 cat_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 
+--replace_regex /my_errno=[0-9]*/(my_errno)/
 --error 1
 --exec echo "cat_file non_existing_file;" | $MYSQL_TEST 2>&1
 
@@ -2496,6 +2544,8 @@ write_file $MYSQLTEST_VARDIR/tmp/testdir/file1.txt;
 hello
 EOF
 
+# Verify that --replace_result also work on list_files
+--replace_result file REPLACED_FILE
 list_files $MYSQLTEST_VARDIR/tmp/testdir;
 # list_files gets the directory list before creating the new file
 list_files_write_file $MYSQLTEST_VARDIR/tmp/testdir/file2.txt $MYSQLTEST_VARDIR/tmp/testdir *;

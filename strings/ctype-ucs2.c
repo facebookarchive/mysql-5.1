@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -12,8 +12,9 @@
    
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA 02110-1301, USA
+*/
 
 /* UCS2 support. Written by Alexander Barkov <bar@mysql.com> */
 
@@ -1730,6 +1731,40 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     &my_charset_ucs2_handler,
     &my_collation_ucs2_general_ci_handler
 };
+
+
+CHARSET_INFO my_charset_ucs2_general_mysql500_ci=
+{
+  159, 0, 0,                                       /* number           */
+  MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,     /* state */
+  "ucs2",                                          /* cs name          */
+  "ucs2_general_mysql500_ci",                      /* name             */
+  "",                                              /* comment          */
+  NULL,                                            /* tailoring        */
+  ctype_ucs2,                                      /* ctype            */
+  to_lower_ucs2,                                   /* to_lower         */
+  to_upper_ucs2,                                   /* to_upper         */
+  to_upper_ucs2,                                   /* sort_order       */
+  NULL,                                            /* contractions     */
+  NULL,                                            /* sort_order_big   */
+  NULL,                                            /* tab_to_uni       */
+  NULL,                                            /* tab_from_uni     */
+  my_unicase_mysql500,                             /* caseinfo         */
+  NULL,                                            /* state_map        */
+  NULL,                                            /* ident_map        */
+  1,                                               /* strxfrm_multiply */
+  1,                                               /* caseup_multiply  */
+  1,                                               /* casedn_multiply  */
+  2,                                               /* mbminlen         */
+  2,                                               /* mbmaxlen         */
+  0,                                               /* min_sort_char    */
+  0xFFFF,                                          /* max_sort_char    */
+  ' ',                                             /* pad char         */
+  0,                          /* escape_with_backslash_is_dangerous    */
+  &my_charset_ucs2_handler,
+  &my_collation_ucs2_general_ci_handler
+};
+
 
 CHARSET_INFO my_charset_ucs2_bin=
 {

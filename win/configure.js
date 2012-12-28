@@ -1,6 +1,6 @@
 // Configure.js
 //
-// Copyright (C) 2006 MySQL AB
+// Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 // 
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -101,8 +101,7 @@ try
                          GetValue(configureIn, "DOT_FRM_VERSION") + "\")");
     configfile.WriteLine("SET (MYSQL_TCP_PORT_DEFAULT \"" + default_port + "\")");
     configfile.WriteLine("SET (MYSQL_TCP_PORT \"" + actual_port + "\")");
-    configfile.WriteLine("SET (MYSQL_UNIX_ADDR \"" +
-                         GetValue(configureIn, "MYSQL_UNIX_ADDR_DEFAULT") + "\")");
+    configfile.WriteLine("SET (MYSQL_UNIX_ADDR \"MySQL\")");
     var version = GetVersion(configureIn);
     configfile.WriteLine("SET (VERSION \"" + version + "\")");
     configfile.WriteLine("SET (MYSQL_BASE_VERSION \"" +

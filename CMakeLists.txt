@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,8 +42,7 @@ ADD_DEFINITIONS(-DSHAREDIR="share")
 # Set debug options
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DFORCE_INIT_OF_VARS")
 
-
-SET(localstatedir "C:\\mysql\\data")
+SET(localstatedir "C:\\\\mysql\\\\data\\\\")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-huge.cnf.sh
                ${CMAKE_SOURCE_DIR}/support-files/my-huge.ini @ONLY)
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-innodb-heavy-4G.cnf.sh
@@ -60,6 +59,7 @@ ADD_DEFINITIONS(-D__NT__)
 
 IF(CYBOZU)
   ADD_DEFINITIONS(-DCYBOZU)
+  ADD_DEFINITIONS(-DHAVE_UTF8_GENERAL_CS)
 ENDIF(CYBOZU)
 
 IF(EXTRA_DEBUG)

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -3249,12 +3249,13 @@ loop:
 		goto loop;
 	}
 
-	/* Check that there are no longer transactions. We need this wait even
-	for the 'very fast' shutdown, because the InnoDB layer may have
-	committed or prepared transactions and we don't want to lose them. */
+	/* Check that there are no longer transactions, except for
+	PREPARED ones. We need this wait even for the 'very fast'
+	shutdown, because the InnoDB layer may have committed or
+	prepared transactions and we don't want to lose them. */
 
 	if (trx_n_mysql_transactions > 0
-	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
+	    || UT_LIST_GET_LEN(trx_sys->trx_list) > trx_n_prepared) {
 
 		mutex_exit(&kernel_mutex);
 
