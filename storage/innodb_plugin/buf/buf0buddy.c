@@ -45,13 +45,92 @@ static ulint buf_buddy_n_frames;
 Protected by buf_pool_mutex. */
 UNIV_INTERN buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES + 1];
 
-/** Validate a given zip_free list. */
-#define BUF_BUDDY_LIST_VALIDATE(i)				\
-	UT_LIST_VALIDATE(list, buf_page_t,			\
-			 buf_pool->zip_free[i],			\
-			 ut_ad(buf_page_get_state(		\
-				       ut_list_node_313)	\
-			       == BUF_BLOCK_ZIP_FREE))
+/* In order to avoid malloc on insert into the zip_free trees we use the frames
+themselves as the node storage. This structure defines the value element of
+ib_rbt_node_t nodes in the zip_free trees.
+
+Previously, the code cast the frame pointer to a buf_page_t and used
+state == BUF_BLOCK_ZIP_FREE as a simple verification mechanism. However,
+that verification was of limited usefulness because BUF_BLOCK_ZIP_FREE == 0,
+which is a likely value to be in that memory location even when the frame
+is in use. Therefore, use a magic_num instead, which is less likely to match
+a value should the frame be in use. */
+typedef	struct zip_free_value_struct	zip_free_value_t;
+struct zip_free_value_struct{
+	ulint	magic_n;
+	byte*	frame;
+};
+
+const ulint	ZIP_FREE_MAGIC_N = 957314685;
+
+/**********************************************************************//**
+Compare 2 keys for the zip_free trees. */
+static int buf_buddy_zip_free_cmp(const void* k1, const void* k2)
+{
+	zip_free_value_t* v1 = (zip_free_value_t*)k1;
+	zip_free_value_t* v2 = (zip_free_value_t*)k2;
+
+	ut_ad(v1->magic_n == ZIP_FREE_MAGIC_N);
+	ut_ad(v2->magic_n == ZIP_FREE_MAGIC_N);
+
+	if (v1->frame < v2->frame)
+		return -1;
+	else if (v1->frame > v2->frame)
+		return 1;
+	return 0;
+}
+
+/***********************************************************************//**
+Validate a given zip_free tree. */
+UNIV_INLINE
+void
+buf_buddy_zip_free_validate(ulint i)
+{
+	const ib_rbt_node_t* node;
+	ut_ad(rbt_validate(buf_pool->zip_free[i]));
+	for (node = rbt_first(buf_pool->zip_free[i]);
+	     node != NULL;
+	     node = rbt_next(buf_pool->zip_free[i], node)) {
+		ut_ad(rbt_value(zip_free_value_t, node)->magic_n
+		      == ZIP_FREE_MAGIC_N);
+	}
+}
+
+/**********************************************************************//**
+Initialize the buddy allocator.
+@return	TRUE on success, FALSE on failure */
+UNIV_INTERN
+ibool
+buf_buddy_init(void)
+{
+	uint i;
+	for (i = 0; i <= BUF_BUDDY_SIZES; i++) {
+		/* Not checking return of rbt_create because, if the allocs
+		failed, then rbt_create already SEGV'ed dereferencing the
+		NULL pointers. */
+		buf_pool->zip_free[i] = rbt_create(sizeof(zip_free_value_t),
+						   buf_buddy_zip_free_cmp);
+	}
+	return TRUE;
+}
+
+/**********************************************************************//**
+Frees the buddy allocator at shutdown. */
+UNIV_INTERN
+void
+buf_buddy_shutdown(void)
+{
+	uint i;
+	for (i = 0; i <= BUF_BUDDY_SIZES; i++) {
+		/* Any nodes in the tree are really just pointers to frames in
+		the buffer pool. Thus, remove them from the tree so that the
+		tree doesn't try to free them. */
+		const ib_rbt_node_t* node;
+		while ((node = rbt_first(buf_pool->zip_free[i])))
+			rbt_remove_node(buf_pool->zip_free[i], node);
+		rbt_free(buf_pool->zip_free[i]);
+	}
+}
 
 /**********************************************************************//**
 Get the offset of the buddy of a compressed page frame.
@@ -81,13 +160,25 @@ UNIV_INLINE
 void
 buf_buddy_add_to_free(
 /*==================*/
-	buf_page_t*	bpage,	/*!< in,own: block to be freed */
+	byte*		frame,	/*!< in,own: frame to be freed */
 	ulint		i)	/*!< in: index of buf_pool->zip_free[] */
 {
+	zip_free_value_t	key;
+	const ib_rbt_node_t*	node;
+	zip_free_value_t*	value;
+
 	ut_ad(buf_pool_mutex_own());
-	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
-	ut_ad(buf_pool->zip_free[i].start != bpage);
-	UT_LIST_ADD_FIRST(list, buf_pool->zip_free[i], bpage);
+
+	key.magic_n = ZIP_FREE_MAGIC_N;
+	key.frame = frame;
+
+	ut_ad(rbt_lookup(buf_pool->zip_free[i], &key) == NULL);
+
+	node = rbt_insert_use_mem(buf_pool->zip_free[i], &key, (void*)frame);
+
+	value = rbt_value(zip_free_value_t, node);
+	value->magic_n = ZIP_FREE_MAGIC_N;
+	value->frame = frame;
 }
 
 /**********************************************************************//**
@@ -96,20 +187,24 @@ UNIV_INLINE
 void
 buf_buddy_remove_from_free(
 /*=======================*/
-	buf_page_t*	bpage,	/*!< in: block to be removed */
-	ulint		i)	/*!< in: index of buf_pool->zip_free[] */
+	const ib_rbt_node_t*	node,	/*!< in: node to be removed */
+	ulint			i)	/*!< in: index of
+					buf_rpool->zip_free[] */
 {
 #ifdef UNIV_DEBUG
-	buf_page_t*	prev = UT_LIST_GET_PREV(list, bpage);
-	buf_page_t*	next = UT_LIST_GET_NEXT(list, bpage);
+	const ib_rbt_node_t*	prev = rbt_prev(buf_pool->zip_free[i], node);
+	const ib_rbt_node_t*	next = rbt_next(buf_pool->zip_free[i], node);
 
-	ut_ad(!prev || buf_page_get_state(prev) == BUF_BLOCK_ZIP_FREE);
-	ut_ad(!next || buf_page_get_state(next) == BUF_BLOCK_ZIP_FREE);
+	ut_ad(!prev ||
+	      rbt_value(zip_free_value_t, prev)->magic_n == ZIP_FREE_MAGIC_N);
+	ut_ad(!next ||
+	      rbt_value(zip_free_value_t, next)->magic_n == ZIP_FREE_MAGIC_N);
 #endif /* UNIV_DEBUG */
 
 	ut_ad(buf_pool_mutex_own());
-	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
-	UT_LIST_REMOVE(list, buf_pool->zip_free[i], bpage);
+	ut_ad(rbt_value(zip_free_value_t, node)->magic_n == ZIP_FREE_MAGIC_N);
+	ut_ad(rbt_value(zip_free_value_t, node)->frame == (byte*)node);
+	rbt_remove_node(buf_pool->zip_free[i], node);
 }
 
 /**********************************************************************//**
@@ -121,41 +216,41 @@ buf_buddy_alloc_zip(
 /*================*/
 	ulint	i)	/*!< in: index of buf_pool->zip_free[] */
 {
-	buf_page_t*	bpage;
+	byte*	frame = NULL;
 
 	ut_ad(buf_pool_mutex_own());
 	ut_a(i < BUF_BUDDY_SIZES);
 	ut_a(i >= buf_buddy_get_slot(PAGE_ZIP_MIN_SIZE));
 
-	ut_d(BUF_BUDDY_LIST_VALIDATE(i));
+	ut_d(buf_buddy_zip_free_validate(i));
 
-	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
+	if (rbt_size(buf_pool->zip_free[i])) {
+		const ib_rbt_node_t*	node;
+		node = rbt_first(buf_pool->zip_free[i]);
+		ut_ad(rbt_value(zip_free_value_t, node)->magic_n
+		      == ZIP_FREE_MAGIC_N);
 
-	if (bpage) {
-		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
-
-		buf_buddy_remove_from_free(bpage, i);
+		frame = rbt_value(zip_free_value_t, node)->frame;
+		buf_buddy_remove_from_free(node, i);
 	} else if (i + 1 < BUF_BUDDY_SIZES) {
 		/* Attempt to split. */
-		bpage = buf_buddy_alloc_zip(i + 1);
+		frame = buf_buddy_alloc_zip(i + 1);
 
-		if (bpage) {
-			buf_page_t*	buddy = (buf_page_t*)
-				(((char*) bpage) + (BUF_BUDDY_LOW << i));
+		if (frame) {
+			byte*	buddy = frame + (BUF_BUDDY_LOW << i);
 
 			ut_ad(!buf_pool_contains_zip(buddy));
 			ut_d(memset(buddy, i, BUF_BUDDY_LOW << i));
-			buddy->state = BUF_BLOCK_ZIP_FREE;
 			buf_buddy_add_to_free(buddy, i);
 		}
 	}
 
-	if (bpage) {
-		ut_d(memset(bpage, ~i, BUF_BUDDY_LOW << i));
-		UNIV_MEM_ALLOC(bpage, BUF_BUDDY_SIZES << i);
+	if (frame) {
+		ut_d(memset(frame, ~i, BUF_BUDDY_LOW << i));
+		UNIV_MEM_ALLOC(frame, BUF_BUDDY_SIZES << i);
 	}
 
-	return(bpage);
+	return(frame);
 }
 
 /**********************************************************************//**
@@ -243,16 +338,15 @@ buf_buddy_alloc_from(
 
 	/* Add the unused parts of the block to the free lists. */
 	while (j > i) {
-		buf_page_t*	bpage;
+		byte*	frame;
 
 		offs >>= 1;
 		j--;
 
-		bpage = (buf_page_t*) ((byte*) buf + offs);
-		ut_d(memset(bpage, j, BUF_BUDDY_LOW << j));
-		bpage->state = BUF_BLOCK_ZIP_FREE;
-		ut_d(BUF_BUDDY_LIST_VALIDATE(i));
-		buf_buddy_add_to_free(bpage, j);
+		frame = buf + offs;
+		ut_d(memset(frame, j, BUF_BUDDY_LOW << j));
+		ut_d(buf_buddy_zip_free_validate(i));
+		buf_buddy_add_to_free(frame, j);
 	}
 
 	return(buf);
@@ -432,8 +526,10 @@ buf_buddy_free_low(
 	ulint	i)	/*!< in: index of buf_pool->zip_free[],
 			or BUF_BUDDY_SIZES */
 {
-	buf_page_t*	bpage;
-	buf_page_t*	buddy;
+	const ib_rbt_node_t*	node;
+	byte*			frame;
+	byte*			buddy;
+	zip_free_value_t	key;
 
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));
@@ -445,7 +541,6 @@ buf_buddy_free_low(
 
 recombine:
 	UNIV_MEM_ASSERT_AND_ALLOC(buf, BUF_BUDDY_LOW << i);
-	((buf_page_t*) buf)->state = BUF_BLOCK_ZIP_FREE;
 
 	if (i == BUF_BUDDY_SIZES) {
 		buf_buddy_block_free(buf);
@@ -459,12 +554,12 @@ recombine:
 	/* Do not recombine blocks if there are few free blocks.
 	We may waste up to 15360*max_len bytes to free blocks
 	(1024 + 2048 + 4096 + 8192 = 15360) */
-	if (UT_LIST_GET_LEN(buf_pool->zip_free[i]) < 16) {
+	if (rbt_size(buf_pool->zip_free[i]) < 16) {
 		goto func_exit;
 	}
 
 	/* Try to combine adjacent blocks. */
-	buddy = (buf_page_t*) buf_buddy_get(((byte*) buf), BUF_BUDDY_LOW << i);
+	buddy = buf_buddy_get(((byte*) buf), BUF_BUDDY_LOW << i);
 
 #ifndef UNIV_DEBUG_VALGRIND
 	/* When Valgrind instrumentation is not enabled, we can read
@@ -473,65 +568,67 @@ recombine:
 	page frame that may be flagged uninitialized in our Valgrind
 	instrumentation.  */
 
-	if (buddy->state != BUF_BLOCK_ZIP_FREE) {
+	if (rbt_value(zip_free_value_t, ((ib_rbt_node_t*)buddy))->magic_n
+	    != ZIP_FREE_MAGIC_N) {
 
 		goto buddy_nonfree;
 	}
 #endif /* !UNIV_DEBUG_VALGRIND */
 
-	for (bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]); bpage; ) {
-		ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
-
-		if (bpage == buddy) {
-			/* The buddy is free: recombine */
-			buf_buddy_remove_from_free(bpage, i);
+	key.magic_n = ZIP_FREE_MAGIC_N;
+	key.frame = buddy;
+	node = rbt_lookup(buf_pool->zip_free[i], &key);
+	if (node != NULL) {
+		/* The buddy is free: recombine */
+		buf_buddy_remove_from_free(node, i);
 buddy_is_free:
-			ut_ad(buf_page_get_state(buddy) == BUF_BLOCK_ZIP_FREE);
-			ut_ad(!buf_pool_contains_zip(buddy));
-			i++;
-			buf = ut_align_down(buf, BUF_BUDDY_LOW << i);
+		ut_ad(rbt_value(zip_free_value_t,
+				((ib_rbt_node_t*)buddy))->magic_n
+		      == ZIP_FREE_MAGIC_N);
+		ut_ad(!buf_pool_contains_zip(buddy));
+		i++;
+		buf = ut_align_down(buf, BUF_BUDDY_LOW << i);
 
-			goto recombine;
-		}
-
-		ut_a(bpage != buf);
-		UNIV_MEM_ASSERT_W(bpage, BUF_BUDDY_LOW << i);
-		bpage = UT_LIST_GET_NEXT(list, bpage);
+		goto recombine;
 	}
 
 #ifndef UNIV_DEBUG_VALGRIND
 buddy_nonfree:
 #endif /* !UNIV_DEBUG_VALGRIND */
 
-	ut_d(BUF_BUDDY_LIST_VALIDATE(i));
+	ut_d(buf_buddy_zip_free_validate(i));
 
 	/* The buddy is not free. Is there a free block of this size? */
-	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
-
-	if (bpage) {
+	if (rbt_size(buf_pool->zip_free[i])) {
 
 		/* Remove the block from the free list, because a successful
-		buf_buddy_relocate() will overwrite bpage->list. */
-		buf_buddy_remove_from_free(bpage, i);
+		buf_buddy_relocate() will overwrite the frame. */
+		node = rbt_first(buf_pool->zip_free[i]);
+		buf_buddy_remove_from_free(node, i);
 
 		/* Try to relocate the buddy of buf to the free block. */
-		if (buf_buddy_relocate(buddy, bpage, i)) {
+		if (buf_buddy_relocate(buddy,
+				       rbt_value(zip_free_value_t,
+						 node)->frame,
+				       i)) {
 
-			buddy->state = BUF_BLOCK_ZIP_FREE;
+			rbt_value(zip_free_value_t,
+				  ((ib_rbt_node_t*)buddy))->magic_n =
+			  ZIP_FREE_MAGIC_N;
+
 			goto buddy_is_free;
 		}
 
-		buf_buddy_add_to_free(bpage, i);
+		buf_buddy_add_to_free((byte*)node, i);
 	}
 
 func_exit:
 	/* Free the block to the buddy list. */
-	bpage = buf;
+	frame = buf;
 
 	/* Fill large blocks with a constant pattern. */
-	ut_d(memset(bpage, i, BUF_BUDDY_LOW << i));
-	UNIV_MEM_INVALID(bpage, BUF_BUDDY_LOW << i);
+	ut_d(memset(frame, i, BUF_BUDDY_LOW << i));
+	UNIV_MEM_INVALID(frame, BUF_BUDDY_LOW << i);
 
-	bpage->state = BUF_BLOCK_ZIP_FREE;
-	buf_buddy_add_to_free(bpage, i);
+	buf_buddy_add_to_free(frame, i);
 }

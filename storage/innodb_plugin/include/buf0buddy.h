@@ -35,6 +35,17 @@ Created December 2006 by Marko Makela
 #include "buf0types.h"
 
 /**********************************************************************//**
+Initialize the buddy allocator.
+@return	TRUE on success, FALSE on failure */
+UNIV_INTERN
+ibool
+buf_buddy_init(void);
+/**********************************************************************//**
+Frees the buddy allocator at shutdown. */
+UNIV_INTERN
+void
+buf_buddy_shutdown(void);
+/**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
 buf_pool_mutex and must not hold buf_pool_zip_mutex or any
 block->mutex.  The buf_pool_mutex may be released and reacquired.

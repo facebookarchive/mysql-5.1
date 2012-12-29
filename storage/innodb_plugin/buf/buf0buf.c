@@ -183,7 +183,7 @@ reachable via buf_pool->chunks[].
 
 Note that zip_clean has been made debug only. See the field declaration.
 
-The chains of free memory blocks (buf_pool->zip_free[]) are used by
+The tree of free memory blocks (buf_pool->zip_free[]) are used by
 the buddy allocator (buf0buddy.c) to keep track of currently unused
 memory blocks of size sizeof(buf_page_t)..UNIV_PAGE_SIZE / 2.  These
 blocks are inside the UNIV_PAGE_SIZE-sized memory blocks of type
@@ -1058,13 +1058,18 @@ buf_pool_init(void)
 	--------------------------- */
 	/* All fields are initialized by mem_zalloc(). */
 
+	/* 4. Initialize the buddy allocator fields */
+	if (!buf_buddy_init()) {
+		mem_free(chunk);
+		mem_free(buf_pool);
+		buf_pool = NULL;
+		return(NULL);
+	}
+
 	buf_pool_mutex_exit();
 
 	btr_search_sys_create(buf_pool->curr_size
 			      * UNIV_PAGE_SIZE / sizeof(void*) / 64);
-
-	/* 4. Initialize the buddy allocator fields */
-	/* All fields are initialized by mem_zalloc(). */
 
 	return(buf_pool);
 }
@@ -1096,6 +1101,8 @@ buf_pool_free(void)
 	buf_chunk_t*	chunk;
 	buf_chunk_t*	chunks;
 	buf_page_t*	bpage;
+
+	buf_buddy_shutdown();
 
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 	while (bpage != NULL) {

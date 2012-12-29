@@ -162,6 +162,19 @@ rbt_lookup(
 	const ib_rbt_t*	tree,		/*!< in: rb tree to search */
 	const void*	key);		/*!< in: key to lookup */
 /****************************************************************//**
+Generic insert of a node in the rb tree which avoids malloc by allowing
+the caller to pass in a block of memory to use. The passed block of memory
+must be at least SIZEOF_NODE bytes. The caller should set node->value
+after the insertion.
+@return	inserted node */
+UNIV_INTERN
+const ib_rbt_node_t*
+rbt_insert_use_mem(
+/*=======*/
+	ib_rbt_t*	tree,		/*!< in: rb tree */
+	const void*	key,		/*!< in: key for ordering */
+	void*		mem);		/*!< in: memory to use as the node */
+/****************************************************************//**
 Generic insert of a value in the rb tree.
 @return	inserted node */
 UNIV_INTERN
