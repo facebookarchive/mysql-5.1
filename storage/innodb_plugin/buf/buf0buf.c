@@ -1864,6 +1864,16 @@ loop:
 
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
+		if (mode == BUF_PEEK_IF_IN_POOL) {
+			/* Do not decompress a page if the caller is only peeking to
+			 * see if the page is in the buffer pool.
+			 * In this case, the block object is invalid because
+			 * buf_LRU_free_block() does not allocate a buf_block_t object
+			 * for the half-freed page. We therefore return NULL.
+			 */
+			buf_pool_mutex_exit();
+			return(NULL);
+		}
 		bpage = &block->page;
 		/* Protect bpage->buf_fix_count. */
 		mutex_enter(&buf_pool_zip_mutex);
