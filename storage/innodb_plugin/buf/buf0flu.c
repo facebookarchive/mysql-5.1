@@ -1442,12 +1442,6 @@ flush_next:
 			break;
 		}
 
-		++distance;
-
-		if (distance > search_limit) {
-			break;
-		}
-
 		/* Start from the end of the list looking for a suitable
 		block to be flushed. */
 
@@ -1475,6 +1469,12 @@ flush_next:
 		do {
 			mutex_t*block_mutex = buf_page_get_mutex(bpage);
 			ibool	ready;
+		
+			++distance;
+
+			if (distance > search_limit) {
+				break;
+			}
 
 			ut_a(buf_page_in_file(bpage));
 
