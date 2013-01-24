@@ -21,7 +21,7 @@ index dc2e2bb..3bb0a85 100644
  btr_node_ptr_get_child(
  /*===================*/
 diff --git a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
-index b075eef..d7e2d5d 100644
+index 9598c87..e437a72 100644
 --- a/storage/innodb_plugin/buf/buf0buf.c
 +++ b/storage/innodb_plugin/buf/buf0buf.c
 @@ -450,7 +450,7 @@ buf_page_is_corrupted(
@@ -33,7 +33,7 @@ index b075eef..d7e2d5d 100644
  	if (recv_lsn_checks_on) {
  		ib_uint64_t	current_lsn;
  
-@@ -2120,10 +2120,12 @@ wait_until_unfixed:
+@@ -2137,10 +2137,12 @@ wait_until_unfixed:
  			    buf_block_get_page_no(block)) == 0);
  #endif
  
@@ -46,7 +46,7 @@ index b075eef..d7e2d5d 100644
  	
  	return(block);
  }
-@@ -3025,7 +3027,7 @@ corrupt:
+@@ -3042,7 +3044,7 @@ corrupt:
  			recv_recover_page(TRUE, (buf_block_t*) bpage);
  		}
  
