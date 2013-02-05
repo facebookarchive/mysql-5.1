@@ -874,7 +874,9 @@ buf_read_recv_pages(
 
 		os_aio_print_debug = FALSE;
 
-		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
+		while (buf_pool->n_pend_reads >= min(recv_n_pool_free_frames,
+				UT_LIST_GET_LEN(buf_pool->LRU) +
+				UT_LIST_GET_LEN(buf_pool->free)) / 2) {
 
 			os_aio_simulated_wake_handler_threads();
 			os_thread_sleep(10000);

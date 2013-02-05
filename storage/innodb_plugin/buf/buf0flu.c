@@ -1472,7 +1472,7 @@ flush_next:
 		
 			++distance;
 
-			if (distance > search_limit) {
+			if (distance > search_limit && page_count >= 1) {
 				break;
 			}
 
