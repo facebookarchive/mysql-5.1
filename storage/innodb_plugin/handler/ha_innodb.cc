@@ -12527,7 +12527,7 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
 static MYSQL_SYSVAR_ULONG(sync_pool_size, innobase_sync_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the shared sync pool buffer InnoDB uses to store system lock and condition variables.",
-  NULL, NULL, 1UL, 1UL, ULONG_MAX, 1UL);
+  NULL, NULL, 1024UL, 1UL, ULONG_MAX, 1UL);
 
 static MYSQL_SYSVAR_LONG(ibuf_max_pct_of_buffer_pool, srv_ibuf_max_pct_of_buffer_pool,
   PLUGIN_VAR_RQCMDARG,
