@@ -24,3 +24,4 @@ load data infile '../../std_data/innodb_drop_table_ibuf.dat' into table t2 field
 flush statistics;
 select innodb_buffer_pool_pages from information_schema.table_statistics where table_name = 't1';
 drop table t2;
+set global innodb_background_checkpoint=0;

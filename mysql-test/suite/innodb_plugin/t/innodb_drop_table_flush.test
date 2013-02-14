@@ -38,4 +38,5 @@ flush statistics;
 --query_vertical select innodb_buffer_pool_pages from information_schema.table_statistics where table_name = 't1'
 
 drop table t2;
+set global innodb_background_checkpoint=0;
 

@@ -12505,7 +12505,7 @@ static MYSQL_SYSVAR_BOOL(prepare_commit_mutex, innobase_prepare_commit_mutex,
 static MYSQL_SYSVAR_BOOL(background_checkpoint, srv_background_checkpoint,
   PLUGIN_VAR_NOCMDARG,
   "Make the main background thread flush pages to increase the minimum dirty page LSN",
-  NULL, NULL, TRUE);
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_LONG(background_thread_interval_usecs, srv_background_thread_interval_usecs,
   PLUGIN_VAR_RQCMDARG,

@@ -3259,7 +3259,6 @@ srv_master_thread(
 	ulint		n_ios_very_old;
 	ulint		n_pend_ios;
 	ibool		skip_sleep	= FALSE;
-	ulint		skip_sleep_usecs;
 	ulint		i;
 	my_fast_timer_t	fast_timer;
 
@@ -3304,7 +3303,6 @@ loop:
 
 	srv_last_log_flush_time = time(NULL);
 	skip_sleep = FALSE;
-	skip_sleep_usecs = srv_background_thread_interval_usecs;
 
 	for (i = 0; i < 10; i++) {
 		my_fast_timer_t	loop_timer;
@@ -3314,14 +3312,13 @@ loop:
 
 		if (!skip_sleep) {
 
-			os_thread_sleep(skip_sleep_usecs);
+			os_thread_sleep(srv_background_thread_interval_usecs);
 			srv_main_sleeps++;
-			srv_main_sleep_secs += (skip_sleep_usecs / 1000000.0);
+			srv_main_sleep_secs += (srv_background_thread_interval_usecs / 1000000.0);
 		}
 		my_get_fast_timer(&loop_timer);
 
 		skip_sleep = FALSE;
-		skip_sleep_usecs = 0;
 
 		/* ALTER TABLE in MySQL requires on Unix that the table handler
 		can drop tables lazily after there no longer are SELECT
@@ -3345,8 +3342,6 @@ loop:
 		my_get_fast_timer(&fast_timer);
 		log_free_check();
 		srv_checkpoint_secs += my_fast_timer_diff_now(&fast_timer, NULL);
-
- 		buf_flush_free_margin(FALSE, 0);
 
 		if (!ibuf->empty) {
 			ulint ibuf_soft_limit;
@@ -3397,24 +3392,13 @@ loop:
 				n_pages_flushed = 0;
 			}
 
-		} else if (srv_background_checkpoint) {
+			/* If we had to do the flush, it may have taken
+			even more than 1 second, and also, there may be more
+			to flush. Do not sleep 1 second during the next
+			iteration of this loop. */
 
-			srv_main_thread_op_info =
-				"flushing pages for background checkpoint";
-
-			/* Flush dirty pages with min LSN values that are
-			almost too old. If this is not done, a user thread may
-			have to block doing it. */
-
-			n_pages_flushed = log_checkpoint_margin_background(PCT_IO(100));
-
-		}
-
-		/* This isn't an 'else' branch with the code above because when
-		the srv_background_checkpoint branch does no work, then this
-		block of code should be run. */
-
-		if (!n_pages_flushed && srv_adaptive_flushing) {
+			skip_sleep = TRUE;
+		} else if (srv_adaptive_flushing) {
 
 			/* Try to keep the rate of flushing of dirty
 			pages such that redo log generation does not
@@ -3437,6 +3421,34 @@ loop:
 				if (n_pages_flushed != ULINT_UNDEFINED) {
 					srv_n_flushed_adaptive += n_pages_flushed;
 				}
+
+				if (n_flush == PCT_IO(100)) {
+					skip_sleep = TRUE;
+				}
+			}
+		}
+
+
+		if (srv_background_checkpoint) {
+			/* Reference PCT_IO only once to avoid reading
+			different values from srv_io_capacity. */
+			ulint flushed100 = PCT_IO(100);
+			ulint flushed90 = flushed100 * 0.9;
+
+			if (n_pages_flushed <= flushed90) {
+				srv_main_thread_op_info =
+					"flushing pages for background checkpoint";
+
+				/* Flush dirty pages with min LSN values that are
+				almost too old. If this is not done, a user thread may
+				have to block doing it. */
+
+				n_pages_flushed += log_checkpoint_margin_background(
+							flushed100 - n_pages_flushed);
+
+				if (n_pages_flushed >= flushed90) {
+					skip_sleep = TRUE;
+				}
 			}
 		}
 
@@ -3447,20 +3459,6 @@ loop:
 
 			goto background_loop;
 		}
-
-		/* This loop is supposed to run once per second. Skip the sleep
-		at loop start when the previous iteration ran for more than
-		srv_background_skip_sleep_usecs. */
-
-		{
-			ulint loop_usecs = my_fast_timer_diff_now(&loop_timer, NULL) * 1000000.0;
-			if ((long)loop_usecs >= srv_background_thread_interval_usecs) {
-				skip_sleep = TRUE;
-			} else {
-				skip_sleep_usecs = srv_background_thread_interval_usecs - loop_usecs;
-			}
-		}
-
 	}
 
 	/* ---- We perform the following code approximately once per
