@@ -104,7 +104,7 @@ ibool
 buf_buddy_init(void)
 {
 	uint i;
-	for (i = 0; i <= BUF_BUDDY_SIZES; i++) {
+	for (i = 0; i < BUF_BUDDY_SIZES; i++) {
 		/* Not checking return of rbt_create because, if the allocs
 		failed, then rbt_create already SEGV'ed dereferencing the
 		NULL pointers. */
@@ -121,7 +121,7 @@ void
 buf_buddy_shutdown(void)
 {
 	uint i;
-	for (i = 0; i <= BUF_BUDDY_SIZES; i++) {
+	for (i = 0; i < BUF_BUDDY_SIZES; i++) {
 		/* Any nodes in the tree are really just pointers to frames in
 		the buffer pool. Thus, remove them from the tree so that the
 		tree doesn't try to free them. */
