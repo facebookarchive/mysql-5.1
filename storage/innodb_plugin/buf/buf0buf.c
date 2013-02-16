@@ -1521,6 +1521,7 @@ buf_block_init_low(
 	block->n_fields		= 1;
 	block->n_bytes		= 0;
 	block->left_side	= TRUE;
+	block->db_stats_index = 0;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2489,7 +2490,6 @@ buf_page_init(
 
 	/* Set the state of the block */
 	buf_block_set_file_page(block, space, offset);
-	block->db_stats_index = 0;
 
 #ifdef UNIV_DEBUG_VALGRIND
 	if (!space) {
