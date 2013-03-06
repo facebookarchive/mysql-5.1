@@ -5235,7 +5235,12 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         rli->group_master_log_name,
                         (ulong) rli->group_master_log_pos));
     memcpy(rli->group_master_log_name, new_log_ident, ident_len+1);
-    rli->notify_group_master_log_name_update();
+    /*
+      Don't invalidate the cache if special relay-log rotate event is
+      encountered.
+    */
+    if (server_id != (uint32) MASTER_INFO_SERVER_ID)
+      rli->notify_group_master_log_name_update();
     rli->inc_group_relay_log_pos(pos, TRUE /* skip_lock */);
     DBUG_PRINT("info", ("new group_master_log_name: '%s'  "
                         "new group_master_log_pos: %lu",
