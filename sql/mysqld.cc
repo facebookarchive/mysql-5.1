@@ -667,12 +667,10 @@ ulong reserved_super_connections=0;
 
 ulong check_client_interval_msecs= 1000;
 
+/* This cannot be set dynamically to reduce CPU cost */
 my_bool admission_control= FALSE;
 my_bool admission_control_diskio= TRUE;
 my_bool admission_control_wait_reentry= TRUE;
-/* Set to true when bug in admission control state encountered to avoid
-   a crash from asserts */
-my_bool admission_control_disabled= FALSE;
 
 /* These are not in mysql_priv.h to reduce header dependencies */
 extern my_atomic_bigint admission_control_waits;
@@ -7778,15 +7776,6 @@ show_innodb_max_slots_allowed(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static int
-show_admission_control_disabled(THD *thd, SHOW_VAR *var, char *buff)
-{
-  var->type= SHOW_BOOL;
-  var->value= buff;
-  *((my_bool *)buff)= admission_control_disabled;
-  return 0;
-}
-
 #ifdef HAVE_JEMALLOC
 static int show_jemalloc_sizet(THD *thd, SHOW_VAR *var, char *buff,
                                const char* stat_name)
@@ -8330,7 +8319,6 @@ SHOW_VAR status_vars[]= {
   {"Connections",              (char*) &thread_id,              SHOW_LONG_NOFLUSH},
   {"Connection_recycle_count", (char*) &connection_recycle_count,SHOW_LONG},
   {"Connection_recycle_idle_time_ms",(char*) &connection_recycle_idle_time_ms,SHOW_LONG},
-  {"Control_admission_disabled",  (char*) &show_admission_control_disabled,   SHOW_FUNC},
   {"Control_admission_waits",     (char*) &admission_control_waits,      SHOW_LONGLONG},
   {"Control_transaction_fails",   (char*) &transaction_control_fails,    SHOW_LONGLONG},
   {"Control_transaction_disabled",(char*) &show_transaction_control_disabled, SHOW_FUNC},
@@ -8699,7 +8687,6 @@ static int mysql_init_variables(void)
   admission_control= FALSE;
   admission_control_diskio= TRUE;
   admission_control_wait_reentry= FALSE;
-  admission_control_disabled= FALSE;
 
   transaction_control_disabled= FALSE;
 

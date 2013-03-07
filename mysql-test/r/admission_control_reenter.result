@@ -1,9 +1,6 @@
 show global variables like "admission_control";
 Variable_name	Value
 admission_control	ON
-show global status like "Control_admission_disabled";
-Variable_name	Value
-Control_admission_disabled	OFF
 grant all on *.* to 'adminc'@'%' with max_concurrent_queries 2 max_user_connections 4;
 select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
 User	Host	max_user_connections	max_concurrent_queries
@@ -42,9 +39,9 @@ sleep(1)
 0
 sleep(1)
 0
-show global status like "Control_admission_disabled";
+show global variables like "admission_control";
 Variable_name	Value
-Control_admission_disabled	OFF
+admission_control	ON
 drop user 'adminc'@'%';
 SET DEBUG_SYNC= 'RESET';
 select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';

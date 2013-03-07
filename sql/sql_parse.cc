@@ -8757,14 +8757,14 @@ bool parse_sql(THD *thd,
 static __thread int admission_depth = 0;
 
 AdmissionControlVerifier::AdmissionControlVerifier() {
-  if (!admission_control_disabled)
+  if (admission_control)
     assert(admission_depth == 0);
 
   initial_depth_ = admission_depth;
 }
 
 AdmissionControlVerifier::~AdmissionControlVerifier() {
-  if (admission_control_disabled)
+  if (!admission_control)
     return;
 
   if (admission_depth != initial_depth_) {
@@ -8781,11 +8781,11 @@ AdmissionControlBarrier::AdmissionControlBarrier(THD* thd) : thd_(thd), entered_
 
   DBUG_EXECUTE_IF("enable_admission_control", {
                   fprintf(stderr, "reset ac: r %d\n", (int)uc->queries_running);
-                  admission_control_disabled= FALSE;
+                  admission_control= TRUE;
                   uc->queries_running= 0;
                   uc->queries_waiting= 0; });
 
-  if (!uc || admission_control_disabled)
+  if (!uc || !admission_control)
   {
      thd->uses_admission_control = QUERY_NOT_SCHEDULED;
   }
@@ -8841,7 +8841,7 @@ int admission_control_enter(THD* thd, my_bool wait)
   DBUG_ENTER("admission_control_enter");
 
   if (thd->uses_admission_control == QUERY_NOT_SCHEDULED ||
-      admission_control_disabled)
+      !admission_control)
   {
     DBUG_RETURN(0);
   }
@@ -8875,7 +8875,7 @@ int admission_control_enter(THD* thd, my_bool wait)
 
   if (thd->uses_admission_control != QUERY_SCHEDULED)
   {
-    admission_control_disabled= TRUE;
+    admission_control= FALSE;
     sql_print_error("admission_control disabled on entry because "
                     "THD::uses_admission_control is %d",
                     thd->uses_admission_control);
@@ -8897,7 +8897,7 @@ int admission_control_enter(THD* thd, my_bool wait)
     int32 nr;
     struct timespec abstime;
 
-    if (admission_control_disabled)
+    if (!admission_control)
     {
       thd->proc_info= old_msg;
       DBUG_RETURN(0);
@@ -8969,12 +8969,12 @@ int admission_control_enter(THD* thd, my_bool wait)
 
     --uc->queries_waiting;
 
-    DBUG_ASSERT(admission_control_disabled || uc->queries_waiting >= 0);
+    DBUG_ASSERT(!admission_control || uc->queries_waiting >= 0);
     DBUG_EXECUTE_IF("ac_enter_bad_waiting", uc->queries_waiting= -9999; );
 
     if (uc->queries_waiting < 0)
     {
-      admission_control_disabled= TRUE;
+      admission_control= FALSE;
       sql_print_error("admission_control disabled on entry because "
                       "queries_waiting is %d", uc->queries_waiting);
     }
@@ -8990,7 +8990,7 @@ void admission_control_exit(THD* thd)
   DBUG_ENTER("admission_control_exit");
 
   if (thd->uses_admission_control == QUERY_NOT_SCHEDULED ||
-      admission_control_disabled)
+      !admission_control)
   {
     DBUG_VOID_RETURN;
   }
@@ -9010,7 +9010,7 @@ void admission_control_exit(THD* thd)
 
   if (qrp1 < 1)
   {
-    admission_control_disabled= TRUE;
+    admission_control= FALSE;
     sql_print_error("admission_control disabled on exit because "
                     "queries_running is %d", qrp1 - 1);
     DBUG_VOID_RETURN;
@@ -9025,7 +9025,7 @@ void admission_control_exit(THD* thd)
 
   if (thd->uses_admission_control != QUERY_SCHEDULED)
   {
-    admission_control_disabled= TRUE;
+    admission_control= FALSE;
     sql_print_error("admission_control disabled on exit because "
                     "THD::uses_admission_control is %d",
                     thd->uses_admission_control);

@@ -8,7 +8,6 @@
 --source include/have_debug_sync.inc
 
 show global variables like "admission_control";
-show global status like "Control_admission_disabled";
 
 grant all on *.* to 'adminc'@'%' with max_concurrent_queries 2 max_user_connections 4;
 select User, Host, max_user_connections, max_concurrent_queries from mysql.user where User = 'adminc';
@@ -81,7 +80,7 @@ connection ac4;
 reap;
 
 connection default;
-show global status like "Control_admission_disabled";
+show global variables like "admission_control";
 disconnect ac1;
 disconnect ac3;
 disconnect ac4;

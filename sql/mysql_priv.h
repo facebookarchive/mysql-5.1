@@ -2203,7 +2203,6 @@ extern ulong check_client_interval_msecs;
 extern my_bool admission_control;
 extern my_bool admission_control_diskio;
 extern my_bool admission_control_wait_reentry;
-extern my_bool admission_control_disabled;
 extern my_bool transaction_control_disabled;
 
 extern ulong binlog_fsync_slow_usecs;

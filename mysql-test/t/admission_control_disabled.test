@@ -1,12 +1,11 @@
 #
-# test admission_control_disabled code paths
+# test admission_control disabled code paths
 #
 --source include/have_debug.inc
 
 call mtr.add_suppression("admission_control disabled.*");
 
 show global variables like "admission_control";
-show global status like "Control_admission_disabled";
 
 grant all on *.* to 'adminc1'@'%' with max_concurrent_queries 1 max_user_connections 100;
 grant all on *.* to 'adminc2'@'%' with max_concurrent_queries 1 max_user_connections 100;
@@ -27,7 +26,6 @@ select 1;
 connection default;
 --echo admission_control should be disabled
 show global variables like "admission_control";
-show global status like "Control_admission_disabled";
 
 disconnect c1;
 --echo sleep long enough that disconnect will be done
@@ -37,7 +35,6 @@ sleep 1;
 SET DEBUG="d,enable_admission_control";
 select 1;
 SET DEBUG="reset";
-show global status like "Control_admission_disabled";
 
 #
 --echo test bad value of queries_waiting in admission_control_entry
@@ -67,7 +64,6 @@ SET DEBUG='RESET';
 connection default;
 --echo admission_control should be disabled
 show global variables like "admission_control";
-show global status like "Control_admission_disabled";
 
 disconnect c1;
 disconnect c2;
@@ -78,7 +74,7 @@ sleep 1;
 SET DEBUG="d,enable_admission_control";
 select 1;
 SET DEBUG="reset";
-show global status like "Control_admission_disabled";
+show global variables like "admission_control";
 
 #
 --echo test bad value for queries_running in admission_control_exit
@@ -92,7 +88,6 @@ select 1;
 connection default;
 --echo admission_control should be disabled
 show global variables like "admission_control";
-show global status like "Control_admission_disabled";
 
 disconnect c1;
 --echo sleep long enough that disconnect will be done
@@ -102,7 +97,7 @@ sleep 1;
 SET DEBUG="d,enable_admission_control";
 select 1;
 SET DEBUG="reset";
-show global status like "Control_admission_disabled";
+show global variables like "admission_control";
 
 #
 --echo test bad state in admission_control_exit
@@ -116,7 +111,6 @@ select 1;
 connection default;
 --echo admission_control should be disabled
 show global variables like "admission_control";
-show global status like "Control_admission_disabled";
 
 disconnect c1;
 
@@ -127,7 +121,7 @@ disconnect c1;
 connect (c1, localhost, adminc5,,);
 connect (c2, localhost, adminc5,,);
 
-show global status like "Control_admission_disabled";
+show global variables like "admission_control";
 
 select variable_value into @waits1 from information_schema.global_status
 where variable_name = 'Control_admission_waits';
@@ -174,11 +168,10 @@ drop user 'adminc5'@'%';
 
 --echo sleep long enough that disconnect will be done
 sleep 1;
---echo reset admission_control_disabled
+--echo reset admission_control
 SET DEBUG="d,enable_admission_control";
 select 1;
 show global variables like "admission_control";
-show global status like "Control_admission_disabled";
 
 SET DEBUG_SYNC= 'RESET';
 SET DEBUG='RESET';
