@@ -24,7 +24,7 @@ extern "C" void free_db_stats(DB_STATS* db_stats)
 void init_global_db_stats()
 {
   pthread_mutex_init(&LOCK_global_db_stats, MY_MUTEX_INIT_FAST);
-  global_db_stats_array = (DB_STATS*)my_malloc(MAX_DB_STATS_ENTRIES * sizeof(DB_STATS), MYF(MY_WME));
+  global_db_stats_array = (DB_STATS*)my_malloc((MAX_DB_STATS_ENTRIES + 1) * sizeof(DB_STATS), MYF(MY_WME));
   if (hash_init(&global_db_stats_hash, system_charset_info, max_connections,
                 0, 0, (hash_get_key)get_key_db_stats,
                 (hash_free_key)free_db_stats, 0)) {
