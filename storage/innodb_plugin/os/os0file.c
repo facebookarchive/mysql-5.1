@@ -39,6 +39,9 @@ Created 10/21/1995 Heikki Tuuri
 #include "fil0fil.h"
 #include "buf0buf.h"
 #include "btr0btr.h"
+#ifdef UNIV_DEBUG
+#include "log0log.h"
+#endif /*UNIV_DEBUG*/
 #include "m_string.h"
 #include "my_sys.h"
 #ifndef UNIV_HOTBACKUP
@@ -249,6 +252,8 @@ UNIV_INTERN ulint	os_file_n_pending_pwrites = 0;
 UNIV_INTERN ulint	os_n_pending_writes = 0;
 /** Number of pending read operations */
 UNIV_INTERN ulint	os_n_pending_reads = 0;
+
+ulint os_file_trx_log_write_padding_end = 0;
 
 UNIV_INLINE
 void
@@ -2758,7 +2763,7 @@ Requests a synchronous write operation.
 @return	TRUE if request was successful, FALSE if fail */
 UNIV_INTERN
 ibool
-os_file_write(
+os_file_write_func(
 /*==========*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
@@ -2768,7 +2773,8 @@ os_file_write(
 				offset where to write */
 	ulint		offset_high, /*!< in: most significant 32 bits of
 				offset */
-	ulint		n)	/*!< in: number of bytes to write */
+	ulint		n,	/*!< in: number of bytes to write */
+	ulint		file_pad)/*!< in: none-zero if pad log write */
 {
 #ifdef __WIN__
 	BOOL		ret;
@@ -2912,6 +2918,26 @@ retry:
 	ssize_t	ret;
 	ibool first = TRUE;
 
+	if (srv_trx_log_write_block_size && file_pad) {
+          fprintf(stderr, "offset = %lu len = %lu\n", offset, n);
+		if (((offset + srv_trx_log_write_block_size - 1)
+		     / srv_trx_log_write_block_size)
+		    != ((offset + n + srv_trx_log_write_block_size - 1)
+			/ srv_trx_log_write_block_size)) {
+			// needs padding
+			ulint pad = ut_calc_align(offset + n,
+						  srv_trx_log_write_block_size);
+                        fprintf(stderr, "offset = %lu, pad = %lu, old = %lu\n", offset, pad, os_file_trx_log_write_padding_end);
+			if (pad != os_file_trx_log_write_padding_end) {
+				os_file_trx_log_write_padding_end = pad;
+#ifdef UNIV_DEBUG
+				log_update_padding(pad - offset - n);
+#endif /*UNIV_DEBUG*/
+				n = pad - offset;
+			}
+		}
+	}
+
 retry_pwrite:
 
 	ret = os_file_pwrite(file, buf, n, offset, offset_high);
@@ -2965,6 +2991,26 @@ retry_pwrite:
 
 	return(FALSE);
 #endif
+}
+
+/*******************************************************************//**
+Requests a synchronous write operation.
+@return	TRUE if request was successful, FALSE if fail */
+UNIV_INTERN
+ibool
+os_file_write(
+/*==========*/
+	const char*	name,	/*!< in: name of the file or path as a
+				null-terminated string */
+	os_file_t	file,	/*!< in: handle to a file */
+	const void*	buf,	/*!< in: buffer from which to write */
+	ulint		offset,	/*!< in: least significant 32 bits of file
+				offset where to write */
+	ulint		offset_high, /*!< in: most significant 32 bits of
+				offset */
+	ulint		n)	/*!< in: number of bytes to write */
+{
+	return os_file_write_func(name, file, buf, offset, offset_high, n, 0);
 }
 
 /*******************************************************************//**
@@ -3866,6 +3912,7 @@ os_aio(
 	ulint		wake_later;
 	ulint		is_log_write;
 	ulint		is_double_write;
+	ulint		is_file_pad;
 	dulint		index_id;
 
 	ut_ad(file);
@@ -3880,10 +3927,11 @@ os_aio(
 
 	is_log_write = mode & OS_FILE_LOG;
 	is_double_write = mode & OS_AIO_DOUBLE_WRITE;
+	is_file_pad = mode & OS_FILE_PAD;
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
 
 	mode = mode & ~(OS_AIO_SIMULATED_WAKE_LATER |
-			OS_FILE_LOG |
+			OS_FILE_LOG | OS_FILE_PAD |
 			OS_AIO_DOUBLE_WRITE);
 
 	if (mode == OS_AIO_SYNC
@@ -3907,8 +3955,9 @@ os_aio(
 							offset_high, n);
 		} else {
 			ut_a(type == OS_FILE_WRITE);
-			r = os_file_write(name, file, buf, offset,
-							offset_high, n);
+			r = os_file_write_func(name, file, buf, offset,
+							offset_high, n,
+							is_file_pad);
 		}
 		my_get_fast_timer(&end_timer);
 		elapsed_secs = my_fast_timer_diff(&start_timer, &end_timer);

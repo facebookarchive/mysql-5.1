@@ -151,6 +151,7 @@ log. */
 #define OS_FILE_READ	10
 #define OS_FILE_WRITE	11
 
+#define OS_FILE_PAD    128
 #define OS_FILE_LOG	256	/* This can be ORed to type */
 /* @} */
 

@@ -5538,6 +5538,7 @@ _fil_io(
 	ibool		ret;
 	ulint		is_log;
 	ulint		io_flags;
+	ulint		is_file_pad;
 
 	io_flags = type & OS_AIO_SIMULATED_WAKE_LATER;
 	type = type & ~OS_AIO_SIMULATED_WAKE_LATER;
@@ -5545,6 +5546,10 @@ _fil_io(
 	is_log = type & OS_FILE_LOG;
 	io_flags |= is_log;
 	type = type & ~OS_FILE_LOG;
+
+	is_file_pad = type & OS_FILE_PAD;
+	io_flags |= is_file_pad;
+	type = type & ~OS_FILE_PAD;
 
 	io_flags |= (type & OS_AIO_DOUBLE_WRITE);
 	type = type & ~OS_AIO_DOUBLE_WRITE;

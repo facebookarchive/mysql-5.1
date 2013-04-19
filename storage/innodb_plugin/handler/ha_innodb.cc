@@ -799,6 +799,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_log_sync_flush_dirty,       SHOW_LONG},
   {"log_sync_other",
   (char*) &export_vars.innodb_log_sync_other,             SHOW_LONG},
+#ifdef UNIV_DEBUG
+  {"log_write_padding",
+  (char*) &export_vars.innodb_log_write_padding,        SHOW_LONG},
+#endif /*UNIV_DEBUG*/
   {"lru_restore_loaded_pages",
   (char*) &export_vars.innodb_lru_restore_loaded_pages,   SHOW_LONG},
   {"lru_restore_total_pages",
@@ -12848,6 +12852,14 @@ static MYSQL_SYSVAR_ULONG(lru_load_max_entries, srv_lru_load_max_entries,
   "load more pages than this number of LRU entries.",
   NULL, NULL, 512*1024UL, 1UL, ULONG_MAX, 0);
 
+static MYSQL_SYSVAR_ULONG(trx_log_write_block_size,
+  srv_trx_log_write_block_size,
+  PLUGIN_VAR_RQCMDARG,
+  "Transaction log write block size. Configure this to be the size of the OS "
+  "file system block size will reduce the extra read during log writes."
+  "Set to 0 to disable this feature.",
+  NULL, NULL, 4096, 0, 16384, 0);
+
 static MYSQL_SYSVAR_ULONG(sync_checkpoint_limit, srv_sync_checkpoint_limit,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "This is a percentage and is used to override the sync and async checkpoint "
@@ -13079,6 +13091,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering_debug),
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
   MYSQL_SYSVAR(random_read_ahead),
+  MYSQL_SYSVAR(trx_log_write_block_size),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(auto_lru_dump),

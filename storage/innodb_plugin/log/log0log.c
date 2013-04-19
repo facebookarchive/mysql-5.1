@@ -831,6 +831,10 @@ log_init(void)
 
 	log_sys->n_pending_writes = 0;
 
+#ifdef UNIV_DEBUG
+	log_sys->log_write_padding = 0;
+#endif /*UNIV_DEBUG*/
+
 	{
 		int x;
 		for (x = 0; x < LOG_WRITE_FROM_NUMBER; ++x) {
@@ -1334,7 +1338,8 @@ loop:
 
 		srv_os_log_pending_writes++;
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id, 0,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG | OS_FILE_PAD,
+		       TRUE, group->space_id, 0,
 		       next_offset / UNIV_PAGE_SIZE,
 		       next_offset % UNIV_PAGE_SIZE, write_len, buf, group);
 
@@ -3570,6 +3575,12 @@ log_print(
 		((log_sys->n_log_ios - log_sys->n_log_ios_old)
 		 / time_elapsed),
 		log_sys->n_syncs, log_sys->n_checkpoints);
+
+#ifdef UNIV_DEBUG
+	fprintf(file,
+		"%lu log write padding blocks\n",
+		log_sys->log_write_padding);
+#endif /* UNIV_DEBUG */
 
 	fprintf(file,
 		"log sync callers: %lu buffer pool, background %lu sync and %lu async, "
