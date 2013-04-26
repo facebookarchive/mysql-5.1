@@ -1451,11 +1451,11 @@ Calculates a split record such that the tuple will certainly fit on
 its half-page when the split is performed. We assume in this function
 only that the cursor page has at least one user record.
 @return split record, or NULL if tuple will be the first record on
-upper half-page */
+the lower or upper half-page (determined by btr_page_tuple_smaller()) */
 static
 rec_t*
-btr_page_get_sure_split_rec(
-/*========================*/
+btr_page_get_split_rec(
+/*===================*/
 	btr_cur_t*	cursor,	/*!< in: cursor at which insert should be made */
 	const dtuple_t*	tuple,	/*!< in: tuple to insert */
 	ulint		n_ext)	/*!< in: number of externally stored columns */
@@ -1932,11 +1932,12 @@ func_start:
 	/* 1. Decide the split record; split_rec == NULL means that the
 	tuple to be inserted should be the first record on the upper
 	half-page */
+	insert_left = FALSE;
 
 	if (n_iterations > 0) {
 		direction = FSP_UP;
 		hint_page_no = page_no + 1;
-		split_rec = btr_page_get_sure_split_rec(cursor, tuple, n_ext);
+		split_rec = btr_page_get_split_rec(cursor, tuple, n_ext);
 
 		if (UNIV_UNLIKELY(split_rec == NULL)) {
 			insert_left = btr_page_tuple_smaller(
@@ -1945,7 +1946,6 @@ func_start:
 	} else if (btr_page_get_split_rec_to_right(cursor, &split_rec)) {
 		direction = FSP_UP;
 		hint_page_no = page_no + 1;
-		insert_left = FALSE;
 
 	} else if (btr_page_get_split_rec_to_left(cursor, &split_rec)) {
 		direction = FSP_DOWN;
@@ -1968,12 +1968,8 @@ func_start:
 				page_get_infimum_rec(page));
 		} else {
 			split_rec = NULL;
-			insert_left = FALSE;
 		}
 	}
-
-	/* At this point, insert_left is initialized if split_rec == NULL
-	and may be uninitialized otherwise. */
 
 	/* 2. Allocate a new page to the index */
 	new_block = btr_page_alloc(cursor->index, hint_page_no, direction,
@@ -2097,12 +2093,12 @@ insert_empty:
 
 			page_delete_rec_list_start(move_limit, block,
 						   cursor->index, mtr);
-		} else {
-			lock_update_split_left(block, new_block);
 		}
 
 		left_block = new_block;
 		right_block = block;
+
+		lock_update_split_left(right_block, left_block);
 #ifdef UNIV_BTR_AVOID_COPY
 	} else if (!split_rec) {
 		/* Instead of moving all records, make the new page

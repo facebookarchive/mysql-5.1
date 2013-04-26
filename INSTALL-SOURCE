@@ -467,8 +467,8 @@ Important
 shell> md5sum package_name
 
    Example:
-shell> md5sum mysql-standard-5.1.46-linux-i686.tar.gz
-aaab65abbec64d5e907dcd41b8699945  mysql-standard-5.1.46-linux-i686.ta
+shell> md5sum mysql-standard-5.1.48-linux-i686.tar.gz
+aaab65abbec64d5e907dcd41b8699945  mysql-standard-5.1.48-linux-i686.ta
 r.gz
 
    You should verify that the resulting checksum (the string of
@@ -586,8 +586,8 @@ pg-signature.html
    signature, which also is available from the download page. The
    signature file has the same name as the distribution file with an
    .asc extension, as shown by the examples in the following table.
-   Distribution file mysql-standard-5.1.46-linux-i686.tar.gz
-   Signature file    mysql-standard-5.1.46-linux-i686.tar.gz.asc
+   Distribution file mysql-standard-5.1.48-linux-i686.tar.gz
+   Signature file    mysql-standard-5.1.48-linux-i686.tar.gz.asc
 
    Make sure that both files are stored in the same directory and
    then run the following command to verify the signature for the
@@ -595,7 +595,7 @@ pg-signature.html
 shell> gpg --verify package_name.asc
 
    Example:
-shell> gpg --verify mysql-standard-5.1.46-linux-i686.tar.gz.asc
+shell> gpg --verify mysql-standard-5.1.48-linux-i686.tar.gz.asc
 gpg: Signature made Tue 12 Jul 2005 23:35:41 EST using DSA key ID 507
 2E1F5
 gpg: Good signature from "MySQL Package signing key (www.mysql.com) <
@@ -615,8 +615,8 @@ build@mysql.com>"
 shell> rpm --checksig package_name.rpm
 
    Example:
-shell> rpm --checksig MySQL-server-5.1.46-0.glibc23.i386.rpm
-MySQL-server-5.1.46-0.glibc23.i386.rpm: md5 gpg OK
+shell> rpm --checksig MySQL-server-5.1.48-0.glibc23.i386.rpm
+MySQL-server-5.1.48-0.glibc23.i386.rpm: md5 gpg OK
 
 Note
 
@@ -727,7 +727,7 @@ shell> rpm --import mysql_pubkey.asc
 
    MySQL tar file binary distributions have names of the form
    mysql-VERSION-OS.tar.gz, where VERSION is a number (for example,
-   5.1.46), and OS indicates the type of operating system for which
+   5.1.48), and OS indicates the type of operating system for which
    the distribution is intended (for example, pc-linux-i686).
 
    In addition to these generic packages, we also offer binaries in
@@ -921,7 +921,7 @@ Note
 
    MySQL source distributions are provided as compressed tar archives
    and have names of the form mysql-VERSION.tar.gz, where VERSION is
-   a number like 5.1.46.
+   a number like 5.1.48.
 
    You need the following tools to build and install MySQL from
    source:
@@ -1449,7 +1449,7 @@ shell> ./configure --with-collation=COLLATION
           + all to include all character sets into the binaries
        Clients that want to convert characters between the server and
        the client should use the SET NAMES statement. See Section
-       5.1.5, "Session System Variables," and Section 9.1.4,
+       5.1.4, "Server System Variables," and Section 9.1.4,
        "Connection Character Sets and Collations."
 
      * To configure MySQL with debugging code, use the --with-debug
@@ -2000,9 +2000,9 @@ implicit declaration of function `int strtoul(...)'
    upgrade from a release series previous to MySQL 5.0, upgrade to
    each successive release series in turn until you have reached
    MySQL 5.0, and then proceed with the upgrade to MySQL 5.1. For
-   example, if you currently are running MySQL 4.0 and wish to
-   upgrade to a newer series, upgrade to MySQL 4.1 first before
-   upgrading to 5.0, and so forth. For information on upgrading to
+   example, if you currently are running MySQL 4.1 and wish to
+   upgrade to a newer series, upgrade to MySQL 5.0 first before
+   upgrading to 5.1, and so forth. For information on upgrading to
    MySQL 5.0, see the MySQL 5.0 Reference Manual; for earlier
    releases, see the MySQL 3.23, 4.0, 4.1 Reference Manual.
 
@@ -2032,7 +2032,7 @@ implicit declaration of function `int strtoul(...)'
        provides information about features that are new in MySQL 5.1
        or differ from those found in MySQL 5.0.
 
-     * After you upgrade to a new version of MySQL, run mysql_upgrade
+     * After upgrading to a new version of MySQL, run mysql_upgrade
        (see Section 4.4.8, "mysql_upgrade --- Check Tables for MySQL
        Upgrade"). This program checks your tables, and attempts to
        repair them if necessary. It also updates your grant tables to
@@ -2041,14 +2041,14 @@ implicit declaration of function `int strtoul(...)'
        MySQL introduce changes to the structure of the grant tables
        to add new privileges or features.)
 
-     * If you are running MySQL Server on Windows, see Section 2.5.7,
+     * If you run MySQL Server on Windows, see Section 2.5.7,
        "Upgrading MySQL on Windows."
 
-     * If you are using replication, see Section 16.4.3, "Upgrading a
+     * If you use replication, see Section 16.4.3, "Upgrading a
        Replication Setup," for information on upgrading your
        replication setup.
 
-     * If you are upgrading an installation originally produced by
+     * If you upgrade an installation originally produced by
        installing multiple RPM packages, it is best to upgrade all
        the packages, not just some. For example, if you previously
        installed the server and client RPMs, do not upgrade just the
@@ -2159,19 +2159,17 @@ Note
             found in MySQL 5.0. Some of these changes may result in
             incompatibilities. See Section C.1, "Changes in Release
             5.1.x (Production)."
-
-     * Note particularly any changes that are marked Known issue or
+       Note particularly any changes that are marked Known issue or
        Incompatible change. These incompatibilities with earlier
        versions of MySQL may require your attention before you
-       upgrade.
-       Our aim is to avoid these changes, but occasionally they are
-       necessary to correct problems that would be worse than an
-       incompatibility between releases. If any upgrade issue
+       upgrade. Our aim is to avoid these changes, but occasionally
+       they are necessary to correct problems that would be worse
+       than an incompatibility between releases. If any upgrade issue
        applicable to your installation involves an incompatibility
        that requires special handling, follow the instructions given
-       in the incompatibility description. Often this will involve a
-       dump and reload, or use of a statement such as CHECK TABLE or
-       REPAIR TABLE.
+       in the incompatibility description. Often this will involve
+       dumping and reloading tables, or use of a statement such as
+       CHECK TABLE or REPAIR TABLE.
        For dump and reload instructions, see Section 2.4.4,
        "Rebuilding or Repairing Tables or Indexes." Any procedure
        that involves REPAIR TABLE with the USE_FRM option must be
@@ -2180,7 +2178,17 @@ Note
        is, using it after upgrading) may damage the table. See
        Section 12.4.2.6, "REPAIR TABLE Syntax."
 
-     * After you upgrade to a new version of MySQL, run mysql_upgrade
+     * Before upgrading to a new version of MySQL, Section 2.4.3,
+       "Checking Whether Tables or Indexes Must Be Rebuilt," to see
+       whether changes to table formats or to character sets or
+       collations were made between your current version of MySQL and
+       the version to which you are upgrading. If so and these
+       changes result in an incompatibility between MySQL versions,
+       you will need to upgrade the affected tables using the
+       instructions in Section 2.4.4, "Rebuilding or Repairing Tables
+       or Indexes."
+
+     * After upgrading to a new version of MySQL, run mysql_upgrade
        (see Section 4.4.8, "mysql_upgrade --- Check Tables for MySQL
        Upgrade"). This program checks your tables, and attempts to
        repair them if necessary. It also updates your grant tables to
@@ -2189,19 +2197,10 @@ Note
        MySQL introduce changes to the structure of the grant tables
        to add new privileges or features.)
 
-     * Check Section 2.4.3, "Checking Whether Tables or Indexes Must
-       Be Rebuilt," to see whether changes to table formats or to
-       character sets or collations were made between your current
-       version of MySQL and the version to which you are upgrading.
-       If so and these changes result in an incompatibility between
-       MySQL versions, you will need to upgrade the affected tables
-       using the instructions in Section 2.4.4, "Rebuilding or
-       Repairing Tables or Indexes."
-
-     * If you are running MySQL Server on Windows, see Section 2.5.7,
+     * If you run MySQL Server on Windows, see Section 2.5.7,
        "Upgrading MySQL on Windows."
 
-     * If you are using replication, see Section 16.4.3, "Upgrading a
+     * If you use replication, see Section 16.4.3, "Upgrading a
        Replication Setup," for information on upgrading your
        replication setup.
 
@@ -2226,7 +2225,8 @@ Note
    http://www.mysql.com/products/enterprise/advisors.html.
 
    The following lists describe changes that may affect applications
-   and that you should watch out for when upgrading to MySQL 5.1.
+   and that you should watch out for when upgrading from MySQL 5.0 to
+   5.1.
 
    Configuration Changes:
 
@@ -2612,7 +2612,7 @@ REPAIR TABLE tbl_name QUICK;
        runtime, so the distinction between disabled and invalid
        storage engines no longer applies. As of MySQL 5.1.12, this
        affects the NO_ENGINE_SUBSTITUTION SQL mode, as described in
-       Section 5.1.8, "Server SQL Modes."
+       Section 5.1.7, "Server SQL Modes."
 
      * Incompatible change: The structure of FULLTEXT indexes has
        been changed in MySQL 5.1.6. After upgrading to MySQL 5.1.6 or
@@ -2707,7 +2707,7 @@ DELETE FROM t1 AS a2 USING t1 AS a1 INNER JOIN t2 AS a2;
        still accepted as a synonym for the ENGINE = engine_name table
        option but generates a warning. You should note that this
        option is not available in MySQL 5.1.7, and is removed
-       altogether as of MySQL 5.4 and produces a syntax error.
+       altogether in MySQL 5.5 and produces a syntax error.
        TYPE has been deprecated since MySQL 4.0.
 
      * Incompatible change: The namespace for triggers changed in
@@ -3384,7 +3384,7 @@ Note
    below for reference:
 
      * Windows Essentials --- this package has a file name similar to
-       mysql-essential-5.1.46-win32.msi and is supplied as a
+       mysql-essential-5.1.48-win32.msi and is supplied as a
        Microsoft Installer (MSI) package. The package includes the
        minimum set of files needed to install MySQL on Windows,
        including the MySQL Server Instance Config Wizard. This
@@ -3395,7 +3395,7 @@ Note
        MySQL with the MSI Package."
 
      * Windows MSI Installer (Complete) --- this package has a file
-       name similar to mysql-5.1.46-win32.zip and contains all files
+       name similar to mysql-5.1.48-win32.zip and contains all files
        needed for a complete Windows installation, including the
        MySQL Server Instance Config Wizard. This package includes
        optional components such as the embedded server and benchmark
@@ -3404,7 +3404,7 @@ Note
        MySQL with the MSI Package."
 
      * Without installer --- this package has a file name similar to
-       mysql-noinstall-5.1.46-win32.zip and contains all the files
+       mysql-noinstall-5.1.48-win32.zip and contains all the files
        found in the Complete install package, with the exception of
        the MySQL Server Instance Config Wizard. This package does not
        include an automated installer, and must be manually installed
@@ -3657,7 +3657,7 @@ Note
    directory. In a default installation it contains C:\Program
    Files\MySQL\MySQL Server 5.1\. The Version string contains the
    release number. For example, for an installation of MySQL Server
-   5.1.46, the key contains a value of 5.1.46.
+   5.1.48, the key contains a value of 5.1.48.
 
    These registry keys are used to help external tools identify the
    installed location of the MySQL server, preventing a complete scan
@@ -4128,7 +4128,7 @@ skip-innodb
    database management systems. If you run applications that rely on
    MySQL's old "forgiving" behavior, make sure to either adapt those
    applications or to disable strict mode. For more information about
-   strict mode, see Section 5.1.8, "Server SQL Modes."
+   strict mode, see Section 5.1.7, "Server SQL Modes."
 
 2.5.4.9. The Character Set Dialog
 
@@ -4669,7 +4669,7 @@ InnoDB: foreign key constraint system tables created
    something like this, which indicates that the server is ready to
    service client connections:
 mysqld: ready for connections
-Version: '5.1.46'  socket: ''  port: 3306
+Version: '5.1.48'  socket: ''  port: 3306
 
    The server continues to write to the console any further
    diagnostic output it produces. You can open a new console window
@@ -5488,7 +5488,7 @@ Note
 Note
 
    To compile from the source code on Windows you must use the
-   standard source distribution (for example, mysql-5.1.46.tar.gz).
+   standard source distribution (for example, mysql-5.1.48.tar.gz).
    You build from the same distribution as used to build MySQL on
    Unix, Linux and other platforms. Do not use the Windows Source
    distributions as they do not contain the necessary configuration
@@ -7166,10 +7166,10 @@ shell> bin/mysqladmin variables
        on your platform and version of MySQL, but should be similar
        to that shown here:
 shell> bin/mysqladmin version
-mysqladmin  Ver 14.12 Distrib 5.1.46, for pc-linux-gnu on i686
+mysqladmin  Ver 14.12 Distrib 5.1.48, for pc-linux-gnu on i686
 ...
 
-Server version          5.1.46
+Server version          5.1.48
 Protocol version        10
 Connection              Localhost via UNIX socket
 UNIX socket             /var/lib/mysql/mysql.sock

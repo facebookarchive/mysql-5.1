@@ -99,7 +99,7 @@ Note
 Note
 
    To compile from the source code on Windows you must use the
-   standard source distribution (for example, mysql-5.1.46.tar.gz).
+   standard source distribution (for example, mysql-5.1.48.tar.gz).
    You build from the same distribution as used to build MySQL on
    Unix, Linux and other platforms. Do not use the Windows Source
    distributions as they do not contain the necessary configuration

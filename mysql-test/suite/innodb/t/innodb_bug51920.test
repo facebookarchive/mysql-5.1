@@ -1,53 +1,43 @@
-# Test kill query terminates innodb queries waiting on a row lock
-
+#
+# Bug #51920: InnoDB connections in lock wait ignore KILL until timeout
+#
+-- source include/not_embedded.inc
 -- source include/have_innodb.inc
 
+CREATE TABLE bug51920 (i INT) ENGINE=InnoDB;
+INSERT INTO bug51920 VALUES (1);
 
-#
-# setup
-#
---disable_warnings
-drop table if exists lockt;
---enable_warnings
-
-create table lockt(i int primary key) engine=innodb;
-insert into lockt values (1), (2);
+BEGIN;
+SELECT * FROM bug51920 FOR UPDATE;
 
 connect (con1,localhost,root,,);
-connect (con2,localhost,root,,);
-
-
-#
-# verify killing terminates lock
-#
-connection con1;
-begin;
-select * from lockt where i=1 for update;
-
-connection con2;
-let $cid=`select connection_id()`
-begin;
-send select * from lockt where i=1 for update;
 
 connection con1;
-sleep 1;
---disable_query_log
-eval kill query $cid;
---enable_query_log
-sleep 2;
-# if innodb correctly responded to kill request then there should be 0 waits
-show status like 'Innodb_row_lock_current_waits';
-rollback;
-
-connection con2;
---error ER_QUERY_INTERRUPTED
-reap;
+--send
+UPDATE bug51920 SET i=2;
 
 connection default;
-disconnect con1;
-disconnect con2;
+let $wait_condition =
+  SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE INFO="UPDATE bug51920 SET i=2";
+-- source include/wait_condition.inc
+
+SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE INFO="UPDATE bug51920 SET i=2"
+INTO @thread_id;
+
+KILL @thread_id;
+let $wait_condition =
+  SELECT COUNT(*)=0 FROM information_schema.processlist WHERE ID=@thread_id;
+-- source include/wait_condition.inc
 
 #
-# cleanup
+# Bug#19723: kill of active connection yields different error code
+# depending on platform.
 #
-drop table lockt;
+connection con1;
+-- error 1317, 2006, 2013
+reap;
+connection default;
+DROP TABLE bug51920;
+-- disconnect con1

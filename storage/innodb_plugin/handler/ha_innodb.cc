@@ -114,7 +114,6 @@ static ulong commit_threads = 0;
 static pthread_mutex_t commit_threads_m;
 static pthread_cond_t commit_cond;
 static pthread_mutex_t commit_cond_m;
-static pthread_mutex_t analyze_mutex;
 static bool innodb_inited = 0;
 double innodb_records_in_range_secs = 0;
 
@@ -479,8 +478,8 @@ static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
-	handlerton* hton, /*!< in: Innodb handlerton */
-	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
+	handlerton* hton, /* in: Innodb handlerton */
+	THD*	thd,	/* in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 	char*	binlog_file,/* out: binlog file for last commit */
 	ulonglong* binlog_offset);/* out: binlog offset for last commit */
@@ -2085,6 +2084,19 @@ trx_is_interrupted(
 	return(trx && trx->mysql_thd && thd_killed((THD*) trx->mysql_thd));
 }
 
+/**********************************************************************//**
+Determines if the currently running transaction is in strict mode.
+@return	TRUE if strict */
+extern "C" UNIV_INTERN
+ibool
+trx_is_strict(
+/*==========*/
+	trx_t*	trx)	/*!< in: transaction */
+{
+	return(trx && trx->mysql_thd
+	       && THDVAR((THD*) trx->mysql_thd, strict_mode));
+}
+
 /**************************************************************//**
 Resets some fields of a prebuilt struct. The template is used in fast
 retrieval of just those column values MySQL needs in its processing. */
@@ -2413,7 +2425,7 @@ mem_free_and_error:
 		}
 
 		sql_print_error("InnoDB: invalid value "
-				"innodb_file_format_check=%s",
+				"innodb_change_buffering=%s",
 				innobase_change_buffering);
 		goto mem_free_and_error;
 	}
@@ -2502,7 +2514,6 @@ innobase_change_buffering_inited_ok:
 	pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
 	pthread_mutex_init(&commit_threads_m, MY_MUTEX_INIT_FAST);
 	pthread_mutex_init(&commit_cond_m, MY_MUTEX_INIT_FAST);
-	pthread_mutex_init(&analyze_mutex, MY_MUTEX_INIT_FAST);
 	pthread_cond_init(&commit_cond, NULL);
 	innodb_inited= 1;
 #ifdef MYSQL_DYNAMIC_PLUGIN
@@ -2557,7 +2568,6 @@ innobase_end(
 		pthread_mutex_destroy(&prepare_commit_mutex);
 		pthread_mutex_destroy(&commit_threads_m);
 		pthread_mutex_destroy(&commit_cond_m);
-		pthread_mutex_destroy(&analyze_mutex);
 		pthread_cond_destroy(&commit_cond);
 	}
 
@@ -5538,7 +5548,7 @@ ha_innobase::unlock_row(void)
 	case ROW_READ_WITH_LOCKS:
 		if (!srv_locks_unsafe_for_binlog
 		    && prebuilt->trx->isolation_level
-		    != TRX_ISO_READ_COMMITTED) {
+		    > TRX_ISO_READ_COMMITTED) {
 			break;
 		}
 		/* fall through */
@@ -5577,7 +5587,7 @@ ha_innobase::try_semi_consistent_read(bool yes)
 
 	if (yes
 	    && (srv_locks_unsafe_for_binlog
-		|| prebuilt->trx->isolation_level == TRX_ISO_READ_COMMITTED)) {
+		|| prebuilt->trx->isolation_level <= TRX_ISO_READ_COMMITTED)) {
 		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
 	} else {
 		prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
@@ -8040,6 +8050,8 @@ ha_innobase::info(
 					break;
 				}
 
+				dict_index_stat_mutex_enter(index);
+
 				if (index->stat_n_diff_key_vals[j + 1] == 0) {
 
 					rec_per_key = stats.records;
@@ -8047,6 +8059,8 @@ ha_innobase::info(
 					rec_per_key = (ha_rows)(stats.records /
 					 index->stat_n_diff_key_vals[j + 1]);
 				}
+
+				dict_index_stat_mutex_exit(index);
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
@@ -9517,7 +9531,7 @@ ha_innobase::store_lock(
 		isolation_level = trx->isolation_level;
 
 		if ((srv_locks_unsafe_for_binlog
-		     || isolation_level == TRX_ISO_READ_COMMITTED)
+		     || isolation_level <= TRX_ISO_READ_COMMITTED)
 		    && isolation_level != TRX_ISO_SERIALIZABLE
 		    && (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT)
 		    && (sql_command == SQLCOM_INSERT_SELECT
