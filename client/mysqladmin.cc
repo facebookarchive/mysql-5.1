@@ -282,6 +282,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     charsets_dir = argument;
 #endif
     break;
+  case 'O':
+    WARN_DEPRECATED(VER_CELOSIA, "--set-variable", "--variable-name=value");
+    break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
@@ -390,7 +393,7 @@ int main(int argc,char *argv[])
     {
       new_line = 0;
 
-      if ((error=execute_commands(&mysql,argc,commands)))
+      if ((error= execute_commands(&mysql,argc,commands)))
       {
         /*
           Unknown/malformed command always aborts and can't be --forced.
@@ -405,12 +408,12 @@ int main(int argc,char *argv[])
           on retry (if conditions on server change etc.), but needs --force
           to retry.
         */
-	if (!option_force)
+        if (!option_force)
           break;
       }                                         /* if((error= ... */
 
       if (interval)                             /* --sleep=interval given */
-	{
+      {
         /*
           If connection was dropped (unintentionally, or due to SHUTDOWN),
           re-establish it if --wait ("retry-connect") was given and user
@@ -418,9 +421,9 @@ int main(int argc,char *argv[])
         */
 
 	if (mysql.net.vio == 0)
-	  {
+	{
 	  if (option_wait && !interrupted)
-	    {
+	  {
 	    sleep(1);
 	    sql_connect(&mysql, option_wait);
 	    /*
@@ -435,9 +438,9 @@ int main(int argc,char *argv[])
 	      connexion broke, and we have no order to re-establish it. fail.
 	    */
 	    if (!option_force)
-	  error=1;
-	  break;
-	}
+	      error= 1;
+	    break;
+	  }
 	}                                       /* lost connection */
 
 	sleep(interval);
@@ -449,7 +452,7 @@ int main(int argc,char *argv[])
     }                                           /* command-loop */
   }                                             /* got connection */
 
-    mysql_close(&mysql);
+  mysql_close(&mysql);
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
   my_free(user,MYF(MY_ALLOW_ZERO_PTR));
 #ifdef HAVE_SMEM

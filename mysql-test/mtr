@@ -198,10 +198,10 @@ my $opt_mark_progress;
 
 my $opt_sleep;
 
-my $opt_testcase_timeout=    15; # minutes
-my $opt_suite_timeout   =   300; # minutes
-my $opt_shutdown_timeout=    10; # seconds
-my $opt_start_timeout   =   180; # seconds
+my $opt_testcase_timeout= $ENV{MTR_TESTCASE_TIMEOUT} ||  15; # minutes
+my $opt_suite_timeout   = $ENV{MTR_SUITE_TIMEOUT}    || 300; # minutes
+my $opt_shutdown_timeout= $ENV{MTR_SHUTDOWN_TIMEOUT} ||  10; # seconds
+my $opt_start_timeout   = $ENV{MTR_START_TIMEOUT}    || 180; # seconds
 
 sub testcase_timeout { return $opt_testcase_timeout * 60; };
 sub suite_timeout { return $opt_suite_timeout * 60; };
@@ -1804,7 +1804,7 @@ sub environment_setup {
     my $plugin_filename;
     if (IS_WINDOWS)
     {
-       $plugin_filename = "ha_example.dll"; 
+       $plugin_filename = "ha_example.dll";
     }
     else 
     {
@@ -3613,15 +3613,15 @@ sub extract_server_log ($$) {
     if ($found_test)
     {
       # If test wasn't last after all, discard what we found, test again.
-    if ( $line =~ /^CURRENT_TEST:/ )
-    {
-      @lines = ();
+      if ( $line =~ /^CURRENT_TEST:/)
+      {
+	@lines= ();
 	$found_test= $line =~ /^CURRENT_TEST: $tname/;
-    }
+      }
       else
       {
-    push(@lines, $line);
-  }
+	push(@lines, $line);
+      }
     }
     else
     {
@@ -3680,7 +3680,7 @@ sub extract_warning_lines ($$) {
 
   my @lines= extract_server_log($error_log, $tname);
 
-  # Write all suspicious lines to $error_log.warnings file
+# Write all suspicious lines to $error_log.warnings file
   my $warning_log = "$error_log.warnings";
   my $Fwarn = IO::File->new($warning_log, "w")
     or die("Could not open file '$warning_log' for writing: $!");

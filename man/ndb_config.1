@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 11/04/2009
+.\"      Date: 02/04/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "02/04/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -55,7 +55,7 @@ Section\ \&17.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
 allbox tab(:);
 l l s.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-help
 T}
@@ -82,7 +82,7 @@ to print a list of available options, and then exit\&.
 allbox tab(:);
 l l s.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-V
 T}
@@ -111,7 +111,7 @@ l l s
 ^ l l
 ^ l l.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-ndb\-connectstring=name
 T}
@@ -180,7 +180,7 @@ l l s
 ^ l l
 ^ l l.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-query=string
 T}
@@ -252,7 +252,7 @@ l l s
 ^ l l
 ^ l l.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-host=name
 T}
@@ -289,34 +289,7 @@ Specifies the host name of the node for which configuration information is to be
 .\" ndb_config: nodeid option
 .\" nodeid option: ndb_config
 \fB\-\-nodeid=\fR\fB\fInode_id\fR\fR
-.TS
-allbox tab(:);
-l l s
-l l s
-^ l l
-^ l l.
-T{
-\fBCommand Line Format\fR
-T}:T{
-\-\-ndb\-nodeid=#
-T}
-T{
-\ \&
-T}:T{
-\fBPermitted Values \fR
-T}
-:T{
-\fBType\fR
-T}:T{
-numeric
-T}
-:T{
-\fBDefault\fR
-T}:T{
-0
-T}
-.TE
-.sp 1
+.sp
 Used to specify the node ID of the node for which configuration information is to be obtained\&.
 .RE
 .sp
@@ -338,7 +311,7 @@ l l s
 ^ l l
 ^ l l.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-nodes
 T}
@@ -387,7 +360,7 @@ l l s
 ^ l l
 ^ l l.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-type=name
 T}
@@ -439,7 +412,7 @@ l l s
 ^ l l
 ^ l l.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-fields=string
 T}
@@ -505,7 +478,7 @@ l l s
 ^ l l
 ^ l l.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-rows=string
 T}
@@ -558,79 +531,9 @@ for the linefeed character), then it must be quoted\&.
 .IP \(bu 2.3
 .\}
 .\" ndb_config: configinfo option
-.\" ndb_config: xml option
 .\" configinfo option: ndb_config
-.\" xml option: ndb_config
 \fB\-\-configinfo\fR
-[\fB\-\-xml\fR]
-.TS
-allbox tab(:);
-l l s
-l l s
-l l s
-^ l l
-^ l l.
-T{
-\fBVersion Introduced\fR
-T}:T{
-5\&.1\&.34\-ndb\-7\&.0\&.6
-T}
-T{
-\fBCommand Line Format\fR
-T}:T{
-\-\-configinfo
-T}
-T{
-\ \&
-T}:T{
-\fBPermitted Values \fR
-T}
-:T{
-\fBType\fR
-T}:T{
-boolean
-T}
-:T{
-\fBDefault\fR
-T}:T{
-false
-T}
-.TE
-.sp 1
-.TS
-allbox tab(:);
-l l s
-l l s
-l l s
-^ l l
-^ l l.
-T{
-\fBVersion Introduced\fR
-T}:T{
-5\&.1\&.34\-ndb\-7\&.0\&.6
-T}
-T{
-\fBCommand Line Format\fR
-T}:T{
-\-\-configinfo \-\-xml
-T}
-T{
-\ \&
-T}:T{
-\fBPermitted Values \fR
-T}
-:T{
-\fBType\fR
-T}:T{
-boolean
-T}
-:T{
-\fBDefault\fR
-T}:T{
-false
-T}
-.TE
-.sp 1
+.sp
 The
 \fB\-\-configinfo\fR
 option, added in MySQL Cluster NDB 6\&.3\&.25 and MySQL Cluster NDB 7\&.0\&.6, causes
@@ -737,10 +640,52 @@ Default: 0 (Min: 0, Max: 4294967039)
 .RE
 .\}
 .sp
-You can obtain the output as XML by using the
+.\" ndb_config: xml option
+.\" xml option: ndb_config
+\fB\-\-configinfo\fR
 \fB\-\-xml\fR
-option (also available beginning with MySQL Cluster NDB 6\&.3\&.25 and MySQL Cluster NDB 7\&.0\&.6) in addition to
-\fB\-\-configinfo\fR\&. A portion of the resulting output is shown in this example:
+.TS
+allbox tab(:);
+l l s
+l l s
+l l s
+^ l l
+^ l l.
+T{
+\fBVersion Introduced\fR
+T}:T{
+5\&.1\&.34\-ndb\-7\&.0\&.6
+T}
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-configinfo \-\-xml
+T}
+T{
+\ \&
+T}:T{
+\fBPermitted Values \fR
+T}
+:T{
+\fBType\fR
+T}:T{
+boolean
+T}
+:T{
+\fBDefault\fR
+T}:T{
+false
+T}
+.TE
+.sp 1
+You can obtain the output of
+\fBndb_config\fR
+\fB\-\-configinfo\fR
+as XML by adding the
+\fB\-\-xml\fR
+option (like the
+\fB\-\-configinfo\fR
+option, available beginning with MySQL Cluster NDB 6\&.3\&.25 and MySQL Cluster NDB 7\&.0\&.6)\&. A portion of the resulting output is shown in this example:
 .sp
 .if n \{\
 .RS 4
@@ -772,6 +717,73 @@ shell> \fBndb_config \-\-configinfo \-\-xml\fR
 .RE
 .\}
 .sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+Normally, the XML output produced by
+\fBndb_config\fR
+\fB\-\-configinfo\fR
+\fB\-\-xml\fR
+is formatted using one line per element; we have added extra whitespace in the previous example, as well as the next one, for reasons of legibility\&. This should not make any difference to applications using this output, since most XML processors either ignore nonessential whitespace as a matter of course, or can be instructed to do so\&.
+.sp .5v
+.RE
+Beginning with MySQL Cluster NDB 6\&.3\&.29 and MySQL Cluster NDB 7\&.0\&.10, the XML output also indicates when changing a given parameter requires that nodes be restarted using the
+\fB\-\-initial\fR
+option\&. This is shown by the presence of an
+initial="true"
+attribute in the corresponding
+<param>
+element\&. In addition (also beginning with MySQL Cluster NDB 6\&.3\&.29 and MySQL Cluster NDB 7\&.0\&.10), the restart type (system
+or
+node) is also shown; if a given parameter requires a system restart, this is indicated by the presence of a
+restart="system"
+attribute in the corresponding
+<param>
+element\&. For example, the
+Diskless
+parameter requires a system initial restart, as shown here (with the
+restart
+and
+initial
+attributes highlighted for visibility):
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+<param name="Diskless" comment="Run wo/ disk" type="bool" default="false" 
+          \fIrestart="system" initial="true"\fR/>
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Currently, no
+initial
+attribute is included in the XML output for
+<param>
+elements corresponding to parameters which do not require initial restarts; in other words,
+initial="false"
+is the default, and the value
+false
+should be assumed if the attribute is not present\&. Similarly, the default restart type is
+node
+(that is, an online or
+\(lqrolling\(rq
+restart of the cluster), but the
+restart
+attribute is included only if the restart type is
+system
+(meaning that all cluster nodes must be shut down at the same time, then restarted)\&.
 .if n \{\
 .sp
 .\}
@@ -969,7 +981,7 @@ option\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

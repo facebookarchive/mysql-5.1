@@ -22,7 +22,7 @@ SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 # Starting at 5.1.38, MySQL CMake files are simplified. But the plugin
 # CMakeLists.txt still needs to work with previous versions of MySQL.
 IF (MYSQL_VERSION_ID GREATER "50137")
-INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
+	INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 ENDIF (MYSQL_VERSION_ID GREATER "50137")
 
 IF (CMAKE_SIZEOF_VOID_P MATCHES 8)
@@ -42,10 +42,10 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 
 # Removing compiler optimizations for innodb/mem/* files on 64-bit Windows
 # due to 64-bit compiler error, See MySQL Bug #19424, #36366, #34297
-IF(MSVC AND $(WIN64))
+IF (MSVC AND $(WIN64))
 	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.c mem/mem0pool.c
 				    PROPERTIES COMPILE_FLAGS -Od)
-ENDIF(MSVC AND $(WIN64))
+ENDIF (MSVC AND $(WIN64))
 
 SET(INNODB_PLUGIN_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			buf/buf0buddy.c buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c

@@ -197,18 +197,18 @@ int main(int argc, const char** argv )
       }
       break;
     } else {
-      if ( strcmp(arg, "--verbose") == 0 )
+      if (strcmp(arg, "--verbose") == 0)
         verbose++;
-	  else if ( strncmp(arg, "--parent-pid", 10) == 0 )
-	  {
-	    /* Override parent_pid with a value provided by user */
-		const char* start;
+      else if (strncmp(arg, "--parent-pid", 10) == 0)
+      {
+            /* Override parent_pid with a value provided by user */
+        const char* start;
         if ((start= strstr(arg, "=")) == NULL)
-		  die("Could not find start of option value in '%s'", arg);
-		start++; /* Step past = */
-		if ((parent_pid= atoi(start)) == 0)
-		  die("Invalid value '%s' passed to --parent-id", start);
-	  }
+          die("Could not find start of option value in '%s'", arg);
+        start++; /* Step past = */
+        if ((parent_pid= atoi(start)) == 0)
+          die("Invalid value '%s' passed to --parent-id", start);
+      }
       else if (strcmp(arg, "--nocore") == 0)
       {
         nocore= TRUE;

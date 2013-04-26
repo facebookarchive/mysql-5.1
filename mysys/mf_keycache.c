@@ -371,8 +371,8 @@ static inline uint next_power(uint value)
 */
 
 int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
-		   size_t use_mem, uint division_limit,
-		   uint age_threshold)
+                   size_t use_mem, uint division_limit,
+                   uint age_threshold)
 {
   ulong blocks, hash_links;
   size_t length;
@@ -563,8 +563,8 @@ err:
 */
 
 int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
-		     size_t use_mem, uint division_limit,
-		     uint age_threshold)
+                     size_t use_mem, uint division_limit,
+                     uint age_threshold)
 {
   int blocks;
   DBUG_ENTER("resize_key_cache");
@@ -2227,9 +2227,9 @@ restart:
                 thread might change the block->hash_link value
               */
               error= my_pwrite(block->hash_link->file,
-                               block->buffer+block->offset,
+                               block->buffer + block->offset,
                                block->length - block->offset,
-                               block->hash_link->diskpos+ block->offset,
+                               block->hash_link->diskpos + block->offset,
                                MYF(MY_NABP | MY_WAIT_IF_FULL));
               keycache_pthread_mutex_lock(&keycache->cache_lock);
 
@@ -2590,7 +2590,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
       if (!keycache->can_be_used)
       {
         KEYCACHE_DBUG_PRINT("key_cache_read", ("keycache cannot be used"));
-	goto no_key_cache;
+        goto no_key_cache;
       }
       /* Start reading at the beginning of the cache block. */
       filepos-= offset;
@@ -2685,11 +2685,11 @@ uchar *key_cache_read(KEY_CACHE *keycache,
       /* Do not link erroneous blocks into the LRU ring, but free them. */
       if (!(block->status & BLOCK_ERROR))
       {
-      /*
-         Link the block into the LRU ring if it's the last submitted
-         request for the block. This enables eviction for the block.
-           */
-      unreg_request(keycache, block, 1);
+        /*
+          Link the block into the LRU ring if it's the last submitted
+          request for the block. This enables eviction for the block.
+        */
+        unreg_request(keycache, block, 1);
       }
       else
       {
@@ -2703,7 +2703,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
       if (return_buffer)
 	DBUG_RETURN(block->buffer);
 #endif
-  next_block:
+    next_block:
       buff+= read_length;
       filepos+= read_length+offset;
       offset= 0;
@@ -2950,11 +2950,11 @@ int key_cache_insert(KEY_CACHE *keycache,
       /* Do not link erroneous blocks into the LRU ring, but free them. */
       if (!(block->status & BLOCK_ERROR))
       {
-      /*
-         Link the block into the LRU ring if it's the last submitted
-         request for the block. This enables eviction for the block.
-      */
-      unreg_request(keycache, block, 1);
+        /*
+          Link the block into the LRU ring if it's the last submitted
+          request for the block. This enables eviction for the block.
+        */
+        unreg_request(keycache, block, 1);
       }
       else
       {
@@ -3212,7 +3212,7 @@ int key_cache_write(KEY_CACHE *keycache,
 
       if (!dont_write)
       {
-	/* Not used in the server. buff has been written to disk at start. */
+        /* Not used in the server. buff has been written to disk at start. */
         if ((block->status & BLOCK_CHANGED) &&
             (!offset && read_length >= keycache->key_cache_block_size))
              link_to_file_list(keycache, block, block->hash_link->file, 1);
@@ -3249,11 +3249,11 @@ int key_cache_write(KEY_CACHE *keycache,
       /* Do not link erroneous blocks into the LRU ring, but free them. */
       if (!(block->status & BLOCK_ERROR))
       {
-      /*
-         Link the block into the LRU ring if it's the last submitted
-         request for the block. This enables eviction for the block.
-      */
-      unreg_request(keycache, block, 1);
+        /*
+          Link the block into the LRU ring if it's the last submitted
+          request for the block. This enables eviction for the block.
+        */
+        unreg_request(keycache, block, 1);
       }
       else
       {
@@ -3421,10 +3421,10 @@ static void free_block(KEY_CACHE *keycache, BLOCK_LINK *block)
   /* Error blocks are not put into the LRU ring. */
   if (!(block->status & BLOCK_ERROR))
   {
-  /* Here the block must be in the LRU ring. Unlink it again. */
-  DBUG_ASSERT(block->next_used && block->prev_used &&
-              *block->prev_used == block);
-  unlink_block(keycache, block);
+    /* Here the block must be in the LRU ring. Unlink it again. */
+    DBUG_ASSERT(block->next_used && block->prev_used &&
+                *block->prev_used == block);
+    unlink_block(keycache, block);
   }
   if (block->temperature == BLOCK_WARM)
     keycache->warm_blocks--;
@@ -3541,7 +3541,6 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
         right queue anyway.
       */
       link_to_file_list(keycache, block, file, 1);
-
     }
     block->status&= ~BLOCK_IN_FLUSH;
     /*
@@ -3610,8 +3609,8 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
               file, keycache->blocks_used, keycache->blocks_changed));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
-    DBUG_EXECUTE("check_keycache",
-                 test_key_cache(keycache, "start of flush_key_blocks", 0););
+  DBUG_EXECUTE("check_keycache",
+               test_key_cache(keycache, "start of flush_key_blocks", 0););
 #endif
 
   cache= cache_buff;
@@ -3742,7 +3741,6 @@ restart:
             {
               /* It's a temporary file */
               DBUG_ASSERT(!(block->status & BLOCK_REASSIGNED));
-
               /*
                 free_block() must not be called with BLOCK_CHANGED. Note
                 that we must not change the BLOCK_CHANGED flag outside of

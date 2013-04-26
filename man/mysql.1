@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 11/04/2009
+.\"      Date: 02/04/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "02/04/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -103,7 +103,13 @@ shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fIscript\&.sql\fR\fR\fB > \fR
 .\" startup parameters: mysql
 .PP
 \fBmysql\fR
-supports the options in the following list\&. It also reads option files and supports the options for processing them described at
+supports the following options, which can be specified on the command line or in the
+[mysql]
+and
+[client]
+option file groups\&.
+\fBmysql\fR
+also supports the options for processing option files described at
 Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .sp
 .RS 4
@@ -550,10 +556,8 @@ the section called \(lqMYSQL COMMANDS\(rq\&.
 \fB\-\-no\-auto\-rehash\fR,
 \fB\-A\fR
 .sp
-Deprecated form of
-\fB\-skip\-auto\-rehash\fR\&. Use
-\fB\-\-disable\-auto\-rehash\fR
-instead\&. See the description for
+This has the same effect as
+\fB\-skip\-auto\-rehash\fR\&. See the description for
 \fB\-\-auto\-rehash\fR\&.
 .RE
 .sp
@@ -684,10 +688,12 @@ value following the
 \fB\-\-password\fR
 or
 \fB\-p\fR
-option on the command line, you are prompted for one\&.
+option on the command line,
+\fBmysql\fR
+prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -703,7 +709,7 @@ Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
-On Windows, connect to the server via a named pipe\&. This option applies only for connections to a local server, and only if the server supports named\-pipe connections\&.
+On Windows, connect to the server via a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
 .RE
 .sp
 .RS 4
@@ -950,9 +956,7 @@ option\&.
 \fB\-\-skip\-column\-names\fR,
 \fB\-N\fR
 .sp
-Do not write column names in results\&. The short format,
-\fB\-N\fR
-is deprecated, use the long format instead\&.
+Do not write column names in results\&.
 .RE
 .sp
 .RS 4
@@ -968,9 +972,7 @@ is deprecated, use the long format instead\&.
 \fB\-\-skip\-line\-numbers\fR,
 \fB\-L\fR
 .sp
-Do not write line numbers for errors\&. Useful when you want to compare result files that include error messages\&. The short format,
-\fB\-L\fR
-is deprecated, use the long format instead\&.
+Do not write line numbers for errors\&. Useful when you want to compare result files that include error messages\&.
 .RE
 .sp
 .RS 4
@@ -2805,7 +2807,7 @@ Section\ \&21.9.11, \(lqControlling Automatic Reconnection Behavior\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -2817,7 +2819,7 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 Bug#25946
 .RS 4
-\%http://bugs.mysql.com/25946
+\%http://bugs.mysql.com/bug.php?id=25946
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

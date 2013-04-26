@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 11/04/2009
+.\"      Date: 02/04/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "02/04/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -63,7 +63,7 @@ T}:T{
 5\&.1\&.22\-ndb\-6\&.3\&.2
 T}
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-bind\-address
 T}
@@ -117,7 +117,7 @@ T}:T{
 5\&.1\&.30\-ndb\-6\&.4\&.0
 T}
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-configdir=directory
 T}
@@ -181,7 +181,7 @@ l l s
 ^ l l
 ^ l l.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-c
 T}
@@ -237,7 +237,7 @@ l l s
 ^ l l
 ^ l l.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-daemon
 T}
@@ -290,7 +290,7 @@ T}:T{
 5\&.1\&.30\-ndb\-6\&.4\&.0
 T}
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-initial
 T}
@@ -354,7 +354,7 @@ T}:T{
 5\&.1\&.37\-ndb\-7\&.0\&.8
 T}
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-log\-name=
 T}
@@ -395,9 +395,12 @@ allbox tab(:);
 l l s
 l l s
 ^ l l
+^ l l
+l l s
+^ l l
 ^ l l.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-nodaemon
 T}
@@ -415,6 +418,21 @@ T}
 \fBDefault\fR
 T}:T{
 FALSE
+T}
+T{
+\ \&
+T}:T{
+\fBPermitted Values \fR
+T}
+:T{
+\fBType\fR (windows)
+T}:T{
+boolean
+T}
+:T{
+\fBDefault\fR
+T}:T{
+TRUE
 T}
 .TE
 .sp 1
@@ -446,7 +464,7 @@ l l s
 ^ l l
 ^ l l.
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-print\-full\-config
 T}
@@ -497,7 +515,7 @@ T}:T{
 5\&.1\&.30\-ndb\-6\&.4\&.0
 T}
 T{
-\fBCommand Line Format\fR
+\fBCommand\-Line Format\fR
 T}:T{
 \-\-reload
 T}
@@ -534,6 +552,166 @@ If the management server cannot find a global configuration file, then the
 option is ignored\&.
 .sp
 This option was introduced in MySQL Cluster NDB 6\&.4\&.0\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" --nowait-nodes option (ndb_mgmd)
+\fB\-\-nowait\-nodes\fR
+.TS
+allbox tab(:);
+l l s
+l l s
+l l s
+^ l l
+^ l l
+^ l l.
+T{
+\fBVersion Introduced\fR
+T}:T{
+5\&.1\&.39\-ndb\-7\&.1\&.0
+T}
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-nowait\-nodes=list
+T}
+T{
+\ \&
+T}:T{
+\fBPermitted Values \fR
+T}
+:T{
+\fBType\fR
+T}:T{
+numeric
+T}
+:T{
+\fBDefault\fR
+T}:T{
+T}
+:T{
+\fBRange\fR
+T}:T{
+1\-255
+T}
+.TE
+.sp 1
+When starting a MySQL Cluster is configured with two management nodes and running MySQL Cluster NDB 7\&.0 and later, each management server normally checks to see whether the other
+\fBndb_mgmd\fR
+is also operational and whether the other management server\'s configuration is identical to its own\&. However, it is sometimes desirable to start the cluster with only one management node (and perhaps to allow the other
+\fBndb_mgmd\fR
+to be started later)\&. This option causes the management node to bypass any checks for any other management nodes whose node IDs are passed to this option, allowing the cluster to start as though configured to use only the management node that was started\&.
+.sp
+For purposes of illustration, consider the following portion of a
+config\&.ini
+file (where we have omitted most of the configuration parameters that are not relevant to this example):
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[ndbd]
+NodeId = 1
+HostName = 192\&.168\&.0\&.101
+[ndbd]
+NodeId = 2
+HostName = 192\&.168\&.0\&.102
+[ndbd]
+NodeId = 3
+HostName = 192\&.168\&.0\&.103
+[ndbd]
+NodeId = 4
+HostName = 192\&.168\&.0\&.104
+[mgm]
+NodeId = 10
+HostName = 192\&.168\&.0\&.150
+[mgm]
+NodeId = 11
+HostName = 192\&.168\&.0\&.151
+[api]
+NodeId = 20
+HostName = 192\&.168\&.0\&.200
+[api]
+NodeId = 21
+HostName = 192\&.168\&.0\&.201
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Assume that you wish to start this cluster using only the management server having node ID
+10
+and running on the host having the IP address 192\&.168\&.0\&.150\&. (Suppose, for example, that the host computer on which you intend to the other management server is temporarily unavailable due to a hardware failure, and you are waiting for it to be repaired\&.) To start the cluster in this way, use a command line on the machine at 192\&.168\&.0\&.150 to enter the following command:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_mgmd \-\-ndb\-nodeid=10 \-\-nowait\-nodes=11\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+As shown in the preceding example, when using
+\fB\-\-nowait\-nodes\fR, you must also use the
+\fB\-\-ndb\-nodeid\fR
+option to specify the node ID of this
+\fBndb_mgmd\fR
+process\&.
+.sp
+You can then start each of the cluster\'s data nodes in the usual way\&. If you wish to start and use the second management server in addition to the first management server at a later time without restarting the data nodes, you must start each data node with a connectstring that references both management servers, like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndbd \-c 192\&.168\&.0\&.150,192\&.168\&.0\&.151\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The same is true with regard to the connectstring used with any
+\fBmysqld\fR
+processes that you wish to start as MySQL Cluster SQL nodes connected to this cluster\&. See
+Section\ \&17.3.2.3, \(lqThe MySQL Cluster Connectstring\(rq, for more information\&.
+.sp
+When used with
+\fBndb_mgmd\fR, this option affects the behavior of the management node with regard to other management nodes only\&. Do not confuse it with the
+\fB\-\-nowait\-nodes\fR
+option used with
+\fBndbd\fR
+(or
+\fBndbmtd\fR
+in MySQL Cluster NDB 7\&.0 and later) to allow a cluster to start with fewer than its full complement of data nodes; when used with data nodes, this option affects their behavior only with regard to other data nodes\&.
+.sp
+Multiple management node IDs may be passed to this option as a comma\-separated list\&. Each node ID must be no less than 1 and no greater than 255\&. In practice, it is quite rare to use more than two management servers for the same MySQL Cluster (or to have any need for doing so); in most cases you need to pass to this option only the single node ID for the one management server that you do not wish to use when starting the cluster\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+When you later start the
+\(lqmissing\(rq
+management server, its configuration must match that of the management server that is already in use by the cluster\&. Otherwise, it fails the configuration check performed by the existing management server, and does not start\&.
+.sp .5v
+.RE
+This option was introduced in MySQL Cluster NDB 7\&.0\&.10\&.
 .RE
 .PP
 It is not strictly necessary to specify a connectstring when starting the management server\&. However, if you are using more than one management server, a connectstring should be provided and each node in the cluster should specify its node ID explicitly\&.
@@ -618,7 +796,7 @@ is the process ID file used when running the management server as a daemon\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -630,7 +808,7 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 Bug#45588
 .RS 4
-\%http://bugs.mysql.com/45588
+\%http://bugs.mysql.com/bug.php?id=45588
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

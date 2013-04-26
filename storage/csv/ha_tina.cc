@@ -1599,7 +1599,7 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
     DBUG_RETURN(HA_ADMIN_CORRUPT);
   }
 
-    DBUG_RETURN(HA_ADMIN_OK);
+  DBUG_RETURN(HA_ADMIN_OK);
 }
 
 

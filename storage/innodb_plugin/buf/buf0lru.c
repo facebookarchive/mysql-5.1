@@ -953,7 +953,7 @@ buf_LRU_old_adjust_len(void)
 	     || UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)->old);
 #endif /* UNIV_LRU_DEBUG */
 
-		old_len = buf_pool->LRU_old_len;
+	old_len = buf_pool->LRU_old_len;
 	new_len = ut_min(UT_LIST_GET_LEN(buf_pool->LRU)
 			 * buf_LRU_old_ratio / BUF_LRU_OLD_RATIO_DIV,
 			 UT_LIST_GET_LEN(buf_pool->LRU)
@@ -1978,10 +1978,10 @@ buf_LRU_validate(void)
 				= UT_LIST_GET_NEXT(LRU, bpage);
 
 			if (!old_len++) {
-			ut_a(buf_pool->LRU_old == bpage);
+				ut_a(buf_pool->LRU_old == bpage);
 			} else {
 				ut_a(!prev || buf_page_is_old(prev));
-		}
+			}
 
 			ut_a(!next || buf_page_is_old(next));
 		}
@@ -1989,7 +1989,7 @@ buf_LRU_validate(void)
 		bpage = UT_LIST_GET_NEXT(LRU, bpage);
 	}
 
-		ut_a(buf_pool->LRU_old_len == old_len);
+	ut_a(buf_pool->LRU_old_len == old_len);
 
 	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->free,
 			 ut_ad(ut_list_node_313->in_free_list));

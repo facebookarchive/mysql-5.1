@@ -3310,15 +3310,15 @@ void do_write_file_command(struct st_command *command, my_bool append)
     if (ds_delimiter.length == 0)
       dynstr_set(&ds_delimiter, "EOF");
 
-  init_dynamic_string(&ds_content, "", 1024, 1024);
-  read_until_delimiter(&ds_content, &ds_delimiter);
+    init_dynamic_string(&ds_content, "", 1024, 1024);
+    read_until_delimiter(&ds_content, &ds_delimiter);
     command->content= ds_content;
   }
   /* This function could be called even if "false", so check before printing */
   if (cur_block->ok)
   {
-  DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
-  str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
+    DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
+    str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
   }
   dynstr_free(&ds_filename);
   dynstr_free(&ds_delimiter);
@@ -6827,10 +6827,8 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   MYSQL_STMT *stmt;
   DYNAMIC_STRING ds_prepare_warnings;
   DYNAMIC_STRING ds_execute_warnings;
-  ulonglong affected_rows;
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
-  LINT_INIT(affected_rows);
 
   /*
     Init a new stmt if it's not already one created for this connection
@@ -6966,36 +6964,35 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       warnings here
     */
     {
-      ulonglong affected_rows;
-      LINT_INIT(affected_rows);
+      ulonglong UNINIT_VAR(affected_rows);
 
       if (!disable_info)
 	affected_rows= mysql_affected_rows(mysql);
 
-    if (!disable_warnings)
-    {
-      /* Get the warnings from execute */
-
-      /* Append warnings to ds - if there are any */
-      if (append_warnings(&ds_execute_warnings, mysql) ||
-          ds_execute_warnings.length ||
-          ds_prepare_warnings.length ||
-          ds_warnings->length)
+      if (!disable_warnings)
       {
-        dynstr_append_mem(ds, "Warnings:\n", 10);
-	if (ds_warnings->length)
-	  dynstr_append_mem(ds, ds_warnings->str,
-			    ds_warnings->length);
-	if (ds_prepare_warnings.length)
-	  dynstr_append_mem(ds, ds_prepare_warnings.str,
-			    ds_prepare_warnings.length);
-	if (ds_execute_warnings.length)
-	  dynstr_append_mem(ds, ds_execute_warnings.str,
-			    ds_execute_warnings.length);
-      }
-    }
+	/* Get the warnings from execute */
 
-    if (!disable_info)
+	/* Append warnings to ds - if there are any */
+	if (append_warnings(&ds_execute_warnings, mysql) ||
+	    ds_execute_warnings.length ||
+	    ds_prepare_warnings.length ||
+	    ds_warnings->length)
+	{
+	  dynstr_append_mem(ds, "Warnings:\n", 10);
+	  if (ds_warnings->length)
+	    dynstr_append_mem(ds, ds_warnings->str,
+			      ds_warnings->length);
+	  if (ds_prepare_warnings.length)
+	    dynstr_append_mem(ds, ds_prepare_warnings.str,
+			      ds_prepare_warnings.length);
+	  if (ds_execute_warnings.length)
+	    dynstr_append_mem(ds, ds_execute_warnings.str,
+			      ds_execute_warnings.length);
+	}
+      }
+
+      if (!disable_info)
 	append_info(ds, affected_rows, mysql_info(mysql));
     }
   }
@@ -8152,8 +8149,8 @@ int main(int argc, char **argv)
     if (! result_file_name || record ||
         compare_files (log_file.file_name(), result_file_name))
     {
-    die("The test didn't produce any output");
-  }
+      die("The test didn't produce any output");
+    }
     else 
     {
       empty_result= TRUE;  /* Meaning empty was expected */

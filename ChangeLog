@@ -1,3178 +1,1042 @@
 ------------------------------------------------------------
-revno: 3193
-tags: clone-5.1.41-build
+revno: 3357
+tags: clone-5.1.44-build
 committer: Georgi Kodinov <joro@sun.com>
 branch nick: merge-5.1-bugteam
-timestamp: Wed 2009-11-04 11:21:52 +0200
-message:
-  merge
-------------------------------------------------------------
-    revno: 1810.3961.16
-    committer: Georgi Kodinov <joro@sun.com>
-    branch nick: merge-5.0-bugteam
-    timestamp: Wed 2009-11-04 11:13:55 +0200
-message:
-      version change
-------------------------------------------------------------
-revno: 3192
-committer: Georgi Kodinov <joro@sun.com>
-branch nick: merge-5.1-bugteam
-timestamp: Wed 2009-11-04 11:18:34 +0200
+timestamp: Thu 2010-02-04 12:14:44 +0200
 message:
   merge
     ------------------------------------------------------------
-    revno: 1810.3961.15
+    revno: 1810.3980.7
     committer: Georgi Kodinov <joro@sun.com>
     branch nick: merge-5.0-bugteam
-    timestamp: Wed 2009-11-04 11:13:22 +0200
+    timestamp: Thu 2010-02-04 12:13:29 +0200
     message:
-      Disabled the rpl_killed_ddl test in 5.0 because of bug #45520
+      tree name change
 ------------------------------------------------------------
-revno: 3191
-committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
-branch nick: mysql-5.1-bugteam
-timestamp: Tue 2009-11-03 16:18:44 -0200
+revno: 3356
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: merge-5.1-bugteam
+timestamp: Wed 2010-02-03 17:27:55 +0200
 message:
-  Automerge.
+  merge
     ------------------------------------------------------------
-    revno: 1810.3961.14
-    committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
-    branch nick: mysql-5.0-bugteam
-    timestamp: Tue 2009-11-03 16:17:06 -0200
+    revno: 1810.3980.6
+    committer: Georgi Kodinov <joro@sun.com>
+    branch nick: merge-5.0-bugteam
+    timestamp: Wed 2010-02-03 17:05:06 +0200
     message:
-      Fix compiler warnings -- tag unused parameters.
-    ------------------------------------------------------------
-revno: 3190
-committer: Konstantin Osipov <kostja@sun.com>
-branch nick: 5.1-41756
-timestamp: Tue 2009-11-03 20:45:52 +0300
-    message:
-  A fix and a test case for 
-  Bug#41756 "Strange error messages about locks from InnoDB".
-        
-  In JT_EQ_REF (join_read_key()) access method, 
-  don't try to unlock rows in the handler, unless certain that 
-  a) they were locked
-  b) they are not used.
-  
-  Unlocking of rows is done by the logic of the nested join loop,
-  and is unaware of the possible caching that the access method may
-  have. This could lead to double unlocking, when a row
-  was unlocked first after reading into the cache, and then 
-  when taken from cache, as well as to unlocking of rows which
-  were actually used (but taken from cache).
-        
-  Delegate part of the unlocking logic to the access method,
-  and in JT_EQ_REF count how many times a record was actually 
-  used in the join. Unlock it only if it's usage count is 0.
-  
-  Implemented review comments.
-        ------------------------------------------------------------
-    revno: 1810.3961.13
-    committer: Konstantin Osipov <kostja@sun.com>
-    branch nick: 5.0-41756
-    timestamp: Tue 2009-11-03 19:58:54 +0300
-        message:
-      A fix and a test case for
-      Bug#41756 "Strange error messages about locks from InnoDB".
-          
-      In JT_EQ_REF (join_read_key()) access method,
-      don't try to unlock rows in the handler, unless certain that
-      a) they were locked
-      b) they are not used.
-          
-      Unlocking of rows is done by the logic of the nested join loop,
-      and is unaware of the possible caching that the access method may
-      have. This could lead to double unlocking, when a row
-      was unlocked first after reading into the cache, and then
-      when taken from cache, as well as to unlocking of rows which
-      were actually used (but taken from cache).
-      
-      Delegate part of the unlocking logic to the access method,
-      and in JT_EQ_REF count how many times a record was actually
-      used in the join. Unlock it only if it's usage count is 0.
-      
-      Implemented review comments.
-    ------------------------------------------------------------
-revno: 3189
-committer: Magnus Bl?udd <magnus.blaudd@sun.com>
-branch nick: 5.1-bugteam
-timestamp: Tue 2009-11-03 18:07:19 +0100
-    message:
-  Merge bug#47867 to 5.1-bugteam
-        ------------------------------------------------------------
-    revno: 3146.2.1
-    committer: Magnus Bl?udd <magnus.blaudd@sun.com>
-    branch nick: 5.1-bug47867
-    timestamp: Tue 2009-10-06 18:10:34 +0200
-        message:
-      Bug#47867 compiler warning _WIN32_WINNT macro redefinition
-       - Remove the conflicting macro definitions since we define a higher value
-         directly in the cmake files.
-    ------------------------------------------------------------
-revno: 3188
-committer: Kristofer Pettersson <kristofer.pettersson@sun.com>
-branch nick: mysql-5.1-bugteam
-timestamp: Tue 2009-11-03 17:23:05 +0100
-    message:
-  automerge
-        ------------------------------------------------------------
-    revno: 3148.8.8
-    committer: Sergey Vojtovich <svoj@sun.com>
-    branch nick: mysql-5.1-bugteam-push
-    timestamp: Tue 2009-11-03 18:44:39 +0400
-        message:
-      Merge of innodb-zip-ss6129 snapshot.
-        ------------------------------------------------------------
-        revno: 3148.13.37
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 18:41:04 +0400
-        message:
-          Clean-up after applying innodb-zip-ss6129 snapshot:
-          - re-enabled main.innodb_bug44369;
-          - re-enabled main.innodb_bug47777;
-          - re-enabled innodb.innodb_information_schema.
-    ------------------------------------------------------------
-        revno: 3148.13.36
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:34:38 +0400
-    message:
-          Applying InnoDB plugin snashot 
-            
-          Detailed revision comments:
-            
-          r6126 | vasil | 2009-10-30 10:36:07 +0200 (Fri, 30 Oct 2009) | 45 lines
-          branches/zip: Merge r6112:6125 from branches/5.1:
-            
-          (skipping r6122 and r6123, Jimmy says these are already present and need
-          not be merged):
-            
-            ------------------------------------------------------------------------
-            r6122 | jyang | 2009-10-30 05:18:38 +0200 (Fri, 30 Oct 2009) | 7 lines
-            Changed paths:
-               M /branches/5.1/handler/ha_innodb.cc
-               M /branches/5.1/mysql-test/innodb_bug44369.result
-               M /branches/5.1/mysql-test/innodb_bug44369.test
-               M /branches/5.1/mysql-test/innodb_bug46000.result
-               M /branches/5.1/mysql-test/innodb_bug46000.test
-            
-            branches/5.1: Chnage WARN_LEVEL_ERROR to WARN_LEVEL_WARN
-            for push_warning_printf() call in innodb.
-            Fix Bug#47233: Innodb calls push_warning(MYSQL_ERROR::WARN_LEVEL_ERROR)
-       
-            rb://170 approved by Marko.
-      
-            
-            ------------------------------------------------------------------------
-            r6123 | jyang | 2009-10-30 05:43:06 +0200 (Fri, 30 Oct 2009) | 8 lines
-            Changed paths:
-               M /branches/5.1/os/os0proc.c
-            
-            branches/5.1: In os_mem_alloc_large(), if we fail to attach
-            the shared memory, reset memory pointer ptr to NULL, and
-            allocate memory from conventional pool. This is a port
-            from branches/zip.
-            Bug #48237 Error handling in os_mem_alloc_large appears to be incorrect
-            rb://198  Approved by: Marko
-            
-            
-            ------------------------------------------------------------------------
-            r6125 | vasil | 2009-10-30 10:31:23 +0200 (Fri, 30 Oct 2009) | 4 lines
-            Changed paths:
-               M /branches/5.1/handler/ha_innodb.cc
-            
-            branches/5.1:
-            
-            White-space fixup.
-            
-            ------------------------------------------------------------------------
-    ------------------------------------------------------------
-        revno: 3148.13.35
-        committer: Sergey Vojtovich <svoj@sun.com>
-    branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:34:03 +0400
-    message:
-          Applying InnoDB plugin snashot 
-      
-          Detailed revision comments:
-      
-          r6121 | sunny | 2009-10-30 01:42:11 +0200 (Fri, 30 Oct 2009) | 7 lines
-          branches/zip: This test has been problematic for sometime now. The underlying
-          bug is that the data dictionaries get out of sync. In the AUTOINC code we
-          try and apply salve to the symptoms. In the past MySQL made some unrelated
-          change and the dictionaries stopped getting out of sync and this test started
-          to fail. Now, it seems they have reverted that changed and the test is
-          passing again. I suspect this is not he last time that this test will change.
-          
-          r6124 | jyang | 2009-10-30 10:02:31 +0200 (Fri, 30 Oct 2009) | 5 lines
-          branches/zip: Correct the bug number for -r6109 change
-          from # 48273 to #48237
-    ------------------------------------------------------------
-        revno: 3148.13.34
-        committer: Sergey Vojtovich <svoj@sun.com>
-    branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:33:02 +0400
-    message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6114 | vasil | 2009-10-29 18:43:51 +0200 (Thu, 29 Oct 2009) | 6 lines
-          branches/zip:
-          
-          * Add ChangeLog entries for latest changes
-          * Obey alphabetical order in the list of the files
-          * White-space fixup
-------------------------------------------------------------
-        revno: 3148.13.33
-committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:32:33 +0400
-message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6113 | vasil | 2009-10-29 18:15:50 +0200 (Thu, 29 Oct 2009) | 93 lines
-          branches/zip: Merge r5912:6112 from branches/5.1:
-          
-          (after this merge the innodb-autoinc test starts to fail, but
-          I commit anyway because it would be easier to investigate the
-          failure this way)
-          
-            ------------------------------------------------------------------------
-            r5952 | calvin | 2009-09-22 19:45:07 +0300 (Tue, 22 Sep 2009) | 7 lines
-            Changed paths:
-               M /branches/5.1/handler/ha_innodb.cc
-            
-            branches/5.1: fix bug#42383: Can't create table 'test.bug39438'
-            
-            For embedded server, MySQL may pass in full path, which is
-            currently disallowed. It is needed to relax the condition by
-            accepting full paths in the embedded case.
-            
-            Approved by: Heikki (on IM)
-            ------------------------------------------------------------------------
-            r6032 | vasil | 2009-10-01 15:55:49 +0300 (Thu, 01 Oct 2009) | 8 lines
-            Changed paths:
-               M /branches/5.1/handler/ha_innodb.cc
-            
-            branches/5.1:
-            
-            Fix Bug#38996 Race condition in ANALYZE TABLE
-            
-            by serializing ANALYZE TABLE inside InnoDB.
-            
-            Approved by:	Heikki (rb://175)
-            
-            ------------------------------------------------------------------------
-            r6045 | jyang | 2009-10-08 02:27:08 +0300 (Thu, 08 Oct 2009) | 7 lines
-            Changed paths:
-               M /branches/5.1/handler/ha_innodb.cc
-               A /branches/5.1/mysql-test/innodb_bug47777.result
-               A /branches/5.1/mysql-test/innodb_bug47777.test
-            
-            branches/5.1: Fix bug #47777. Treat the Geometry data same as
-            Binary BLOB in ha_innobase::store_key_val_for_row(), since the
-            Geometry data is stored as Binary BLOB in Innodb.
-            
-            Review: rb://180 approved by Marko Makela.
-            
-            
-            ------------------------------------------------------------------------
-            r6051 | sunny | 2009-10-12 07:05:00 +0300 (Mon, 12 Oct 2009) | 6 lines
-            Changed paths:
-               M /branches/5.1/handler/ha_innodb.cc
-               M /branches/5.1/mysql-test/innodb-autoinc.result
-               M /branches/5.1/mysql-test/innodb-autoinc.test
-            
-            branches/5.1: Ignore negative values supplied by the user when calculating the
-            next value to store in dict_table_t. Setting autoincrement columns top negative
-            values is undefined behavior and this change should bring the behavior of
-            InnoDB closer to what users expect. Added several tests to check.
-            rb://162
-            
-            ------------------------------------------------------------------------
-            r6052 | sunny | 2009-10-12 07:09:56 +0300 (Mon, 12 Oct 2009) | 4 lines
-            Changed paths:
-               M /branches/5.1/handler/ha_innodb.cc
-               M /branches/5.1/mysql-test/innodb-autoinc.result
-               M /branches/5.1/mysql-test/innodb-autoinc.test
-            
-            branches/5.1: Reset the statement level autoinc counter on ROLLBACK. Fix
-            the test results too.
-            rb://164
-            
-            ------------------------------------------------------------------------
-            r6053 | sunny | 2009-10-12 07:37:49 +0300 (Mon, 12 Oct 2009) | 6 lines
-            Changed paths:
-               M /branches/5.1/handler/ha_innodb.cc
-               M /branches/5.1/mysql-test/innodb-autoinc.result
-               M /branches/5.1/mysql-test/innodb-autoinc.test
-            
-            branches/5.1: Copy the maximum AUTOINC value from the old table to the new
-            table when MySQL does a CREATE INDEX ON T. This is required because MySQL
-            does a table copy, rename and drops the old table.
-            Fix Bug#47125: auto_increment start value is ignored if an index is created and engine=innodb
-            rb://168
-            
-            ------------------------------------------------------------------------
-            r6076 | vasil | 2009-10-14 19:30:12 +0300 (Wed, 14 Oct 2009) | 4 lines
-            Changed paths:
-               M /branches/5.1/row/row0mysql.c
-            
-            branches/5.1:
-            
-            Fix typo.
-            
-            ------------------------------------------------------------------------
-    ------------------------------------------------------------
-        revno: 3148.13.32
-    committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:26:39 +0400
-    message:
-          Applying InnoDB plugin snashot 
-      
-          Detailed revision comments:
-          
-          r6112 | calvin | 2009-10-29 16:21:15 +0200 (Thu, 29 Oct 2009) | 4 lines
-          branches/zip: consideration for icc compilers
-          
-          Proposed by MySQL, and approved by Marko.
-    ------------------------------------------------------------
-        revno: 3148.13.31
-    committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:26:07 +0400
-    message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6110 | marko | 2009-10-29 12:44:57 +0200 (Thu, 29 Oct 2009) | 2 lines
-          branches/zip: Makefile.am (INCLUDES): Merge a change from MySQL:
-          Use $(srcdir)/include instead of $(top_srcdir)/storage/innobase/include.
-          r6111 | marko | 2009-10-29 13:04:11 +0200 (Thu, 29 Oct 2009) | 33 lines
-          branches/zip: Fix corruption of buf_pool->LRU_old and improve debug assertions.
-          This was reported as Issue #381.
-          
-          buf_page_set_old(): Assert that blocks may only be set old if
-          buf_pool->LRU_old is initialized and buf_pool->LRU_old_len is nonzero.
-          Assert that buf_pool->LRU_old points to the block at the old/new boundary.
-          
-          buf_LRU_old_adjust_len(): Invoke buf_page_set_old() after adjusting
-          buf_pool->LRU_old and buf_pool->LRU_old_len, in order not to violate
-          the added assertions.
-          
-          buf_LRU_old_init(): Replace buf_page_set_old() with a direct
-          assignment to bpage->old, because these loops that initialize all the
-          blocks would temporarily violate the assertions about
-          buf_pool->LRU_old.
-          
-          buf_LRU_remove_block(): When setting buf_pool->LRU_old = NULL, also
-          clear all bpage->old flags and set buf_pool->LRU_old_len = 0.
-          
-          buf_LRU_add_block_to_end_low(), buf_LRU_add_block_low(): Move the
-          buf_page_set_old() call later in order not to violate the debug
-          assertions.  If buf_pool->LRU_old is NULL, set old=FALSE.
-          
-          buf_LRU_free_block(): Replace the UNIV_LRU_DEBUG assertion with a
-          dummy buf_page_set_old() call that performs more thorough checks.
-          
-          buf_LRU_validate(): Do not tolerate garbage in buf_pool->LRU_old_len
-          even if buf_pool->LRU_old is NULL.  Check that bpage->old is monotonic.
-          
-          buf_relocate(): Make the UNIV_LRU_DEBUG checks stricter.
-          
-          buf0buf.h: Revise the documentation of buf_page_t::old and
-          buf_pool_t::LRU_old_len.
-    ------------------------------------------------------------
-        revno: 3148.13.30
-    committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:25:00 +0400
-    message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6109 | jyang | 2009-10-29 10:37:32 +0200 (Thu, 29 Oct 2009) | 7 lines
-          branches/zip: In os_mem_alloc_large(), if we fail to attach
-          the shared memory, reset memory pointer ptr to NULL, and
-           allocate memory from conventional pool.
-          Bug #48237 Error handling in os_mem_alloc_large appears to be incorrect
-          rb://198  Approved by: Marko
-    ------------------------------------------------------------
-        revno: 3148.13.29
-    committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:24:21 +0400
-    message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6108 | calvin | 2009-10-29 07:58:04 +0200 (Thu, 29 Oct 2009) | 5 lines
-          branches/zip: close file handle when building with UNIV_HOTBACKUP
-          
-          The change does not affect regular InnoDB engine. Confirmed by
-          Marko.
-    ------------------------------------------------------------
-        revno: 3148.13.28
-    committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:23:46 +0400
-    message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6107 | marko | 2009-10-28 16:10:34 +0200 (Wed, 28 Oct 2009) | 5 lines
-          branches/zip: buf_page_set_old(): Improve UNIV_LRU_DEBUG diagnostics
-          in order to catch the buf_pool->LRU_old corruption reported in Issue #381.
-          
-          buf_LRU_old_init(): Set the property from the tail towards the front
-          of the buf_pool->LRU list, in order not to trip the debug check.
-    ------------------------------------------------------------
-        revno: 3148.13.27
-    committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:23:22 +0400
-    message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6105 | calvin | 2009-10-28 00:05:52 +0200 (Wed, 28 Oct 2009) | 6 lines
-          branches/zip: backport r3848 from 6.0 branch
-          
-          ----
-              branches/6.0: innobase_start_or_create_for_mysql(): Make the 10 MB
-              minimum tablespace limit independent of UNIV_PAGE_SIZE. (Bug #41490)
-    ------------------------------------------------------------
-        revno: 3148.13.26
-    committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:23:02 +0400
-    message:
-          Applying InnoDB plugin snashot 
-      
-          Detailed revision comments:
-          
-          r6103 | marko | 2009-10-26 15:46:18 +0200 (Mon, 26 Oct 2009) | 4 lines
-          branches/zip: row_ins_alloc_sys_fields(): Zero out the system columns
-          DB_TRX_ID, DB_ROLL_PTR and DB_ROW_ID, in order to avoid harmless
-          Valgrind warnings about uninitialized data.  (The warnings were
-          harmless, because the fields would be initialized at a later stage.)
-    ------------------------------------------------------------
-        revno: 3148.13.25
-    committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:22:15 +0400
-    message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6102 | marko | 2009-10-26 09:32:23 +0200 (Mon, 26 Oct 2009) | 1 line
-          branches/zip: row_prebuilt_struct::prebuilts: Unused field, remove.
-    ------------------------------------------------------------
-        revno: 3148.13.24
-    committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:21:39 +0400
-    message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6101 | jyang | 2009-10-23 11:45:50 +0300 (Fri, 23 Oct 2009) | 7 lines
-          branches/zip: Update test result with the WARN_LEVEL_ERROR
-          to WARN_LEVEL_WARN change. This is the same result as 
-          submitted in rb://172 review, which approved by Sunny Bains
-          and Marko.
-    ------------------------------------------------------------
-        revno: 3148.13.23
-    committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:20:18 +0400
-    message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6100 | jyang | 2009-10-22 06:51:07 +0300 (Thu, 22 Oct 2009) | 6 lines
-          branches/zip: As a request from mysql, WARN_LEVEL_ERROR cannot
-          be used for push_warning_* call any more. Switch to 
-          WARN_LEVEL_WARN. Bug #47233.
-          rb://172 approved by Sunny Bains and Marko.
-        ------------------------------------------------------------
-        revno: 3148.13.22
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:07:51 +0400
-        message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6099 | jyang | 2009-10-22 05:58:39 +0300 (Thu, 22 Oct 2009) | 7 lines
-          branches/zip: Port bug #46000 related changes from 5.1 to zip
-          branch. Due to different code path for creating index in zip
-          branch comparing to 5.1), the index reserved name check function
-          is extended to be used in ha_innobase::add_index(). 
-          rb://190  Approved by: Marko
-        ------------------------------------------------------------
-        revno: 3148.13.21
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:04:59 +0400
-        message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6096 | vasil | 2009-10-19 16:06:09 +0300 (Mon, 19 Oct 2009) | 4 lines
-          branches/zip:
-          
-          Add ChangeLog entry for r6095.
-        ------------------------------------------------------------
-        revno: 3148.13.20
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:04:18 +0400
-        message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6095 | vasil | 2009-10-19 16:04:59 +0300 (Mon, 19 Oct 2009) | 7 lines
-          branches/zip:
-          
-          Fix Bug#47808 innodb_information_schema.test fails when run under valgrind 
-          
-          by using the wait_until_rows_count macro that loops until the number of
-          rows becomes 14 instead of sleep 0.1, which is obviously very fragile.
-        ------------------------------------------------------------
-        revno: 3148.13.19
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:03:05 +0400
-        message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6084 | vasil | 2009-10-15 08:21:17 +0300 (Thu, 15 Oct 2009) | 4 lines
-          branches/zip:
-          
-          Add ChangeLog entry for r6080.
-            ------------------------------------------------------------
-        revno: 3148.13.18
-            committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:02:43 +0400
-            message:
-          Applying InnoDB plugin snashot 
-              
-          Detailed revision comments:
-          
-          r6080 | sunny | 2009-10-15 01:29:01 +0300 (Thu, 15 Oct 2009) | 3 lines
-          branches/zip: Change page_mem_alloc_free() to inline.
-          Fix Bug #47058 - Failure to compile innodb_plugin on solaris 10u7 + spro cc/CC 5.10
-        ------------------------------------------------------------
-        revno: 3148.13.17
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:02:19 +0400
-        message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6064 | calvin | 2009-10-13 18:23:35 +0300 (Tue, 13 Oct 2009) | 4 lines
-          branches/zip: non-functional changes
-          
-          Changes from MySQL to fix build issue.
-          
-          r6065 | inaam | 2009-10-13 20:43:13 +0300 (Tue, 13 Oct 2009) | 7 lines
-          branches/zip rb://182
-          
-          Call fsync() on datafiles after a batch of pages is written to disk
-          even when skip_innodb_doublewrite is set.
-          
-          Approved by: Heikki
-        ------------------------------------------------------------
-        revno: 3148.13.16
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 14:00:05 +0400
-        message:
-          Applying InnoDB plugin snapshot 
-          
-          Detailed revision comments:
-          
-          r6049 | vasil | 2009-10-09 19:05:26 +0300 (Fri, 09 Oct 2009) | 7 lines
-          branches/zip:
-          
-          Fix compilation warning in Hot Backup:
-          
-          innodb/fil/fil0fil.c: In function 'fil_load_single_table_tablespace':
-          innodb/fil/fil0fil.c:3253: warning: format '%lld' expects type 'long long int', but argument 6 has type 'ib_int64_t'
-    ------------------------------------------------------------
-        revno: 3148.13.15
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 13:59:31 +0400
-    message:
-          Applying InnoDB plugin snashot 
-      
-          Detailed revision comments:
-      
-          r6048 | vasil | 2009-10-09 08:42:55 +0300 (Fri, 09 Oct 2009) | 16 lines
-          branches/zip:
-          
-          When scanning a directory readdir() is called and stat() after it,
-          if a file is deleted between the two calls stat will fail and the
-          whole precedure will fail. Change this behavior to continue with the
-          next entry if stat() fails because of nonexistent file. This is
-          transparent change as it will make it look as if the file was deleted
-          before the readdir() call.
-          
-          This change is needed in order to fix
-          https://svn.innodb.com/mantis/view.php?id=174
-          in which we need to abort if os_file_readdir_next_file()
-          encounters "real" errors.
-          
-          Approved by:	Marko, Pekka (rb://177)
-    ------------------------------------------------------------
-        revno: 3148.13.14
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 13:59:06 +0400
-    message:
-          Applying InnoDB plugin snashot 
-          
-          Detailed revision comments:
-          
-          r6046 | pekka | 2009-10-08 12:24:56 +0300 (Thu, 08 Oct 2009) | 3 lines
-          branches/zip: Revert r6044 which added os_file_is_same() function
-          (issue#186). This functionality is moved to Hot Backup source tree.
-    ------------------------------------------------------------
-        revno: 3148.13.13
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 13:58:28 +0400
-    message:
-          Applying InnoDB plugin snashot 
-      
-          Detailed revision comments:
-          
-          r6044 | pekka | 2009-10-06 17:44:54 +0300 (Tue, 06 Oct 2009) | 5 lines
-          branches/zip:
-          Add os_file_is_same() function for Hot Backup (inside ifdef UNIV_HOTBACKUP).
-          This is part of the fix for Issue #186.
-          Note! The Windows implementation is incomplete.
-    ------------------------------------------------------------
-    revno: 3148.8.7
-    committer: Jorgen Loland <jorgen.loland@sun.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Tue 2009-11-03 13:48:59 +0100
-    message:
-      Bug#48177 - SELECTs with NOT IN subqueries containing NULL 
-                  values return too many records
-      
-      WHERE clauses with "outer_value_list NOT IN subselect" were
-      handled incorrectly if the outer value list contained multiple 
-      items where at least one of these could be NULL. The first 
-      outer record with NULL value was handled correctly, but if a 
-      second record with NULL value existed, the optimizer would 
-      choose to reuse the result it got on the last execution of the 
-      subselect. This is incorrect if the outer value list has 
-      multiple items.
-      
-      The fix is to make Item_in_optimizer::val_int (in 
-      item_cmpfunc.cc) reuse the result of the latest execution
-      for NULL values only if all values in the outer_value_list 
-      are NULL.
-    ------------------------------------------------------------
-    revno: 3148.8.6
-    committer: <Li-Bing.Song@sun.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Tue 2009-11-03 18:20:08 +0800
-    message:
-      Manual Merge
-    ------------------------------------------------------------
-        revno: 1810.3961.12
-        committer: <Li-Bing.Song@sun.com>
-        branch nick: mysql-5.0-bugteam
-        timestamp: Tue 2009-11-03 17:00:41 +0800
-    message:
-          BUG#48216 Replication fails on all slaves after upgrade to 5.0.86 on master
-          
-          When a sessione is closed, all temporary tables of the session are automatically 
-          dropped and are binlogged. But it will be binlogged with wrong database names when
-          the length of the temporary tables' database names are greater than the 
-          length of the current database name or the current database is not set.
-          
-          Query_log_event's db_len is forgot to set when Query_log_event's db is set.
-          This patch wrote code to set db_len immediately after db has set.
-------------------------------------------------------------
-    revno: 3148.8.5
-committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
-    branch nick: 48370-5.1
-    timestamp: Mon 2009-11-02 09:21:39 -0200
-message:
-      Bug#48370: Absolutely wrong calculations with GROUP BY and decimal fields when using IF
-      Bug#45261: Crash, stored procedure + decimal
-      
-      Revert fix for Bug#45261 due to unforeseen bugs.
-    ------------------------------------------------------------
-    revno: 3148.8.4
-    committer: Sergey Vojtovich <svoj@sun.com>
-    branch nick: mysql-5.1-bugteam-push
-    timestamp: Tue 2009-11-03 13:19:02 +0400
-    message:
-      Merge innodb-5.1-ss6129 to mysql-5.1-bugteam.
-        ------------------------------------------------------------
-        revno: 3148.13.12
-        committer: Sergey Vojtovich <svoj@sun.com>
-    branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-11-03 12:46:04 +0400
-    message:
-          Clean-ups after applying InnoDB snapshot 5.1-ss6129:
-          - disabled main.innodb_bug47777.test with InnoDB plugin
-            until fix for plugin is applied.
-          - disabled main.innodb-autoinc.test (failing)
-          - re-enabled main.innodb_bug39438.test
-          - added error message suppression to innodb_bug39438, as
-            requested by InnoDB/Oracle
-          - reverted change to main.innodb_bug34300 as plugin specific.
-    ------------------------------------------------------------
-        revno: 3148.13.11
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 19:07:26 +0400
-    message:
-          Applying InnoDB snashot 5.1-ss6129
-      
-          Detailed revision comments:
-      
-          r6129 | vasil | 2009-10-30 17:14:22 +0200 (Fri, 30 Oct 2009) | 4 lines
-          branches/5.1:
-      
-          Revert a change to Makefile.am that sneaked unnoticed in c6127.
-        ------------------------------------------------------------
-        revno: 3148.13.10
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 19:06:58 +0400
-        message:
-          Applying InnoDB snashot 5.1-ss6129
-          
-          Detailed revision comments:
-          
-          r6127 | vasil | 2009-10-30 11:18:25 +0200 (Fri, 30 Oct 2009) | 18 lines
-          branches/5.1:
-          
-          Backport c6121 from branches/zip:
-          
-            ------------------------------------------------------------------------
-            r6121 | sunny | 2009-10-30 01:42:11 +0200 (Fri, 30 Oct 2009) | 7 lines
-            Changed paths:
-               M /branches/zip/mysql-test/innodb-autoinc.result
-            
-            branches/zip: This test has been problematic for sometime now. The underlying
-            bug is that the data dictionaries get out of sync. In the AUTOINC code we
-            try and apply salve to the symptoms. In the past MySQL made some unrelated
-            change and the dictionaries stopped getting out of sync and this test started
-            to fail. Now, it seems they have reverted that changed and the test is
-            passing again. I suspect this is not he last time that this test will change.
-            
-            ------------------------------------------------------------------------
-    ------------------------------------------------------------
-        revno: 3148.13.9
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 19:00:51 +0400
-    message:
-          Applying InnoDB snashot 5.1-ss6129
-          
-          Detailed revision comments:
-          
-          r6125 | vasil | 2009-10-30 10:31:23 +0200 (Fri, 30 Oct 2009) | 4 lines
-          branches/5.1:
-          
-          White-space fixup.
-    ------------------------------------------------------------
-        revno: 3148.13.8
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 19:00:26 +0400
-    message:
-          Applying InnoDB snashot 5.1-ss6129
-          
-          Detailed revision comments:
-          
-          r6123 | jyang | 2009-10-30 05:43:06 +0200 (Fri, 30 Oct 2009) | 8 lines
-          branches/5.1: In os_mem_alloc_large(), if we fail to attach
-          the shared memory, reset memory pointer ptr to NULL, and
-          allocate memory from conventional pool. This is a port
-          from branches/zip.
-          Bug #48237 Error handling in os_mem_alloc_large appears to be incorrect
-          rb://198  Approved by: Marko
-        ------------------------------------------------------------
-        revno: 3148.13.7
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 18:59:44 +0400
-        message:
-          Applying InnoDB snashot 5.1-ss6129
-          
-          Detailed revision comments:
-          
-          r6122 | jyang | 2009-10-30 05:18:38 +0200 (Fri, 30 Oct 2009) | 7 lines
-          branches/5.1: Chnage WARN_LEVEL_ERROR to WARN_LEVEL_WARN
-          for push_warning_printf() call in innodb.
-          Fix Bug#47233: Innodb calls push_warning(MYSQL_ERROR::WARN_LEVEL_ERROR)
-          
-          rb://170 approved by Marko.
-            ------------------------------------------------------------
-        revno: 3148.13.6
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 18:59:19 +0400
-            message:
-          Applying InnoDB snashot 5.1-ss6129
-          
-          Detailed revision comments:
-          
-          r6076 | vasil | 2009-10-14 19:30:12 +0300 (Wed, 14 Oct 2009) | 4 lines
-          branches/5.1:
-          
-          Fix typo.
-            ------------------------------------------------------------
-        revno: 3148.13.5
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 18:58:09 +0400
-            message:
-          Applying InnoDB snashot 5.1-ss6129
-              
-          Detailed revision comments:
-              
-          r6052 | sunny | 2009-10-12 07:09:56 +0300 (Mon, 12 Oct 2009) | 4 lines
-          branches/5.1: Reset the statement level autoinc counter on ROLLBACK. Fix
-          the test results too.
-          rb://164
-          
-          r6053 | sunny | 2009-10-12 07:37:49 +0300 (Mon, 12 Oct 2009) | 6 lines
-          branches/5.1: Copy the maximum AUTOINC value from the old table to the new
-          table when MySQL does a CREATE INDEX ON T. This is required because MySQL
-          does a table copy, rename and drops the old table.
-          Fix Bug#47125: auto_increment start value is ignored if an index is created and engine=innodb
-          rb://168
-        ------------------------------------------------------------
-        revno: 3148.13.4
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 18:43:20 +0400
-        message:
-          Applying InnoDB snashot 5.1-ss6129
-          
-          Detailed revision comments:
-          
-          r6051 | sunny | 2009-10-12 07:05:00 +0300 (Mon, 12 Oct 2009) | 6 lines
-          branches/5.1: Ignore negative values supplied by the user when calculating the
-          next value to store in dict_table_t. Setting autoincrement columns top negative
-          values is undefined behavior and this change should bring the behavior of
-          InnoDB closer to what users expect. Added several tests to check.
-          rb://162
-        ------------------------------------------------------------
-        revno: 3148.13.3
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 18:41:40 +0400
-        message:
-          Applying InnoDB snashot 5.1-ss6129
-          
-          Detailed revision comments:
-          
-          r6045 | jyang | 2009-10-08 02:27:08 +0300 (Thu, 08 Oct 2009) | 7 lines
-          branches/5.1: Fix bug #47777. Treat the Geometry data same as
-          Binary BLOB in ha_innobase::store_key_val_for_row(), since the
-          Geometry data is stored as Binary BLOB in Innodb.
-          
-          Review: rb://180 approved by Marko Makela.
-            ------------------------------------------------------------
-        revno: 3148.13.2
-        committer: Sergey Vojtovich <svoj@sun.com>
-            branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 18:36:55 +0400
-            message:
-          Applying InnoDB snashot 5.1-ss6129
-          
-          Detailed revision comments:
-          
-          r6032 | vasil | 2009-10-01 15:55:49 +0300 (Thu, 01 Oct 2009) | 8 lines
-          branches/5.1:
-          
-          Fix Bug#38996 Race condition in ANALYZE TABLE
-          
-          by serializing ANALYZE TABLE inside InnoDB.
-          
-          Approved by:	Heikki (rb://175)
-        ------------------------------------------------------------
-        revno: 3148.13.1
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 18:35:55 +0400
-        message:
-          Applying InnoDB snashot 5.1-ss6129
-          
-          Detailed revision comments:
-          
-          r5952 | calvin | 2009-09-22 19:45:07 +0300 (Tue, 22 Sep 2009) | 7 lines
-          branches/5.1: fix bug#42383: Can't create table 'test.bug39438'
-          
-          For embedded server, MySQL may pass in full path, which is
-          currently disallowed. It is needed to relax the condition by
-          accepting full paths in the embedded case.
-          
-          Approved by: Heikki (on IM)
-        ------------------------------------------------------------
-    revno: 3148.8.3
-    committer: Vladislav Vaintroub <vvaintroub@mysql.com>
-        branch nick: mysql-5.1-bugteam
-    timestamp: Tue 2009-11-03 01:52:57 +0100
-        message:
       merge
-            ------------------------------------------------------------
-        revno: 3148.9.8
-        committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 18:37:21 -0200
-            message:
-          Automerge.
-            ------------------------------------------------------------
-            revno: 1810.3961.11
-            committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
-            branch nick: mysql-5.0-bugteam
-            timestamp: Mon 2009-11-02 18:10:21 -0200
-            message:
-              Bug#44952: Ndbd file system inconsistency error
-              
-              Backport a ndb patch: fix bug with crash during restart, where
-              a mbyte incorrectly could be skipped, leading to "end of log
-              wo/ finding gci".
-        ------------------------------------------------------------
-        revno: 3148.9.7
-        committer: Luis Soares <luis.soares@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 16:02:55 +0000
-        message:
-          Auto-merging mysql-5.1-bugteam-gca into mysql-5.1-bugteam latest.
-            ------------------------------------------------------------
-            revno: 3148.12.1
-            committer: Luis Soares <luis.soares@sun.com>
-            branch nick: mysql-5.1-bugteam-gca
-            timestamp: Mon 2009-11-02 15:57:25 +0000
-            message:
-              Auto-merging bzr bundle from bug report in mysql-5.1-bugteam-gca
-        ------------------------------------------------------------
-            revno: 3184.7.1
-            committer: Luis Soares <luis.soares@sun.com>
-        branch nick: mysql-5.1-bugteam
-            timestamp: Tue 2009-10-27 15:15:53 +0000
-        message:
-              BUG#48297: Schema name is ignored when LOAD DATA is written into 
-              binlog, replication aborts
-          
-              In SBR or MBR, the schema name is not being written to the binlog
-              when executing a LOAD DATA statement. This becomes a problem when
-              the current database (lets call it db1) is different from the
-              table's schema (lets call it db2). For instance, take the
-              following statements:
-          
-                use db1;
-                load data local infile 'infile.txt' into table db2.t
-          
-              Should this statement be logged without t's schema (db2), when
-              replaying it, one can get db1.t populated instead of db2.t (if
-              db1.t exists). On the other hand, if there is no db1.t at all,
-              replication will stop.
-          
-              We fix this by always logging the table (in load file) with fully
-              qualified name when its schema is different from the current
-              database or when no default database was selected.
-        ------------------------------------------------------------
-        revno: 3148.9.6
-        committer: Martin Hansson <martin.hansson@sun.com>
-        branch nick: 5.1bt
-        timestamp: Mon 2009-11-02 13:24:07 +0100
-        message:
-          Bug#47925: regression of range optimizer and date comparison in 5.1.39!
-          
-          When a query was using a DATE or DATETIME value formatted
-          using any other separator characters beside hyphen '-', a
-          query with a greater-or-equal '>=' condition matching only
-          the greatest value in an indexed column, the result was
-          empty if index range scan was employed.
-          
-          The range optimizer got a new feature between 5.1.38 and
-          5.1.39 that changes a greater-or-equal condition to a
-          greater-than if the value matching that in the query was not
-          present in the table. But the value comparison function
-          compared the dates as strings instead of dates.
-          
-          The bug was fixed by splitting the function
-          get_date_from_str in two: One part that parses and does
-          error checking. This function is now visible outside the
-          module. The old get_date_from_str now calls the new
-          function.
-        ------------------------------------------------------------
-        revno: 3148.9.5
-        committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Mon 2009-11-02 09:22:36 -0200
-        message:
-          Automerge.
-            ------------------------------------------------------------
-            revno: 1810.3961.10
-            committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
-            branch nick: 41728-5.0
-            timestamp: Tue 2009-09-29 09:55:53 -0300
-            message:
-              Bug#41728: Dropped symbol but no soname change
-          
-              Restore a stub of the removed mysql_odbc_escape_string function
-              to fix a ABI breakage. The function was intended to be private
-              and used only by Connector/ODBC, but, unfortunately, it was exported
-              as part of the ABI. Nonetheless, only a stub is restored as the
-              original function is inherently broken and shouldn't be used.
-          
-              This restoration only applies to MySQL 5.0. This will be addressed
-              differently in later versions -- reworked library versioning.
-        ------------------------------------------------------------
-        revno: 3148.9.4
-        committer: Tatiana A. Nurnberg <azundris@mysql.com>
-        branch nick: 51-48295
-        timestamp: Mon 2009-11-02 00:13:13 -0800
-        message:
-          auto-merge
-            ------------------------------------------------------------
-            revno: 3148.10.15
-            committer: Luis Soares <luis.soares@sun.com>
-            branch nick: mysql-5.1-bugteam
-            timestamp: Sun 2009-11-01 23:13:11 +0000
-            message:
-              BUG#42829: manually merged approved bzr bundle from bug report.
-          
-              Conflicts
-              =========
-          
-              Text conflict in sql/sql_class.cc
-              1 conflicts encountered.
-                ------------------------------------------------------------
-                revno: 3092.5.1
-                committer: Luis Soares <luis.soares@sun.com>
-                branch nick: mysql-5.1-bugteam
-                timestamp: Thu 2009-09-24 15:52:52 +0100
-                message:
-                  BUG#42829: binlogging enabled for all schemas regardless of
-                  binlog-db-db / binlog-ignore-db
-          
-                  InnoDB will return an error if statement based replication is used
-                  along with transaction isolation level READ-COMMITTED (or weaker),
-                  even if the statement in question is filtered out according to the
-                  binlog-do-db rules set. In this case, an error should not be printed.
-          
-                  This patch addresses this issue by extending the existing check in
-                  external_lock to take into account the filter rules before deciding to
-                  print an error. Furthermore, it also changes decide_logging_format to
-                  take into consideration whether the statement is filtered out from 
-                  binlog before decision is made.
-        ------------------------------------------------------------
-            revno: 3148.10.14
-            committer: Sergey Vojtovich <svoj@sun.com>
-            branch nick: mysql-5.1-bugteam-push
-            timestamp: Sat 2009-10-31 14:50:25 +0400
-        message:
-              Merge fix for BUG#43171.
-                ------------------------------------------------------------
-                revno: 3184.6.1
-                committer: Sergey Vojtovich <svoj@sun.com>
-                branch nick: mysql-5.1-bugteam-bug43171
-                timestamp: Wed 2009-10-28 19:39:08 +0400
-                message:
-                  BUG#43171 - Assertion failed: thd->transaction.xid_state.xid.is_null()
-          
-                  XA START may cause assertion failure/server crash when it is called
-                  after unilateral roll back issued by the Resource Manager (both
-                  in regular transaction and after XA transaction).
-                  
-                  The problem was that rm_error variable wasn't set/reset properly.
-        ------------------------------------------------------------
-            revno: 3148.10.13
-            committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-            branch nick: mysql-5.1-bugteam
-            timestamp: Fri 2009-10-30 19:17:44 +0300
-        message:
-              Automerge.
-            ------------------------------------------------------------
-                revno: 1810.3961.9
-                committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-                branch nick: mysql-5.0-bugteam
-                timestamp: Fri 2009-10-30 19:16:25 +0300
-            message:
-                  Automerge.
-            ------------------------------------------------------------
-            revno: 3148.10.12
-            committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-            branch nick: mysql-5.1-bugteam
-            timestamp: Fri 2009-10-30 19:16:29 +0300
-            message:
-              Automerge.
-                ------------------------------------------------------------
-                revno: 3184.5.1
-                committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-                branch nick: my51-bug48131
-                timestamp: Fri 2009-10-30 18:59:06 +0300
-                message:
-                  Automerge.
-                ------------------------------------------------------------
-                revno: 1810.3964.1
-                committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-                branch nick: my50-bug48131
-                timestamp: Fri 2009-10-30 18:54:53 +0300
-                message:
-                  Bug #48131: crash group by with rollup, distinct, filesort,
-                              with temporary tables
-                    
-                  There were two problems the test case from this bug was
-                  triggering:
-              
-                  1. JOIN::rollup_init() was supposed to wrap all constant Items
-                  into another object for queries with the WITH ROLLUP modifier
-                  to ensure they are never considered as constants and therefore
-                  are written into temporary tables if the optimizer chooses to
-                  employ them for DISTINCT/GROUP BY handling.
-              
-                  However, JOIN::rollup_init() was called before
-                  make_join_statistics(), so Items corresponding to fields in
-                  const tables could not be handled as intended, which was
-                  causing all kinds of problems later in the query execution. In
-                  particular, create_tmp_table() assumed all constant items
-                  except "hidden" ones to be removed earlier by remove_const()
-                  which led to improperly initialized Field objects for the
-                  temporary table being created. This is what was causing crashes
-                  and valgrind errors in storage engines.
-              
-                  2. Even when the above problem had been fixed, the query from
-                  the test case produced incorrect results due to some
-                  DISTINCT/GROUP BY optimizations being performed by the
-                  optimizer that are inapplicable in the WITH ROLLUP case.
-                  
-                  Fixed by disabling inapplicable DISTINCT/GROUP BY optimizations
-                  when the WITH ROLLUP modifier is present, and splitting the
-                  const-wrapping part of JOIN::rollup_init() into a separate
-                  method which is now invoked after make_join_statistics() when
-                  the const tables are already known.
-        ------------------------------------------------------------
-            revno: 3148.10.11
-            committer: Georgi Kodinov <joro@sun.com>
-            branch nick: merge-5.1-bugteam
-            timestamp: Fri 2009-10-30 16:57:16 +0200
-        message:
-              merge
-            ------------------------------------------------------------
-                revno: 1810.3961.8
-                committer: Georgi Kodinov <joro@sun.com>
-                branch nick: merge-5.0-bugteam
-                timestamp: Fri 2009-10-30 16:34:54 +0200
-            message:
-                  merge from 5.0-main
-        ------------------------------------------------------------
-                revno: 1810.3963.1
-                author: karen.langford@sun.com
-                committer: MySQL Build Team <build@mysql.com>
-                branch nick: mysql-5.0
-                timestamp: Mon 2009-10-26 19:20:02 +0100
-        message:
-                  Merge from mysql-5.0.87-release
-            ------------------------------------------------------------
-                revno: 1810.3962.1
-                tags: mysql-5.0.87
-                committer: Hery Ramilison <hery.ramilison@sun.com>
-                branch nick: mysql-5.0.87-release
-                timestamp: Thu 2009-10-15 00:40:40 +0200
-            message:
-                  Added make targets 'test-bt-fast' and 'test-bt-debug-fast'
-                  Put variable declaration at the beginning of a block
-        ------------------------------------------------------------
-            revno: 3148.10.10
-            committer: Georgi Kodinov <joro@sun.com>
-            branch nick: B48291-5.1-bugteam
-            timestamp: Fri 2009-10-30 16:13:13 +0200
-        message:
-              merge
-            ------------------------------------------------------------
-                revno: 1810.3961.7
-                committer: Georgi Kodinov <joro@sun.com>
-                branch nick: B48291-5.0-bugteam
-                timestamp: Fri 2009-10-30 15:15:43 +0200
-            message:
-                  Bug #48291 : crash with row() operator,select into @var, and 
-                    subquery returning multiple rows
-              
-                  Error handling was missing when handling subqueires in WHERE 
-                  and when assigning a SELECT result to a @variable.
-                  This caused crash(es). 
-              
-                  Fixed by adding error handling code to both the WHERE 
-                  condition evaluation and to assignment to an @variable.
-            ------------------------------------------------------------
-            revno: 3148.10.9
-            committer: Georgi Kodinov <joro@sun.com>
-            branch nick: B48293-5.1-bugteam
-            timestamp: Fri 2009-10-30 11:56:32 +0200
-            message:
-              merge
-                ------------------------------------------------------------
-                revno: 1810.3961.6
-                committer: Georgi Kodinov <joro@sun.com>
-                branch nick: B48293-5.0-bugteam
-                timestamp: Fri 2009-10-30 11:40:44 +0200
-                message:
-                  Bug #48293: crash with procedure analyse, view with > 10 columns,
-                  having clause...
-              
-                  The fix for bug 46184 was not very complete. It was not covering
-                  views using temporary tables and multiple tables in a FROM clause.
-                  Fixed by reverting the fix for 46184 and making a more general
-                  check that is checking at the right execution stage and for all
-                  of the non-supported cases.
-                  Now PROCEDURE ANALYZE on non-top level SELECT is also forbidden.
-                  Updated the analyse.test and subselect.test accordingly.
-        ------------------------------------------------------------
-            revno: 3148.10.8
-            committer: Georgi Kodinov <joro@sun.com>
-            branch nick: B42116-5.1-bugteam
-            timestamp: Fri 2009-10-30 10:03:18 +0200
-        message:
-              merge
-            ------------------------------------------------------------
-                revno: 1810.3961.5
-                committer: Georgi Kodinov <joro@sun.com>
-                branch nick: B42116-5.0-bugteam
-                timestamp: Thu 2009-10-29 17:24:29 +0200
-            message:
-                  Bug #42116 : Mysql crash on specific query
-              
-                  Queries with nested outer joins may lead to crashes or 
-                  bad results because an internal data structure is not handled
-                  correctly.
-                  The optimizer uses bitmaps of nested JOINs to determine
-                  if certain table can be placed at a certain place in the
-                  JOIN order.
-                  It does maintain a bitmap describing in which JOINs 
-                  last placed table is nested.
-                  When it puts a table it makes sure the bit of every JOIN that
-                  contains the table in question is set (because JOINs can be nested).
-                  It does that by recursively setting the bit for the next enclosing
-                  JOIN when this is the first table in the JOIN and recursively 
-                  resetting the bit if it's the last table in the JOIN.
-                  When it removes a table from the join order it should do the
-                  opposite : recursively unset the bit if it's the only remaining 
-                  table in this join and and recursively set the bit if it's removing
-                  the last table of a JOIN.
-                  There was an error in how the bits was set for the upper levels :
-                  when removing a table it was setting the bit for all the enclosing 
-                  nested JOINs even if there were more tables left in the current JOIN
-                  (which practically means that the upper nested JOINs were not affected).
-                  Fixed by stopping the recursion at the relevant level.
-            ------------------------------------------------------------
-            revno: 3148.10.7
-            committer: <Dao-Gang.Qu@sun.com>
-            branch nick: mysql-5.1-bugteam
-            timestamp: Thu 2009-10-29 10:26:59 +0800
-            message:
-              Bug #46828  	rpl_get_master_version_and_clock fails on PB-2
-              
-              The 'rpl_get_master_version_and_clock' test verifies if the slave I/O 
-              thread tries to reconnect to master when it tries to get the values of 
-              the UNIX_TIMESTAMP, SERVER_ID from master under network disconnection. 
-              So the master server is restarted for making the transient network 
-              disconnection. Restarting master server can bring two problems as following:
-              
-              1. The time out error is encountered sporadically. The slave I/O thread tries 
-                 to reconnect master ten times, which is set in my.cnf. So in the test 
-                 framework sporadically the slave I/O thread really stoped when it can't 
-                 reconnect to master in the ten times successfully before the master starts, 
-                 then the time out error will be encountered while waiting for the slave to 
-                 start.
-              
-              2. These warnings and errors are produced in server log file when 
-                 the slave I/O thread tries to get the values of the UNIX_TIMESTAMP, 
-                 SERVER_ID from master under the transient network disconnection.
-              
-              To fix problem 1, increase the master retry count to sixty times, 
-              so that the slave I/O thread has enough time to reconnect master 
-              successfully.
-              To fix problem 2, suppress these warnings and errors by mtr suppression, 
-              because they are expected.
-            ------------------------------------------------------------
-            revno: 3148.10.6
-            committer: Konstantin Osipov <kostja@sun.com>
-            branch nick: 5.1-bugteam
-            timestamp: Wed 2009-10-28 17:49:56 +0300
-            message:
-              A patch and a test case for 
-              Bug#46539 Various crashes on INSERT IGNORE SELECT + SELECT FOR UPDATE.
-              
-              If a transaction was rolled back inside InnoDB due to a deadlock
-              or lock wait timeout, and the statement had IGNORE clause,
-              the server could crash at the end of the statement or on shutdown.
-              
-              This was caused by the error handling infrastructure's attempt to 
-              ignore a non-ignorable error.
-              
-              When a transaction rollback request is raised, switch off 
-              current_select->no_error flag, so that the following error
-              won't be ignored.
-              
-              Instead, we could add !thd->is_fatal_sub_stmt_error to
-              my_message_sql(), but since in write_record() we switch
-              off no_error, the same approach is used in 
-              thd_mark_transaction_to_rollback().
-              
-              @todo: call thd_mark_transaction_to_rollback() from 
-              handler::print_error(), then we can easily make sure
-              that the error reported by print_error is not ignored.
-        ------------------------------------------------------------
-            revno: 3148.10.5
-            committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-            branch nick: mysql-5.1-bugteam
-            timestamp: Wed 2009-10-28 13:23:02 +0400
-        message:
-              5.0-bugteam->5.1-bugteam merge
-        ------------------------------------------------------------
-                revno: 1810.3961.4
-                committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-                branch nick: mysql-5.0-bugteam
-                timestamp: Wed 2009-10-28 13:15:33 +0400
-        message:
-                  Bug#41049 does syntax "grant" case insensitive?
-                  test result fix
-        ------------------------------------------------------------
-            revno: 3148.10.4
-            committer: <Dao-Gang.Qu@sun.com>
-            branch nick: mysql-5.1-bugteam
-            timestamp: Wed 2009-10-28 15:04:06 +0800
-        message:
-              Bug #34777  	mysqlbinlog: --help output for --base64-output is hard to understand
-          
-              Append the description of the 'decode-rows' value for --base64-output argument.
     ------------------------------------------------------------
-            revno: 3148.10.3
-            committer: Sergey Vojtovich <svoj@sun.com>
-            branch nick: mysql-5.1-bugteam-merge
-            timestamp: Tue 2009-10-27 18:30:02 +0400
-    message:
-              Merge 5.1-bugteam -> 5.1-bugteam-local.
-    ------------------------------------------------------------
-                revno: 3148.11.1
-                committer: Sergey Vojtovich <svoj@sun.com>
-                branch nick: mysql-5.1-bugteam-push
-                timestamp: Tue 2009-10-27 18:27:27 +0400
-    message:
-                  A follow-up to fix for
-                  
-                  BUG#47073 - valgrind errs, corruption,failed repair of partition,
-                              low myisam_sort_buffer_size
-                  
-                  Fixed race conditions discovered with the provided test case and
-                  stabilized test case.
-        ------------------------------------------------------------
-            revno: 3148.10.2
-            committer: Tatiana A. Nurnberg <azundris@mysql.com>
-            branch nick: 51-46586
-            timestamp: Tue 2009-10-27 06:39:09 -0700
-        message:
-              auto-merge
-    ------------------------------------------------------------
-                revno: 3184.4.4
-                committer: Georgi Kodinov <joro@sun.com>
-                branch nick: B47320-5.1-bugteam
-                timestamp: Tue 2009-10-27 15:20:34 +0200
-    message:
-                  merge
-    ------------------------------------------------------------
-                    revno: 1810.3961.3
-                    committer: Georgi Kodinov <joro@sun.com>
-                    branch nick: B47320-5.0-bugteam
-                    timestamp: Tue 2009-10-27 15:11:06 +0200
-    message:
-                      merge from 4.1
-    ------------------------------------------------------------
-                    revno: 1616.3139.7
-                    committer: Georgi Kodinov <joro@sun.com>
-                    branch nick: B47320-4.1
-                    timestamp: Tue 2009-10-20 13:09:16 +0300
-    message:
-                      Bug #47320: OpenSSL client does not check YaSSL server certificate
-                      
-                      Removed the verify callback, as it's not needed to verify even self
-                      signed certificates and is a security problem.
-        ------------------------------------------------------------
-                    revno: 1616.3139.6
-                    committer: Timothy Smith <timothy.smith@sun.com>
-                    branch nick: 41-b27294
-                    timestamp: Mon 2008-12-01 12:46:57 -0700
-        message:
-                      Minor clean up in build system; make BUILD/compile-pentium-debug work with
-                      current auto tools (create BUILD/autorun.sh based on 5.0 version).  Remove
-                      some generated files from version control.  Ignore some generated files.
-                    ------------------------------------------------------------
-                    revno: 1616.3139.5
-                    committer: Timothy Smith <timothy.smith@sun.com>
-                    branch nick: 41-b27294
-                    timestamp: Mon 2008-12-01 12:37:04 -0700
-                    message:
-                      Bug #27294: crash with innodb_locks_unsafe_for_binlog=1
-          
-                      Back-port 5.0 fix to 4.1.  Fix Bug#27294 by using trx returned by
-                      check_trx_exists() instead of prebuilt->trx. This has been fixed in 5.1 in
-                      r782.
-                    ------------------------------------------------------------
-                    revno: 1616.3139.4
-                    author: kent.boortz@sun.com
-                    committer: Build Team <bteam@astra04>
-                    branch nick: mysql-4.1
-                    timestamp: Thu 2008-11-27 11:00:24 +0100
-                    message:
-                      Raise version number after cloning 4.1.25
-                    ------------------------------------------------------------
-                    revno: 1616.3139.3
-                    tags: clone-4.1.25-build
-                    committer: Alexey Botchkov <holyfoot@mysql.com>
-                    branch nick: 32167
-                    timestamp: Sat 2008-07-26 14:39:31 +0500
-                    message:
-                      Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-          
-                            test_if_data_home_dir fixed to look into real path.
-                            Checks added to mi_open for symlinks into data home directory.
-                      modified:
-                        include/my_sys.h
-                        include/myisam.h
-                        myisam/mi_check.c
-                        myisam/mi_open.c
-                        myisam/mi_static.c
-                        myisam/myisamchk.c
-                        myisam/myisamdef.h
-                        mysql-test/r/symlink.result
-                        mysys/my_symlink.c
-                        sql/mysql_priv.h
-                        sql/mysqld.cc
-                        sql/sql_parse.cc
-                      
-                      per-file messages:
-                        include/my_sys.h
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          my_is_symlink interface added
-                        include/myisam.h
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          myisam_test_invalid_symlink interface added
-                        myisam/mi_check.c
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          mi_open_datafile calls modified
-                        myisam/mi_open.c
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          code added to mi_open to check for symlinks into data home directory.
-                          mi_open_datafile now accepts 'original' file path to check if it's
-                          an allowed symlink.
-                        myisam/mi_static.c
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          myisam_test_invlaid_symlink defined
-                        myisam/myisamchk.c
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          mi_open_datafile call modified
-                        myisam/myisamdef.h
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          mi_open_datafile interface modified - 'real_path' parameter added
-                        mysql-test/r/symlink.test
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          error codes corrected as some patch now rejected pointing inside datahome
-                        mysql-test/r/symlink.result
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          error messages corrected in the result
-                        mysys/my_symlink.c
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          my_is_symlink() implementsd
-                          my_realpath() now returns the 'realpath' even if a file isn't a symlink
-                        sql/mysql_priv.h
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          test_if_data_home_dir interface
-                        sql/mysqld.cc
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          myisam_test_invalid_symlik set with the 'test_if_data_home_dir'
-                        sql/sql_parse.cc
-                          Bug#32167 another privilege bypass with DATA/INDEX DIRECTORY.
-                          
-                          error messages corrected
-                          test_if_data_home_dir code fixed
-    ------------------------------------------------------------
-                    revno: 1616.3139.2
-                    committer: Daniel Fischer <df@sun.com>
-                    branch nick: mysql-4.1
-                    timestamp: Wed 2008-06-11 20:56:45 +0200
-    message:
-                      update from bk repository
-    ------------------------------------------------------------
-                revno: 3184.4.3
-                committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-    branch nick: mysql-5.1-bugteam
-                timestamp: Tue 2009-10-27 15:06:47 +0400
-    message:
-                  null merge
-        ------------------------------------------------------------
-                    revno: 1810.3961.2
-                    committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-        branch nick: mysql-5.0-bugteam
-                    timestamp: Tue 2009-10-27 15:02:58 +0400
-        message:
-                      automerge
-    ------------------------------------------------------------
-                revno: 3184.4.2
-                committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-    branch nick: mysql-5.1-bugteam
-                timestamp: Tue 2009-10-27 15:04:59 +0400
-    message:
-                  automerge
-        ------------------------------------------------------------
-                revno: 3184.4.1
-                committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-                branch nick: mysql-5.1-bugteam
-                timestamp: Tue 2009-10-27 14:09:36 +0400
-        message:
-                  5.0-bugteam->5.1-bugteam merge
-        ------------------------------------------------------------
-                revno: 1810.3961.1
-                committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-                branch nick: mysql-5.0-bugteam
-                timestamp: Tue 2009-10-27 12:09:19 +0400
-        message:
-                  Bug#41049 does syntax "grant" case insensitive?
-                  Problem 1:
-                  column_priv_hash uses utf8_general_ci collation
-                  for the key comparison. The key consists of user name,
-                  db name and table name. Thus user with privileges on table t1
-                  is able to perform the same operation on T1
-                  (the similar situation with user name & db name, see acl_cache).
-                  So collation which is used for column_priv_hash and acl_cache
-                  should be case sensitive.
-                  The fix:
-                  replace system_charset_info with my_charset_utf8_bin for
-                  column_priv_hash and acl_cache
-                  Problem 2:
-                  The same situation with proc_priv_hash, func_priv_hash,
-                  the only difference is that Routine name is case insensitive.
-                  So the fix is to use my_charset_utf8_bin for
-                  proc_priv_hash & func_priv_hash and convert routine name into lower
-                  case before writing the element into the hash and
-                  before looking up the key.
-                  Additional fix: mysql.procs_priv Routine_name field collation
-                  is changed to utf8_general_ci.
-                  It's necessary for REVOKE command
-                  (to find a field by routine hash element values).
-                  Note: 
-                  It's safe for lower-case-table-names mode too because
-                  db name & table name are converted into lower case
-                  (see GRANT_NAME::GRANT_NAME).
-            ------------------------------------------------------------
-            revno: 3148.10.1
-            committer: Tatiana A. Nurnberg <azundris@mysql.com>
-            branch nick: 51-46586
-            timestamp: Tue 2009-10-27 06:16:02 -0700
-            message:
-              Bug#46586: When using the plugin interface the type "set" for options caused a crash.
-           
-              "What do you mean, there's a bug? There isn't even code!"
-           
-              There was some token code for plug-in variables of the SET type,
-              but clearly this never worked, or was subject to massive bit rot
-              since. Bug-fixes ... fail-safes ... tests -- fais au mieux, mon chou!
-    ------------------------------------------------------------
-        revno: 3148.9.3
-        committer: Tatiana A. Nurnberg <azundris@mysql.com>
-        branch nick: 51-48295
-        timestamp: Thu 2009-10-29 16:01:54 -0700
-    message:
-          Bug#48295: explain extended crash with subquery and ONLY_FULL_GROUP_BY sql_mode
-          
-          If an outer query is broken, a subquery might not even get set up.
-          EXPLAIN EXTENDED did not expect this and merrily tried to de-ref all
-          of the half-setup info.
-          
-          We now catch this case and print as much as we have, as it doesn't cost us
-          anything (doesn't make regular execution slower).
-    ------------------------------------------------------------
-        revno: 3148.9.2
-        committer: Tatiana A. Nurnberg <azundris@mysql.com>
-        branch nick: 51-43508-waffleday
-        timestamp: Tue 2009-10-27 02:53:16 -0700
-    message:
-          auto-merge
-        ------------------------------------------------------------
-            revno: 3184.3.15
-            committer: Sergey Vojtovich <svoj@sun.com>
-            branch nick: mysql-5.1-bugteam-quickfix
-            timestamp: Tue 2009-10-27 12:47:03 +0400
-        message:
-              Null merge an addition to fix for BUG#41597.
-    ------------------------------------------------------------
-                revno: 1810.3959.7
-                committer: Sergey Vojtovich <svoj@sun.com>
-                branch nick: mysql-5.0-bugteam-quickfix
-                timestamp: Tue 2009-10-27 12:37:57 +0400
-    message:
-                  An addition to fix for
-      
-                  BUG#41597 - After rename of user, there are additional grants
-                              when grants are reapplied.
-                  
-                  Fixed build failure on Windows. Added missing cast.
-    ------------------------------------------------------------
-            revno: 3184.3.14
-            committer: Georgi Kodinov <joro@sun.com>
-            branch nick: fix-5.1-bugteam
-            timestamp: Mon 2009-10-26 14:33:03 +0200
-    message:
-              rpl_cross_version made experimental because of bug #43913
-        ------------------------------------------------------------
-            revno: 3184.3.13
-            committer: Georgi Kodinov <joro@sun.com>
-            branch nick: B47788-5.1-bugteam
-            timestamp: Mon 2009-10-19 16:55:04 +0300
-        message:
-              Bug #47788: Crash in TABLE_LIST::hide_view_error on 
-                UPDATE + VIEW + SP + MERGE + ALTER
-              
-              When cleaning up the stored procedure's internal 
-              structures the flag to ignore the errors for 
-              INSERT/UPDATE IGNORE was not cleaned up.
-              As a result error ignoring was on during name 
-              resolution. And this is an abnormal situation : the
-              SELECT_LEX flag can be on only during query execution.
-              
-              Fixed by correctly cleaning up the SELECT_LEX flag 
-              when reusing the SELECT_LEX in a second execution.
-    ------------------------------------------------------------
-            revno: 3184.3.12
-            committer: Georgi Kodinov <joro@sun.com>
-            branch nick: B47412-5.1-bugteam
-            timestamp: Mon 2009-10-26 11:55:57 +0200
-    message:
-              Bug #47412: Valgrind warnings / user can read uninitalized memory using 
-              SP variables
-              
-              A function call may end without throwing an error or without setting 
-              the return value. This can happen when e.g. an error occurs while 
-              calculating the return value.
-              
-              Fixed by setting the value to NULL when error occurs during evaluation
-              of an expression.
-        ------------------------------------------------------------
-            revno: 3184.3.11
-            committer: Georgi Kodinov <joro@sun.com>
-            branch nick: fix-5.1-bugteam
-            timestamp: Sat 2009-10-24 09:57:31 +0300
-        message:
-              automerge
-                ------------------------------------------------------------
-                revno: 1810.3959.6
-                committer: Georgi Kodinov <joro@sun.com>
-                branch nick: B47780-5.0-bugteam
-                timestamp: Wed 2009-10-21 11:43:45 +0300
-                message:
-                  Bug #47780: crash when comparing GIS items from subquery
-                
-                  If the first argument to GeomFromWKB function is a geometry
-                  field then the function just returns its value.
-                  However in doing so it's not preserving first argument's 
-                  null_value flag and this causes unexpected null value to
-                  be returned to the calling function.
-                
-                  Fixed by updating the null_value of the GeomFromWKB function
-                  in such cases (and all other cases that return a NULL e.g.
-                  because of not enough memory for the return buffer).
-            ------------------------------------------------------------
-            revno: 3184.3.10
-            committer: Ramil Kalimullin <ramil@mysql.com>
-            branch nick: mysql-5.1-bugteam
-            timestamp: Fri 2009-10-23 23:37:57 +0500
-            message:
-              Auto-merge.
-                ------------------------------------------------------------
-                revno: 1810.3959.5
-                committer: Ramil Kalimullin <ramil@mysql.com>
-                branch nick: b48258-5.0-bugteam
-                timestamp: Fri 2009-10-23 16:26:48 +0500
-                message:
-                  Fix for bug#48258: Assertion failed when using a spatial index
-                
-                  Problem: involving a spatial index for "non-spatial" queries
-                  (that don't containt MBRXXX() functions) may lead to failed assert.
-                  
-                  Fix: don't use spatial indexes in such cases.
-        ------------------------------------------------------------
-            revno: 3184.3.9
-            committer: Jon Olav Hauglid <jon.hauglid@sun.com>
-            branch nick: mysql-5.1-bugteam-bug47919
-            timestamp: Fri 2009-10-23 16:35:06 +0200
-        message:
-              automerge
-                ------------------------------------------------------------
-                revno: 3176.2.4
-                committer: Jon Olav Hauglid <jon.hauglid@sun.com>
-                branch nick: mysql-5.1-bug47919
-                timestamp: Fri 2009-10-23 15:09:14 +0200
-                message:
-                  Bug #47919 assert in open_table during ALTER temporary table
-          
-                  This assertion would occur if UPDATE was used to update multiple
-                  tables containing an AUTO_INCREMENT column and if the inserted
-                  row had a user-supplied value for that column. The assertion 
-                  could then be triggered by the next statement.
-          
-                  The problem was only noticeable on debug builds of the server.
-                  
-                  The cause of the problem was that the code for multi update did
-                  not properly reset the TABLE->auto_increment_if_null flag after update.
-                  The flag is used to indicate that a non-null value of an auto_increment field
-                  has been provided by the user or retrieved from a current record.
-                  Open_tables() contains an assertion that tests this flag, and this
-                  was triggered in this case by ALTER TABLE.
-                  
-                  This patch fixes the problem by resetting the auto_increment_if_null
-                  field to FALSE once a row has been updated.
-                  
-                  This bug is similar to Bug#47274, but for multi update rather
-                  than INSERT DELAYED.
-                  
-                  Test case added to update.test.
-            ------------------------------------------------------------
-            revno: 3184.3.8
-            committer: Georgi Kodinov <joro@sun.com>
-            branch nick: fix-5.1-bugteam
-            timestamp: Fri 2009-10-23 16:54:58 +0300
-            message:
-              Revert the fix for bug #47627 as it's causing the regression tests in pb2 to
-              fail.
-        ------------------------------------------------------------
-            revno: 3184.3.7
-            committer: Georgi Kodinov <joro@sun.com>
-            branch nick: merge-5.1-bugteam
-            timestamp: Fri 2009-10-23 15:12:26 +0300
-        message:
-              merged 5.1-main-> 5.1-bugteam
-            ------------------------------------------------------------
-                revno: 3176.2.3
-                committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                branch nick: mysql-5.1
-                timestamp: Wed 2009-10-21 09:33:07 +0200
-            message:
-                  merge from 5.1-mtr
-        ------------------------------------------------------------
-                revno: 2728.17.78
-                committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                branch nick: merge-51
-                timestamp: Tue 2009-10-20 12:05:28 +0200
-        message:
-                  merge 48149
-            ------------------------------------------------------------
-                    revno: 2728.26.3
-                    committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                    branch nick: 46007-51
-                    timestamp: Mon 2009-10-19 15:51:47 +0200
-            message:
-                      Bug #48149 MTR should automatically skip SSL tests if SSL not supported
-                      Knowledge of no SSL support is not used
-                      Skip tests the same way e.g. innodb tests are
-                      Does not refer to have_ssl_communication.inc, 
-                           will add this when merging to 6.0-codebase
-            ------------------------------------------------------------
-                revno: 2728.17.77
-                committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                branch nick: merge-51
-                timestamp: Mon 2009-10-19 15:33:34 +0200
-            message:
-                  merge 48130 and 48133
-        ------------------------------------------------------------
-                    revno: 2728.26.2
-                    committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                    branch nick: 46007-51
-                    timestamp: Sun 2009-10-18 13:01:46 +0200
-        message:
-                      Bug #48133 MTR should not dump entire history of mysqld log when failing to start server
-                      Don't print entire log, but use extract_server_log() introduced by 46007
-            ------------------------------------------------------------
-                    revno: 2728.26.1
-                    committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                    branch nick: 46007-51
-                    timestamp: Sat 2009-10-17 18:34:56 +0200
-            message:
-                      Bug #48130 Expected failures should not count towards max-test-fail
-                      Test batches may be terminated too early
-                      Avoid counting exp-fail tests
-            ------------------------------------------------------------
-                revno: 2728.17.76
-                committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                branch nick: merge-51
-                timestamp: Fri 2009-10-16 23:25:05 +0200
-            message:
-                  merge from 5.1 main
-        ------------------------------------------------------------
-                revno: 2728.17.75
-                committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                branch nick: 46007-51
-                timestamp: Wed 2009-10-14 09:31:34 +0200
-        message:
-                  Bug #46007 Tests fail due to a crash while running 'check testcase before test'
-                  Difficult to debug due to lacking report
-                  This does not solve the real issue, but extracts server log when it happens
-                  Forst commit was incomplete, didn't cover all cases
-            ------------------------------------------------------------
-                revno: 2728.17.74
-                committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                branch nick: spaceplug-51
-                timestamp: Fri 2009-10-09 15:16:36 +0200
-            message:
-                  avoid regexp warning after 46625
-        ------------------------------------------------------------
-                revno: 2728.17.73
-                committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                branch nick: spaceplug-51
-                timestamp: Thu 2009-10-08 14:31:39 +0200
-        message:
-                  Remove obsolete comments after fixing 42408
-            ------------------------------------------------------------
-                revno: 2728.17.72
-                committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                branch nick: spaceplug-51
-                timestamp: Thu 2009-10-08 11:30:03 +0200
-            message:
-                  Bug #47218 mysqltest ignores "error" command inside if inside loop
-                  This was affected by same problem as append_file etc.
-                  Added Q_ERROR to special handling, and added small test
-            ------------------------------------------------------------
-                revno: 2728.17.71
-                committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                branch nick: spaceplug-51
-                timestamp: Thu 2009-10-08 11:23:04 +0200
-            message:
-                  Bug #47716 mtr2 prints obscure error when started with -gdb and xterm is missing
-                  Tried to use an expression inside ""
-                  Go via variable, and add $exe to the output
-            ------------------------------------------------------------
-                revno: 2728.17.70
-                committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                branch nick: spaceplug-51
-                timestamp: Thu 2009-10-08 11:14:42 +0200
-            message:
-                  Bug #46625 Pushbuild2: does not notice test failure in "Innodb Plugin" mode
-                  Disallow (and don't use) space in combination names
-        ------------------------------------------------------------
-                revno: 2728.17.69
-                committer: Magnus Bl?udd <magnus.blaudd@sun.com>
-                branch nick: 5.1-mtr
-                timestamp: Thu 2009-10-08 10:39:15 +0200
-        message:
-                  Bug#47801 The plugin test fails with the Embedded Server on Windows
-                   - Remove the "hack" from mtr.pl that skipped searching for the .dll files
-                    when embedded and windows. Now the variables will be preoperly initialized.
-                   - Make the tests detect that they can't run on windows+embedded
-    ------------------------------------------------------------
-                revno: 2728.17.68
-                committer: Magnus Bl?udd <magnus.blaudd@sun.com>
-                branch nick: 5.1-mtr
-                timestamp: Thu 2009-10-08 10:32:43 +0200
-    message:
-                  Merge
-        ------------------------------------------------------------
-                    revno: 3019.4.2
-                    committer: Magnus Bl?udd <magnus.blaudd@sun.com>
-                    branch nick: bug47612
-                    timestamp: Wed 2009-10-07 16:25:36 +0200
-        message:
-                      BUG#47612 - fix review comment
-        ------------------------------------------------------------
-                    revno: 3019.4.1
-                    committer: Magnus Bl?udd <magnus.blaudd@sun.com>
-                    branch nick: bug47612
-                    timestamp: Thu 2009-09-24 16:09:11 +0200
-        message:
-                      Bug#47612 mtr - improving the report for valgrind erorrs
-                       - Improve the report produced when a valgrind error is detected
-    ------------------------------------------------------------
-                revno: 2728.17.67
-                committer: Vladislav Vaintroub <vvaintroub@mysql.com>
-                branch nick: 51mtr
-                timestamp: Wed 2009-10-07 16:34:45 +0200
-    message:
-                  merge
-        ------------------------------------------------------------
-                    revno: 2728.25.4
-                    committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                    branch nick: lterm-51
-                    timestamp: Tue 2009-10-06 10:42:05 +0200
-        message:
-                      Bug #47811 ./mysql-test-run.pl --valgrind uses old (too narrow) allignment
-                      Remove the alignment option, let valgrind use its default
-                    ------------------------------------------------------------
-                    revno: 2728.25.3
-                    committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                    branch nick: lterm-51
-                    timestamp: Tue 2009-10-06 10:35:35 +0200
-                    message:
-                      Bug #46327 MTR2 prevents gcov data accumulation
-                      mysqladmin fails on Linux in 6.0 without --character-sets-dir
-                      Also added timeout for server shutdown, hope this will solve it
-                    ------------------------------------------------------------
-                    revno: 2728.25.2
-                    committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                    branch nick: etc-51
-                    timestamp: Mon 2009-10-05 13:08:10 +0200
-                    message:
-                      Bug #47243 Allow MTR to read max auto setting for --parallel from env. variable
-                      In stead of hard-coded 8, read from $MTR_MAX_PARALLEL if set
-                    ------------------------------------------------------------
-                    revno: 2728.25.1
-                    committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                    branch nick: innoplug-51
-                    timestamp: Fri 2009-10-02 10:36:38 +0200
-                    message:
-                      Bug #47383 let mysql-test-run.pl run innodb tests using the plugin
-                      Alt. solution: let the "InnoDB plugin" combinations apply
-                      Added some alternative plugin paths (I need to move the code anyway)
-                ------------------------------------------------------------
-                revno: 2728.17.66
-                committer: Vladislav Vaintroub <vvaintroub@mysql.com>
-                branch nick: 51mtr
-                timestamp: Wed 2009-09-30 00:19:00 +0200
-                message:
-                  Bug #47731 mtr freezes for many seconds when process to be killed has already gone. 
-                  
-                  The problem is that safe_kill_win fails to detect a dead process. OpenProcess() will 
-                  succeed even after the process died, it will first fail after the last handle to process 
-                  is closed.
-                  
-                  To fix the problem, check process status with GetExitCodeProcess() and consider 
-                  process to be dead if the exit code returned by this routine is not STILL_ALIVE.
-    ------------------------------------------------------------
-                revno: 2728.17.65
-                committer: Bjorn Munch <Bjorn.Munch@sun.com>
-                branch nick: mtr-51
-                timestamp: Wed 2009-09-23 10:21:16 +0200
-    message:
-                  merge from 5.1 main
-    ------------------------------------------------------------
-            revno: 3184.3.6
-            committer: <Dao-Gang.Qu@sun.com>
-    branch nick: mysql-5.1-bugteam
-            timestamp: Fri 2009-10-23 11:13:42 +0800
-    message:
-              Bug#46640: output from mysqlbinlog command in 5.1 breaks replication
-              
-              Added parentheses around assignment used as truth value for suppressing warnings.
-        ------------------------------------------------------------
-            revno: 3184.3.5
-            committer: Luis Soares <luis.soares@sun.com>
-        branch nick: mysql-5.1-bugteam-push
-            timestamp: Fri 2009-10-23 01:03:41 +0100
-        message:
-              BUG#34582: mysql-5.1-bugteam-bug-branch --> mysql-5.1-bugteam-latest
-              (automerge)
-        ------------------------------------------------------------
-                revno: 3182.2.1
-                committer: Luis Soares <luis.soares@sun.com>
-        branch nick: mysql-5.1-bugteam
-                timestamp: Tue 2009-10-20 09:39:40 +0100
-        message:
-                  BUG#34582: FLUSH LOGS does not close and reopen the binlog index
-                  file
-                
-                  Issuing 'FLUSH LOGS' does not close and reopen indexfile.
-                  Instead a SEEK_SET is performed.
-                        
-                  This patch makes index file to be closed and reopened whenever a
-                  rotation happens (FLUSH LOGS is issued or binary log exceeds 
-                  maximum configured size).
-    ------------------------------------------------------------
-            revno: 3184.3.4
-            committer: Alfranio Correia <alfranio.correia@sun.com>
-            branch nick: mysql-5.1-bugteam-push
-            timestamp: Thu 2009-10-22 11:18:28 +0100
-    message:
-              Post-fix for BUG#47287.
-              
-              The label "end" was causing compiler warnings as it was no longer used.
-              To fix the problem we removed it.
-        ------------------------------------------------------------
-            revno: 3184.3.3
-            committer: Ramil Kalimullin <ramil@mysql.com>
-            branch nick: mysql-5.1-bugteam
-            timestamp: Thu 2009-10-22 14:40:15 +0500
-        message:
-              Autopush
-            ------------------------------------------------------------
-                revno: 1810.3959.4
-                committer: Ramil Kalimullin <ramil@mysql.com>
-                branch nick: b47019-5.0-bugteam
-                timestamp: Wed 2009-10-21 14:04:08 +0500
-            message:
-                  Fix for bug#47019: Assertion failed: 0, file .\rt_mbr.c, 
-                  line 138 when forcing a spatial index
-                  
-                  Problem: "Spatial indexes can be involved in the search 
-                  for queries that use a function such as MBRContains() 
-                  or MBRWithin() in the WHERE clause".
-                  Using spatial indexes for JOINs with =, <=> etc.
-                  predicates is incorrect.
-                  
-                  Fix: disable spatial indexes for such queries.
-        ------------------------------------------------------------
-                revno: 1810.3959.3
-                committer: Tatiana A. Nurnberg <azundris@mysql.com>
-                branch nick: 50-28141
-                timestamp: Tue 2009-10-20 20:38:56 -0700
-        message:
-                  auto-merge
-        ------------------------------------------------------------
-            revno: 3184.3.2
-            committer: Tatiana A. Nurnberg <azundris@mysql.com>
-            branch nick: 51-28141
-            timestamp: Tue 2009-10-20 20:37:33 -0700
-        message:
-              auto-merge
-    ------------------------------------------------------------
-                revno: 3186.1.1
-                committer: Alexander Barkov <bar@mysql.com>
-                branch nick: mysql-5.1.b45645
-                timestamp: Tue 2009-10-20 12:47:00 +0500
-    message:
-                  A post fix for BUG#45645 Mysql server close all connection and restart using lower function
-                  - Initialized caseinfo only if it is NULL
-    ------------------------------------------------------------
-            revno: 3184.3.1
-            committer: Tatiana A. Nurnberg <azundris@mysql.com>
-            branch nick: 51-28141
-            timestamp: Tue 2009-10-20 11:00:07 -0700
-    message:
-              manual merge of 28141
-        ------------------------------------------------------------
-            revno: 1810.3959.2
-            committer: Tatiana A. Nurnberg <azundris@mysql.com>
-            branch nick: 50-28141
-            timestamp: Mon 2009-10-19 21:42:10 -0700
-        message:
-              Bug#28141: Control C on query waiting on lock causes ERROR 1053 (server shutdown)
-              
-              If a thread is killed in the server, we throw "shutdown" only if one is actually in
-              progress; otherwise, we throw "query interrupted".
-              
-              Control-C in the mysql command-line client is "incremental" now.
-              First Control-C sends KILL QUERY (when connected to 5.0+ server, otherwise, see next)
-              Next  Control-C sends KILL CONNECTION
-              Next  Control-C aborts client.
-              
-              As the first two steps only pertain to an existing query,
-              Control-C will abort the client right away if no query is running.
-              
-              client will give more detailed/consistent feedback on Control-C now.
-            ------------------------------------------------------------
-        revno: 3148.9.1
-        committer: Tatiana A. Nurnberg <azundris@mysql.com>
-        branch nick: 51-43508-waffleday
-        timestamp: Fri 2009-10-09 23:57:43 +0200
-            message:
-          manual merge of Bug#43508
-            ------------------------------------------------------------
-        revno: 3067.3.1
-        committer: Tatiana A. Nurnberg <azundris@mysql.com>
-        branch nick: 51-43508
-        timestamp: Fri 2009-10-09 14:41:04 +0200
-            message:
-          Bug#43508: Renaming timestamp or date column triggers table copy
-          
-          We set up DATE and TIMESTAMP differently in field-creation than we
-          did in field-MD creation (for CREATE). Admirably, ALTER TABLE
-          detected this and didn't damage any data, but it did initiate a
-          full copy/conversion, which we don't really need to do.
-          
-          Now we describe Field and Create_field the same for those types.
-          As a result, ALTER TABLE that only changes meta-data (like a
-          field's name) no longer forces a data-copy when there needn't
-          be one.
-            ------------------------------------------------------------
-        revno: 2972.5.1
-        committer: Tatiana A. Nurnberg <azundris@mysql.com>
-        branch nick: 51-43508
-        timestamp: Wed 2009-06-24 13:02:20 +0200
-            message:
-          Bug#43508: Renaming timestamp or date column triggers table copy
-          
-          Altering a table to update a column with types DATE or TIMESTAMP
-          would incorrectly be seen as a significant change that necessitates
-          a slow copy+rename operation instead of a fast update.
-          
-          There were two problems:
-          
-          The character set is magically set for TIMESTAMP to be "binary",
-          but that was done too deep in field use code for ALTER TABLE to
-          know of it.  Now, put that in the constructor for Field_timestamp.
-          
-          Also, when we set the character set for the new replacement/
-          comparison field, also raise the "binary" field flag that tells us
-          we should compare it exactly.  That is necessary to match the old
-          stored definition.
-          
-          Next is the problem that the default length for TIMESTAMP and DATE
-          fields is different than the length read from the .frm .  The
-          compressed size is written to the file, but the human-readable,
-          part-delimited length is used as default length.  IIRC, for
-          timestamp it was 19!=14, and for date it was 8!=10.  Length
-          mismatch causes a table copy.
-          
-          Also, clean up a place where a comparison function alters one of its
-          parameters and replace it with an assertion of the condition it
-          mutates.
-        ------------------------------------------------------------
-    revno: 3148.8.2
-    committer: Vladislav Vaintroub <vvaintroub@mysql.com>
-        branch nick: mysql-5.1-bugteam
-    timestamp: Tue 2009-11-03 01:19:37 +0100
-        message:
-      Bug #47423 mtr connects to wrong database
-      The reason for the bug is that mysqtest as well as other client tools
-      running in test suite (mysqlbinlog, mysqldump) will first try to connect 
-      whatever database has created shared memory with default base name 
-      "MySQL" and use this. (Same effect could be seen on Unix if mtr would
-      not care to calculate "port" and "socket" parameter).
-            
-      The fix ensures that all client tools and  running in mtr use unique  
-      per-database shared memory base parameters, so there is no possibility
-      to clash with already installed one. We use socket name for shared memory 
-      base (it's known to be unique). This shared-memory-base is written to the
-      MTR config file to the [client] and [mysqld] sections. Fix made also made 
-      sure all client tools understand and correctly handle --shared-memory-base.
-      Prior to this patch  it was not the case for  mysqltest, mysqlbinlog and 
-      mysql_client_test.
-            
-      All new connections done from mtr scripts via connect() will by default 
-      set shared-memory-base. And finally, there is a possibility to force 
-      shared memory or pipe connection and overwrite shared memory/pipe base name
-      from within mtr scripts via optional PIPE or SHM modifier. This functionality
-      was manually backported from 6.0
-      (original patch  http://lists.mysql.com/commits/74749)
-            ------------------------------------------------------------
-    revno: 3148.8.1
-    committer: Vladislav Vaintroub <vvaintroub@mysql.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Mon 2009-11-02 23:19:58 +0100
-            message:
-      Bug#47571: idle named pipe connection is unkillable
-      Bug#31621: Windows server hanging during shutdown using named pipes 
-                 and idle connection
-                     
-      Problem: when idle pipe connection is forcefully closed with KILL
-      statement or when the server goes down, thread that is closing connection
-      would hang infinitely in CloseHandle(). The reason for the hang is that 
-      named pipe operations are performed synchronously. In this mode all IOs
-      on pipe are serialized, that is CloseHandle() will not abort ReadFile() 
-      in another thread, but wait for ReadFile() to complete.
-                  
-      The fix implements asynchrnous mode for named pipes, where operation of file
-      are not synchronized. Read/Write operation would fire an async IO and wait for
-      either IO completion or timeout.
-                  
-      Note, that with this patch timeouts are properly handled for named pipes.
-            
-      Post-review: Win32 timeout code has been fixed for named pipes and shared
-      memory. We do not store pointer to NET in vio structure, only the read and 
-      write timeouts.
-        ------------------------------------------------------------
-revno: 3187
-        committer: Kristofer Pettersson <kristofer.pettersson@sun.com>
-        branch nick: mysql-5.1-bugteam
-timestamp: Tue 2009-11-03 17:18:43 +0100
-        message:
-  Moved test case for bug 31157 from query_cache.test to subselect.test
-            ------------------------------------------------------------
-revno: 3186
-committer: Kristofer Pettersson <kristofer.pettersson@sun.com>
-branch nick: mysql-5.1-bugteam
-timestamp: Tue 2009-10-20 09:00:01 +0200
-            message:
-  Automerge
-            ------------------------------------------------------------
-    revno: 3184.1.5
-    committer: Satya B <satya.bn@sun.com>
-    branch nick: mysql-5.1-bugteam-41597
-    timestamp: Tue 2009-10-20 12:25:01 +0530
-            message:
-      merge mysql-5.0-bugteam to mysql-5.1-bugteam
-            ------------------------------------------------------------
-        revno: 1810.3960.2
-        committer: Satya B <satya.bn@sun.com>
-        branch nick: mysql-5.0-bugteam-41597
-        timestamp: Tue 2009-10-20 12:21:58 +0530
-            message:
-          merge to mysql-5.0-bugteam
-            ------------------------------------------------------------
-    revno: 3184.1.4
-    committer: Satya B <satya.bn@sun.com>
-    branch nick: mysql-5.1-bugteam-41597
-    timestamp: Tue 2009-10-20 12:07:58 +0530
-            message:
-      merge mysql-5.0-bugteam to mysql-5.1-bugteam
-        ------------------------------------------------------------
-        revno: 1810.3960.1
-        committer: Satya B <satya.bn@sun.com>
-        branch nick: mysql-5.0-bugteam-41597
-        timestamp: Tue 2009-10-20 11:47:57 +0530
-        message:
-          Fix for Bug #41597 - After rename of user, there are additional grants when 
-                               grants are reapplied.
-          
-          
-          After renaming a user and trying to re-apply grants results in additional
-          grants.
-          
-          This is because we use username as part of the key for GRANT_TABLE structure.
-          When the user is renamed, we only change the username stored and the hash key
-          still contains the old user name and this results in the extra privileges
-          
-          Fixed by rebuilding the hash key and updating the column_priv_hash structure
-          when the user is renamed
-    ------------------------------------------------------------
-    revno: 3184.1.3
-    committer: Sergey Vojtovich <svoj@sun.com>
-    branch nick: mysql-5.1-bugteam-push
-    timestamp: Tue 2009-10-20 10:43:57 +0500
-    message:
-      Merge 5.1-bugteam -> 5.1-bugteam-local.
-        ------------------------------------------------------------
-        revno: 3184.2.1
-    committer: <Dao-Gang.Qu@sun.com>
-        branch nick: mysql-5.1-bugteam
-        timestamp: Tue 2009-10-20 13:16:09 +0800
-    message:
-          Bug #34777  	mysqlbinlog: --help output for --base64-output is hard to understand
-              
-          There are some problems about help text:
-          - It is stated that "auto" is the default twice. It need be stated only once.
-          - It is stated that --base64-output is short for --base64-output=always. But that sounds
-          like the default is "always", not "auto".
-        
-          Make the help text clear as following:
-          Determine when the output statements should be base64-encoded BINLOG 
-          statements: 'never' disables it and works only for binlogs without 
-          row-based events; 'auto' prints base64 only when necessary (i.e., 
-          for row-based events and format description events); 'always' prints 
-          base64 whenever possible. 'always' is for debugging only and should 
-          not be used in a production system. If this argument is not given, 
-          the default is 'auto'; if it is given with no argument, 'always' is used.
-    ------------------------------------------------------------
-    revno: 3184.1.2
-    committer: Sergey Vojtovich <svoj@sun.com>
-    branch nick: mysql-5.1-bugteam-push
-    timestamp: Tue 2009-10-20 10:40:47 +0500
-    message:
-      Merge 5.1-bugteam -> 5.1-bugteam-local.
-        ------------------------------------------------------------
-        revno: 3166.1.1
-        committer: Sergey Vojtovich <svoj@sun.com>
-        branch nick: mysql-5.1-bugteam-bug47455
-        timestamp: Wed 2009-10-14 16:26:16 +0500
-        message:
-          BUG#47455 - The myisam_crash_before_flush_keys test fails on Windows
-          
-          Simplified and made more determenistic myisam_crash_before_flush_keys
-          test.
-    ------------------------------------------------------------
-    revno: 3184.1.1
-    committer: Alexander Barkov <bar@mysql.com>
-    branch nick: mysql-5.1.b45645
-    timestamp: Mon 2009-10-19 18:23:53 +0500
-    message:
-      Bug#45645 Mysql server close all connection and restart using lower function
-      Problem: the "caseinfo" member of CHARSET_INFO structure was not
-      initialized for user-defined Unicode collations, which made the
-      server crash.
-      Fix: initializing caseinfo properly.
-    ------------------------------------------------------------
-revno: 3185
-committer: Kristofer Pettersson <kristofer.pettersson@sun.com>
-    branch nick: mysql-5.1-bugteam
-timestamp: Tue 2009-10-20 08:21:35 +0200
-    message:
-  automerge
-        ------------------------------------------------------------
-    revno: 3148.7.1
-    committer: Kristofer Pettersson <kristofer.pettersson@sun.com>
-    branch nick: 51-bug47627
-    timestamp: Mon 2009-10-19 09:43:33 +0200
-        message:
-      Bug#47627 SET @@{global.session}.local_variable in stored routine causes crash
-          
-      Adding @@session and @@global prefixes to a
-      declared variable in a stored procedure the server
-      would lead to a crash.
-          
-      The reason was that during the parsing of the
-      syntactic rule 'option_value' an uninitialized
-      set_var object was pushed to the parameter stack
-      of the SET statement. The parent rule
-      'option_type_value'  interpreted the existence of
-      variables on the parameter stack as an assignment
-      and wrapped it in a sp_instr_set object.
-          
-      As the procedure later was executed an attempt
-      was made to run the method 'check()' on an
-      uninitialized member object (NULL value) belonging
-      to the previously created but uninitialized object.
-------------------------------------------------------------
-revno: 3184
-committer: Kristofer Pettersson <kristofer.pettersson@sun.com>
-branch nick: mysql-5.1-bugteam
-timestamp: Mon 2009-10-19 11:07:25 +0200
-message:
-  Automerge
-    ------------------------------------------------------------
-    revno: 3182.1.2
-    committer: Alexander Barkov <bar@mysql.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Mon 2009-10-19 13:44:44 +0500
-    message:
-      Bug#43207 wrong LC_TIME names for romanian locale
-      Adding tests for the bug.
-    ------------------------------------------------------------
-    revno: 3182.1.1
-    committer: Alexander Barkov <bar@mysql.com>
-    branch nick: mysql-5.1-bugteam
-    timestamp: Mon 2009-10-19 13:41:52 +0500
-    message:
-      Bug#43207 wrong LC_TIME names for romanian locale
-      A contributed patch by Andrei Boros (SCA signed).
-      - Fixing locale definition file
-      - Adding tests
-------------------------------------------------------------
-revno: 3183
-committer: Kristofer Pettersson <kristofer.pettersson@sun.com>
-branch nick: mysql-5.1-bugteam
-timestamp: Mon 2009-10-19 11:02:24 +0200
-message:
-  Automerge
-    ------------------------------------------------------------
-    revno: 3116.2.1
-    committer: Kristofer Pettersson <kristofer.pettersson@sun.com>
-    branch nick: 51-bug46944
-    timestamp: Mon 2009-10-12 14:46:00 +0200
-    message:
-      Bug#46944 Internal prepared XA transction XIDs are not
-                removed if server_id changes
-          
-      When MySQL crashes (or a snapshot is taken which simulates
-      a crash), then it is possible that internal XA
-      transactions (used to sync the binary log and InnoDB)
-      can be left in a PREPARED state, whereas they should be
-      rolled back.  This is done when the server_id changes
-      before the restart occurs.  
-          
-      This patch releases he restriction that the server_id
-      should be consistent if the XID is to be considerred
-      valid. The rollback phase should then be able to
-      clean up all pending XA transactions.
-    ------------------------------------------------------------
-revno: 3182
-    committer: Ramil Kalimullin <ramil@mysql.com>
-    branch nick: mysql-5.1-bugteam
-timestamp: Sun 2009-10-18 21:26:55 +0500
-    message:
-  Fix for bug#47963: Wrong results when index is used
-  
-  Problem: using null microsecond part in a WHERE condition 
-  (e.g. WHERE date_time_field <= "YYYY-MM-DD HH:MM:SS.0000") 
-  may lead to wrong results due to improper DATETIMEs 
-  comparison in some cases.
-  
-  Fix: comparing DATETIMEs as strings we must trim trailing 0's
-  in such cases.
-        ------------------------------------------------------------
-    revno: 3148.4.11
-        committer: Ramil Kalimullin <ramil@mysql.com>
-    branch nick: b47963-5.1-bugteam
-    timestamp: Tue 2009-10-13 09:43:27 +0500
-        message:
-      Fix for bug#47963: Wrong results when index is used
-          
-      Problem: using null microsecond part (e.g. "YYYY-MM-DD HH:MM:SS.0000") 
-      in a WHERE condition may lead to wrong results due to improper
-      DATETIMEs comparison in some cases.
-          
-      Fix: as we compare DATETIMEs as strings we must trim trailing 0's
-      in such cases.
-    ------------------------------------------------------------
-revno: 3181
-committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-    branch nick: mysql-5.1-bugteam
-timestamp: Sat 2009-10-17 00:19:51 +0400
-    message:
-  Bug #47123: Endless 100% CPU loop with STRAIGHT_JOIN 
-   
-  The problem was in incorrect handling of predicates involving 
-  NULL as a constant value by the range optimizer. 
-   
-  For example, when creating a SEL_ARG node from a condition of 
-  the form "field < const" (which would normally result in the 
-  "NULL < field < const" SEL_ARG),  the special case when "const" 
-  is NULL was not taken into account, so "NULL < field < NULL" 
-  was produced for the "field < NULL" condition. 
-   
-  As a result, SEL_ARG structures of this form could not be 
-  further optimized which in turn could lead to incorrectly 
-  constructed SEL_ARG trees. In particular, code assuming SEL_ARG 
-  structures to always form a sequence of ordered disjoint 
-  intervals could enter an infinite loop under some 
-  circumstances. 
-   
-  Fixed by changing get_mm_leaf() so that for any sargable 
-  predicate except "<=>" involving NULL as a constant, "empty" 
-  SEL_ARG is returned, since such a predicate is always false. 
-        ------------------------------------------------------------
-revno: 3180
-committer: Joerg Bruehe <joerg@mysql.com>
-branch nick: push-5.1
-timestamp: Fri 2009-10-16 18:40:25 +0200
-        message:
-  Merge merge changesets from main 5.1 into 5.1-bugteam.
-        ------------------------------------------------------------
-    revno: 3176.2.2
-    committer: Joerg Bruehe <joerg@mysql.com>
-        branch nick: mysql-5.1
-    timestamp: Fri 2009-10-16 16:12:42 +0200
-        message:
-      Upmerge merge changesets.
-        ------------------------------------------------------------
-    revno: 3176.2.1
-    committer: Joerg Bruehe <joerg@mysql.com>
-    branch nick: tmp-5.1
-    timestamp: Fri 2009-10-16 15:35:39 +0200
-        message:
-      Merge a compile fix.
-        ------------------------------------------------------------
-    revno: 3148.6.3
-    committer: Joerg Bruehe <joerg@mysql.com>
-    branch nick: bug47923-5.1
-    timestamp: Fri 2009-10-16 15:05:52 +0200
-        message:
-      Upmerge the Windows compile fix from 5.0 to 5.1
-        ------------------------------------------------------------
-revno: 3179
-committer: Joerg Bruehe <joerg@mysql.com>
-branch nick: push-5.1
-timestamp: Fri 2009-10-16 16:53:04 +0200
-        message:
-  Upmerge a merge changeset.
-        ------------------------------------------------------------
-    revno: 1810.3959.1
-    committer: Joerg Bruehe <joerg@mysql.com>
+    revno: 1810.3974.23
+    author: sunanda.menon@sun.com
+    committer: MySQL Build Team <build@mysql.com>
     branch nick: mysql-5.0
-    timestamp: Fri 2009-10-16 14:29:41 +0200
-        message:
-      Merge 5.0-bugteam (compile fix) into main 5.0
-        ------------------------------------------------------------
-revno: 3178
+    timestamp: Fri 2010-01-15 10:35:35 +0100
+    message:
+      Raise version number after cloning 5.0.90
+------------------------------------------------------------
+revno: 3355
 committer: Georgi Kodinov <joro@sun.com>
-branch nick: B40877-5.1-bugteam
-timestamp: Fri 2009-10-16 16:11:21 +0300
-        message:
-  merge
-        ------------------------------------------------------------
-    revno: 3176.1.2
-    committer: Joerg Bruehe <joerg@mysql.com>
-    branch nick: push-5.1
-    timestamp: Fri 2009-10-16 14:21:20 +0200
-        message:
-      Upmerge a Windows compile fix from 5.0 to 5.1.
-        ------------------------------------------------------------
-        revno: 1810.3956.9
-        committer: Joerg Bruehe <joerg@mysql.com>
-        branch nick: push-5.0
-        timestamp: Fri 2009-10-16 14:09:31 +0200
-        message:
-          Merge the Windows compile fix into the push tree.
-        ------------------------------------------------------------
-        revno: 1810.3958.2
-        committer: Joerg Bruehe <joerg@mysql.com>
-        branch nick: bug47923-5.0
-        timestamp: Fri 2009-10-16 14:06:33 +0200
-        message:
-          Compile fix for Windows:
-          Use "#ifdef", not plain "#if".
-    ------------------------------------------------------------
-    revno: 3176.1.1
-    committer: Martin Hansson <martin.hansson@sun.com>
-    branch nick: 5.1bt
-    timestamp: Fri 2009-10-16 13:12:21 +0200
-    message:
-      Bug#46019: ERROR 1356 When selecting from within another
-                  view that has Group By
-          
-      When SELECT'ing from a view that mentions another,
-      materialized, view, access was being denied. The issue was
-      resolved by lifting a special case which avoided such access
-      checking in check_single_table_access. In the past, this was
-      necessary since if such a check were performed, the error
-      message would be downgraded to a warning in the case of SHOW
-      CREATE VIEW. The downgrading of errors was meant to handle
-      only that scenario, but could not distinguish the two as it
-      read only the error messages.
-            
-      The special case was needed in the fix of bug no 36086.
-      Before that, views were confused with derived tables.
-            
-      After bug no 35996 was fixed, the manipulation of errors
-      during SHOW CREATE VIEW execution is not dependent on the
-      actual error messages in the queue, it rather looks at the
-      actual cause of the error and takes appropriate
-      action. Hence the aforementioned special case is now
-      superfluous and the bug is fixed.
-        ------------------------------------------------------------
-revno: 3177
-committer: Georgi Kodinov <joro@sun.com>
-branch nick: B40877-5.1-bugteam
-timestamp: Fri 2009-10-16 13:29:42 +0300
-        message:
-  Bug #40877: multi statement execution fails in 5.1.30
-        
-  Implemented the server infrastructure for the fix:
-  
-  1. Added a function LEX_STRING *thd_query_string(THD) to return
-  a LEX_STRING structure instead of char *.
-  This is the function that must be called in innodb instead of 
-  thd_query()
-  
-  2. Did some encapsulation in THD : aggregated thd_query and 
-  thd_query_length into a LEX_STRING and made accessor and mutator 
-  methods for easy code updating. 
-  
-  3. Updated the server code to use the new methods where applicable.
-    ------------------------------------------------------------
-revno: 3176
-committer: Joerg Bruehe <joerg@mysql.com>
-branch nick: push-5.1
-timestamp: Fri 2009-10-16 11:33:39 +0200
+branch nick: merge-5.1-bugteam
+timestamp: Wed 2010-02-03 17:25:29 +0200
 message:
-  Upmerge a merge changeset - no contents change.
-    ------------------------------------------------------------
-    revno: 1810.3956.8
-    committer: Joerg Bruehe <joerg@mysql.com>
-    branch nick: push-5.0
-    timestamp: Thu 2009-10-15 20:14:07 +0200
-    message:
-      Merge bug fix into push tree.
-------------------------------------------------------------
-revno: 3175
-    committer: Georgi Kodinov <joro@sun.com>
-branch nick: fix-5.1-bugteam
-timestamp: Fri 2009-10-16 12:07:50 +0300
-    message:
   merge
     ------------------------------------------------------------
-    revno: 3173.1.2
-    committer: Georgi Kodinov <joro@sun.com>
-    branch nick: fix-5.1
-    timestamp: Fri 2009-10-16 11:42:16 +0300
-    message:
-      Revert the fix for bug #47123 until test suite failures are resolved.
-        ------------------------------------------------------------
-    revno: 3173.1.1
-        committer: Georgi Kodinov <joro@sun.com>
-    branch nick: fix-5.1-bugteam
-    timestamp: Thu 2009-10-15 14:48:12 +0300
-        message:
-      version change
-    ------------------------------------------------------------
-revno: 3174
-committer: Joerg Bruehe <joerg@mysql.com>
-branch nick: push-5.1
-timestamp: Thu 2009-10-15 20:28:04 +0200
-message:
-  Merge the bug fixes into the push tree.
-    ------------------------------------------------------------
-    revno: 3148.6.2
-    committer: Joerg Bruehe <joerg@mysql.com>
-    branch nick: bug47923-5.1
-    timestamp: Fri 2009-10-09 21:31:37 +0200
-    message:
-      Fix  Bug #47957
-        A build "--without-server" fails if using "--with-ssl" (YaSSL)
-      
-      The problem was the lack of directory "extra" in a build
-      which did not include the server.
-    ------------------------------------------------------------
-    revno: 3148.6.1
-    committer: Joerg Bruehe <joerg@mysql.com>
-    branch nick: bug47923-5.1
-    timestamp: Fri 2009-10-09 15:21:45 +0200
-    message:
-      Upmerge (automerge) into 5.1
-    ------------------------------------------------------------
-    revno: 1810.3958.1
-    committer: Joerg Bruehe <joerg@mysql.com>
-    branch nick: bug47923-5.0
-    timestamp: Thu 2009-10-08 21:58:17 +0200
-    message:
-      Fix bug#47923  New "mf_keycache.c" requires thread support
-      
-      The bug is a compilation issue:
-      Function "find_key_block()" had thread operations
-      which were not guarded by "#if THREAD", add that now.
-------------------------------------------------------------
-revno: 3173
-    committer: Georgi Kodinov <joro@sun.com>
-branch nick: fix-5.1-bugteam
-timestamp: Thu 2009-10-15 14:45:54 +0300
-    message:
-  merge
-        ------------------------------------------------------------
-    revno: 3171.1.1
-    committer: Georgi Kodinov <joro@sun.com>
-    branch nick: fix-5.1-bugteam
-    timestamp: Thu 2009-10-15 14:02:29 +0300
-    message:
-      Marked all the NDB related tests experimental as agreed with Bernard Ocklin.
-------------------------------------------------------------
-revno: 3172
-committer: Georgi Kodinov <joro@sun.com>
-branch nick: fix-5.1-bugteam
-timestamp: Thu 2009-10-15 14:22:25 +0300
-message:
-  All NDB tests made experimental after a discussion with Bernhard Ocklin.
-------------------------------------------------------------
-revno: 3171
-committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-        branch nick: mysql-5.1-bugteam
-timestamp: Thu 2009-10-15 14:42:51 +0400
-        message:
-  Manual merge.
-        ------------------------------------------------------------
-    revno: 3086.1.2
-    committer: Alexey Kopytov <Alexey.Kopytov@Sun.com>
-    branch nick: my51-bug46159
-    timestamp: Tue 2009-10-13 19:49:32 +0400
-        message:
-      Bug #47123: Endless 100% CPU loop with STRAIGHT_JOIN 
-       
-      The problem was in incorrect handling of predicates involving 
-      NULL as a constant value by the range optimizer.  
-       
-      For example, when creating a SEL_ARG node from a condition of 
-      the form "field < const" (which would normally result in the 
-      "NULL < field < const" SEL_ARG),  the special case when "const" 
-      is NULL was not taken into account, so "NULL < field < NULL" 
-      was produced for the "field < NULL" condition. 
-       
-      As a result, SEL_ARG structures of this form could not be 
-      further optimized which in turn could lead to incorrectly 
-      constructed SEL_ARG trees. In particular, code assuming SEL_ARG 
-      structures to always form a sequence of ordered disjoint 
-      intervals could enter an infinite loop under some 
-      circumstances. 
-       
-      Fixed by changing get_mm_leaf() so that for any sargable 
-      predicate except "<=>" involving NULL as a constant, "empty" 
-      SEL_ARG is returned, since such a predicate is always false. 
-        ------------------------------------------------------------
-revno: 3170
-committer: Sergey Vojtovich <svoj@sun.com>
-branch nick: mysql-5.1-bugteam-push
-timestamp: Thu 2009-10-15 12:31:11 +0500
-        message:
-  Disabled part of test for BUG#47073 until additional fix is pushed.
-        ------------------------------------------------------------
-revno: 3169
-committer: Jorgen Loland <jorgen.loland@sun.com>
-branch nick: mysql-5.1-bugteam-46518
-timestamp: Wed 2009-10-14 18:24:29 +0200
-        message:
-  merge
-        ------------------------------------------------------------
-    revno: 3164.1.4
-    committer: Georgi Kodinov <joro@sun.com>
-    branch nick: fix-5.1-pe-stage
-    timestamp: Wed 2009-10-14 18:46:45 +0300
-        message:
-      merge
-        ------------------------------------------------------------
-    revno: 3164.1.3
-    committer: Georgi Kodinov <joro@sun.com>
-    branch nick: fix-5.1-pe-stage
-    timestamp: Wed 2009-10-14 18:45:09 +0300
-        message:
-      merge
-    ------------------------------------------------------------
-        revno: 1810.3956.7
-    committer: Georgi Kodinov <joro@sun.com>
-        branch nick: fix-5.0-pe-stage
-        timestamp: Wed 2009-10-14 18:44:22 +0300
-    message:
-          version change
-    ------------------------------------------------------------
-    revno: 3164.1.2
-    committer: Georgi Kodinov <joro@sun.com>
-    branch nick: fix-5.1-pe-stage
-    timestamp: Wed 2009-10-14 17:36:11 +0300
-    message:
-      merge
-        ------------------------------------------------------------
-        revno: 1810.3956.6
-        committer: Georgi Kodinov <joro@sun.com>
-        branch nick: fix-5.0-pe-stage
-        timestamp: Wed 2009-10-14 17:33:20 +0300
-        message:
-          merged main to mysql-5.0-bugteam
-            ------------------------------------------------------------
-            revno: 1810.3953.13
-            author: sunanda.menon@sun.com
-            committer: MySQL Build Team <build@mysql.com>
-            branch nick: mysql-5.0
-            timestamp: Wed 2009-10-14 10:16:04 +0200
-            message:
-              Null-merge from mysql-5.0.84sp1-release
-                ------------------------------------------------------------
-                revno: 1810.3957.4
-                tags: mysql-5.0.84sp1
-                committer: MySQL Build Team <build@mysql.com>
-                branch nick: mysql-5.0.84sp1-release
-                timestamp: Wed 2009-09-30 14:26:15 +0200
-                message:
-                  Backport into build-200909301147-5.0.84sp1
-      
-                  > ------------------------------------------------------------
-                  > revno: 2802.1.1
-                  > tags: mysql-5.0.86
-                  > revision-id: hery.ramilison@sun.com-20090909185217-mooeczu391ztp2fz
-                  > parent: joro@sun.com-20090902123318-8qe40pr91xmui5ue
-                  > committer: hery <hery.ramilison@sun.com>
-                  > branch nick: mysql-5.0.86-release
-                  > timestamp: Wed 2009-09-09 20:52:17 +0200
-                  > message:
-                  >   change c++ comment to c comment
-                ------------------------------------------------------------
-                revno: 1810.3957.3
-                committer: MySQL Build Team <build@mysql.com>
-                branch nick: mysql-5.0.84sp1-release
-                timestamp: Wed 2009-09-30 14:24:59 +0200
-                message:
-                  Backport into build-200909301147-5.0.84sp1
-      
-                  > ------------------------------------------------------------
-                  > revno: 2796
-                  > revision-id: sergey.glukhov@sun.com-20090827102219-sgjz0v5t1rfccs14
-                  > parent: joro@sun.com-20090824122803-1d5jlaysjc7a7j6q
-                  > committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-                  > branch nick: mysql-5.0-bugteam
-                  > timestamp: Thu 2009-08-27 15:22:19 +0500
-                  > message:
-                  >   Bug#46184 Crash, SELECT ... FROM derived table procedure analyze
-                  >   The crash happens because select_union object is used as result set
-                  >   for queries which have derived tables.
-                  >   select_union use temporary table as data storage and if
-                  >   fields count exceeds 10(count of values for procedure ANALYSE())
-                  >   then we get a crash on fill_record() function.
-                ------------------------------------------------------------
-                revno: 1810.3957.2
-                committer: MySQL Build Team <build@mysql.com>
-                branch nick: mysql-5.0.84sp1-release
-                timestamp: Wed 2009-09-30 14:22:38 +0200
-                message:
-                  Backport into build-200909301147-5.0.84sp1
-      
-                  > ------------------------------------------------------------
-                  > revno: 2791.2.3
-                  > revision-id: joro@sun.com-20090827114042-h55n7qp9990bl6ge
-                  > parent: anurag.shekhar@sun.com-20090831073231-e55y1hsck6n08ux8
-                  > committer: Georgi Kodinov <joro@sun.com>
-                  > branch nick: B46749-5.0-bugteam
-                  > timestamp: Thu 2009-08-27 14:40:42 +0300
-                  > message:
-                  >   Bug #46749: Segfault in add_key_fields() with outer subquery level 
-                  >     field references
-                  >   
-                  >   This error requires a combination of factors : 
-                  >   1. An "impossible where" in the outermost SELECT
-                  >   2. An aggregate in the outermost SELECT
-                  >   3. A correlated subquery with a WHERE clause that includes an outer 
-                  >   field reference as a top level WHERE sargable predicate
-                  >   
-                  >   When JOIN::optimize detects an "impossible WHERE" it will bail out
-                  >   without doing the rest of the work and initializations. It will not
-                  >   call make_join_statistics() as well.  And make_join_statistics fills 
-                  >   in various structures for each table referenced.
-                  >   When processing the result of the "impossible WHERE" the query must
-                  >   send a single row of data if there are aggregate functions in it.
-                  >   In this case the server marks all the aggregates as having received 
-                  >   no rows and calls the relevant Item::val_xxx() method on the SELECT
-                  >   list. However if this SELECT list happens to contain a correlated 
-                  >   subquery this subquery is evaluated in a normal evaluation mode.
-                  >   And if this correlated subquery has a reference to a field from the 
-                  >   outermost "impossible where" SELECT the add_key_fields will mistakenly
-                  >   consider the outer field reference as a "local" field reference when 
-                  >   looking for sargable predicates.
-                  >   But since the SELECT where the outer field reference refers to is not
-                  >   completely initialized due to the "impossible WHERE" in this level
-                  >   we'll get a NULL pointer reference.
-                  >   Fixed by making a better condition for discovering if a field is "local"
-                  >   to the SELECT level being processed. 
-                  >   It's not enough to look for OUTER_REF_TABLE_BIT in this case since 
-                  >   for outer references to constant tables the Item_field::used_tables() 
-                  >   will return 0 regardless of whether the field reference is from the 
-                  >   local SELECT or not.
-------------------------------------------------------------
-                revno: 1810.3957.1
-                author: sunanda.menon@sun.com
-                committer: Timothy <Timothy.Smith@Sun.COM>
-                branch nick: mysql-5.0.84sp1-release
-                timestamp: Wed 2009-09-30 13:53:41 +0200
-message:
-                  Set version number for mysql-5.0.84sp1 release
-    ------------------------------------------------------------
-            revno: 1810.3953.12
-            author: karen.langford@sun.com
-            committer: MySQL Build Team <build@mysql.com>
-            branch nick: mysql-5.0
-            timestamp: Tue 2009-10-13 20:50:37 +0200
-    message:
-              Raise version number after cloning 5.0.87
-    ------------------------------------------------------------
-        revno: 1810.3956.5
-        committer: Kent Boortz <kent.boortz@sun.com>
-        branch nick: mysql-5.0-bugteam
-        timestamp: Thu 2009-10-08 22:55:28 +0200
-    message:
-          "MySQL Network" => "MySQL Enterprise"
-    ------------------------------------------------------------
-    revno: 3164.1.1
-    committer: Georgi Kodinov <joro@sun.com>
-    branch nick: fix-5.1-pe-stage
-    timestamp: Wed 2009-10-14 17:30:39 +0300
-    message:
-      merged 5.1-main
-    ------------------------------------------------------------
-    revno: 3138.4.18
+    revno: 3314.1.1
     author: karen.langford@sun.com
     committer: MySQL Build Team <build@mysql.com>
     branch nick: mysql-5.1
-    timestamp: Tue 2009-10-13 20:21:42 +0200
+    timestamp: Fri 2010-01-15 18:03:48 +0100
     message:
-      Null-merge from mysql-5.1.37sp1-release
-        ------------------------------------------------------------
-        revno: 3019.3.13
-        tags: mysql-5.1.37sp1
-        committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Mon 2009-10-05 20:14:43 +0200
-        message:
-          Add fixes for Bug#46834: Test suite missing from RPMs
-      
-          Additional changes from the following commits:
-      
-          http://lists.mysql.com/commits/81279
-          http://lists.mysql.com/commits/81607
-          
-          These were missed when scanning 'bzr log' for changes.
+      Raise version number after cloning 5.1.43
 ------------------------------------------------------------
-        revno: 3019.3.12
-        committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Tue 2009-09-22 23:05:28 +0200
+revno: 3354
+committer: Kent Boortz <kent.boortz@sun.com>
+branch nick: mysql-5.1-bugteam
+timestamp: Wed 2010-02-03 14:52:11 +0100
 message:
-          Backport into build-200909221805-5.1.37sp1
-          
-          > ------------------------------------------------------------
-          > revno: 3092.1.2 [merge]
-          > revision-id: joro@sun.com-20090831134035-wndnw04gy8kzogpm
-          > parent: anurag.shekhar@sun.com-20090831075609-tkpqu41hxtupdeip
-          > parent: joro@sun.com-20090827114042-h55n7qp9990bl6ge
-          > committer: Georgi Kodinov <joro@sun.com>
-          > branch nick: B46749-5.1-bugteam
-          > timestamp: Mon 2009-08-31 16:40:35 +0300
-          > message:
-          >   automerge
-          > ------------------------------------------------------------
-          > Use --include-merges or -n0 to see merged revisions.
-    ------------------------------------------------------------
-        revno: 3019.3.11
-        committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Tue 2009-09-22 23:01:19 +0200
-    message:
-          Backport into build-200909221805-5.1.37sp1
-          
-          > ------------------------------------------------------------
-          > revno: 3085 [merge]
-          > revision-id: sergey.glukhov@sun.com-20090827105925-j56pdghdzb8nlw3p
-          > parent: alfranio.correia@sun.com-20090827093227-9exafl3k6362bvq7
-          > parent: sergey.glukhov@sun.com-20090827102219-sgjz0v5t1rfccs14
-          > committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
-          > branch nick: mysql-5.1-bugteam
-          > timestamp: Thu 2009-08-27 15:59:25 +0500
-          > message:
-          >   5.0-bugteam->5.1-bugteam merge
-          > ------------------------------------------------------------
-          > Use --include-merges or -n0 to see merged revisions.
+  Adjuster the parsing of "configure.in" version number line
 ------------------------------------------------------------
-        revno: 3019.3.10
-        committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Tue 2009-09-22 23:00:30 +0200
+revno: 3353
+committer: Luis Soares <luis.soares@sun.com>
+branch nick: mysql-5.1-bugteam-push
+timestamp: Wed 2010-02-03 12:12:51 +0000
 message:
-          Backport into build-200909221805-5.1.37sp1
-          
-          > ------------------------------------------------------------
-          > revno: 3075
-          > revision-id: ramil@mysql.com-20090821055535-a5aeas33epokjjnp
-          > parent: joro@sun.com-20090820141122-gq6eyozybvar4o4s
-          > committer: Ramil Kalimullin <ramil@mysql.com>
-          > branch nick: mysql-5.1-bugteam
-          > timestamp: Fri 2009-08-21 10:55:35 +0500
-          > message:
-          >   Fix for bug #46456 [Ver->Prg]: HANDLER OPEN + TRUNCATE + DROP
-          >   (temporary) TABLE, crash
-          >   
-          >   Problem: if one has an open "HANDLER t1", further "TRUNCATE t1" 
-          >   doesn't close the handler and leaves handler table hash in an 
-          >   inconsistent state, that may lead to a server crash.
-          >   
-          >   Fix: TRUNCATE should implicitly close all open handlers.
-          >   
-          >   Doc. request: the fact should be described in the manual accordingly.
+  automerge mysql-5.1-bugteam bug clone --> mysql-5.1-bugteam latest.
     ------------------------------------------------------------
-        revno: 3019.3.9
-        committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Tue 2009-09-22 22:59:11 +0200
+    revno: 3345.1.1
+    committer: Luis Soares <luis.soares@sun.com>
+    branch nick: mysql-5.1-bugteam
+    timestamp: Tue 2010-02-02 15:16:47 +0000
     message:
-          Backport into build-200909221805-5.1.37sp1
+      BUG#47639: The rpl_binlog_corruption test fails on Windows
       
-          > ------------------------------------------------------------
-          > revno: 3068
-          > revision-id: ramil@mysql.com-20090813194928-3djdqvpock0pxhgp
-          > parent: li-bing.song@sun.com-20090813024857-1emgf5lhj0zikoj8
-          > committer: Ramil Kalimullin <ramil@mysql.com>
-          > branch nick: mysql-5.1-bugteam
-          > timestamp: Fri 2009-08-14 00:49:28 +0500
-          > message:
-          >   Fix for bug #46614: Assertion in show_create_trigger() 
-          >   on SHOW CREATE TRIGGER + MERGE table
-          >   
-          >   Problem: SHOW CREATE TRIGGER erroneously relies on fact
-          >   that we have the only underlying table for a trigger
-          >   (wrong for merge tables).
-          >   
-          >   Fix: remove erroneous assert().
-        ------------------------------------------------------------
-        revno: 3019.3.8
-        committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Tue 2009-09-22 22:55:02 +0200
-        message:
-          Backport into build-200909221805-5.1.37sp1
+      The test case rpl_binlog_corruption fails on windows because when
+      adding a line to the binary log index file it gets terminated
+      with a CR+LF (which btw, is the normal case in windows, but not on
+      Unixes - LF). This causes mismatch between the relay log names,
+      causing mysqld to report that it cannot find the log file.
       
-          > ------------------------------------------------------------
-          > revno: 3059 [merge]
-          > revision-id: martin.hansson@sun.com-20090810140851-aw5peehzdxi4gjja
-          > parent: iggy@mysql.com-20090806145453-ion37sfdsldwwjrj
-          > parent: martin.hansson@sun.com-20090807115140-7fn6wjx0mrui7zl5
-          > committer: Martin Hansson <martin.hansson@sun.com>
-          > branch nick: 5.1bt
-          > timestamp: Mon 2009-08-10 16:08:51 +0200
-          > message:
-          >   Merge
-          > ------------------------------------------------------------
-          > Use --include-merges or -n0 to see merged revisions.
-    ------------------------------------------------------------
-        revno: 3019.3.7
-        committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Tue 2009-09-22 22:54:06 +0200
-    message:
-          Backport into build-200909221805-5.1.37sp1
+      We fix this by creating the instrumented index file through
+      mysql, ie, using SELECT ... INTO DUMPFILE ..., as opposed on
+      relying on ultimatly OS commands like: -- echo "..." >
+      index. These changes go into the file and make the procedure
+      platform independent:
       
-          > ------------------------------------------------------------
-          > revno: 3044.1.3
-          > revision-id: kristofer.pettersson@sun.com-20090729224404-hwevly1cbi7gojf0
-          > parent: kristofer.pettersson@sun.com-20090729202743-tp9ihd5xavq8eguw
-          > committer: Kristofer Pettersson <kristofer.pettersson@sun.com>
-          > branch nick: mysql-5.1-bugteam
-          > timestamp: Thu 2009-07-30 00:44:04 +0200
-          > message:
-          >   Bug#44521 Prepared Statement: CALL p() - crashes: `! thd->main_da.is_sent' failed et.al.
-          >   
-          >   Fixed wrong prototype declaration which cased build failure on solaris.
-        ------------------------------------------------------------
-        revno: 3019.3.6
-        committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Tue 2009-09-22 22:52:30 +0200
-        message:
-          Backport into build-200909221805-5.1.37sp1
+        include/setup_fake_relay_log.inc
       
-          > ------------------------------------------------------------
-          > revno: 3044.1.1
-          > revision-id: kristofer.pettersson@sun.com-20090729200708-cb0td7n9r5md0aa0
-          > parent: davi.arnaut@sun.com-20090728195938-qabe9ldm2l4k8xns
-          > committer: Kristofer Pettersson <kristofer.pettersson@sun.com>
-          > branch nick: mysql-5.1-bugteam
-          > timestamp: Wed 2009-07-29 22:07:08 +0200
-          > message:
-          >   Bug#44521 Executing a stored procedure as a prepared statement can sometimes cause
-          >             an assertion in a debug build.
-          >   
-          >   The reason is that the C API doesn't support multiple result sets for prepared
-          >   statements and attempting to execute a stored routine which returns multiple result
-          >   sets sometimes lead to a network error. The network error sets the diagnostic area
-          >   prematurely which later leads to the assert when an attempt is made to set a second
-          >   server state.
-          >   
-          >   This patch fixes the issue by changing the scope of the error code returned by
-          >   sp_instr_stmt::execute() to include any error which happened during the execution.
-          >   To assure that Diagnostic_area::is_sent really mean that the message was sent all
-          >   network related functions are checked for return status.
-        ------------------------------------------------------------
-        revno: 3019.3.5
-        committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Tue 2009-09-22 22:43:48 +0200
-        message:
-          Backport into build-200909221805-5.1.37sp1
-      
-          > ------------------------------------------------------------
-          > revno: 3028 [merge]
-          > revision-id: davi.arnaut@sun.com-20090715182250-ru0l00nqqlcfqe8n
-          > parent: ramil@mysql.com-20090715102544-ejid81yz8k39m2fa
-          > parent: kostja@sun.com-20090715170034-kjzpmq3px90pedw7
-          > committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
-          > branch nick: 44495-5.1
-          > timestamp: Wed 2009-07-15 15:22:50 -0300
-          > message:
-          >   Bug#44495: Prepared Statement: CALL p(<x>) - `thd->protocol == &thd->protocol_text' failed
-          >   
-          >   Merge Konstantin's patch and add a test case.
-          > ------------------------------------------------------------
-          > Use --include-merges or -n0 to see merged revisions.
+      Side note: when using SELECT ... INTO DUMPFILE ..., one needs to
+      check if mysqld is running with secure_file_priv. If it is, we do
+      it in two steps: 1. create the file on the allowed location;
+      2. move it to the datadir. If it is not, then we just create the
+      file directly on the datadir (so previous step 2. is not needed).
 ------------------------------------------------------------
-        revno: 3019.3.4
-        committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Tue 2009-09-22 22:41:25 +0200
+revno: 3352
+committer: Kent Boortz <kent.boortz@sun.com>
+branch nick: mysql-5.1-bugteam
+timestamp: Tue 2010-02-02 23:29:14 +0100
 message:
-          Backport into build-200909221805-5.1.37sp1
-          
-          > ------------------------------------------------------------
-          > revno: 3027
-          > revision-id: ramil@mysql.com-20090715102544-ejid81yz8k39m2fa
-          > parent: anurag.shekhar@sun.com-20090715101345-6n3o8wf8woyaqlwc
-          > committer: Ramil Kalimullin <ramil@mysql.com>
-          > branch nick: mysql-5.1-bugteam
-          > timestamp: Wed 2009-07-15 15:25:44 +0500
-          > message:
-          >   Addition to #45998 fix, result adjusted.
-    ------------------------------------------------------------
-        revno: 3019.3.3
-        committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Tue 2009-09-22 22:40:02 +0200
-    message:
-          Backport into build-200909221805-5.1.37sp1
-          
-          > ------------------------------------------------------------
-          > revno: 3019.1.3
-          > revision-id: ramil@mysql.com-20090714150729-xqv7aicsnoz6epy6
-          > parent: jimw@mysql.com-20090713191116-c8qxsrjagzbvbytj
-          > committer: Ramil Kalimullin <ramil@mysql.com>
-          > branch nick: b45998-5.1-bugteam
-          > timestamp: Tue 2009-07-14 20:07:29 +0500
-          > message:
-          >   Fix for bug#45998: database crashes when running
-          >   "create as select" (innodb table)
-          >   
-          >   Problem: code constructing "CREATE TABLE..." statement
-          >   doesn't take into account that current database is not set
-          >   in some cases. That may lead to a server crash.
-          >   
-          >   Fix: check if current database is set.
+  Changes to be able to create source TAR packages with longer
+  path names than 99 characters, using the USTAR format of the
+  resulting source TAR.
+  
+  To be able to specify the use of USTAR when creating the source
+  TAR, we needed both to update the GNU autotools version requirements
+  slightly, and update the initiation of the tools to use more
+  modern constructs.
 ------------------------------------------------------------
-        revno: 3019.3.2
-        committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Tue 2009-09-22 22:38:25 +0200
+revno: 3351
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: B50276-5.1-bugteam
+timestamp: Thu 2010-01-21 17:14:10 +0200
 message:
-          Backport into build-200909221805-5.1.37sp1
-          
-          > ------------------------------------------------------------
-          > revno: 2949.5.6
-          > revision-id: jperkin@sun.com-20090824091334-6ktgrhq218vl7zq1
-          > parent: joerg@mysql.com-20090821095644-12woawc4d2d3u7k4
-          > committer: Jonathan Perkin <jperkin@sun.com>
-          > branch nick: mysql-5.1-build
-          > timestamp: Mon 2009-08-24 10:13:34 +0100
-          > message:
-          >   Apply changes from mysql-5.1.38-release clone:
-          >   
-          >    - Add conditionals for bundled zlib and innodb plugin.
-          >    - Apply patch from bug#46834 to install the test suite in RPMs.
-          >    - Add plugins to RPMs.  Disable example plugins.
+  Bug #50276: Security flaw in INFORMATION_SCHEMA.TABLES
+  
+  check_access() returning false for a database does not
+  guarantee that the access is granted to it.
+  This wrong condition in filling the INFORMATION_SCHEMA
+  tables causes extra tables to be returned to the user
+  even if he has no rights to see them.
+  Fixed by correcting the condition.
+------------------------------------------------------------
+revno: 3350
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: B49445-5.1-bugteam
+timestamp: Tue 2010-02-02 18:37:56 +0200
+message:
+  Bug #49445: Assertion failed: 0, file .\item_row.cc, line 55 with
+    fulltext search and row op.
+  
+  The search for fulltext indexes is searching for some special 
+  predicate layouts. While doing so it's not checking for the number
+  of columns of the expressions it tries to calculate.
+  And since row expressions can't return a single scalar value there
+  was a crash.
+  Fixed by checking if the expressions are scalar (in addition to 
+  being constant) before calling Item::val_xxx() methods.
+------------------------------------------------------------
+revno: 3349
+committer: Magne Mahre <magne.mahre@sun.com>
+branch nick: mysql-5.1-bugteam
+timestamp: Tue 2010-02-02 16:34:32 +0100
+message:
+  Cleanup fix  for WL#5154 that splits commands handling for
+  --default-character-set and --character-set-server such
+  that only the first will give a deprecation warning.
+  Apart from that, the two options should do the same.
+------------------------------------------------------------
+revno: 3348
+committer: Alexander Nozdrin <alik@sun.com>
+branch nick: mysql-5.1-bugteam
+timestamp: Tue 2010-02-02 16:38:44 +0300
+message:
+  Revert a patch for Bug#48231, which introduced valgrind warnings.
+  Original revision:
+  ------------------------------------------------------------
+  revision-id: li-bing.song@sun.com-20100130124925-o6sfex42b6noyc6x
+  parent: joro@sun.com-20100129145427-0n79l9hnk0q43ajk
+  committer: <Li-Bing.Song@sun.com>
+  branch nick: mysql-5.1-bugteam
+  timestamp: Sat 2010-01-30 20:49:25 +0800
+  message:
+    Bug #48321  CURRENT_USER() incorrectly replicated for DROP/RENAME USER;
+                REVOKE/GRANT; ALTER EVENT.
+    
+    The following statements support the CURRENT_USER() where a user is needed.
+      DROP USER 
+      RENAME USER CURRENT_USER() ...
+      GRANT ... TO CURRENT_USER()
+      REVOKE ... FROM CURRENT_USER()
+      ALTER DEFINER = CURRENT_USER() EVENT
+    but, When these statements are binlogged, CURRENT_USER() just is binlogged
+    as 'CURRENT_USER()', it is not expanded to the real user name. When slave 
+    executes the log event, 'CURRENT_USER()' is expand to the user of slave 
+    SQL thread, but SQL thread's user name always NULL. This breaks the replication.
+    
+    After this patch, All above statements are rewritten when they are binlogged.
+    The CURRENT_USER() is expanded to the real user's name and host.
+  ------------------------------------------------------------
+------------------------------------------------------------
+revno: 3347
+committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
+branch nick: mysql-5.1-bugteam
+timestamp: Tue 2010-02-02 11:17:58 -0200
+message:
+  Fix for valgrind warning: check whether pointer was initialized.
+------------------------------------------------------------
+revno: 3346
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: fix-5.1-bugteam
+timestamp: Tue 2010-02-02 14:17:21 +0200
+message:
+  fixed various pb2 test failures on windows.
+------------------------------------------------------------
+revno: 3345
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: test-5.1-bugteam
+timestamp: Mon 2010-02-01 14:05:21 +0200
+message:
+  Made outfile_testdata experimental in 5.1-bugteam, pending the
+  resulution of bug #46895.
+------------------------------------------------------------
+revno: 3344
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: test-5.1-bugteam
+timestamp: Mon 2010-02-01 13:50:30 +0200
+message:
+  merge
     ------------------------------------------------------------
-        revno: 3019.3.1
-    author: timothy.smith@sun.com
-    committer: MySQL Build Team <build@mysql.com>
-        branch nick: mysql-5.1.37sp1-release
-        timestamp: Tue 2009-09-22 20:52:24 +0200
+    revno: 1810.3980.5
+    committer: Georgi Kodinov <joro@sun.com>
+    branch nick: test-5.0-bugteam
+    timestamp: Mon 2010-02-01 13:40:16 +0200
     message:
-          Set version number for mysql-5.1.37sp1 release
+      fixed a typo in bug #49897.
+------------------------------------------------------------
+revno: 3343
+committer: <Li-Bing.Song@sun.com>
+branch nick: mysql-5.1-bugteam
+timestamp: Sat 2010-01-30 20:49:25 +0800
+message:
+  Bug #48321  CURRENT_USER() incorrectly replicated for DROP/RENAME USER;
+              REVOKE/GRANT; ALTER EVENT.
+  
+  The following statements support the CURRENT_USER() where a user is needed.
+    DROP USER 
+    RENAME USER CURRENT_USER() ...
+    GRANT ... TO CURRENT_USER()
+    REVOKE ... FROM CURRENT_USER()
+    ALTER DEFINER = CURRENT_USER() EVENT
+  but, When these statements are binlogged, CURRENT_USER() just is binlogged
+  as 'CURRENT_USER()', it is not expanded to the real user name. When slave 
+  executes the log event, 'CURRENT_USER()' is expand to the user of slave 
+  SQL thread, but SQL thread's user name always NULL. This breaks the replication.
+  
+  After this patch, All above statements are rewritten when they are binlogged.
+  The CURRENT_USER() is expanded to the real user's name and host.
+------------------------------------------------------------
+revno: 3342
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: fix-certs-5.1-bugteam
+timestamp: Fri 2010-01-29 16:54:27 +0200
+message:
+  merge
     ------------------------------------------------------------
-    revno: 3138.4.17
-    author: hery.ramilison@sun.com
-    committer: MySQL Build Team <build@mysql.com>
-    branch nick: mysql-5.1
-    timestamp: Tue 2009-10-06 19:37:08 +0200
+    revno: 1810.3980.4
+    committer: Georgi Kodinov <joro@sun.com>
+    branch nick: fix-certs-5.0-bugteam
+    timestamp: Fri 2010-01-29 15:55:46 +0200
     message:
-      Raise version number after cloning 5.1.40
-        ------------------------------------------------------------
-    revno: 3138.4.16
-    tags: mysql-5.1.40, clone-5.1.40-build
+      Bug #50642 : ssl certs in test suite are expiring soon.
+      
+      Updated the certs to expire on 2015. 
+      Made sure they work with both yassl and openssl.
+------------------------------------------------------------
+revno: 3341
+committer: Tor Didriksen <tor.didriksen@sun.com>
+branch nick: 5.1-bugteam-bug50271
+timestamp: Thu 2010-01-28 12:10:57 +0100
+message:
+  Bug #50271: Debug output of JOIN structures is garbled
+------------------------------------------------------------
+revno: 3340
+committer: Ramil Kalimullin <ramil@mysql.com>
+branch nick: mysql-5.1-bugteam
+timestamp: Fri 2010-01-29 15:08:49 +0400
+message:
+  Auto-merge.
+    ------------------------------------------------------------
+    revno: 1810.3980.3
+    committer: Ramil Kalimullin <ramil@mysql.com>
+    branch nick: b49897-5.0-bugteam
+    timestamp: Fri 2010-01-29 13:17:57 +0400
+    message:
+      Fix for bug#49897: crash in ptr_compare when char(0) NOT NULL 
+      column is used for ORDER BY
+      
+      Problem: filesort isn't meant for null length sort data
+      (e.g. char(0)), that leads to a server crash.
+      
+      Fix: disregard sort order if sort data record length is 0 (nothing
+      to sort).
+------------------------------------------------------------
+revno: 3339
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: B49552-5.1-bugteam
+timestamp: Fri 2010-01-29 11:36:28 +0200
+message:
+  Bug #49552 : sql_buffer_result cause crash + not found records
+    in multitable delete/subquery
+  
+  SQL_BUFFER_RESULT should not have an effect on non-SELECT 
+  statements according to our documentation.
+  Fixed by not passing it through to multi-table DELETE (similarly
+  to how it's done for multi-table UPDATE).
+------------------------------------------------------------
+revno: 3338
+committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
+branch nick: mysql-5.1-bugteam
+timestamp: Thu 2010-01-28 19:51:40 -0200
+message:
+  Fix for compiler warnings:
+  
+  Rename method as to not hide a base.
+  Reorder attributes initialization.
+  Remove unused variable.
+  Rework code to silence a warning due to assignment used as truth value.
+------------------------------------------------------------
+revno: 3337
+committer: Andrei Elkin <aelkin@mysql.com>
+branch nick: 5.1-bt-bug47142-until4x
+timestamp: Thu 2010-01-28 12:22:19 +0200
+message:
+  merging from 5.1-bt to a local bugfix branch
+    ------------------------------------------------------------
+    revno: 3334.1.5
     committer: Bjorn Munch <Bjorn.Munch@sun.com>
-    branch nick: merge-51
-    timestamp: Tue 2009-10-06 14:37:37 +0200
+    branch nick: timenv-bt
+    timestamp: Wed 2010-01-27 16:32:59 +0100
+    message:
+      Bug #49210 Enable MTR timeout configuration through environment variables
+      Define env. vars for both timeout settings
+      Also incorporated 5.0 patch into mtr version 1
+    ------------------------------------------------------------
+    revno: 1810.3980.2
+    committer: Bjorn Munch <Bjorn.Munch@sun.com>
+    branch nick: timenv-50
+    timestamp: Wed 2010-01-27 15:21:41 +0100
+    message:
+        Bug #49210 Enable MTR timeout configuration through environment variables
+        Define env. vars for both timeout settings
+        This patch is for 5.0 (mtr v1) and should replaces for 5.1 up
+------------------------------------------------------------
+revno: 3336
+committer: Andrei Elkin <aelkin@mysql.com>
+branch nick: 5.1-bt-bug47142-until4x
+timestamp: Thu 2010-01-28 11:51:57 +0200
+message:
+  merging from 5.1-bt to a local bugfix branch
+    ------------------------------------------------------------
+    revno: 3334.1.4
+    committer: Staale Smedseng <staale.smedseng@sun.com>
+    branch nick: 49223-51
+    timestamp: Wed 2010-01-27 16:13:39 +0100
+    message:
+      Bug #49223 Change help description for mysqldump
+      --extended-insert
+      
+      Help message changed to the same as in the 5.1 online 
+      documentation.
+    ------------------------------------------------------------
+    revno: 3334.1.3
+    committer: Magne Mahre <magne.mahre@sun.com>
+    branch nick: mysql-5.1-bugteam-wl5182
+    timestamp: Wed 2010-01-27 13:23:28 +0100
+    message:
+      WL#5182 Remove more deprecated 4.1/5.0 features
+            
+      WL#5182 is a follow-up to WL#5154, deprecating a few more options
+      and system variables.
+    ------------------------------------------------------------
+    revno: 3334.1.2
+    committer: Staale Smedseng <staale.smedseng@sun.com>
+    branch nick: 50409-51
+    timestamp: Wed 2010-01-27 11:42:20 +0100
+    message:
+      Merging from 5.0-bugteam
+        ------------------------------------------------------------
+        revno: 1810.3980.1
+        committer: Staale Smedseng <staale.smedseng@sun.com>
+        branch nick: 50409-50
+        timestamp: Wed 2010-01-27 11:38:50 +0100
         message:
-      merge of 47383 from 5.1-mtr
+          Bug#50409 Solaris 8 compatibility broken by assumption about
+          printstack() being present
+          
+          When Bug#47391 was fixed, no assumption was made that support
+          for Solaris 8 was needed. Solaris 8 lacks printstack(), and 
+          the build breaks because of this.
+          
+          This patch adds a test for the presence of printstack() to
+          configure.in for 5.0, and uses HAVE_PRINTSTACK to make
+          decisions rather than the __sun define.
+    ------------------------------------------------------------
+    revno: 3334.1.1
+    committer: <Dao-Gang.Qu@sun.com>
+    branch nick: mysql-5.1-bugteam
+    timestamp: Wed 2010-01-27 10:52:13 +0800
+    message:
+      Bug #49191  rpl_get_master_version_and_clock failed on PB2: COM_REGISTER_SLAVE failed
+      
+      The 'rpl_get_master_version_and_clock' test verifies if the slave I/O
+      thread tries to reconnect to master when it tries to get the values of
+      the UNIX_TIMESTAMP, SERVER_ID from master under network disconnection.
+      So the master server is restarted for making the transient network
+      disconnection, during the period the COM_REGISTER_SLAVE failures are
+      produced in server log file when the slave I/O thread tries to
+      register on master.
+      
+      To fix the problem, suppress COM_REGISTER_SLAVE failures in server log
+      file by mtr suppression, because they are expected.
+------------------------------------------------------------
+revno: 3335
+committer: Andrei Elkin <aelkin@mysql.com>
+branch nick: 5.1-bt-bug47142-until4x
+timestamp: Wed 2010-01-27 19:27:49 +0200
+message:
+  bug#47142
+  merging patches prepared for 5.0 to 5.1-bt. That caused a few changes in the test file
+    ------------------------------------------------------------
+    revno: 1810.3979.2
+    committer: Andrei Elkin <aelkin@mysql.com>
+    branch nick: 5.0-bt-bug47142-until_catches_local_rotate-andrii
+    timestamp: Wed 2010-01-27 15:20:03 +0200
+    message:
+      bug#47142
+      improving comments
+    ------------------------------------------------------------
+    revno: 1810.3979.1
+    committer: Andrei Elkin <aelkin@mysql.com>
+    branch nick: 5.0-bt-bug47142-until_catches_local_rotate-andrii
+    timestamp: Mon 2010-01-25 17:46:48 +0200
+    message:
+      Bug #47142 "slave start until" stops 1 event too late in 4.1 to 5.0 replication
+      
+      When replicating from 4.1 master to 5.0 slave START SLAVE UNTIL can stop too late.
+      The necessary in calculating of the beginning of an event the event's length
+      did not correspond to the master's genuine information at the event's execution time.
+      That piece of info was changed at the event's relay-logging due to binlog_version<4 event
+      conversion by IO thread.
+      
+      Fixed with storing the master genuine Query_log_event size into a new status
+      variable at relay-logging of the event. The stored info is extacted at the event
+      execution and participate further to caclulate the correct start position of the event
+      in the until-pos stopping routine.
+      The new status variable's algorithm will be only active when the event comes
+      from the master of version < 5.0 (binlog_version < 4).
+------------------------------------------------------------
+revno: 3334
+committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
+branch nick: 49491-5.1
+timestamp: Tue 2010-01-26 15:05:19 -0200
+message:
+  Bug#49491: Much overhead for MD5() and SHA1() on short strings
+  
+  MySQL's hash functions MD5 and SHA relied on the somewhat slow 
+  sprintf function to convert the digests to hex representations.
+  This patch replaces the sprintf with a specific and inline hex
+  conversion function.
+  
+  Patch contributed by Jan Steemann.
+------------------------------------------------------------
+revno: 3333
+committer: Luis Soares <luis.soares@sun.com>
+branch nick: mysql-5.1-bugteam-push
+timestamp: Tue 2010-01-26 08:55:22 +0000
+message:
+  automerge: mysql-5.1-bugteam branch --> mysql-5.1-bugteam latest
+  
+  NOTE: added TODO to the comments requested by reviewer during this
+        merge.
+    ------------------------------------------------------------
+    revno: 3319.2.1
+    committer: Luis Soares <luis.soares@sun.com>
+    branch nick: mysql-5.1-bugteam
+    timestamp: Thu 2010-01-21 17:20:24 +0000
+    message:
+      BUG#49481: RBR: MyISAM and bit fields may cause slave to stop on delete: 
+      cant find record
+      
+      Some engines return data for the record. Despite the fact that
+      the null bit is set for some fields, their old value may still in
+      the row. This can happen when unpacking an AI from the binlog on
+      top of a previous record in which a field is set to NULL, which
+      previously contained a value. Ultimately, this may cause the
+      comparison of records to fail when the slave is doing an index or
+      range scan.
+      
+      We fix this by deploying a call to reset() for each field that is
+      set to null while unpacking a row from the binary log.
+      Furthermore, we also add mixed mode test case to cover the
+      scenario where updating and setting a field to null through a
+      Query event and later searching it through a rows event will
+      succeed.
+      
+      Finally, we also change the reset() method, from Field_bit class,
+      so that it takes into account bits stored among the null bits and
+      not only the ones stored in the record.
+------------------------------------------------------------
+revno: 3332
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: fix-win-5.1-bugteam
+timestamp: Tue 2010-01-26 10:47:43 +0200
+message:
+  fix a windows test run bug with debug binaries : dbug frame 
+  should be exited before destroying the thread local storage.
+------------------------------------------------------------
+revno: 3331
+committer: <Dao-Gang.Qu@sun.com>
+branch nick: mysql-5.1-bugteam
+timestamp: Mon 2010-01-25 10:55:05 +0800
+message:
+  Manual merge with Conflicts:
+  sql_udf.cc
+    ------------------------------------------------------------
+    revno: 3329.1.4
+    committer: He Zhenxing <zhenxing.he@sun.com>
+    branch nick: 5.1-bugteam-new
+    timestamp: Sun 2010-01-24 15:03:23 +0800
+    message:
+      Backport Bug#37148 to 5.1
+    ------------------------------------------------------------
+    revno: 3329.1.3
+    committer: Sergey Vojtovich <svoj@sun.com>
+    branch nick: mysql-5.1-bugteam
+    timestamp: Fri 2010-01-22 16:26:17 +0400
+    message:
+      Merge InnoDB snapshot with mysql-5.1-bugteam.
+        ------------------------------------------------------------
+        revno: 3329.2.8
+        committer: Sergey Vojtovich <svoj@sun.com>
+        branch nick: mysql-5.1-bugteam
+        timestamp: Fri 2010-01-22 16:23:27 +0400
+        message:
+          Applying InnoDB snapshot, fixes BUG#49396.
+          
+          Detailed revision comments:
+          
+          r6471 | calvin | 2010-01-16 01:43:27 +0200 (Sat, 16 Jan 2010) | 4 lines
+          branches/5.1: fix bug#49396: main.innodb test fails in embedded mode
+          
+          Change replace_result by using $MYSQLD_DATADIR. Tested in both embedded
+          mode and normal server mode.
+        ------------------------------------------------------------
+        revno: 3329.2.7
+        committer: Sergey Vojtovich <svoj@sun.com>
+        branch nick: mysql-5.1-bugteam
+        timestamp: Fri 2010-01-22 14:20:08 +0400
+        message:
+          Disabled innodb-autoinc-44030 due to BUG#47621.
+        ------------------------------------------------------------
+        revno: 3329.2.6
+        committer: Sergey Vojtovich <svoj@sun.com>
+        branch nick: mysql-5.1-bugteam
+        timestamp: Fri 2010-01-22 14:03:52 +0400
+        message:
+          Applying InnoDB snapshot 
+          
+          Detailed revision comments:
+          
+          r6492 | sunny | 2010-01-21 09:38:35 +0200 (Thu, 21 Jan 2010) | 1 line
+          branches/5.1: Add reference to bug#47621 in the comment.
+        ------------------------------------------------------------
+        revno: 3329.2.5
+        committer: Sergey Vojtovich <svoj@sun.com>
+        branch nick: mysql-5.1-bugteam
+        timestamp: Fri 2010-01-22 14:03:18 +0400
+        message:
+          Applying InnoDB snapshot 
+          
+          Detailed revision comments:
+          
+          r6489 | sunny | 2010-01-21 02:57:50 +0200 (Thu, 21 Jan 2010) | 2 lines
+          branches/5.1: Factor out test for bug#44030 from innodb-autoinc.test
+          into a separate test/result files.
+        ------------------------------------------------------------
+        revno: 3329.2.4
+        committer: Sergey Vojtovich <svoj@sun.com>
+        branch nick: mysql-5.1-bugteam
+        timestamp: Fri 2010-01-22 14:02:17 +0400
+        message:
+          Applying InnoDB snapshot 
+          
+          Detailed revision comments:
+          
+          r6488 | sunny | 2010-01-21 02:55:08 +0200 (Thu, 21 Jan 2010) | 2 lines
+          branches/5.1: Factor out test for bug#44030 from innodb-autoinc.test
+          into a separate test/result files.
+        ------------------------------------------------------------
+        revno: 3329.2.3
+        committer: Sergey Vojtovich <svoj@sun.com>
+        branch nick: mysql-5.1-bugteam
+        timestamp: Fri 2010-01-22 13:57:02 +0400
+        message:
+          Applying InnoDB snapshot, fixes BUG#46193.
+          
+          Detailed revision comments:
+          
+          r6424 | marko | 2010-01-12 12:22:19 +0200 (Tue, 12 Jan 2010) | 16 lines
+          branches/5.1: In innobase_initialize_autoinc(), do not attempt to read
+          the maximum auto-increment value from the table if
+          innodb_force_recovery is set to at least 4, so that writes are
+          disabled. (Bug #46193)
+          
+          innobase_get_int_col_max_value(): Move the function definition before
+          ha_innobase::innobase_initialize_autoinc(), because that function now
+          calls this function.
+          
+          ha_innobase::innobase_initialize_autoinc(): Change the return type to
+          void.  Do not attempt to read the maximum auto-increment value from
+          the table if innodb_force_recovery is set to at least 4.  Issue
+          ER_AUTOINC_READ_FAILED to the client when the auto-increment value
+          cannot be read.
+          
+          rb://144 by Sunny, revised by Marko
+        ------------------------------------------------------------
+        revno: 3329.2.2
+        committer: Sergey Vojtovich <svoj@sun.com>
+        branch nick: mysql-5.1-bugteam
+        timestamp: Fri 2010-01-22 13:56:32 +0400
+        message:
+          Applying InnoDB snapshot 
+          
+          Detailed revision comments:
+          
+          r6422 | marko | 2010-01-12 11:34:27 +0200 (Tue, 12 Jan 2010) | 3 lines
+          branches/5.1: Non-functional change:
+          Make innobase_get_int_col_max_value() a static function.
+          It does not access any fields of class ha_innobase.
+        ------------------------------------------------------------
+        revno: 3329.2.1
+        committer: Sergey Vojtovich <svoj@sun.com>
+        branch nick: mysql-5.1-bugteam
+        timestamp: Fri 2010-01-22 13:55:50 +0400
+        message:
+          Applying InnoDB snapshot, fixes BUG#49238.
+          
+          Detailed revision comments:
+          
+          r6421 | jyang | 2010-01-12 07:59:16 +0200 (Tue, 12 Jan 2010) | 8 lines
+          branches/5.1: Fix bug #49238: Creating/Dropping a temporary table
+          while at 1023 transactions will cause assert. Handle possible
+          DB_TOO_MANY_CONCURRENT_TRXS when deleting metadata in
+          row_drop_table_for_mysql().
+          
+          rb://220, approved by Marko
+    ------------------------------------------------------------
+    revno: 3329.1.2
+    committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
+    branch nick: mysql-5.1-bugteam
+    timestamp: Fri 2010-01-22 14:58:21 +0400
+    message:
+      Bug#49501 Inefficient information_schema check (system collation), addon
+      removed wrongly introduced strlen calls
+    ------------------------------------------------------------
+    revno: 3329.1.1
+    committer: Magne Mahre <magne.mahre@sun.com>
+    branch nick: mysql-5.1-bugteam
+    timestamp: Fri 2010-01-22 10:37:44 +0100
+    message:
+      Post-commit fix of two tests
+      
+      The WL#5154 commit added a couple of warning messages that
+      was not fixed in the result files for two RPL tests.
+------------------------------------------------------------
+revno: 3330
+committer: <Dao-Gang.Qu@sun.com>
+branch nick: mysql-5.1-bugteam
+timestamp: Fri 2010-01-22 17:38:21 +0800
+message:
+  Bug #49132  	Replication failure on temporary table + DDL
+  
+  In RBR, DDL statement will change binlog format to non row-based
+  format before it is binlogged, but the binlog format was not be
+  restored, and then manipulating a temporary table can not reset binlog
+  format to row-based format rightly. So that the manipulated statement
+  is binlogged with statement-based format.
+  
+  To fix the problem, restore the state of binlog format after the DDL
+  statement is binlogged.
+------------------------------------------------------------
+revno: 3329
+committer: Magne Mahre <magne.mahre@sun.com>
+branch nick: mysql-5.1-bugteam-wl5154
+timestamp: Thu 2010-01-21 09:10:05 +0100
+message:
+  WL#5154 Remove deprecated 4.1 features
+  
+  Several items said to be deprecated in the 4.1 manual
+  have never been removed.  This worklog adds deprecation
+  warnings when these items are used, and warns the user 
+  that the items will be removed in MySQL 5.6.
+  
+  A couple of previously deprecation decision have been
+  reversed (see single file comments)
+------------------------------------------------------------
+revno: 3328
+committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
+branch nick: mysql-5.1-bugteam
+timestamp: Wed 2010-01-20 22:22:20 -0200
+message:
+  Apply patch on behalf of Magnus:
+  
+  3325 Magnus Bl?udd    2010-01-05
+       Bug #49860 new compiler warning ha_archive
+        - fix compiler warning by casting to ulong 
+------------------------------------------------------------
+revno: 3327
+committer: Davi Arnaut <Davi.Arnaut@Sun.COM>
+branch nick: mysql-5.1-bugteam
+timestamp: Wed 2010-01-20 22:21:18 -0200
+message:
+  Apply patch on behalf of the NDB team:
+  
+  3321 Magnus Bl?udd    2010-01-05
+       BUG#44840 - ndbapi compiler warning - type qualifier ignored for function return type
+        - Remove the "const"
+        - NOTE! This is an ABI incompatible change for some C++ compilers, NdbApi applications
+          using any of the four changed functions may need a recompile if it's using dynamic linking.
+------------------------------------------------------------
+revno: 3326
+committer: Alfranio Correia <alfranio.correia@sun.com>
+branch nick: mysql-5.1-bugteam
+timestamp: Wed 2010-01-20 19:08:16 +0000
+message:
+  BUG#46364 MyISAM transbuffer problems (NTM problem)
+  
+  It is well-known that due to concurrency issues, a slave can become
+  inconsistent when a transaction contains updates to both transaction and
+  non-transactional tables in statement and mixed modes.
+  
+  In a nutshell, the current code-base tries to preserve causality among the
+  statements by writing non-transactional statements to the txn-cache which
+  is flushed upon commit. However, modifications done to non-transactional
+  tables on behalf of a transaction become immediately visible to other
+  connections but may not immediately get into the binary log and therefore
+  consistency may be broken.
+  
+  In general, it is impossible to automatically detect causality/dependency
+  among statements by just analyzing the statements sent to the server. This
+  happen because dependency may be hidden in the application code and it is
+  necessary to know a priori all the statements processed in the context of
+  a transaction such as in a procedure. Moreover, even for the few cases that
+  we could automatically address in the server, the computation effort
+  required could make the approach infeasible.
+  
+  So, in this patch we introduce the option
+      - "--binlog-direct-non-transactional-updates" that can be used to bypass
+      the current behavior in order to write directly to binary log statements
+      that change non-transactional tables.
+------------------------------------------------------------
+revno: 3325
+committer: Mattias Jonsson <mattias.jonsson@sun.com>
+branch nick: topush-51-bugteam
+timestamp: Tue 2010-01-19 17:02:51 +0100
+message:
+  post-push patch for bug#47343.
+  
+  Missing ha_rnd_end in copy_partitions, found due to a
+  DBUG_ASSERT in mysql-pe
+------------------------------------------------------------
+revno: 3324
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: B49512-5.1-bugteam
+timestamp: Wed 2009-12-23 17:11:22 +0200
+message:
+  Bug #49512 : subquery with aggregate function crash
+    subselect_single_select_engine::exec()
+  
+  When a subquery doesn't need to be evaluated because
+  it returns only aggregate functions and these aggregates
+  can be calculated from the metadata about the table it
+  was not updating all the relevant members of the JOIN 
+  structure to reflect that this is a constant query.
+  This caused problems to the enclosing subquery 
+  ('<> SOME' in the test case above) trying to read some
+  data about the tables.
+  
+  Fixed by setting const_tables to the number of tables 
+  when the SELECT is optimized away.
+------------------------------------------------------------
+revno: 3323
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: B45989-5.1-bugteam
+timestamp: Tue 2010-01-19 14:48:41 +0200
+message:
+  revert of the fix for bug #45989: pushed by mistake.
+------------------------------------------------------------
+revno: 3322
+committer: Mattias Jonsson <mattias.jonsson@sun.com>
+branch nick: topush-51-bugteam
+timestamp: Tue 2010-01-19 12:18:48 +0100
+message:
+  merge
+    ------------------------------------------------------------
+    revno: 3315.1.1
+    committer: Mattias Jonsson <mattias.jonsson@sun.com>
+    branch nick: b47343-51-bt
+    timestamp: Mon 2010-01-18 17:49:18 +0100
+    message:
+      Bug#47343: InnoDB fails to clean-up after lock wait timeout on
+                 REORGANIZE PARTITION
+      
+      There were several problems which lead to this this,
+      all related to bad error handling.
+      
+      1) There was several bugs preventing the ddl-log to be used for
+         cleaning up created files on error.
+      
+      2) The error handling after the copy partition rows did not close
+         and unlock the tables, resulting in deletion of partitions
+         which were in use, which lead InnoDB to put the partition to
+         drop in a background queue.
+------------------------------------------------------------
+revno: 3321
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: B45989-5.1-bugteam
+timestamp: Tue 2010-01-19 12:45:34 +0200
+message:
+  merge
+    ------------------------------------------------------------
+    revno: 3319.1.1
+    committer: Sergey Glukhov <Sergey.Glukhov@sun.com>
+    branch nick: mysql-5.1-bugteam
+    timestamp: Tue 2010-01-19 13:03:40 +0400
+    message:
+      Bug#49501 Inefficient information_schema check (system collation)
+      added check_length optimization for I_S_NAME comparison
+------------------------------------------------------------
+revno: 3320
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: B45989-5.1-bugteam
+timestamp: Mon 2010-01-18 17:50:46 +0200
+message:
+  Bug #45989 take 2 : memory leak after explain encounters an
+  error in the query.
+  
+  Fixes a leak after materializing a GROUP BY subquery to a 
+  temp table when the subquery has a blob column in the SELECT
+  list.
+  Fixed by correctly destructing temporary buffers after doing
+  the conversion.
+------------------------------------------------------------
+revno: 3319
+committer: Luis Soares <luis.soares@sun.com>
+branch nick: mysql-5.1-bugteam
+timestamp: Tue 2010-01-19 00:10:00 +0000
+message:
+  Fix for BUG#49481 and BUG#49482 reverted.
+  
+  PB2 run uncovered issue that needs further analysis.
+------------------------------------------------------------
+revno: 3318
+committer: Mattias Jonsson <mattias.jonsson@sun.com>
+branch nick: topush-51-bugteam
+timestamp: Sun 2010-01-17 22:00:37 +0100
+message:
+  merge
+    ------------------------------------------------------------
+    revno: 3289.1.4
+    committer: Mattias Jonsson <mattias.jonsson@sun.com>
+    branch nick: b49742-51-bugteam
+    timestamp: Tue 2009-12-22 18:59:37 +0100
+    message:
+      Bug#49742: Partition Pruning not working correctly for RANGE
+      
+      Problem was when calculating the range of partitions for
+      pruning.
+      
+      Solution was to get the calculation correct. I also simplified
+      it a bit for easier understanding.
+------------------------------------------------------------
+revno: 3317
+committer: <Li-Bing.Song@sun.com>
+branch nick: mysql-5.1-bugteam
+timestamp: Sat 2010-01-16 15:44:24 +0800
+message:
+  BUG#47418 RBR fails, failure with mixup of base/temporary/view 
+  
+  'CREATE TABLE IF NOT EXISTS ... SELECT' statement were causing 'CREATE
+  TEMPORARY TABLE ...' to be written to the binary log in row-based 
+  mode (a.k.a. RBR), when there was a temporary table with the same name.
+  Because the 'CREATE TABLE ... SELECT' statement was executed as 
+  'INSERT ... SELECT' into the temporary table. Since in RBR mode no 
+  other statements related to temporary tables are written into binary log,
+  this sometimes broke replication.
+  
+  This patch changes behavior of 'CREATE TABLE [IF NOT EXISTS] ... SELECT ...'.
+  it ignores existence of temporary table with the 
+  same name as table being created and is interpreted
+  as attempt to create/insert into base table. This makes behavior of
+  'CREATE TABLE [IF NOT EXISTS] ... SELECT' consistent with
+  how ordinary 'CREATE TABLE' and 'CREATE TABLE ... LIKE' behave.
+------------------------------------------------------------
+revno: 3316
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: B46175-5.1-bugteam
+timestamp: Fri 2010-01-15 16:09:20 +0200
+message:
+  Bug #46175: NULL read_view and consistent read assertion
+  
+  The optimizer must not continue executing the current query
+  if e.g. the storage engine reports an error.
+  This is somewhat hard to implement with Item::val_xxx()
+  because they do not have means to return error code.
+  This is why we need to check the thread's error state after
+  a call to one of the Item::val_xxx() methods.
+  
+  Fixed store_key_item::copy_inner() to return an error state 
+  if an error happened during the call to Item::save_in_field() 
+  because it calls Item::val_xxx().
+  Also added similar checks to related places.
+------------------------------------------------------------
+revno: 3315
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: merge-5.1-bugteam
+timestamp: Fri 2010-01-15 11:06:46 +0200
+message:
+  merge
+    ------------------------------------------------------------
+    revno: 3302.1.5
+    committer: Luis Soares <luis.soares@sun.com>
+    branch nick: mysql-5.1-bugteam
+    timestamp: Thu 2010-01-14 14:26:51 +0000
+    message:
+      Fix for BUG#49481 and BUG#49482.
+      
+      BUG#49481: RBR: MyISAM and bit fields may cause slave to stop on delete: 
+      cant find record
+            
+      BUG#49482: RBR: Replication may break on deletes when MyISAM tables + 
+      char field are used
+      
+      When using MyISAM tables, despite the fact that the null bit is
+      set for some fields, their old value is still in the row. This
+      can cause the comparison of records to fail when the slave is
+      doing an index or range scan.
+      
+      We fix this by avoiding memcmp for MyISAM tables when comparing
+      records. Additionally, when comparing field by field, we first
+      check if both fields are not null and if so, then we compare
+      them. If just one field is null we return failure immediately. If
+      both fields are null, we move on to the next field.
+    ------------------------------------------------------------
+    revno: 3302.1.4
+    committer: Luis Soares <luis.soares@sun.com>
+    branch nick: mysql-5.1-bugteam-push
+    timestamp: Thu 2010-01-14 10:49:40 +0000
+    message:
+      BUG#50018: binlog corruption when table has many columns
+      
+      Small fix in the test case. Changed the UNLOCK tables 
+      to happen after each insert.
+    ------------------------------------------------------------
+    revno: 3302.1.3
+    committer: Luis Soares <luis.soares@sun.com>
+    branch nick: mysql-5.1-bugteam-push
+    timestamp: Thu 2010-01-14 10:47:23 +0000
+    message:
+      BUG#50018: automerge from 5.1-bt local --> 5.1-bt local latest.
+        ------------------------------------------------------------
+        revno: 3302.2.2
+        committer: Luis Soares <luis.soares@sun.com>
+        branch nick: mysql-5.1-bugteam
+        timestamp: Thu 2010-01-07 17:45:54 +0000
+        message:
+          BUG#50018: binlog corruption when table has many columns
+          
+          Some improvements on the test case as suggested during review.
+        ------------------------------------------------------------
+        revno: 3302.2.1
+        committer: Luis Soares <luis.soares@sun.com>
+        branch nick: mysql-5.1-bugteam
+        timestamp: Wed 2010-01-06 00:44:31 +0000
+        message:
+          BUG#50018: binlog corruption when table has many columns
+          
+          For tables with metadata sizes ranging from 251 to 255 the size
+          of the event data (m_data_size) was being improperly calculated
+          in the Table_map_log_event constructor. This was due to the fact
+          that when writing the Table_map_log_event body (in
+          Table_map_log_event::write_data_body) a call to net_store_length
+          is made for packing the m_field_metadata_size. It happens that
+          net_store_length uses *one* byte for storing
+          m_field_metadata_size when it is smaller than 251 but *three*
+          bytes when it exceeds that value. BUG 42749 had already
+          pinpointed and fix this fact, but the fix was incomplete, as the
+          calculation in the Table_map_log_event constructor considers 255
+          instead of 251 as the threshold to increment m_data_size by
+          three. Thence, the window for having a mismatch between the
+          number of bytes written and the number of bytes accounted in the
+          event length (m_data_size) was left open for
+          m_field_metadata_size values between 251 and 255.
+          
+          We fix this by changing the condition in the Table_map_log_event
+          constructor to match the one in the net_store_length, ie,
+          increment one byte if m_field_metadata_size < 251 and three if it
+          exceeds this value.
+    ------------------------------------------------------------
+    revno: 3302.1.2
+    committer: Kristofer Pettersson <kristofer.pettersson@sun.com>
+    branch nick: mysql-5.1-bugteam
+    timestamp: Wed 2010-01-13 15:01:49 +0100
+    message:
+      automerge
+    ------------------------------------------------------------
+    revno: 3302.1.1
+    committer: Kristofer Pettersson <kristofer.pettersson@sun.com>
+    branch nick: mysql-5.1-bugteam
+    timestamp: Wed 2010-01-13 12:39:00 +0100
+    message:
+      Bug#33982 debug assertion and crash reloading grant tables after sighup or kill
+      
+      In certain rare cases when a process was interrupted
+      during a FLUSH PRIVILEGES operation the diagnostic
+      area would be set to an error state but the function
+      responsible for the operation would still signal
+      success. This would lead to a debug assertion error
+      later on when the server would attempt to reset the
+      DA before sending the error message.
+      
+      This patch fixes the issue by assuring that
+      reload_acl_and_cache() always fails if an error
+      condition is raised.
+      
+      The second issue was that a KILL could cause
+      a console error message which referred to a DA
+      state without first making sure that such a
+      state existed.
+      
+      This patch fixes this issue in two different
+      palces by first checking DA state before
+      fetching the error message.
+      
+       
+------------------------------------------------------------
+revno: 3314
+tags: mysql-5.1.43, clone-5.1.43-build
+committer: Georgi Kodinov <joro@sun.com>
+branch nick: merge-5.1-bugteam
+timestamp: Fri 2010-01-15 10:51:39 +0200
+message:
+  merge of version change.
+  Added not_embedded to the new dbug_sync test file.
+    ------------------------------------------------------------
+    revno: 1810.3974.22
+    tags: mysql-5.0.90, clone-5.0.90-build
+    committer: Georgi Kodinov <joro@sun.com>
+    branch nick: merge-5.0-bugteam
+    timestamp: Thu 2010-01-14 10:24:02 +0200
+    message:
+      version change

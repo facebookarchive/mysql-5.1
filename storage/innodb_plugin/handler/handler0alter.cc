@@ -660,8 +660,8 @@ ha_innobase::add_index(
 	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
 		error = -1;
 	} else {
-	/* Check that index keys are sensible */
-	error = innobase_check_index_keys(key_info, num_of_keys);
+		/* Check that index keys are sensible */
+		error = innobase_check_index_keys(key_info, num_of_keys);
 	}
 
 	if (UNIV_UNLIKELY(error)) {
@@ -765,10 +765,11 @@ err_exit:
 	ut_ad(error == DB_SUCCESS);
 
 	/* Commit the data dictionary transaction in order to release
-	the table locks on the system tables.  Unfortunately, this
-	means that if MySQL crashes while creating a new primary key
-	inside row_merge_build_indexes(), indexed_table will not be
-	dropped on crash recovery.  Thus, it will become orphaned. */
+	the table locks on the system tables.  This means that if
+	MySQL crashes while creating a new primary key inside
+	row_merge_build_indexes(), indexed_table will not be dropped
+	by trx_rollback_active().  It will have to be recovered or
+	dropped by the database administrator. */
 	trx_commit_for_mysql(trx);
 
 	row_mysql_unlock_data_dictionary(trx);
@@ -882,7 +883,9 @@ error:
 		/* fall through */
 	default:
 		if (new_primary) {
-			row_merge_drop_table(trx, indexed_table);
+			if (indexed_table != innodb_table) {
+				row_merge_drop_table(trx, indexed_table);
+			}
 		} else {
 			if (!dict_locked) {
 				row_mysql_lock_data_dictionary(trx);

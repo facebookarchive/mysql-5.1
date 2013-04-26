@@ -75,7 +75,7 @@ extern FILE *_db_fp_(void);
 #define DBUG_ENTER(a) \
         const char *_db_func_, *_db_file_; \
         uint _db_level_; \
-	char **_db_framep_; \
+        char **_db_framep_; \
         Dbug_violation_helper dbug_violation_helper; \
         _db_enter_ (a, __FILE__, __LINE__, &_db_func_, &_db_file_, \
                     &_db_level_, &_db_framep_)

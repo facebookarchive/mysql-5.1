@@ -45,7 +45,7 @@ trx_undo_rec_t*
 trx_undo_rec_copy(
 /*==============*/
 	const trx_undo_rec_t*	undo_rec,	/*!< in: undo log record */
-	mem_heap_t*	heap);		/*!< in: heap where copied */
+	mem_heap_t*		heap);		/*!< in: heap where copied */
 /**********************************************************************//**
 Reads the undo log record type.
 @return	record type */

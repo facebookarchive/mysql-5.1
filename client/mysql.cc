@@ -54,6 +54,9 @@ static char *server_version= NULL;
 /* Array of options to pass to libemysqld */
 #define MAX_SERVER_ARGS               64
 
+/* Version numbers for deprecation messages */
+#define VER_CELOSIA "5.6"
+
 void* sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
 void sql_element_free(void *ptr);
 #include "sql_string.h"
@@ -86,7 +89,7 @@ extern "C" {
 #endif
 
 #undef bcmp				// Fix problem with new readline
-#if defined( __WIN__)
+#if defined(__WIN__)
 #include <conio.h>
 #elif !defined(__NETWARE__)
 #include <readline/readline.h>
@@ -106,7 +109,7 @@ extern "C" {
 #define cmp_database(cs,A,B) strcmp((A),(B))
 #endif
 
-#if !defined( __WIN__) && !defined(__NETWARE__) && !defined(THREAD)
+#if !defined(__WIN__) && !defined(__NETWARE__) && !defined(THREAD)
 #define USE_POPEN
 #endif
 
@@ -1343,7 +1346,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_rehash, (uchar**) &opt_rehash, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0,
    0, 0},
   {"no-auto-rehash", 'A',
-   "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options deprecated; use --disable-auto-rehash instead.",
+   "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"batch", 'B',
    "Don't use history file. Disable interactive behavior. (Enables --silent)", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1412,7 +1415,7 @@ static struct my_option my_long_options[] =
   {"line-numbers", OPT_LINE_NUMBERS, "Write line numbers for errors.",
    (uchar**) &line_numbers, (uchar**) &line_numbers, 0, GET_BOOL,
    NO_ARG, 1, 0, 0, 0, 0, 0},  
-  {"skip-line-numbers", 'L', "Don't write line number for errors. WARNING: -L is deprecated, use long version of this option instead.", 0, 0, 0, GET_NO_ARG,
+  {"skip-line-numbers", 'L', "Don't write line number for errors.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"unbuffered", 'n', "Flush buffer after each query.", (uchar**) &unbuffered,
    (uchar**) &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1420,7 +1423,7 @@ static struct my_option my_long_options[] =
    (uchar**) &column_names, (uchar**) &column_names, 0, GET_BOOL,
    NO_ARG, 1, 0, 0, 0, 0, 0},
   {"skip-column-names", 'N',
-   "Don't write column names in results. WARNING: -N is deprecated, use long version of this options instead.",
+   "Don't write column names in results.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
@@ -1627,7 +1630,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       init_tee(argument);
     break;
   case OPT_NOTEE:
-    printf("WARNING: option deprecated; use --disable-tee instead.\n");
+    WARN_DEPRECATED(VER_CELOSIA, "--no-tee", "--disable-tee");
     if (opt_outfile)
       end_tee();
     break;
@@ -1650,7 +1653,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     break;
   case OPT_NOPAGER:
-    printf("WARNING: option deprecated; use --disable-pager instead.\n");
+    WARN_DEPRECATED(VER_CELOSIA, "--no-pager", "--disable-pager");
     opt_nopager= 1;
     break;
   case OPT_MYSQL_PROTOCOL:
@@ -1696,11 +1699,17 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (!(status.line_buff= batch_readline_command(status.line_buff, argument)))
       return 1;
     break;
+  case 'g':
+    WARN_DEPRECATED(VER_CELOSIA, "-g, --no-named-commands", "--skip-named-commands");
+    break;
   case 'o':
     if (argument == disabled_my_option)
       one_database= 0;
     else
       one_database= skip_updates= 1;
+    break;
+  case 'O':
+    WARN_DEPRECATED(VER_CELOSIA, "-O, --set-variable", "--variable-name=value");
     break;
   case 'p':
     if (argument == disabled_my_option)
@@ -1876,7 +1885,7 @@ static int read_and_execute(bool interactive)
       if (opt_outfile && glob_buffer.is_empty())
 	fflush(OUTFILE);
 
-#if defined( __WIN__) || defined(__NETWARE__)
+#if defined(__WIN__) || defined(__NETWARE__)
       tee_fputs(prompt, stdout);
 #if defined(__NETWARE__)
       line=fgets(linebuffer, sizeof(linebuffer)-1, stdin);
@@ -1913,7 +1922,7 @@ static int read_and_execute(bool interactive)
       if (opt_outfile)
 	fputs(prompt, OUTFILE);
       line= readline(prompt);
-#endif /* defined( __WIN__) || defined(__NETWARE__) */
+#endif /* defined(__WIN__) || defined(__NETWARE__) */
 
       /*
         When Ctrl+d or Ctrl+z is pressed, the line may be NULL on some OS
@@ -1961,10 +1970,10 @@ static int read_and_execute(bool interactive)
     }
   }
 
-#if defined( __WIN__) || defined(__NETWARE__)
+#if defined(__WIN__) || defined(__NETWARE__)
   buffer.free();
 #endif
-#if defined( __WIN__)
+#if defined(__WIN__)
   tmpbuf.free();
 #endif
 
@@ -3524,7 +3533,8 @@ print_table_data_vertically(MYSQL_RES *result)
     for (uint off=0; off < mysql_num_fields(result); off++)
     {
       field= mysql_fetch_field(result);
-      tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
+      if (column_names)
+        tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       if (cur[off])
       {
         unsigned int i;
@@ -4194,7 +4204,7 @@ char *get_arg(char *line, my_bool get_next_arg)
     if (*ptr == '\\' && ptr[1]) // escaped character
     {
       // Remove the backslash
-      strmov(ptr, ptr+1);
+      strmov_overlapp(ptr, ptr+1);
     }
     else if ((!quoted && *ptr == ' ') || (quoted && *ptr == qtype))
     {
@@ -4335,7 +4345,7 @@ com_status(String *buffer __attribute__((unused)),
     Don't remove "limit 1",
     it is protection againts SQL_SELECT_LIMIT=0
   */
-  if (mysql_store_result_for_lazy(&result))
+  if (!mysql_store_result_for_lazy(&result))
   {
     MYSQL_ROW cur=mysql_fetch_row(result);
     if (cur)
@@ -4379,7 +4389,7 @@ com_status(String *buffer __attribute__((unused)),
     if (mysql_errno(&mysql) == CR_SERVER_GONE_ERROR)
       return 0;
   }
-  if (mysql_store_result_for_lazy(&result))
+  if (!mysql_store_result_for_lazy(&result))
   {
     MYSQL_ROW cur=mysql_fetch_row(result);
     if (cur)
@@ -4474,9 +4484,7 @@ server_version_string(MYSQL *con)
     */
 
     if (server_version == NULL)
-    {
-      server_version= strdup(mysql_get_server_info(con));
-    }
+      server_version= my_strdup(mysql_get_server_info(con), MYF(MY_WME));
   }
 
   return server_version ? server_version : "";
@@ -4617,7 +4625,7 @@ void tee_putc(int c, FILE *file)
     putc(c, OUTFILE);
 }
 
-#if defined( __WIN__) || defined(__NETWARE__)
+#if defined(__WIN__) || defined(__NETWARE__)
 #include <time.h>
 #else
 #include <sys/times.h>
@@ -4629,7 +4637,7 @@ void tee_putc(int c, FILE *file)
 
 static ulong start_timer(void)
 {
-#if defined( __WIN__) || defined(__NETWARE__)
+#if defined(__WIN__) || defined(__NETWARE__)
  return clock();
 #else
   struct tms tms_tmp;

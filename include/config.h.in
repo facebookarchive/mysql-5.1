@@ -1,4 +1,4 @@
-/* config.h.in.  Generated from configure.in by autoheader.  */
+/* include/config.h.in.  Generated from configure.in by autoheader.  */
 
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
@@ -613,6 +613,9 @@
 
 /* Define to 1 if you have the `pread' function. */
 #undef HAVE_PREAD
+
+/* Define to 1 if you have the `printstack' function. */
+#undef HAVE_PRINTSTACK
 
 /* Define to 1 if you have the `pthread_attr_create' function. */
 #undef HAVE_PTHREAD_ATTR_CREATE

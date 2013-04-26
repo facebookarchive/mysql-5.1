@@ -220,7 +220,7 @@ void*
 ut_align(
 /*=====*/
 	const void*	ptr,		/*!< in: pointer */
-	ulint	align_no);	/*!< in: align by this number */
+	ulint		align_no);	/*!< in: align by this number */
 /*********************************************************//**
 The following function rounds down a pointer to the nearest
 aligned address.

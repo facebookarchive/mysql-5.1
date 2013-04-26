@@ -65,7 +65,7 @@ int main(int argc, const char** argv )
     if (!GetExitCodeProcess(process,&exit_code))
     {
        fprintf(stderr,  "GetExitCodeProcess failed, pid= %d, err= %d\n",
-            pid, GetLastError());
+         pid, GetLastError());
        exit(1);
     }
 

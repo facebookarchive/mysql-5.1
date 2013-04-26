@@ -222,7 +222,7 @@ void mysql_client_binlog_statement(THD* thd)
         i.e. when this thread terminates.
       */
       if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
-        delete ev;
+        delete ev; 
       ev= 0;
       if (err)
       {

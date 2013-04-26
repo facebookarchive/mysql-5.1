@@ -362,14 +362,13 @@ You cannot install this software on this disk. (null)
        and mysqladmin from the command line. The syntax for bash is:
 alias mysql=/usr/local/mysql/bin/mysql
 alias mysqladmin=/usr/local/mysql/bin/mysqladmin
-   For tcsh, use:
+       For tcsh, use:
 alias mysql /usr/local/mysql/bin/mysql
 alias mysqladmin /usr/local/mysql/bin/mysqladmin
-
-   Even better, add /usr/local/mysql/bin to your PATH environment
-   variable. You can do this by modifying the appropriate startup
-   file for your shell. For more information, see Section 4.2.1,
-   "Invoking MySQL Programs."
+       Even better, add /usr/local/mysql/bin to your PATH environment
+       variable. You can do this by modifying the appropriate startup
+       file for your shell. For more information, see Section 4.2.1,
+       "Invoking MySQL Programs."
 
      * After you have copied over the MySQL database files from the
        previous installation and have successfully started the new

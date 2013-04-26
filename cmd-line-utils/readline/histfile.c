@@ -186,7 +186,7 @@ read_history_range (filename, from, to)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-if ((sizeof(off_t) > sizeof(size_t) && finfo.st_size > (off_t)(size_t)~0) ||  
+  if ((sizeof(off_t) > sizeof(size_t) && finfo.st_size > (off_t)(size_t)~0) ||  
     file_size + 1 < file_size)
     {
       errno = overflow_errno;
@@ -341,7 +341,7 @@ history_truncate_file (fname, lines)
   file_size = (size_t)finfo.st_size;
 
   /* check for overflow on very large files */
-if ((sizeof(off_t) > sizeof(size_t) && finfo.st_size > (off_t)(size_t)~0) ||  
+  if ((sizeof(off_t) > sizeof(size_t) && finfo.st_size > (off_t)(size_t)~0) ||  
     file_size + 1 < file_size)
     {
       close (file);

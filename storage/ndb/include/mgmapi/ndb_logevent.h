@@ -273,164 +273,164 @@ extern "C" {
   };
 
   struct ndb_logevent_Connected {
-	unsigned node;
+    unsigned node;
   };
-
+  
   struct ndb_logevent_Disconnected {
-	unsigned node;
+    unsigned node;
   };
 
   struct ndb_logevent_CommunicationClosed {
-	unsigned node;
+    unsigned node;
   };
 
   struct ndb_logevent_CommunicationOpened {
-	unsigned node;
+    unsigned node;
   };
-
+  
   struct ndb_logevent_ConnectedApiVersion {
-	unsigned node;
-	unsigned version;
+    unsigned node;
+    unsigned version;
   };
 
-      /* CHECKPOINT */
+  /* CHECKPOINT */
   struct ndb_logevent_GlobalCheckpointStarted {
-	unsigned gci;
+    unsigned gci;
   };
   struct ndb_logevent_GlobalCheckpointCompleted {
-	unsigned gci;
+    unsigned gci;
   };
   struct ndb_logevent_LocalCheckpointStarted {
-	unsigned lci;
-	unsigned keep_gci;
-	unsigned restore_gci;
+    unsigned lci;
+    unsigned keep_gci;
+    unsigned restore_gci;
   };
   struct ndb_logevent_LocalCheckpointCompleted {
-	unsigned lci;
+    unsigned lci;
   };
   struct ndb_logevent_LCPStoppedInCalcKeepGci {
-	unsigned data;
+    unsigned data;
   };
   struct ndb_logevent_LCPFragmentCompleted {
-	unsigned node;
-	unsigned table_id;
-	unsigned fragment_id;
+    unsigned node;
+    unsigned table_id;
+    unsigned fragment_id;
   };
   struct ndb_logevent_UndoLogBlocked {
-	unsigned acc_count;
-	unsigned tup_count;
+    unsigned acc_count;
+    unsigned tup_count;
   };
 
-      /* STARTUP */
+  /* STARTUP */
   struct ndb_logevent_NDBStartStarted {
-	unsigned version;
+    unsigned version;
   };
   struct ndb_logevent_NDBStartCompleted {
-	unsigned version;
+    unsigned version;
   };
   struct ndb_logevent_STTORRYRecieved {
   };
   struct ndb_logevent_StartPhaseCompleted {
-	unsigned phase;
-	unsigned starttype;
+    unsigned phase;
+    unsigned starttype;
   };
   struct ndb_logevent_CM_REGCONF {
-	unsigned own_id;
-	unsigned president_id;
-	unsigned dynamic_id;
+    unsigned own_id;
+    unsigned president_id;
+    unsigned dynamic_id;
   };
   struct ndb_logevent_CM_REGREF {
-	unsigned own_id;
-	unsigned other_id;
-	unsigned cause;
+    unsigned own_id;
+    unsigned other_id;
+    unsigned cause;
   };
   struct ndb_logevent_FIND_NEIGHBOURS {
-	unsigned own_id;
-	unsigned left_id;
-	unsigned right_id;
-	unsigned dynamic_id;
+    unsigned own_id;
+    unsigned left_id;
+    unsigned right_id;
+    unsigned dynamic_id;
   };
   struct ndb_logevent_NDBStopStarted {
-	unsigned stoptype;
+    unsigned stoptype;
   };
   struct ndb_logevent_NDBStopCompleted {
-	unsigned action;
-	unsigned signum;
+    unsigned action;
+    unsigned signum;
   };
   struct ndb_logevent_NDBStopForced {
-	unsigned action;
-	unsigned signum;
-	unsigned error;
-	unsigned sphase;
-	unsigned extra;
+    unsigned action;
+    unsigned signum;
+    unsigned error;
+    unsigned sphase;
+    unsigned extra;
   };
   struct ndb_logevent_NDBStopAborted {
   };
   struct ndb_logevent_StartREDOLog {
-	unsigned node;
-	unsigned keep_gci;
-	unsigned completed_gci;
-	unsigned restorable_gci;
+    unsigned node;
+    unsigned keep_gci;
+    unsigned completed_gci;
+    unsigned restorable_gci;
   };
   struct ndb_logevent_StartLog {
-	unsigned log_part;
-	unsigned start_mb;
-	unsigned stop_mb;
-	unsigned gci;
+    unsigned log_part;
+    unsigned start_mb;
+    unsigned stop_mb;
+    unsigned gci;
   };
   struct ndb_logevent_UNDORecordsExecuted {
-	unsigned block;
-	unsigned data1;
-	unsigned data2;
-	unsigned data3;
-	unsigned data4;
-	unsigned data5;
-	unsigned data6;
-	unsigned data7;
-	unsigned data8;
-	unsigned data9;
-	unsigned data10;
+    unsigned block;
+    unsigned data1;
+    unsigned data2;
+    unsigned data3;
+    unsigned data4;
+    unsigned data5;
+    unsigned data6;
+    unsigned data7;
+    unsigned data8;
+    unsigned data9;
+    unsigned data10;
   };
   
-      /* NODERESTART */
+  /* NODERESTART */
   struct ndb_logevent_NR_CopyDict {
   };
   struct ndb_logevent_NR_CopyDistr {
   };
   struct ndb_logevent_NR_CopyFragsStarted {
-	unsigned dest_node;
+    unsigned dest_node;
   };
   struct ndb_logevent_NR_CopyFragDone {
-	unsigned dest_node;
-	unsigned table_id;
-	unsigned fragment_id;
+    unsigned dest_node;
+    unsigned table_id;
+    unsigned fragment_id;
   };
   struct ndb_logevent_NR_CopyFragsCompleted {
-	unsigned dest_node;
+    unsigned dest_node;
   };
 
   struct ndb_logevent_NodeFailCompleted {
-	unsigned block; /* 0 = all */
-	unsigned failed_node;
-	unsigned completing_node; /* 0 = all */
+    unsigned block; /* 0 = all */
+    unsigned failed_node;
+    unsigned completing_node; /* 0 = all */
   };
   struct ndb_logevent_NODE_FAILREP {
-	unsigned failed_node;
-	unsigned failure_state;
+    unsigned failed_node;
+    unsigned failure_state;
   };
   struct ndb_logevent_ArbitState {
-	unsigned code;                /* code & state << 16 */
-	unsigned arbit_node;
-	unsigned ticket_0;
-	unsigned ticket_1;
-	/* TODO */
+    unsigned code;                /* code & state << 16 */
+    unsigned arbit_node;
+    unsigned ticket_0;
+    unsigned ticket_1;
+    /* TODO */
   };
   struct ndb_logevent_ArbitResult {
-	unsigned code;                /* code & state << 16 */
-	unsigned arbit_node;
-	unsigned ticket_0;
-	unsigned ticket_1;
-	/* TODO */
+    unsigned code;                /* code & state << 16 */
+    unsigned arbit_node;
+    unsigned ticket_0;
+    unsigned ticket_1;
+    /* TODO */
   };
   struct ndb_logevent_GCP_TakeoverStarted {
   };
@@ -439,131 +439,131 @@ extern "C" {
   struct ndb_logevent_LCP_TakeoverStarted {
   };
   struct ndb_logevent_LCP_TakeoverCompleted {
-	unsigned state;
+    unsigned state;
   };
 
-      /* STATISTIC */
+  /* STATISTIC */
   struct ndb_logevent_TransReportCounters {
-	unsigned trans_count;
-	unsigned commit_count;
-	unsigned read_count;
-	unsigned simple_read_count;
-	unsigned write_count;
-	unsigned attrinfo_count;
-	unsigned conc_op_count;
-	unsigned abort_count;
-	unsigned scan_count;
-	unsigned range_scan_count;
+    unsigned trans_count;
+    unsigned commit_count;
+    unsigned read_count;
+    unsigned simple_read_count;
+    unsigned write_count;
+    unsigned attrinfo_count;
+    unsigned conc_op_count;
+    unsigned abort_count;
+    unsigned scan_count;
+    unsigned range_scan_count;
   };
   struct ndb_logevent_OperationReportCounters {
-	unsigned ops;
+    unsigned ops;
   };
   struct ndb_logevent_TableCreated {
-	unsigned table_id;
+    unsigned table_id;
   };
   struct ndb_logevent_JobStatistic {
-	unsigned mean_loop_count;
+    unsigned mean_loop_count;
   };
   struct ndb_logevent_SendBytesStatistic {
-	unsigned to_node;
-	unsigned mean_sent_bytes;
+    unsigned to_node;
+    unsigned mean_sent_bytes;
   };
   struct ndb_logevent_ReceiveBytesStatistic {
-	unsigned from_node;
-	unsigned mean_received_bytes;
+    unsigned from_node;
+    unsigned mean_received_bytes;
   };
   struct ndb_logevent_MemoryUsage {
-	int      gth;
-        /* union is for compatibility backward.
-         * page_size_kb member variable should be removed in the future
-        */
-        union {
-	  unsigned page_size_kb;
-          unsigned page_size_bytes;
-        };
-	unsigned pages_used;
-	unsigned pages_total;
-	unsigned block;
+    int      gth;
+    /* union is for compatibility backward.
+     * page_size_kb member variable should be removed in the future
+     */
+    union {
+      unsigned page_size_kb;
+      unsigned page_size_bytes;
+    };
+    unsigned pages_used;
+    unsigned pages_total;
+    unsigned block;
   };
 
-      /* ERROR */
+  /* ERROR */
   struct ndb_logevent_TransporterError {
-	unsigned to_node;
-	unsigned code;
+    unsigned to_node;
+    unsigned code;
   };
   struct ndb_logevent_TransporterWarning {
-	unsigned to_node;
-	unsigned code;
+    unsigned to_node;
+    unsigned code;
   };
   struct ndb_logevent_MissedHeartbeat {
-	unsigned node;
-	unsigned count;
+    unsigned node;
+    unsigned count;
   };
   struct ndb_logevent_DeadDueToHeartbeat {
-	unsigned node;
+    unsigned node;
   };
   struct ndb_logevent_WarningEvent {
-	/* TODO */
+    /* TODO */
   };
 
-      /* INFO */
+  /* INFO */
   struct ndb_logevent_SentHeartbeat {
-	unsigned node;
+    unsigned node;
   };
   struct ndb_logevent_CreateLogBytes {
-	unsigned node;
+    unsigned node;
   };
   struct ndb_logevent_InfoEvent {
-	/* TODO */
+    /* TODO */
   };
   struct ndb_logevent_EventBufferStatus {
-	unsigned usage;
-	unsigned alloc;
-	unsigned max;
-	unsigned apply_gci_l;
-	unsigned apply_gci_h;
-	unsigned latest_gci_l;
-	unsigned latest_gci_h;
+    unsigned usage;
+    unsigned alloc;
+    unsigned max;
+    unsigned apply_gci_l;
+    unsigned apply_gci_h;
+    unsigned latest_gci_l;
+    unsigned latest_gci_h;
   };
 
-      /** Log event data for @ref NDB_LE_BackupStarted */
+  /** Log event data for @ref NDB_LE_BackupStarted */
   struct ndb_logevent_BackupStarted {
-	unsigned starting_node;
-	unsigned backup_id;
+    unsigned starting_node;
+    unsigned backup_id;
   };
-      /** Log event data @ref NDB_LE_BackupFailedToStart */
+  /** Log event data @ref NDB_LE_BackupFailedToStart */
   struct ndb_logevent_BackupFailedToStart {
-	unsigned starting_node;
-	unsigned error;
+    unsigned starting_node;
+    unsigned error;
   };
-      /** Log event data @ref NDB_LE_BackupCompleted */
+  /** Log event data @ref NDB_LE_BackupCompleted */
   struct ndb_logevent_BackupCompleted {
-	unsigned starting_node;
-	unsigned backup_id; 
-	unsigned start_gci;
-	unsigned stop_gci;
-	unsigned n_records; 
-	unsigned n_log_records;
-	unsigned n_bytes;
-	unsigned n_log_bytes;
+    unsigned starting_node;
+    unsigned backup_id; 
+    unsigned start_gci;
+    unsigned stop_gci;
+    unsigned n_records; 
+    unsigned n_log_records;
+    unsigned n_bytes;
+    unsigned n_log_bytes;
   };
-      /** Log event data @ref NDB_LE_BackupAborted */
+  /** Log event data @ref NDB_LE_BackupAborted */
   struct ndb_logevent_BackupAborted {
-	unsigned starting_node;
-	unsigned backup_id;
-	unsigned error;
+    unsigned starting_node;
+    unsigned backup_id;
+    unsigned error;
   };
-      /** Log event data @ref NDB_LE_SingleUser */
+  /** Log event data @ref NDB_LE_SingleUser */
   struct ndb_logevent_SingleUser {
-        unsigned type;
-        unsigned node_id;
+    unsigned type;
+    unsigned node_id;
   };
-      /** Log even data @ref NDB_LE_StartReport */
+  /** Log even data @ref NDB_LE_StartReport */
   struct ndb_logevent_StartReport {
-	unsigned report_type;
-	unsigned remaining_time;
-	unsigned bitmask_size;
-	unsigned bitmask_data[1];
+    unsigned report_type;
+    unsigned remaining_time;
+    unsigned bitmask_size;
+    unsigned bitmask_data[1];
   };
 
   /**

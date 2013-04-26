@@ -225,7 +225,7 @@ if (IS_WINDOWS)
   # named pipes.
   push(@mysqld_rules, {'shared-memory-base-name' => \&fix_socket});
 }
-
+ 
 sub fix_ndb_mgmd_port {
   my ($self, $config, $group_name, $group)= @_;
   my $hostname= $group->value('HostName');

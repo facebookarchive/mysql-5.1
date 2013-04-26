@@ -157,8 +157,8 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
 
   if (!(res= engine->prepare()))
   {
-  // all transformation is done (used by prepared statements)
-  changed= 1;
+    // all transformation is done (used by prepared statements)
+    changed= 1;
 
     if (substitution)
     {
@@ -313,10 +313,10 @@ void Item_subselect::print(String *str, enum_query_type query_type)
 {
   if (engine)
   {
-  str->append('(');
-  engine->print(str, query_type);
-  str->append(')');
-}
+    str->append('(');
+    engine->print(str, query_type);
+    str->append(')');
+  }
   else
     str->append("(...)");
 }
@@ -480,6 +480,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 void Item_singlerow_subselect::store(uint i, Item *item)
 {
   row[i]->store(item);
+  row[i]->cache_value();
 }
 
 enum Item_result Item_singlerow_subselect::result_type() const
@@ -1831,6 +1832,7 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row)
     if (!(row[i]= Item_cache::get_cache(sel_item)))
       return;
     row[i]->setup(sel_item);
+    row[i]->store(sel_item);
   }
   if (item_list.elements > 1)
     res_type= ROW_RESULT;

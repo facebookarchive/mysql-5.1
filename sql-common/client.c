@@ -2028,7 +2028,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     }
     else
     {
-      net->vio=vio_new_win32pipe(hPipe);
+      net->vio= vio_new_win32pipe(hPipe);
       my_snprintf(host_info=buff, sizeof(buff)-1,
                   ER(CR_NAMEDPIPE_CONNECTION), unix_socket);
     }

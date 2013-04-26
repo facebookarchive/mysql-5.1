@@ -181,8 +181,8 @@ buf_read_page(
 	switches: hence TRUE */
 
 	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
-				   zip_size, FALSE,
-				   tablespace_version, offset);
+				  zip_size, FALSE,
+				  tablespace_version, offset);
 	srv_buf_pool_reads += count;
 	if (err == DB_TABLESPACE_DELETED) {
 		ut_print_timestamp(stderr);

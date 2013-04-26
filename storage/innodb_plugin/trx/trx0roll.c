@@ -582,16 +582,16 @@ loop:
 		case TRX_ACTIVE:
 			if (all || trx_get_dict_operation(trx)
 			    != TRX_DICT_OP_NONE) {
-			mutex_exit(&kernel_mutex);
-			trx_rollback_active(trx);
-			goto loop;
+				mutex_exit(&kernel_mutex);
+				trx_rollback_active(trx);
+				goto loop;
+			}
 		}
-	}
 	}
 
 	if (all) {
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
 			"  InnoDB: Rollback of non-prepared"
 			" transactions completed\n");
 	}

@@ -19,12 +19,12 @@
 
 echo "Finding system information for a MySQL bug report"
 
-VERSION="5.1.41"
+VERSION="5.1.44"
 COMPILATION_COMMENT="Source distribution"
 BUGmysql="mysql@lists.mysql.com"
 # This is set by configure
-COMP_CALL_INFO="CC='ccache /opt/studio12/SUNWspro/bin/cc'  CFLAGS=''  CXX='ccache /opt/studio12/SUNWspro/bin/CC'  CXXFLAGS=''  LDFLAGS=''  ASFLAGS=''"
-COMP_RUN_INFO="CC='ccache /opt/studio12/SUNWspro/bin/cc'  CFLAGS='-O1    -DHAVE_RWLOCK_T -DUNIV_SOLARIS -DUNIV_SOLARIS'  CXX='ccache /opt/studio12/SUNWspro/bin/CC'  CXXFLAGS='-O1    -DHAVE_RWLOCK_T'  LDFLAGS=' '  ASFLAGS=''"
+COMP_CALL_INFO="CC='ccache /opt/studio12/SUNWspro/bin/cc'  CFLAGS='-g'  CXX='ccache /opt/studio12/SUNWspro/bin/CC'  CXXFLAGS=''  LDFLAGS=''  ASFLAGS=''"
+COMP_RUN_INFO="CC='ccache /opt/studio12/SUNWspro/bin/cc'  CFLAGS=' -g   -DHAVE_RWLOCK_T -DUNIV_SOLARIS -DUNIV_SOLARIS'  CXX='ccache /opt/studio12/SUNWspro/bin/CC'  CXXFLAGS='-O1    -DHAVE_RWLOCK_T'  LDFLAGS=' '  ASFLAGS=''"
 CONFIGURE_LINE="./configure  '--with-embedded-server' '--with-ndbcluster' 'CC=ccache /opt/studio12/SUNWspro/bin/cc' 'CXX=ccache /opt/studio12/SUNWspro/bin/CC'"
 
 LIBC_INFO=""
@@ -254,7 +254,7 @@ ${ORGANIZATION- $ORGANIZATION_C}
 >Release:	mysql-${VERSION} ($COMPILATION_COMMENT)
 `test -n "$MYSQL_SERVER" && echo ">Server: $MYSQL_SERVER"`
 >C compiler:    
->C++ compiler:  CC: Sun C++ 5.9 SunOS_sparc Patch 124863-16 2009/09/15
+>C++ compiler:  CC: Sun C++ 5.9 SunOS_sparc Patch 124863-20 2010/01/19
 >Environment:
 	$ENVIRONMENT_C
 `test -n "$SYSTEM"  && echo "System: $SYSTEM"`

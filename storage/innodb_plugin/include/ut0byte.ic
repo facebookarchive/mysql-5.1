@@ -320,7 +320,7 @@ void*
 ut_align(
 /*=====*/
 	const void*	ptr,		/*!< in: pointer */
-	ulint	align_no)	/*!< in: align by this number */
+	ulint		align_no)	/*!< in: align by this number */
 {
 	ut_ad(align_no > 0);
 	ut_ad(((align_no - 1) & align_no) == 0);

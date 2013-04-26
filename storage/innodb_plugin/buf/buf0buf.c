@@ -855,14 +855,14 @@ buf_chunk_not_freed(
 			file pages. */
 			break;
 		case BUF_BLOCK_FILE_PAGE:
-		mutex_enter(&block->mutex);
+			mutex_enter(&block->mutex);
 			ready = buf_flush_ready_for_replace(&block->page);
 			mutex_exit(&block->mutex);
 
 			if (!ready) {
 
-			return(block);
-		}
+				return(block);
+			}
 
 			break;
 		}
@@ -1020,7 +1020,11 @@ buf_pool_free(void)
 		os_mem_free_large(chunk->mem, chunk->mem_size);
 	}
 
-	buf_pool->n_chunks = 0;
+	mem_free(buf_pool->chunks);
+	hash_table_free(buf_pool->page_hash);
+	hash_table_free(buf_pool->zip_hash);
+	mem_free(buf_pool);
+	buf_pool = NULL;
 }
 
 /********************************************************************//**
@@ -3298,7 +3302,7 @@ void
 buf_pool_invalidate(void)
 /*=====================*/
 {
-	ibool	freed;
+	ibool		freed;
 	enum buf_flush	i;
 
 	buf_pool_mutex_enter();

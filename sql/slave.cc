@@ -2132,31 +2132,32 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
     ev->when= my_time(0);
   ev->thd = thd; // because up to this point, ev->thd == 0
 
-    int reason= ev->shall_skip(rli);
-    if (reason == Log_event::EVENT_SKIP_COUNT)
-      --rli->slave_skip_counter;
-    pthread_mutex_unlock(&rli->data_lock);
-    if (reason == Log_event::EVENT_SKIP_NOT)
-      exec_res= ev->apply_event(rli);
-#ifndef DBUG_OFF
-    /*
-      This only prints information to the debug trace.
+  int reason= ev->shall_skip(rli);
+  if (reason == Log_event::EVENT_SKIP_COUNT)
+    --rli->slave_skip_counter;
+  pthread_mutex_unlock(&rli->data_lock);
+  if (reason == Log_event::EVENT_SKIP_NOT)
+    exec_res= ev->apply_event(rli);
 
-      TODO: Print an informational message to the error log?
-    */
-    static const char *const explain[] = {
-      // EVENT_SKIP_NOT,
-      "not skipped",
-      // EVENT_SKIP_IGNORE,
-      "skipped because event should be ignored",
-      // EVENT_SKIP_COUNT
-      "skipped because event skip counter was non-zero"
-    };
-    DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
-                        thd->options & OPTION_BEGIN ? 1 : 0,
-                        rli->get_flag(Relay_log_info::IN_STMT)));
-    DBUG_PRINT("skip_event", ("%s event was %s",
-                              ev->get_type_str(), explain[reason]));
+#ifndef DBUG_OFF
+  /*
+    This only prints information to the debug trace.
+
+    TODO: Print an informational message to the error log?
+  */
+  static const char *const explain[] = {
+    // EVENT_SKIP_NOT,
+    "not skipped",
+    // EVENT_SKIP_IGNORE,
+    "skipped because event should be ignored",
+    // EVENT_SKIP_COUNT
+    "skipped because event skip counter was non-zero"
+  };
+  DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
+                      thd->options & OPTION_BEGIN ? 1 : 0,
+                      rli->get_flag(Relay_log_info::IN_STMT)));
+  DBUG_PRINT("skip_event", ("%s event was %s",
+                            ev->get_type_str(), explain[reason]));
 #endif
 
   DBUG_PRINT("info", ("apply_event error = %d", exec_res));
@@ -2261,9 +2262,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       hits the UNTIL barrier.
     */
     if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
-        rli->is_until_satisfied((rli->is_in_group() || !ev->log_pos) ?
-                                rli->group_master_log_pos :
-                                ev->log_pos - ev->data_written))
+        rli->is_until_satisfied(thd, ev))
     {
       char buf[22];
       sql_print_information("Slave SQL thread stopped because it reached its"
@@ -3006,7 +3005,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
   */
   pthread_mutex_lock(&rli->data_lock);
   if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
-      rli->is_until_satisfied(rli->group_master_log_pos))
+      rli->is_until_satisfied(thd, NULL))
   {
     char buf[22];
     sql_print_information("Slave SQL thread stopped because it reached its"
@@ -3158,7 +3157,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   pthread_cond_broadcast(&rli->stop_cond);
   DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&rli->run_lock);  // tell the world we are done
-  
+
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);

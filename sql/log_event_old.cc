@@ -1541,7 +1541,15 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
         NOTE: For this new scheme there should be no pending event:
         need to add code to assert that is the case.
        */
-      thd->binlog_flush_pending_rows_event(false);
+      error= thd->binlog_flush_pending_rows_event(false);
+      if (error)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER(ER_SLAVE_FATAL_ERROR),
+                    "call to binlog_flush_pending_rows_event() failed");
+        thd->is_slave_error= 1;
+        DBUG_RETURN(error);
+      }
       TABLE_LIST *tables= rli->tables_to_lock;
       close_tables_for_reopen(thd, &tables);
 
@@ -1831,7 +1839,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       (assume the last master's transaction is ignored by the slave because of
       replicate-ignore rules).
     */
-    thd->binlog_flush_pending_rows_event(true);
+    int binlog_error= thd->binlog_flush_pending_rows_event(true);
 
     /*
       If this event is not in a transaction, the call below will, if some
@@ -1842,12 +1850,13 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    if ((error= ha_autocommit_or_rollback(thd, 0)))
+    if ((error= ha_autocommit_or_rollback(thd, binlog_error)))
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",
                   get_type_str(), m_table->s->db.str,
                   m_table->s->table_name.str);
+    error|= binlog_error;
 
     /*
       Now what if this is not a transactional engine? we still need to
@@ -1891,22 +1900,22 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
                       get_flags(STMT_END_F) ? "STMT_END_F " : ""));
 
   if (get_flags(STMT_END_F))
-    {
-      /*
-        Indicate that a statement is finished.
-        Step the group log position if we are not in a transaction,
-        otherwise increase the event log position.
-       */
-      rli->stmt_done(log_pos, when);
-      /*
+  {
+    /*
+      Indicate that a statement is finished.
+      Step the group log position if we are not in a transaction,
+      otherwise increase the event log position.
+     */
+    rli->stmt_done(log_pos, when);
+    /*
       Clear any errors in thd->net.last_err*. It is not known if this is
       needed or not. It is believed that any errors that may exist in
       thd->net.last_err* are allowed. Examples of errors are "key not
       found", which is produced in the test case rpl_row_conflicts.test
-      */
-      thd->clear_error();
-    }
-    else
+    */
+    thd->clear_error();
+  }
+  else
   {
     rli->inc_event_relay_log_pos();
   }

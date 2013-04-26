@@ -30,7 +30,7 @@ int _mi_check_index(MI_INFO *info, int inx)
     inx=info->lastinx;
   if (inx < 0)
   {
-    my_errno=HA_ERR_WRONG_INDEX;
+    my_errno= HA_ERR_WRONG_INDEX;
     return -1;
   }
   if (!mi_is_key_active(info->s->state.key_map, inx))

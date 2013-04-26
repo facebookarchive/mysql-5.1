@@ -134,7 +134,7 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
     [
       AC_MSG_RESULT(no)
     ]
-    )
+  )
 
   AC_MSG_CHECKING(whether Solaris libc atomic functions are available)
   # either define HAVE_IB_SOLARIS_ATOMICS or not
@@ -150,9 +150,9 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
 
   AC_MSG_CHECKING(whether pthread_t can be used by Solaris libc atomic functions)
   # either define HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS or not
-          AC_TRY_RUN(
-            [
-              #include <pthread.h>
+  AC_TRY_RUN(
+    [
+      #include <pthread.h>
       #include <string.h>
 
       int main(int argc, char** argv) {
@@ -177,16 +177,16 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
           return(1);
         }
 
-                return(0);
-              }
-            ],
-            [
+	return(0);
+      }
+    ],
+    [
       AC_DEFINE([HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS], [1],
                 [pthread_t can be used by solaris atomics])
-              AC_MSG_RESULT(yes)
-            ],
-            [
-              AC_MSG_RESULT(no)
+      AC_MSG_RESULT(yes)
+    ],
+    [
+      AC_MSG_RESULT(no)
     ]
   )
 

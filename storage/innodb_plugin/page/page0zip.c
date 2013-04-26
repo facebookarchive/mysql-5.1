@@ -2856,8 +2856,8 @@ page_zip_decompress(
 	recs = mem_heap_alloc(heap, n_dense * (2 * sizeof *recs));
 
 	if (all) {
-	/* Copy the page header. */
-	memcpy(page, page_zip->data, PAGE_DATA);
+		/* Copy the page header. */
+		memcpy(page, page_zip->data, PAGE_DATA);
 	} else {
 		/* Check that the bytes that we skip are identical. */
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG

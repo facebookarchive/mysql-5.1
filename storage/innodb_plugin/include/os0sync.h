@@ -303,7 +303,7 @@ compare to, new_val is the value to swap in. */
 	os_compare_and_swap(ptr, old_val, new_val)
 
 # ifdef HAVE_IB_ATOMIC_PTHREAD_T_GCC
-# define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
+#  define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
 	os_compare_and_swap(ptr, old_val, new_val)
 #  define INNODB_RW_LOCKS_USE_ATOMICS
 #  define IB_ATOMICS_STARTUP_MSG \
@@ -352,7 +352,7 @@ compare to, new_val is the value to swap in. */
 	((lint)atomic_cas_ulong((ulong_t*) ptr, old_val, new_val) == old_val)
 
 # ifdef HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS
-#  if   SIZEOF_PTHREAD_T == 4
+#  if SIZEOF_PTHREAD_T == 4
 #   define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
 	((pthread_t)atomic_cas_32(ptr, old_val, new_val) == old_val)
 #  elif SIZEOF_PTHREAD_T == 8
@@ -397,6 +397,7 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 #  define win_cmp_and_xchg InterlockedCompareExchange
 #  define win_xchg_and_add InterlockedExchangeAdd
 # endif
+
 /**********************************************************//**
 Returns true if swapped, ptr is pointer to target, old_val is value to
 compare to, new_val is the value to swap in. */
@@ -408,7 +409,7 @@ compare to, new_val is the value to swap in. */
 	(win_cmp_and_xchg(ptr, new_val, old_val) == old_val)
 
 /* windows thread objects can always be passed to windows atomic functions */
-#  define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
+# define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
 	(InterlockedCompareExchange(ptr, new_val, old_val) == old_val)
 # define INNODB_RW_LOCKS_USE_ATOMICS
 # define IB_ATOMICS_STARTUP_MSG \
@@ -417,10 +418,13 @@ compare to, new_val is the value to swap in. */
 /**********************************************************//**
 Returns the resulting value, ptr is pointer to target, amount is the
 amount of increment. */
+
 # define os_atomic_increment_lint(ptr, amount) \
 	(win_xchg_and_add(ptr, amount) + amount)
+
 # define os_atomic_increment_ulint(ptr, amount) \
 	((ulint) (win_xchg_and_add(ptr, amount) + amount))
+
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val.
 InterlockedExchange() operates on LONG, and the LONG will be

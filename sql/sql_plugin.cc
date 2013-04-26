@@ -1582,7 +1582,7 @@ void plugin_shutdown(void)
                                  PLUGIN_IS_DISABLED)))
       {
         sql_print_warning("Plugin '%s' will be forced to shutdown",
-                              plugins[i]->name.str);
+                          plugins[i]->name.str);
         /*
           We are forcing deinit on plugins so we don't want to do a ref_count
           check until we have processed all the plugins.
@@ -2084,7 +2084,7 @@ static int check_func_set(THD *thd, struct st_mysql_sys_var *var,
                      &error, &error_len, &not_used);
     if (error_len)
     {
-      strmake(buff, error, min(sizeof(buff), error_len));
+      strmake(buff, error, min(sizeof(buff) - 1, error_len));
       strvalue= buff;
       goto err;
     }
