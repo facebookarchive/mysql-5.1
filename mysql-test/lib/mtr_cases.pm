@@ -266,11 +266,11 @@ sub collect_one_suite($)
     }
     else
     {
-      $suitedir= my_find_dir($::basedir,
-			     ["mysql-test/suite",
-			      "mysql-test",
+      $suitedir= my_find_dir($suitedir,
+			     ["suite",
+			      ".",
 			      # Look in storage engine specific suite dirs
-			      "storage/*/mysql-test-suites"
+			      "../storage/*/mysql-test-suites"
 			     ],
 			     [$suite]);
     }
@@ -584,7 +584,7 @@ sub optimize_cases {
     # Check that engine selected by
     # --default-storage-engine=<engine> is supported
     # =======================================================
-    my %builtin_engines = ('myisam' => 1, 'memory' => 1);
+    my %builtin_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
 
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
       my $default_engine=
@@ -681,6 +681,13 @@ sub process_opts_file {
       if ( $opt eq "--force-restart" )
       {
 	$tinfo->{'force_restart'}= 1;
+	next;
+      }
+
+      $value= mtr_match_prefix($opt, "--testcase-timeout=");
+      if ( defined $value ) {
+	# Overrides test case timeout for this test
+	$tinfo->{'case-timeout'}= $value;
 	next;
       }
 
@@ -902,7 +909,7 @@ sub collect_one_test_case {
     {
       # Ndb is not supported, skip it
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No ndbcluster support";
+      $tinfo->{'comment'}= "No ndbcluster support or ndb tests not enabled";
       return $tinfo;
     }
     elsif ( $::opt_skip_ndbcluster )

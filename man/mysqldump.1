@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/03/2010
+.\"      Date: 10/11/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -80,6 +80,11 @@ option\&. Before 5\&.1\&.38,
 silently ignores
 INFORMATION_SCHEMA
 even if you name it explicitly on the command line\&.
+.PP
+In MySQL Cluster NDB 7\&.1\&.7 and later, the
+ndbinfo
+information database is ignored and not dumped by
+\fBmysqldump\fR\&.
 .PP
 To see a list of the options your version of
 \fBmysqldump\fR
@@ -293,6 +298,42 @@ DROP TABLE
 statement before each
 CREATE TABLE
 statement\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: add-drop-trigger option
+.\" add-drop-trigger option: mysqldump
+\fB\-\-add\-drop\-trigger\fR
+.sp
+Add a
+DROP TRIGGER
+statement before each
+CREATE TRIGGER
+statement\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option is supported only by
+\fBmysqldump\fR
+as supplied with MySQL Cluster NDB 6\&.3\&.38, MySQL Cluster NDB 7\&.0\&.19, MySQL Cluster NDB 7\&.1\&.8, and later MySQL Cluster release\&. It is not available when using MySQL 5\&.1\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4
@@ -1444,7 +1485,7 @@ Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
-On Windows, connect to the server via a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
+On Windows, connect to the server using a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
 .RE
 .sp
 .RS 4
@@ -1748,7 +1789,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 .sp
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server via SSL and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
 Section\ \&5.5.6.3, \(lqSSL Command Options\(rq\&.
 .RE
 .sp

@@ -326,6 +326,15 @@ eval select $mysql_errno as "after_!errno_masked_error" ;
 --exec echo "disable_abort_on_error; error 1000; select 3 from t1; error 1000; select 3 from t1;" | $MYSQL_TEST  2>&1
 
 # ----------------------------------------------------------------------------
+# Check some non-query statements that would fail
+# ----------------------------------------------------------------------------
+--exec illegal_command
+--cat_file does_not_exist
+--perl
+  exit(1);
+EOF
+
+# ----------------------------------------------------------------------------
 # Switch the abort on error on and check the effect on $mysql_errno
 # ----------------------------------------------------------------------------
 --error ER_PARSE_ERROR
@@ -484,6 +493,32 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 --exec echo "--sleep 4;" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "--disable_query_log;" | $MYSQL_TEST 2>&1
+
+#
+# Extra text after ``
+#
+# Cannot use exec echo here as ` may or may not need to be escaped
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+let $x= `select 1` BOO ;
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--let $x= `select 1`;
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+# Missing ; in next line should be detected and cause failure
+let $x= `select 1`
+let $x= 2;
+echo $x;
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 
 # Allow trailing # comment
@@ -692,6 +727,16 @@ echo banana = $cat;
 let $cat=ba\\\$cat\\\$cat;
 echo Not a banana: $cat;
 
+# Bug #55413 would cause this to fail
+let $escape= with\`some\"escaped\'quotes;
+echo $escape;
+
+--let $escape= with\`some\"escaped\'quotes
+echo $escape;
+
+# This only works with "--let" syntax
+--let $tick= single'tick`backtick
+echo $tick;
 
 # Test illegal uses of let
 
@@ -863,7 +908,7 @@ while ($outer)
 }
 
 # Test source in an if in a while which is false on 1st iteration
-# Also test --error in same context
+# Also test --error and --disable_abort_on_error in same context
 let $outer= 2; # Number of outer loops
 let $ifval= 0; # false 1st time
 while ($outer)
@@ -874,6 +919,10 @@ while ($outer)
     --source $MYSQLTEST_VARDIR/tmp/sourced.inc
     --error ER_NO_SUCH_TABLE
     SELECT * from nowhere;
+    --disable_abort_on_error
+# Statement giving a different error, to make sure we don't mask it
+    SELECT * FROM nowhere else;
+    --enable_abort_on_error
   }
   dec $outer;
   inc $ifval;
@@ -1090,6 +1139,36 @@ if($counter)
 if (!$counter)
 {
   echo Counter is not 0, (counter=0);
+}
+
+# ----------------------------------------------------------------------------
+# Test if with some non-numerics
+# ----------------------------------------------------------------------------
+
+let $counter=alpha;
+if ($counter)
+{
+  echo Counter is true, (counter=alpha);
+}
+let $counter=   ;
+if ($counter)
+{
+  echo oops, space is true;
+}
+let $counter=-0;
+if ($counter)
+{
+  echo oops, -0 is true;
+}
+if (beta)
+{
+  echo Beta is true;
+}
+let $counter=gamma;
+while ($counter)
+{
+  echo while with string, only once;
+  let $counter=000;
 }
 
 # ----------------------------------------------------------------------------
@@ -1388,19 +1467,6 @@ eval select "$long_rep" as x;
 
 # Repeat connect/disconnect
 --write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
-let $i=100;
-while ($i)
-{
-  connect (test_con1,localhost,root,,);
-  disconnect test_con1;
-  dec $i;
-}
-EOF
---exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql; echo OK; exit;" | $MYSQL_TEST 2>&1
-remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
-
-# Repeat connect/disconnect
---write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 let $i=200;
 while ($i)
 {
@@ -1408,9 +1474,8 @@ while ($i)
  disconnect test_con1;
  dec $i;
 }
+echo 200 connects succeeded;
 EOF
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error 1
 --exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
 remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
@@ -1437,7 +1502,6 @@ EOF
 remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 # connect when "disable_abort_on_error" caused "connection not found"
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --disable_abort_on_error
 connect (con1,localhost,root,,);
 connection default;
@@ -1451,6 +1515,22 @@ connect (con2,localhost,root,,*NO-ONE*);
 show tables;
 disconnect con2;
 connection default;
+
+# Test enable_connect_log
+--enable_connect_log
+connect (con1,localhost,root,,);
+connection default;
+connection con1;
+--disable_query_log
+# These should not be logged
+connect (con2,localhost,root,,*NO-ONE*);
+connection con2;
+disconnect con2;
+connection con1;
+--enable_query_log
+disconnect con1;
+connection default;
+--disable_connect_log
 
 # ----------------------------------------------------------------------------
 # Test mysqltest arguments
@@ -1724,7 +1804,16 @@ select 1;
 --reap
 EOF
 --error 1
---exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.in 2>&1
+# Must filter unpredictable extra warning from output
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.in > $MYSQL_TMP_DIR/mysqltest.out 2>&1
+--perl
+  my $dir= $ENV{'MYSQL_TMP_DIR'};
+  open (FILE, "$dir/mysqltest.out");
+  while (<FILE>) {
+    print unless /Note: net_clear/; # This shows up on rare occations
+  }
+EOF
+remove_file $MYSQL_TMP_DIR/mysqltest.out;
 remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.in;
 
 drop table t1;

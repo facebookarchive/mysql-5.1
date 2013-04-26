@@ -1,12 +1,11 @@
 
-2.5.9. Installing MySQL from Source on Windows
+2.4.9. Installing MySQL from Source on Windows
 
    These instructions describe how to build binaries from source for
    MySQL 5.1 on Windows. Instructions are provided for building
    binaries from a standard source distribution or from the Bazaar
    tree that contains the latest development source.
-
-Note
+   Note
 
    The instructions here are strictly for users who want to test
    MySQL on Microsoft Windows from the latest source distribution or
@@ -15,7 +14,7 @@ Note
    to use precompiled binary distributions of MySQL that are built
    specifically for optimal performance on Windows by Oracle
    Corporation. Instructions for installing binary distributions are
-   available in Section 2.5, "Installing MySQL on Windows."
+   available in Section 2.4, "Installing MySQL on Microsoft Windows."
 
    To build MySQL on Windows from source, you must satisfy the
    following system, compiler, and resource requirements:
@@ -58,6 +57,13 @@ Note
        After installing the package, modify your path to include the
        bison binary and ensure that this binary is accessible from
        Visual Studio.
+       Note
+       The default location for the Windows version of bison installs
+       into the C:\Program Files\GnuWin32. Some utilities, including
+       m4, may fail to find bison because of the space in the
+       directory name. You can resolve this by installing into a
+       directory that does not contain a space; for example
+       C:\GnuWin32.
 
      * Cygwin might be necessary if you want to run the test script
        or package the compiled binaries and support files into a Zip
@@ -80,7 +86,7 @@ Note
 
      * Package a source distribution yourself from the latest Bazaar
        developer source tree. For instructions on pulling the latest
-       source files, see Section 2.3.3, "Installing from the
+       source files, see Section 2.3.4, "Installing from the
        Development Source Tree."
 
    If you find something not working as expected, or you have
@@ -88,18 +94,17 @@ Note
    Windows, please send a message to the win32 mailing list. See
    Section 1.6.1, "MySQL Mailing Lists."
 
-2.5.9.1. Building MySQL from Source Using CMake and Visual Studio
+2.4.9.1. Building MySQL from Source Using CMake and Visual Studio
 
    You can build MySQL on Windows by using a combination of cmake and
    Microsoft Visual Studio .NET 2003 (7.1), Microsoft Visual Studio
    2005 (8.0), Microsoft Visual Studio 2008 (9.0) or Microsoft Visual
    C++ 2005 Express Edition. You must have the appropriate Microsoft
    Platform SDK installed.
-
-Note
+   Note
 
    To compile from the source code on Windows you must use the
-   standard source distribution (for example, mysql-5.1.50.tar.gz).
+   standard source distribution (for example, mysql-5.1.53.tar.gz).
    You build from the same distribution as used to build MySQL on
    Unix, Linux and other platforms. Do not use the Windows Source
    distributions as they do not contain the necessary configuration
@@ -112,8 +117,7 @@ Note
        the source distribution there using WinZip or another Windows
        tool that can read .zip files. This directory is the work
        directory in the following instructions.
-
-Note
+       Note
        You must run the commands in the win directory from the
        top-level source directory. Do not change into the win
        directory, as the commands will not be executed correctly.
@@ -275,8 +279,7 @@ C:\workdir> copy lib\Release\libmysql.* C:\mysql\lib\opt
 C:\workdir> copy lib\Release\zlib.* C:\mysql\lib\opt
 C:\workdir> copy include\*.h C:\mysql\include
 C:\workdir> copy libmysql\libmysql.def C:\mysql\include
-
-Note
+       Note
        If you have compiled a Debug, rather than Release solution,
        you can replace Release with Debug in the source file names
        shown above.
@@ -286,4 +289,4 @@ C:\workdir> xcopy sql-bench\*.* C:\mysql\bench /E
    After installation, set up and start the server in the same way as
    for binary Windows distributions. This includes creating the
    system tables by running mysql_install_db. For more information,
-   see Section 2.5, "Installing MySQL on Windows."
+   see Section 2.4, "Installing MySQL on Microsoft Windows."

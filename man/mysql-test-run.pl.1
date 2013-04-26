@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql-test-run.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 07/28/2010
+.\"      Date: 10/11/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\-TEST\-RUN\" "1" "07/28/2010" "MySQL" "MySQL Database System"
+.TH "\FBMYSQL\-TEST\-RUN\" "1" "10/11/2010" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -816,8 +816,11 @@ code rather than
 [ fail ]
 if they fail\&. This option was added in MySQL 5\&.1\&.33\&.
 .sp
-For an example of a file that might be specified via this option, see
+For an example of a file that might be specified using this option, see
 mysql\-test/collections/default\&.experimental\&.
+.sp
+From MySQL 5\&.1\&.51, it\'s possible to supply more than one
+\fB\-\-experimental\fR, test cases listed in all the files will be treated as experimental\&.
 .RE
 .sp
 .RS 4
@@ -1611,8 +1614,8 @@ Couldn\'t find support for SSL
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: start-and-exit option
-.\" start-and-exit option: mysql-test-run.pl
+.\" mysql-test-run.pl: start option
+.\" start option: mysql-test-run.pl
 \fB\-\-start\fR
 .sp
 Initialize and start servers with the startup settings for the specified test case\&. You can use this option to start a server to which you can connect later\&. For example, after building a source distribution you can start a server and connect to it with the
@@ -1637,6 +1640,32 @@ option\&.
 .sp
 \fBmysql\-test\-run\&.pl\fR
 will stop once the server has been started, but will terminate if the server dies\&. If killed, it will also shut down the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: start-and-exit option
+.\" start-and-exit option: mysql-test-run.pl
+\fB\-\-start\-and\-exit\fR
+.sp
+This is similar to
+\fB\-\-start\fR, but
+\fBmysql\-test\-run\&.pl\fR
+terminates once the server has been started, leaving just the server process running\&.
+.sp
+Tha
+\fB\-\-start\-and\-exit\fR
+was available with version 1 of
+\fBmysql\-test\-run\&.pl\fR
+(unlike
+\fB\-\-start\fR
+which came with version 2), and is again supported in version 2 from MySQL 5\&.1\&.51\&.
 .RE
 .sp
 .RS 4
@@ -1819,6 +1848,33 @@ will be set to the path for this directory, whether it has the default value or 
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR
 .sp
 The MySQL user name to use when connecting to the server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: user-args option
+.\" user-args option: mysql-test-run.pl
+\fB\-\-user\-args\fR
+.sp
+Drops all non\-essential command line arguments to the
+\fBmysqld\fR
+server, except those supplied with
+\fB\-\-mysqld\fR
+arguemnts, if any\&. Only works in combination with
+\fB\-\-start\fR,
+\fB\-\-start\-and\-exit\fR
+or
+\fB\-\-start\-dirty\fR, and only if no test name is given\&.
+.sp
+The
+\fB\-\-user\-args\fR
+option was added in MySQL 5\&.1\&.51\&.
 .RE
 .sp
 .RS 4

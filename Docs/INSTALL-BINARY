@@ -11,16 +11,39 @@
    addition to binaries provided in platform-specific package
    formats, we offer binary distributions for a number of platforms
    in the form of compressed tar files (.tar.gz files). For Windows
-   distributions, see Section 2.5, "Installing MySQL on Windows."
+   distributions, see Section 2.4, "Installing MySQL on Microsoft
+   Windows."
 
-   If you want to compile a debug version of MySQL from a source
-   distribution, you should add --with-debug or --with-debug=full to
-   the configure command used to configure the distribution and
-   remove any -fomit-frame-pointer options.
+   On Unix, a tar file binary distribution is installed by unpacking
+   it at the installation location you choose (typically
+   /usr/local/mysql) and creates the following directories in that
+   location.
+
+   Table 2.2. MySQL Installation Layout for generic Unix/Linux binary
+   package
+   Directory Contents of Directory
+   bin Client programs and the mysqld server
+   data Log files, databases
+   docs Manual in Info format
+   man Unix manual pages
+   include Include (header) files
+   lib Libraries
+   scripts mysql_install_db
+   share/mysql Miscellaneous support files, including error messages,
+   sample configuration files, SQL for database installation
+   sql-bench Benchmarks
+
+   Debug versions of the mysqld binary are available as mysqld-debug.
+   If you would like to compile a debug version of MySQL from a
+   source distribution, you should add --with-debug or
+   --with-debug=full to the configure command used to configure the
+   distribution and remove any -fomit-frame-pointer options. For more
+   information on compiling from source, see Section 2.3, "Installing
+   MySQL Using a Source Distribution."
 
    MySQL tar file binary distributions have names of the form
    mysql-VERSION-OS.tar.gz, where VERSION is a number (for example,
-   5.1.50), and OS indicates the type of operating system for which
+   5.1.53), and OS indicates the type of operating system for which
    the distribution is intended (for example, pc-linux-i686).
 
    In addition to these generic packages, we also offer binaries in
@@ -48,7 +71,7 @@
           + On other systems with a deficient tar, you should install
             GNU tar first.
 
-Warning
+   Warning
 
    If you have previously installed a MySQL installation using your
    operating system native package management system, such as yum or
@@ -65,14 +88,13 @@ Warning
 
    The basic commands that you must execute to install and use a
    MySQL binary distribution are:
-
-Note
+   Note
 
    The following process assumes that you have root (administrator)
    access to your system. Alternatively you can prefix each command
    using the sudo (Linux) or pfexec (OpenSolaris) command.
 shell> groupadd mysql
-shell> useradd -g mysql mysql
+shell> useradd -r -g mysql mysql
 shell> cd /usr/local
 shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
 shell> ln -s full-path-to-mysql-VERSION-OS mysql
@@ -82,9 +104,13 @@ shell> chgrp -R mysql .
 shell> scripts/mysql_install_db --user=mysql
 shell> chown -R root .
 shell> chown -R mysql data
+shell> cp /usr/local/mysql/support-files/my-small/etc/my.cnf # Option
+al
 shell> bin/mysqld_safe --user=mysql &
+shell> cp /usr/local/mysql/support-files/mysql.server /etc/init.d/mys
+ql.server # Optional
 
-Note
+   Note
 
    This procedure does not set up any passwords for MySQL accounts.
    After following the procedure, proceed to Section 2.13,
@@ -92,8 +118,7 @@ Note
 
    A more detailed version of the preceding description for
    installing a binary distribution follows:
-
-Note
+   Note
 
    The following process assumes that you have root (administrator)
    access to your system. Alternatively you can prefix each command
@@ -102,12 +127,12 @@ Note
     1. If your system does not already have a user and group for
        mysqld to run as, you may need to create one.
 shell> groupadd mysql
-shell> useradd -g mysql mysql
-
-Note
+shell> useradd -r -g mysql mysql
+       Note
        The above will create a user that has login permissions to
        your server. You may wish to disable the account, as the user
-       is only required for ownership, not login, purposes.
+       is only required for ownership, not login, purposes. You can
+       do this on Linux by using the -r command-line option.
        These commands add the mysql group and the mysql user. The
        syntax for useradd and groupadd may differ slightly on
        different versions of Unix, or they may have different names
@@ -189,24 +214,34 @@ shell> scripts/mysql_install_db --user=mysql
 shell> chown -R root .
 shell> chown -R mysql data
 
-    9. If the plugin directory is writable by the server, it may be
+    9. You may want to optionally copy one of the provided
+       configuration files from the support-files directory into your
+       /etc/ directory. There are different sample configuration
+       files for different use cases, server types, and CPU and RAM
+       configurations. If you want to use one of these standard
+       files, you should copy it to /etc/my.cnf, or /etc/mysql/my.cnf
+       and edit and check the configuration before starting your
+       MySQL server for the first time.
+       If you do not copy one of the standard configuration files,
+       the MySQL server will be started with the default settings.
+   10. If the plugin directory is writable by the server, it may be
        possible for a user to write executable code to a file in the
        directory using SELECT ... INTO DUMPFILE. This can be
        prevented by making plugin_dir read only to the server or by
        setting --secure-file-priv to a directory where SELECT writes
        can be made safely.
-   10. If you want MySQL to start automatically when you boot your
+   11. If you want MySQL to start automatically when you boot your
        machine, you can copy support-files/mysql.server to the
        location where your system has its startup files. More
        information can be found in the support-files/mysql.server
        script itself and in Section 2.13.1.2, "Starting and Stopping
        MySQL Automatically."
-   11. You can set up new accounts using the bin/mysql_setpermission
+   12. You can set up new accounts using the bin/mysql_setpermission
        script if you install the DBI and DBD::mysql Perl modules. See
        Section 4.6.14, "mysql_setpermission --- Interactively Set
        Permissions in Grant Tables." For Perl module installation
        instructions, see Section 2.15, "Perl Installation Notes."
-   12. If you would like to use mysqlaccess and have the MySQL
+   13. If you would like to use mysqlaccess and have the MySQL
        distribution in some nonstandard location, you must change the
        location where mysqlaccess expects to find the mysql client.
        Edit the bin/mysqlaccess script at approximately line 18.
@@ -233,8 +268,7 @@ shell> bin/mysqld_safe --user=mysql &
 
    More information about mysqld_safe is given in Section 4.3.2,
    "mysqld_safe --- MySQL Server Startup Script."
-
-Note
+   Note
 
    The accounts that are listed in the MySQL grant tables initially
    have no passwords. After starting the server, you should set up

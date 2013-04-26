@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/03/2010
+.\"      Date: 10/11/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\" "1" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -81,7 +81,7 @@ with the
 and
 \fB\-\-skip\-grant\-tables\fR
 options (see
-Section\ \&2.3.2, \(lqTypical configure Options\(rq)\&. If MySQL was configured with the
+Section\ \&2.3.3, \(lqTypical configure Options\(rq)\&. If MySQL was configured with the
 \fB\-\-disable\-grant\-options\fR
 option,
 \fB\-\-bootstrap\fR
@@ -92,6 +92,30 @@ MYSQLD_BOOTSTRAP
 environment variable to the full path name of a server that has all options enabled\&.
 \fBmysql_install_db\fR
 will use that server\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+If you have set a custom
+TMPDIR
+variable when performing the installation, and the specified directory is not accessible, the execution of
+\fBmysql_install_db\fR
+may fail\&. You should unset
+TMPDIR, or set
+TMPDIR
+to point to the system temporary directory (usually
+/tmp)\&.
+.sp .5v
+.RE
 .PP
 \fBmysql_install_db\fR
 supports the following options, which can be specified on the command line or in the

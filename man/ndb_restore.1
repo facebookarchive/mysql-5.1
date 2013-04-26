@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/03/2010
+.\"      Date: 10/11/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -461,11 +461,22 @@ option (short form:
 \fB\-u\fR) when running
 \fBndb_restore\fR\&.
 .PP
-.\" --restore_print_data option (ndb_restore)
-This option causes
+.\" --print_data option (ndb_restore)
+.\" ndb_restore: --print_data option
+The
+\fB\-\-print_data\fR
+option causes
 \fBndb_restore\fR
-to print its output to
-stdout\&. Beginning with MySQL 5\&.1\&.18, several additional options are available for use with the
+to direct its output to
+stdout\&.
+.PP
+TEXT
+and
+BLOB
+column values are always truncated to the first 256 bytes in the output; this cannot currrently be overridden when using
+\fB\-\-print_data\fR\&.
+.PP
+Beginning with MySQL 5\&.1\&.18, several additional options are available for use with the
 \fB\-\-print_data\fR
 option in generating data dumps, either to
 stdout, or to a file\&. These are similar to some of the options used with
@@ -1374,7 +1385,8 @@ T}
 .PP
 Beginning with MySQL Cluster NDB 6\&.3\&.31, MySQL Cluster NDB 7\&.0\&.11, and MySQL CLuster NDB 7\&.1\&.2, you can use this option with
 \fBndb_restore\fR
-to disable the indexes found in a backup for faster restoration of the data\&.
+to disable restoration of indexes during restoration of the data from a native NDB backup\&. Afterwards, you can restore indexes for all tables at once with multi\-threaded building of indexes using
+\fB\-\-rebuild\-indexes\fR, which should be faster than rebuilding indexes concurrently for very large tables\&.
 .PP
 .\" ndb_restore: --rebuild-indexes option
 .\" --rebuild-indexes option (ndb_restore)
@@ -1398,7 +1410,9 @@ T}
 .PP
 Beginning with MySQL Cluster NDB 6\&.3\&.31, MySQL Cluster NDB 7\&.0\&.11, and MySQL CLuster NDB 7\&.1\&.2, you can use this option with
 \fBndb_restore\fR
-to cause multi\-threaded rebuilding of the ordered indexes found in a backup during the restoration process\&.
+to cause multi\-threaded rebuilding of the ordered indexes while restoring a native
+NDB
+backup\&.
 .PP
 .\" ndb_restore: --skip-unknown-objects option
 .\" --skip-unknown-objects option (ndb_restore)
@@ -1427,9 +1441,8 @@ NDB
 backup\&. This can be used for restoring a backup made from a cluster running MySQL Cluster NDB 7\&.0 to a cluster running MySQL Cluster NDB 6\&.3\&.
 .PP
 This option was added in MySQL Cluster NDB 6\&.3\&.34, MySQL Cluster NDB 7\&.0\&.15, and MySQL CLuster NDB 7\&.1\&.4\&.
-.\" ndb_restore: errors
 .PP
-\fBError reporting\fR. 
+\fBError reporting\fR. .\" ndb_restore: errors
 \fBndb_restore\fR
 reports both temporary and permanent errors\&. In the case of temporary errors, it may able to recover from them\&. Beginning with MySQL 5\&.1\&.12, it reports
 Restore successful, but encountered temporary error, please look at configuration
@@ -1449,7 +1462,7 @@ in such cases\&.
 .PP
 After using
 \fBndb_restore\fR
-to initialize a MySQL Cluster for use in circular replication, binary logs on the SQL node acting as the replication slave are not automatically created, and you must cause them to be created manually\&. In order to cause the binary logs to be created, issue a
+to initialize a MySQL Cluster for use in circular replication, binary logs on the SQL node acting as the replication slave are not automatically created, and you must cause them to be created manually\&. To cause the binary logs to be created, issue a
 SHOW TABLES
 statement on that SQL node before running
 START SLAVE\&.

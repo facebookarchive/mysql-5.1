@@ -141,6 +141,14 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool transactional_table;
   DBUG_ENTER("mysql_load");
 
+  /*
+    Bug #34283
+    mysqlbinlog leaves tmpfile after termination if binlog contains
+    load data infile, so in mixed mode we go to row-based for
+    avoiding the problem.
+  */
+  thd->set_current_stmt_binlog_row_based_if_mixed();
+
 #ifdef EMBEDDED_LIBRARY
   read_file_from_client  = 0; //server is always in the same process 
 #endif
@@ -1108,6 +1116,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		      MYF(MY_WME)))
     {
       my_free((uchar*) buffer,MYF(0)); /* purecov: inspected */
+      buffer= NULL;
       error=1;
     }
     else
@@ -1134,13 +1143,10 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 
 READ_INFO::~READ_INFO()
 {
-  if (!error)
-  {
-    if (need_end_io_cache)
-      ::end_io_cache(&cache);
-    my_free((uchar*) buffer,MYF(0));
-    error=1;
-  }
+  if (!error && need_end_io_cache)
+    ::end_io_cache(&cache);
+
+  my_free(buffer, MYF(MY_ALLOW_ZERO_PTR));
 }
 
 

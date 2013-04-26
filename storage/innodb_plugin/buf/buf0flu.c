@@ -128,10 +128,15 @@ buf_flush_delete_from_flush_rbt(
 	buf_page_t*	bpage)		/*!< in: bpage to be removed. */
 {
 
+#ifdef UNIV_DEBUG
 	ibool	ret = FALSE;
+#endif /* UNIV_DEBUG */
 
 	ut_ad(buf_pool_mutex_own());
-	ret = rbt_delete(buf_pool->flush_rbt, &bpage);
+#ifdef UNIV_DEBUG
+	ret =
+#endif /* UNIV_DEBUG */
+	rbt_delete(buf_pool->flush_rbt, &bpage);
 	ut_ad(ret);
 }
 
@@ -1296,7 +1301,6 @@ buf_flush_batch(
 {
 	buf_page_t*	bpage;
 	ulint		page_count	= 0;
-	ulint		old_page_count;
 	ulint		space;
 	ulint		offset;
 	ibool		flush_neighbors	= TRUE;
@@ -1389,16 +1393,10 @@ flush_next:
 
 				buf_pool_mutex_exit();
 
-				old_page_count = page_count;
-
 				/* Try to flush also all the neighbors */
 				page_count += buf_flush_try_neighbors(
 					space, offset, flush_type,
 					flush_neighbors);
-				/* fprintf(stderr,
-				"Flush type %lu, page no %lu, neighb %lu\n",
-				flush_type, offset,
-				page_count - old_page_count); */
 
 				buf_pool_mutex_enter();
 				goto flush_next;

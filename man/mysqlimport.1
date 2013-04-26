@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlimport\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/03/2010
+.\"      Date: 10/11/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLIMPORT\FR" "1" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLIMPORT\FR" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -68,13 +68,13 @@ For additional information about
 \fBmysqldump\fR, see
 Section\ \&6.4, \(lqUsing mysqldump for Backups\(rq\&.
 .PP
-\fBmysqldump\fR
+\fBmysqlimport\fR
 supports the following options, which can be specified on the command line or in the
-[mysqldump]
+[mysqlimport]
 and
 [client]
 option file groups\&.
-\fBmysqldump\fR
+\fBmysqlimport\fR
 also supports the options for processing option files described at
 Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .sp
@@ -437,7 +437,7 @@ Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
-On Windows, connect to the server via a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
+On Windows, connect to the server using a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
 .RE
 .sp
 .RS 4
@@ -541,7 +541,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 .sp
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server via SSL and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
 Section\ \&5.5.6.3, \(lqSSL Command Options\(rq\&.
 .RE
 .sp

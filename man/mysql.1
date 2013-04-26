@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/03/2010
+.\"      Date: 10/11/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -96,6 +96,11 @@ shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fIscript\&.sql\fR\fR\fB > \fR
 .if n \{\
 .RE
 .\}
+.PP
+On Unix, the
+\fBmysql\fR
+client writes a record of executed statements to a history file\&. See
+the section called \(lqMYSQL HISTORY FILE\(rq\&.
 .SH "MYSQL OPTIONS"
 .\" mysql command options
 .\" command options: mysql
@@ -406,7 +411,9 @@ the section called \(lqMYSQL COMMANDS\(rq\&.
 .sp
 Execute the statement and quit\&. The default output format is like that produced with
 \fB\-\-batch\fR\&. See
-Section\ \&4.2.3.1, \(lqUsing Options on the Command Line\(rq, for some examples\&.
+Section\ \&4.2.3.1, \(lqUsing Options on the Command Line\(rq, for some examples\&. With this option,
+\fBmysql\fR
+does not use the history file\&.
 .RE
 .sp
 .RS 4
@@ -650,7 +657,95 @@ is removed in MySQL 5\&.5\&.
 \fB\-\-one\-database\fR,
 \fB\-o\fR
 .sp
-Ignore statements except those for the default database named on the command line\&. This is useful for skipping updates to other databases in the binary log\&.
+Ignore statements except those that occur while the default database is the one named on the command line\&. This option is rudimentary and should be used with care\&. Statement filtering is based only on
+USE
+statements\&.
+.sp
+Initially,
+\fBmysql\fR
+executes statements in the input because specifying a database
+\fIdb_name\fR
+on the command line is equivalent to inserting
+USE \fIdb_name\fR
+at the beginning of the input\&. Then, for each
+USE
+statement encountered,
+\fBmysql\fR
+accepts or rejects following statements depending on whether the database named is the one on the command line\&. The content of the statements is immaterial\&.
+.sp
+Suppose that
+\fBmysql\fR
+is invoked to process this set of statements:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+DELETE FROM db2\&.t2;
+USE db2;
+DROP TABLE db1\&.t1;
+CREATE TABLE db1\&.t1 (i INT);
+USE db1;
+INSERT INTO t1 (i) VALUES(1);
+CREATE TABLE db2\&.t1 (j INT);
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+If the command line is
+\fBmysql \-\-force \-\-one\-database db1\fR,
+\fBmysql\fR
+handles the input as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The
+DELETE
+statement is executed because the default database is
+db1, even though the statement names a table in a different database\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The
+DROP TABLE
+and
+CREATE TABLE
+statements are not executed because the default database is not
+db1, even though the statements name a table in
+db1\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The
+INSERT
+and
+CREATE TABLE
+statements are executed because the default database is
+db1, even though the
+CREATE TABLE
+statement names a table in a different database\&.
+.RE
 .RE
 .sp
 .RS 4
@@ -717,7 +812,7 @@ Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
-On Windows, connect to the server via a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
+On Windows, connect to the server using a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
 .RE
 .sp
 .RS 4
@@ -1014,7 +1109,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 .sp
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server via SSL and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
 Section\ \&5.5.6.3, \(lqSSL Command Options\(rq\&.
 .RE
 .sp
@@ -1315,70 +1410,6 @@ The automatic limit for
 SELECT
 statements when using
 \fB\-\-safe\-updates\fR\&. (Default value is 1,000\&.)
-.RE
-.\" MYSQL_HISTFILE environment variable
-.\" environment variable: MYSQL_HISTFILE
-.\" HOME environment variable
-.\" environment variable: HOME
-.\" mysql history file
-.\" command-line history: mysql
-.\" .mysql_history file
-.PP
-On Unix, the
-\fBmysql\fR
-client writes a record of executed statements to a history file\&. By default, this file is named
-\&.mysql_history
-and is created in your home directory\&. To specify a different file, set the value of the
-MYSQL_HISTFILE
-environment variable\&.
-.PP
-The
-\&.mysql_history
-should be protected with a restrictive access mode because sensitive information might be written to it, such as the text of SQL statements that contain passwords\&. See
-Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
-.PP
-If you do not want to maintain a history file, first remove
-\&.mysql_history
-if it exists, and then use either of the following techniques:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-Set the
-MYSQL_HISTFILE
-variable to
-/dev/null\&. To cause this setting to take effect each time you log in, put the setting in one of your shell\'s startup files\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-Create
-\&.mysql_history
-as a symbolic link to
-/dev/null:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBln \-s /dev/null $HOME/\&.mysql_history\fR
-.fi
-.if n \{\
-.RE
-.\}
-.sp
-You need do this only once\&.
 .RE
 .SH "MYSQL COMMANDS"
 .PP
@@ -2041,7 +2072,7 @@ mysql> \fBpager cat | tee /dr1/tmp/res\&.txt \e\fR
 In this example, the command would send query results to two files in two different directories on two different file systems mounted on
 /dr1
 and
-/dr2, yet still display the results onscreen via
+/dr2, yet still display the results onscreen using
 \fBless\fR\&.
 .RE
 .PP
@@ -2401,6 +2432,77 @@ mysql>
 .if n \{\
 .RE
 .\}
+.RE
+.SH "MYSQL HISTORY FILE"
+.\" MYSQL_HISTFILE environment variable
+.\" environment variable: MYSQL_HISTFILE
+.\" HOME environment variable
+.\" environment variable: HOME
+.\" mysql history file
+.\" command-line history: mysql
+.\" .mysql_history file
+.PP
+On Unix, the
+\fBmysql\fR
+client writes a record of executed statements to a history file\&. By default, this file is named
+\&.mysql_history
+and is created in your home directory\&. To specify a different file, set the value of the
+MYSQL_HISTFILE
+environment variable\&.
+.PP
+The
+\&.mysql_history
+should be protected with a restrictive access mode because sensitive information might be written to it, such as the text of SQL statements that contain passwords\&. See
+Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+.PP
+It is possible to suppress logging of statements to the history file by using the
+\fB\-\-batch\fR
+or
+\fB\-\-execute\fR
+option\&.
+.PP
+If you do not want to maintain a history file, first remove
+\&.mysql_history
+if it exists, and then use either of the following techniques:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Set the
+MYSQL_HISTFILE
+variable to
+/dev/null\&. To cause this setting to take effect each time you log in, put the setting in one of your shell\'s startup files\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Create
+\&.mysql_history
+as a symbolic link to
+/dev/null:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBln \-s /dev/null $HOME/\&.mysql_history\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+You need do this only once\&.
 .RE
 .SH "MYSQL SERVER-SIDE HELP"
 .sp

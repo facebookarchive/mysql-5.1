@@ -2391,6 +2391,14 @@ a
 UPDATE t1,t2 SET t1.a = t1.a + 100 WHERE t1.a = 1;
 DROP TABLE t1,t2;
 #
+# Bug#54606 innodb fast alter table + pack_keys=0 
+#           prevents adding new indexes
+#
+CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b)) 
+ENGINE=InnoDB 
+PACK_KEYS=0;
+CREATE INDEX a ON t1 (a);
+CREATE INDEX c on t1 (c);
 # Bug #53830: !table || (!table->read_set || bitmap_is_set(table->read_set, field_index))
 #
 CREATE TABLE t1 (a INT, b INT, c INT, d INT,

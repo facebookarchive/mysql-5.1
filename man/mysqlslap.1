@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlslap\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/03/2010
+.\"      Date: 10/11/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLSLAP\FR" "1" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLSLAP\FR" "1" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -189,7 +189,7 @@ Display a help message and exit\&.
 \fB\-\-auto\-generate\-sql\fR,
 \fB\-a\fR
 .sp
-Generate SQL statements automatically when they are not supplied in files or via command options\&.
+Generate SQL statements automatically when they are not supplied in files or using command options\&.
 .RE
 .sp
 .RS 4
@@ -486,7 +486,7 @@ Print debugging information and memory and CPU usage statistics when the program
 \fB\-\-delimiter=\fR\fB\fIstr\fR\fR,
 \fB\-F \fR\fB\fIstr\fR\fR
 .sp
-The delimiter to use in SQL statements supplied in files or via command options\&.
+The delimiter to use in SQL statements supplied in files or using command options\&.
 .RE
 .sp
 .RS 4
@@ -700,7 +700,7 @@ Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
-On Windows, connect to the server via a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
+On Windows, connect to the server using a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
 .RE
 .sp
 .RS 4
@@ -746,7 +746,7 @@ The file or string containing the statement to execute after the tests have comp
 .\" shared-memory-base-name option: mysqlslap
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
-On Windows, the shared\-memory name to use, for connections made via shared memory to a local server\&. This option applies only if the server supports shared\-memory connections\&.
+On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. This option applies only if the server supports shared\-memory connections\&.
 .RE
 .sp
 .RS 4
@@ -761,7 +761,7 @@ On Windows, the shared\-memory name to use, for connections made via shared memo
 .\" post-system option: mysqlslap
 \fB\-\-post\-system=\fR\fB\fIstr\fR\fR
 .sp
-The string to execute via
+The string to execute using
 system()
 after the tests have completed\&. This execution is not counted for timing purposes\&. This option was added in MySQL 5\&.1\&.21\&.
 .RE
@@ -793,7 +793,7 @@ The file or string containing the statement to execute before running the tests\
 .\" pre-system option: mysqlslap
 \fB\-\-pre\-system=\fR\fB\fIstr\fR\fR
 .sp
-The string to execute via
+The string to execute using
 system()
 before running the tests\&. This execution is not counted for timing purposes\&. This option was added in MySQL 5\&.1\&.21\&.
 .RE
@@ -919,7 +919,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 .sp
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server via SSL and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
 Section\ \&5.5.6.3, \(lqSSL Command Options\(rq\&.
 .RE
 .sp

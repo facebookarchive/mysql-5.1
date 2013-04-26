@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/03/2010
+.\"      Date: 10/11/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "10/11/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -236,9 +236,60 @@ process with any one of the following options:
 \fB\-\-skip\-config\-cache\fR
 .RE
 .RS 4
-To re\-enable the configuration cache, simply restart the management server, without the
+Using one of the options just listed is effective only if the management server has no stored configuration at the time it is started\&. If the management server finds any configuration cache files, then the
 \fB\-\-config\-cache\fR
-option\&.
+option or the
+\fB\-\-skip\-config\-cache\fR
+option is ignored\&. Therefore, to disable configuration caching, the option should be used the
+\fIfirst\fR
+time that the management server is started\&. Otherwise\(emthat is, if you wish to disable configuration caching for a management server that has
+\fIalready\fR
+created a configuration cache\(emyou must stop the management server, delete any existing configuration cache files manually, then restart the management server with
+\fB\-\-skip\-config\-cache\fR
+(or with
+\fB\-\-config\-cache\fR
+set equal to 0,
+OFF, or
+FALSE)\&.
+.sp
+Configuration cache files are normally created in a directory named
+mysql\-cluster
+under the installation directory (unless this location has been overridden using the
+\fB\-\-configdir\fR
+option)\&. Each time the management server updates its configuration data, it writes a new cache file\&. The files are named sequentially in order of creation using the following format:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ndb_\fInode\-id\fR_config\&.bin\&.\fIseq\-number\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+\fInode\-id\fR
+is the management server\'s node ID;
+\fIseq\-number\fR
+is a sequence number, beginning with 1\&. For example, if the management server\'s node ID is 5, then the first three configuration cache files would, when they are created, be named
+ndb_5_config\&.bin\&.1,
+ndb_5_config\&.bin\&.2, and
+ndb_5_config\&.bin\&.3\&.
+.sp
+If your intent is to purge or reload the configuration cache without actually disabling caching, you should start
+\fBndb_mgmd\fR
+with one of the options
+\fB\-\-reload\fR
+or
+\fB\-\-initial\fR
+instead of
+\fB\-\-skip\-config\-cache\fR\&.
+.sp
+To re\-enable the configuration cache, simply restart the management server, but without the
+\fB\-\-config\-cache\fR
+or
+\fB\-\-skip\-config\-cache\fR
+option that was used previously to disable the configuration cache\&.
 .sp
 This option was added in MySQL Cluster NDB 7\&.0\&.15 and MySQL Cluster NDB 7\&.1\&.4\&.
 .RE
@@ -734,10 +785,10 @@ HostName = 192\&.168\&.0\&.103
 [ndbd]
 NodeId = 4
 HostName = 192\&.168\&.0\&.104
-[mgm]
+[ndb_mgmd]
 NodeId = 10
 HostName = 192\&.168\&.0\&.150
-[mgm]
+[ndb_mgmd]
 NodeId = 11
 HostName = 192\&.168\&.0\&.151
 [api]
@@ -816,7 +867,7 @@ When you later start the
 management server, its configuration must match that of the management server that is already in use by the cluster\&. Otherwise, it fails the configuration check performed by the existing management server, and does not start\&.
 .sp .5v
 .RE
-This option was introduced in MySQL Cluster NDB 7\&.0\&.10\&.
+This option was introduced in MySQL Cluster NDB 7\&.0\&.10 and MySQL Cluster NDB 7\&.1\&.0\&.
 .RE
 .PP
 It is not strictly necessary to specify a connectstring when starting the management server\&. However, if you are using more than one management server, a connectstring should be provided and each node in the cluster should specify its node ID explicitly\&.
@@ -955,7 +1006,7 @@ my\&.cnf
 configuration file, it is possible to use them together with
 \fB\-\-install\fR\&. However, in such cases, the
 \fB\-\-install\fR
-option must be specified first, before any other options are given, in order for the Windows service installation to succeed\&.
+option must be specified first, before any other options are given, for the Windows service installation to succeed\&.
 .sp
 It is generally not advisable to use this option together with the
 \fB\-\-initial\fR
