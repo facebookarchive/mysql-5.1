@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 02/04/2010
+.\"      Date: 03/01/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "02/04/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "03/01/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -34,7 +34,7 @@ utility\&. You can also use
 \fBmysqlbinlog\fR
 to display the contents of relay log files written by a slave server in a replication setup because relay logs have the same format as binary logs\&. The binary log and relay log are discussed further in
 Section\ \&5.2.4, \(lqThe Binary Log\(rq, and
-Section\ \&16.4.2, \(lqReplication Relay and Status Files\(rq\&.
+Section\ \&16.2.2, \(lqReplication Relay and Status Files\(rq\&.
 .PP
 Invoke
 \fBmysqlbinlog\fR
@@ -256,7 +256,7 @@ the section called \(lqMYSQLBINLOG ROW EVENT DISPLAY\(rq\&.
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -620,7 +620,7 @@ option on the command line,
 prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -1096,7 +1096,7 @@ statements (that is, it adds
 LOCAL), both the client and the server that you use to process the statements must be configured with the
 LOCAL
 capability enabled\&. See
-Section\ \&5.3.4, \(lqSecurity Issues with LOAD DATA LOCAL\(rq\&.
+Section\ \&5.3.5, \(lqSecurity Issues with LOAD DATA LOCAL\(rq\&.
 .if n \{\
 .sp
 .\}

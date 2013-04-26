@@ -468,8 +468,8 @@ Important
 shell> md5sum package_name
 
    Example:
-shell> md5sum mysql-standard-5.1.44-linux-i686.tar.gz
-aaab65abbec64d5e907dcd41b8699945  mysql-standard-5.1.44-linux-i686.ta
+shell> md5sum mysql-standard-5.1.45-linux-i686.tar.gz
+aaab65abbec64d5e907dcd41b8699945  mysql-standard-5.1.45-linux-i686.ta
 r.gz
 
    You should verify that the resulting checksum (the string of
@@ -513,8 +513,7 @@ Note
    named build@mysql.com. Alternatively, you can cut and paste the
    key directly from the following text:
 -----BEGIN PGP PUBLIC KEY BLOCK-----
-Version: GnuPG v1.0.6 (GNU/Linux)
-Comment: For info see http://www.gnupg.org
+Version: GnuPG v1.4.5 (GNU/Linux)
 
 mQGiBD4+owwRBAC14GIfUfCyEDSIePvEW3SAFUdJBtoQHH/nJKZyQT7h9bPlUWC3
 RODjQReyCITRrdwyrKUGku2FmeVGwn2u2WmDMNABLnpprWPkBdCk96+OmSLN9brZ
@@ -526,81 +525,26 @@ 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
-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
+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
-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
-=Xquv
+Eg2aLos+5zEYrB/LsrkCDQQ+PqMdEAgA7+GJfxbMdY4wslPnjH9rF4N2qfWsEN/l
+xaZoJYc3a6M02WCnHl6ahT2/tBK2w1QI4YFteR47gCvtgb6O1JHffOo2HfLmRDRi
+Rjd1DTCHqeyX7CHhcghj/dNRlW2Z0l5QFEcmV9U0Vhp3aFfWC4Ujfs3LU+hkAWzE
+7zaD5cH9J7yv/6xuZVw411x0h4UqsTcWMu0iM1BzELqX1DY7LwoPEb/O9Rkbf4fm
+Le11EzIaCa4PqARXQZc4dhSinMt6K3X4BrRsKTfozBu74F47D8Ilbf5vSYHbuE5p
+/1oIDznkg/p8kW+3FxuWrycciqFTcNz215yyX39LXFnlLzKUb/F5GwADBQf+Lwqq
+a8CGrRfsOAJxim63CHfty5mUc5rUSnTslGYEIOCR1BeQauyPZbPDsDD9MZ1ZaSaf
+anFvwFG6Llx9xkU7tzq+vKLoWkm4u5xf3vn55VjnSd1aQ9eQnUcXiL4cnBGoTbOW
+I39EcyzgslzBdC++MPjcQTcA7p6JUVsP6oAB3FQWg54tuUo0Ec8bsM8b3Ev42Lmu
+QT5NdKHGwHsXTPtl0klk4bQk4OajHsiy1BMahpT27jWjJlMiJc+IWJ0mghkKHt92
+6s/ymfdf5HkdQ1cyvsz5tryVI3Fx78XeSYfQvuuwqp2H139pXGEkg0n6KdUOetdZ
+Whe70YGNPw1yjWJT1IhMBBgRAgAMBQI+PqMdBQkJZgGAAAoJEIxxjTtQcuH17p4A
+n3r1QpVC9yhnW2cSAjq+kr72GX0eAJ4295kl6NxYEuFApmr1+0uUq/SlsQ==
+=Mski
+
 -----END PGP PUBLIC KEY BLOCK-----
 
    To import the build key into your personal public GPG keyring, use
@@ -643,8 +587,8 @@ pg-signature.html
    signature, which also is available from the download page. The
    signature file has the same name as the distribution file with an
    .asc extension, as shown by the examples in the following table.
-   Distribution file mysql-standard-5.1.44-linux-i686.tar.gz
-   Signature file    mysql-standard-5.1.44-linux-i686.tar.gz.asc
+   Distribution file mysql-standard-5.1.45-linux-i686.tar.gz
+   Signature file    mysql-standard-5.1.45-linux-i686.tar.gz.asc
 
    Make sure that both files are stored in the same directory and
    then run the following command to verify the signature for the
@@ -652,7 +596,7 @@ pg-signature.html
 shell> gpg --verify package_name.asc
 
    Example:
-shell> gpg --verify mysql-standard-5.1.44-linux-i686.tar.gz.asc
+shell> gpg --verify mysql-standard-5.1.45-linux-i686.tar.gz.asc
 gpg: Signature made Tue 12 Jul 2005 23:35:41 EST using DSA key ID 507
 2E1F5
 gpg: Good signature from "MySQL Package signing key (www.mysql.com) <
@@ -672,8 +616,8 @@ build@mysql.com>"
 shell> rpm --checksig package_name.rpm
 
    Example:
-shell> rpm --checksig MySQL-server-5.1.44-0.glibc23.i386.rpm
-MySQL-server-5.1.44-0.glibc23.i386.rpm: md5 gpg OK
+shell> rpm --checksig MySQL-server-5.1.45-0.glibc23.i386.rpm
+MySQL-server-5.1.45-0.glibc23.i386.rpm: md5 gpg OK
 
 Note
 
@@ -766,9 +710,7 @@ shell> rpm --import mysql_pubkey.asc
 
    This section covers the installation of MySQL binary distributions
    that are provided for various platforms in the form of compressed
-   tar files (files with a .tar.gz extension). See Section 2.2,
-   "Installing MySQL from Generic Binaries on Unix/Linux," for a
-   detailed list.
+   tar files (files with a .tar.gz extension).
 
    To obtain MySQL, see Section 2.1.3, "How to Get MySQL."
 
@@ -786,7 +728,7 @@ shell> rpm --import mysql_pubkey.asc
 
    MySQL tar file binary distributions have names of the form
    mysql-VERSION-OS.tar.gz, where VERSION is a number (for example,
-   5.1.44), and OS indicates the type of operating system for which
+   5.1.45), and OS indicates the type of operating system for which
    the distribution is intended (for example, pc-linux-i686).
 
    In addition to these generic packages, we also offer binaries in
@@ -980,7 +922,7 @@ Note
 
    MySQL source distributions are provided as compressed tar archives
    and have names of the form mysql-VERSION.tar.gz, where VERSION is
-   a number like 5.1.44.
+   a number like 5.1.45.
 
    You need the following tools to build and install MySQL from
    source:
@@ -1484,10 +1426,9 @@ shell> ./configure --with-charset=CHARSET
        cp1251, cp1256, cp1257, cp850, cp852, cp866, cp932, dec8,
        eucjpms, euckr, gb2312, gbk, geostd8, greek, hebrew, hp8,
        keybcs2, koi8r, koi8u, latin1, latin2, latin5, latin7, macce,
-       macroman, sjis, swe7, tis620, ucs2, ujis, utf8. See Section
-       9.2, "The Character Set Used for Data and Sorting."
-       (Additional character sets might be available. Check the
-       output from ./configure --help for the current list.)
+       macroman, sjis, swe7, tis620, ucs2, ujis, utf8. (Additional
+       character sets might be available. Check the output from
+       ./configure --help for the current list.)
        The default collation may also be specified. MySQL uses the
        latin1_swedish_ci collation by default. To change this, use
        the --with-collation option:
@@ -1597,7 +1538,7 @@ shell> ./configure --with-debug
      * See Section 2.1, "General Installation Guidance," for options
        that pertain to particular operating systems.
 
-     * See Section 5.5.7.2, "Using SSL Connections," for options that
+     * See Section 5.5.6.2, "Using SSL Connections," for options that
        pertain to configuring MySQL to support secure (encrypted)
        connections.
 
@@ -2104,7 +2045,7 @@ implicit declaration of function `int strtoul(...)'
      * If you are running MySQL Server on Windows, see Section 2.5.7,
        "Upgrading MySQL on Windows."
 
-     * If you are using replication, see Section 16.3.3, "Upgrading a
+     * If you are using replication, see Section 16.4.3, "Upgrading a
        Replication Setup," for information on upgrading your
        replication setup.
 
@@ -2261,7 +2202,7 @@ Note
      * If you are running MySQL Server on Windows, see Section 2.5.7,
        "Upgrading MySQL on Windows."
 
-     * If you are using replication, see Section 16.3.3, "Upgrading a
+     * If you are using replication, see Section 16.4.3, "Upgrading a
        Replication Setup," for information on upgrading your
        replication setup.
 
@@ -2705,7 +2646,7 @@ REPAIR TABLE tbl_name QUICK;
        specifies the locale that controls the language used to
        display day and month names and abbreviations. This variable
        affects the output from the DATE_FORMAT(), DAYNAME() and
-       MONTHNAME() functions. See Section 9.8, "MySQL Server Locale
+       MONTHNAME() functions. See Section 9.7, "MySQL Server Locale
        Support."
 
      * As of MySQL 5.1.9, mysqld_safe no longer implicitly invokes
@@ -2917,10 +2858,10 @@ mysql> source /tmp/triggers.sql //
     5. Reload the dump file into the older server. Your tables should
        be accessible.
 
-   It might also be the case that the structure of the system tables
-   in the mysql database has changed and that downgrading introduces
-   some loss of functionality or requires some adjustments. Here are
-   some examples:
+   It might also be the case that system tables in the mysql database
+   have changed and that downgrading introduces some loss of
+   functionality or requires some adjustments. Here are some
+   examples:
 
      * Trigger creation requires the TRIGGER privilege as of MySQL
        5.1. In MySQL 5.0, there is no TRIGGER privilege and SUPER is
@@ -2930,6 +2871,12 @@ mysql> source /tmp/triggers.sql //
 
      * Triggers were added in MySQL 5.0, so if you downgrade from 5.0
        to 4.1, you cannot use triggers at all.
+
+     * The mysql.proc.comment column definition changed between MySQL
+       5.1 and 5.5. After a downgrade from 5.5 to 5.1, this table is
+       seen as corrupt and in need of repair. To workaround this
+       problem, execute mysql_upgrade from the version of MySQL to
+       which you downgraded.
 
 2.4.2.1. Downgrading to MySQL 5.0
 
@@ -3439,7 +3386,7 @@ Note
    below for reference:
 
      * Windows Essentials --- this package has a file name similar to
-       mysql-essential-5.1.44-win32.msi and is supplied as a
+       mysql-essential-5.1.45-win32.msi and is supplied as a
        Microsoft Installer (MSI) package. The package includes the
        minimum set of files needed to install MySQL on Windows,
        including the MySQL Server Instance Config Wizard. This
@@ -3450,7 +3397,7 @@ Note
        MySQL with the MSI Package."
 
      * Windows MSI Installer (Complete) --- this package has a file
-       name similar to mysql-5.1.44-win32.zip and contains all files
+       name similar to mysql-5.1.45-win32.zip and contains all files
        needed for a complete Windows installation, including the
        MySQL Server Instance Config Wizard. This package includes
        optional components such as the embedded server and benchmark
@@ -3459,7 +3406,7 @@ Note
        MySQL with the MSI Package."
 
      * Without installer --- this package has a file name similar to
-       mysql-noinstall-5.1.44-win32.zip and contains all the files
+       mysql-noinstall-5.1.45-win32.zip and contains all the files
        found in the Complete install package, with the exception of
        the MySQL Server Instance Config Wizard. This package does not
        include an automated installer, and must be manually installed
@@ -3712,7 +3659,7 @@ Note
    directory. In a default installation it contains C:\Program
    Files\MySQL\MySQL Server 5.1\. The Version string contains the
    release number. For example, for an installation of MySQL Server
-   5.1.44, the key contains a value of 5.1.44.
+   5.1.45, the key contains a value of 5.1.45.
 
    These registry keys are used to help external tools identify the
    installed location of the MySQL server, preventing a complete scan
@@ -4724,7 +4671,7 @@ InnoDB: foreign key constraint system tables created
    something like this, which indicates that the server is ready to
    service client connections:
 mysqld: ready for connections
-Version: '5.1.44'  socket: ''  port: 3306
+Version: '5.1.45'  socket: ''  port: 3306
 
    The server continues to write to the console any further
    diagnostic output it produces. You can open a new console window
@@ -5544,7 +5491,7 @@ Note
 Note
 
    To compile from the source code on Windows you must use the
-   standard source distribution (for example, mysql-5.1.44.tar.gz).
+   standard source distribution (for example, mysql-5.1.45.tar.gz).
    You build from the same distribution as used to build MySQL on
    Unix, Linux and other platforms. Do not use the Windows Source
    distributions as they do not contain the necessary configuration
@@ -7204,7 +7151,7 @@ shell> bin/mysqld_safe --user=mysql &
        logged in to the system as mysql, in which case you can omit
        the --user option from the command.
        Further instructions for running MySQL as an unprivileged user
-       are given in Section 5.3.5, "How to Run MySQL as a Normal
+       are given in Section 5.3.6, "How to Run MySQL as a Normal
        User."
        If you neglected to create the grant tables before proceeding
        to this step, the following message appears in the error log
@@ -7222,10 +7169,10 @@ shell> bin/mysqladmin variables
        on your platform and version of MySQL, but should be similar
        to that shown here:
 shell> bin/mysqladmin version
-mysqladmin  Ver 14.12 Distrib 5.1.44, for pc-linux-gnu on i686
+mysqladmin  Ver 14.12 Distrib 5.1.45, for pc-linux-gnu on i686
 ...
 
-Server version          5.1.44
+Server version          5.1.45
 Protocol version        10
 Connection              Localhost via UNIX socket
 UNIX socket             /var/lib/mysql/mysql.sock
@@ -7329,7 +7276,7 @@ shell> mysql -vvf test < ./tests/auto_increment.tst
 
    The MySQL 5.1 installation procedure creates time zone tables in
    the mysql database. However, you must populate the tables manually
-   using the instructions in Section 9.7, "MySQL Server Time Zone
+   using the instructions in Section 9.6, "MySQL Server Time Zone
    Support."
 
 2.13.1.1. Problems Running mysql_install_db
@@ -8009,7 +7956,7 @@ Note
    MYSQL_PS1 The command prompt to use in the mysql command-line
    client.
    MYSQL_PWD The default password when connecting to mysqld. Note
-   that using this is insecure. See Section 5.5.6.2, "End-User
+   that using this is insecure. See Section 5.3.2.2, "End-User
    Guidelines for Password Security."
    MYSQL_TCP_PORT The default TCP/IP port number.
    MYSQL_UNIX_PORT The default Unix socket file name; used for
