@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/12/2009
+.\"      Date: 11/04/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -34,23 +34,9 @@ and
 \fB\-\-xml\fR
 options later in this section)\&.
 .PP
-\fBUsage\fR:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-ndb_config \fIoptions\fR
-.fi
-.if n \{\
-.RE
-.\}
-.PP
-The
-\fIoptions\fR
-available for this utility differ somewhat from those used with the other utilities, and so are listed in their entirety in the next section, followed by some examples\&.
-.PP
-\fBOptions\fR:
+The following table includes options that are specific to
+\fBndb_config\fR\&. Additional descriptions follow the table\&. For options common to all MySQL Cluster programs, see
+Section\ \&17.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -67,7 +53,7 @@ available for this utility differ somewhat from those used with the other utilit
 \fB\-?\fR
 .TS
 allbox tab(:);
-l l.
+l l s.
 T{
 \fBCommand Line Format\fR
 T}:T{
@@ -94,7 +80,7 @@ to print a list of available options, and then exit\&.
 \fB\-V\fR
 .TS
 allbox tab(:);
-l l.
+l l s.
 T{
 \fBCommand Line Format\fR
 T}:T{
@@ -120,36 +106,26 @@ to print a version information string, and then exit\&.
 \fB\-\-ndb\-connectstring=\fR\fB\fIconnect_string\fR\fR
 .TS
 allbox tab(:);
-l l
-l l.
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBCommand Line Format\fR
 T}:T{
 \-\-ndb\-connectstring=name
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 string
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 localhost:1186
@@ -157,7 +133,7 @@ T}
 .TE
 .sp 1
 Specifies the connectstring to use in connecting to the management server\&. The format for the connectstring is the same as described in
-Section\ \&17.3.4.3, \(lqThe MySQL Cluster Connectstring\(rq, and defaults to
+Section\ \&17.3.2.3, \(lqThe MySQL Cluster Connectstring\(rq, and defaults to
 localhost:1186\&.
 .sp
 The use of
@@ -199,36 +175,26 @@ is invoked, then an absolute path must be used\&.
 \fIquery\-options\fR
 .TS
 allbox tab(:);
-l l
-l l.
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBCommand Line Format\fR
 T}:T{
 \-\-query=string
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 string
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 T}
@@ -281,36 +247,26 @@ If a given parameter is not applicable to a certain type of node, than an empty 
 \fB\-\-host=\fR\fB\fIhostname\fR\fR
 .TS
 allbox tab(:);
-l l
-l l.
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBCommand Line Format\fR
 T}:T{
 \-\-host=name
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 string
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 T}
@@ -335,36 +291,26 @@ Specifies the host name of the node for which configuration information is to be
 \fB\-\-nodeid=\fR\fB\fInode_id\fR\fR
 .TS
 allbox tab(:);
-l l
-l l.
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBCommand Line Format\fR
 T}:T{
 \-\-ndb\-nodeid=#
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 numeric
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 0
@@ -387,36 +333,26 @@ Used to specify the node ID of the node for which configuration information is t
 \fB\-\-nodes\fR
 .TS
 allbox tab(:);
-l l
-l l.
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBCommand Line Format\fR
 T}:T{
 \-\-nodes
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -445,41 +381,31 @@ and other sections of cluster configuration files\&.)
 \fB\-\-type=\fR\fB\fInode_type\fR\fR
 .TS
 allbox tab(:);
-l l
-l l.
+l l s
+l l s
+^ l l
+^ l l
+^ l l.
 T{
 \fBCommand Line Format\fR
 T}:T{
 \-\-type=name
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 enumeration
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 T}
-T{
+:T{
 \fBValid Values\fR
 T}:T{
 ndbd, mysqld, ndb_mgmd
@@ -508,36 +434,26 @@ ndb_mgmd) are returned\&.
 \fIdelimiter\fR
 .TS
 allbox tab(:);
-l l
-l l.
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBCommand Line Format\fR
 T}:T{
 \-\-fields=string
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 string
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 T}
@@ -584,36 +500,26 @@ for the linefeed character), then it must be quoted\&.
 \fIseparator\fR
 .TS
 allbox tab(:);
-l l
-l l.
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBCommand Line Format\fR
 T}:T{
 \-\-rows=string
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 string
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 T}
@@ -659,9 +565,11 @@ for the linefeed character), then it must be quoted\&.
 [\fB\-\-xml\fR]
 .TS
 allbox tab(:);
-l l
-l l
-l l.
+l l s
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBVersion Introduced\fR
 T}:T{
@@ -673,28 +581,16 @@ T}:T{
 \-\-configinfo
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 false
@@ -703,9 +599,11 @@ T}
 .sp 1
 .TS
 allbox tab(:);
-l l
-l l
-l l.
+l l s
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBVersion Introduced\fR
 T}:T{
@@ -717,28 +615,16 @@ T}:T{
 \-\-configinfo \-\-xml
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 false

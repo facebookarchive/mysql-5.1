@@ -19,7 +19,7 @@
 
 echo "Finding system information for a MySQL bug report"
 
-VERSION="5.1.38"
+VERSION="5.1.41"
 COMPILATION_COMMENT="Source distribution"
 BUGmysql="mysql@lists.mysql.com"
 # This is set by configure
@@ -254,7 +254,7 @@ ${ORGANIZATION- $ORGANIZATION_C}
 >Release:	mysql-${VERSION} ($COMPILATION_COMMENT)
 `test -n "$MYSQL_SERVER" && echo ">Server: $MYSQL_SERVER"`
 >C compiler:    
->C++ compiler:  CC: Sun C++ 5.9 SunOS_sparc Patch 124863-15 2009/07/21
+>C++ compiler:  CC: Sun C++ 5.9 SunOS_sparc Patch 124863-16 2009/09/15
 >Environment:
 	$ENVIRONMENT_C
 `test -n "$SYSTEM"  && echo "System: $SYSTEM"`

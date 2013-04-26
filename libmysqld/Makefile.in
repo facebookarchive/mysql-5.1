@@ -131,10 +131,10 @@ am__objects_3 = derror.$(OBJEXT) field.$(OBJEXT) field_conv.$(OBJEXT) \
 	parse_file.$(OBJEXT) sql_view.$(OBJEXT) sql_trigger.$(OBJEXT) \
 	my_decimal.$(OBJEXT) rpl_filter.$(OBJEXT) \
 	sql_partition.$(OBJEXT) sql_builtin.$(OBJEXT) \
-	sql_plugin.$(OBJEXT) sql_tablespace.$(OBJEXT) \
-	rpl_injector.$(OBJEXT) my_user.$(OBJEXT) \
-	partition_info.$(OBJEXT) sql_servers.$(OBJEXT) \
-	event_parse_data.$(OBJEXT)
+	sql_plugin.$(OBJEXT) debug_sync.$(OBJEXT) \
+	sql_tablespace.$(OBJEXT) rpl_injector.$(OBJEXT) \
+	my_user.$(OBJEXT) partition_info.$(OBJEXT) \
+	sql_servers.$(OBJEXT) event_parse_data.$(OBJEXT)
 nodist_libmysqld_int_a_OBJECTS = $(am__objects_2) $(am__objects_3)
 libmysqld_int_a_OBJECTS = $(am_libmysqld_int_a_OBJECTS) \
 	$(nodist_libmysqld_int_a_OBJECTS)
@@ -533,6 +533,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sp_head.cc sp_pcontext.cc sp.cc sp_cache.cc sp_rcontext.cc \
 	parse_file.cc sql_view.cc sql_trigger.cc my_decimal.cc \
 	rpl_filter.cc sql_partition.cc sql_builtin.cc sql_plugin.cc \
+	debug_sync.cc \
 	sql_tablespace.cc \
 	rpl_injector.cc my_user.c partition_info.cc \
 	sql_servers.cc event_parse_data.cc
@@ -641,6 +642,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/client.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/debug_sync.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/derror.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/discover.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emb_qcache.Po@am__quote@

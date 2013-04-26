@@ -1598,7 +1598,7 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
     share->crashed= TRUE;
     DBUG_RETURN(HA_ADMIN_CORRUPT);
   }
-  else
+
     DBUG_RETURN(HA_ADMIN_OK);
 }
 

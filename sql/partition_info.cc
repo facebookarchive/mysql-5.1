@@ -483,11 +483,9 @@ static bool check_engine_condition(partition_element *p_elem,
   {
     DBUG_RETURN(TRUE);
   }
-  else
-  {
+
     DBUG_RETURN(FALSE);
   }
-}
 
 
 /*

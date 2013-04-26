@@ -33,6 +33,9 @@
 /* Version of .frm files */
 #undef DOT_FRM_VERSION
 
+/* If Debug Sync Facility should be enabled */
+#undef ENABLED_DEBUG_SYNC
+
 /* If LOAD DATA LOCAL INFILE should be enabled by default */
 #undef ENABLED_LOCAL_INFILE
 
@@ -81,9 +84,6 @@
 
 /* Define to 1 if you have the `atomic_cas_ulong' function. */
 #undef HAVE_ATOMIC_CAS_ULONG
-
-/* pthread_t can be used by solaris atomics */
-#undef HAVE_ATOMIC_PTHREAD_T
 
 /* Define to 1 if you have the `backtrace' function. */
 #undef HAVE_BACKTRACE
@@ -253,14 +253,6 @@
 /* Define to 1 if you have the <cxxabi.h> header file. */
 #undef HAVE_CXXABI_H
 
-/* Define to 1 if you have the declaration of `HAVE_ATOMIC_PTHREAD_T', and to
-   0 if you don't. */
-#undef HAVE_DECL_HAVE_ATOMIC_PTHREAD_T
-
-/* Define to 1 if you have the declaration of `HAVE_SOLARIS_ATOMICS', and to 0
-   if you don't. */
-#undef HAVE_DECL_HAVE_SOLARIS_ATOMICS
-
 /* Define to 1 if you have the declaration of `madvise', and to 0 if you
    don't. */
 #undef HAVE_DECL_MADVISE
@@ -411,6 +403,21 @@
 
 /* HIST_ENTRY is defined in the outer libeditreadline */
 #undef HAVE_HIST_ENTRY
+
+/* pthread_t can be used by GCC atomic builtins */
+#undef HAVE_IB_ATOMIC_PTHREAD_T_GCC
+
+/* pthread_t can be used by solaris atomics */
+#undef HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS
+
+/* GCC atomic builtins are available */
+#undef HAVE_IB_GCC_ATOMIC_BUILTINS
+
+/* Does x86 PAUSE instruction exist */
+#undef HAVE_IB_PAUSE_INSTRUCTION
+
+/* Define to 1 if Solaris libc atomic functions are available */
+#undef HAVE_IB_SOLARIS_ATOMICS
 
 /* Define to 1 if you have the <ieeefp.h> header file. */
 #undef HAVE_IEEEFP_H
@@ -773,9 +780,6 @@
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
-/* Define to 1 if Solaris supports atomic functions. */
-#undef HAVE_SOLARIS_ATOMICS
-
 /* Solaris define gethostbyaddr_r with 7 arguments. glibc2 defines this with 8
    arguments */
 #undef HAVE_SOLARIS_STYLE_GETHOST
@@ -1073,9 +1077,6 @@
 
 /* Define if /proc/meminfo shows the huge page size (Linux only) */
 #undef HUGETLB_USE_PROC_MEMINFO
-
-/* Does x86 PAUSE instruction exist */
-#undef IB_HAVE_PAUSE_INSTRUCTION
 
 /* Define if you have -lwrap */
 #undef LIBWRAP

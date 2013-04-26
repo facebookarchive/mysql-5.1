@@ -339,9 +339,7 @@ rl_generic_bind (type, keyseq, data, map)
   char *keys;
   int keys_len;
   register int i;
-  KEYMAP_ENTRY k;
-
-  k.function = 0;
+  KEYMAP_ENTRY k= { 0, NULL };
 
   /* If no keys to bind to, exit right away. */
   if (keyseq == 0 || *keyseq == 0)

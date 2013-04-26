@@ -219,7 +219,7 @@ UNIV_INLINE
 void*
 ut_align(
 /*=====*/
-	void*	ptr,		/*!< in: pointer */
+	const void*	ptr,		/*!< in: pointer */
 	ulint	align_no);	/*!< in: align by this number */
 /*********************************************************//**
 The following function rounds down a pointer to the nearest

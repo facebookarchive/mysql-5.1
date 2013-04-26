@@ -7522,7 +7522,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     }
     releaseSections(signal);
     
-    DictObject * old_ptr_p = old_ptr_p = get_object(tableName, len);
+    DictObject * old_ptr_p = get_object(tableName, len);
     if(old_ptr_p)
       obj_id = old_ptr_p->m_id;
   } else {

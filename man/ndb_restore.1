@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/12/2009
+.\"      Date: 11/04/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -39,7 +39,7 @@ directory\&. This program reads the files created as a result of the backup and 
 must be executed once for each of the backup files that were created by the
 START BACKUP
 command used to create the backup (see
-Section\ \&17.7.3.2, \(lqUsing The MySQL Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
+Section\ \&17.5.3.2, \(lqUsing The MySQL Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
 .\" single user mode (MySQL Cluster): and ndb_restore
 .if n \{\
 .sp
@@ -56,9 +56,13 @@ Section\ \&17.7.3.2, \(lqUsing The MySQL Cluster Management Client to Create a B
 .PP
 Before using
 \fBndb_restore\fR, it is recommended that the cluster be running in single user mode, unless you are restoring multiple data nodes in parallel\&. See
-Section\ \&17.7.6, \(lqMySQL Cluster Single User Mode\(rq, for more information about single user mode\&.
+Section\ \&17.5.6, \(lqMySQL Cluster Single User Mode\(rq, for more information about single user mode\&.
 .sp .5v
 .RE
+.PP
+The following table includes options that are specific to the MySQL Cluster backup restoration program
+\fBndb_restore\fR\&. Additional descriptions follow the table\&. For options common to all MySQL Cluster programs, see
+Section\ \&17.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
 .PP
 Typical options for this utility are shown here:
 .sp
@@ -78,7 +82,7 @@ The
 option is used to specify a connectstring which tells
 ndb_restore
 where to locate the cluster management server\&. (See
-Section\ \&17.3.4.3, \(lqThe MySQL Cluster Connectstring\(rq, for information on connectstrings\&.) If this option is not used, then
+Section\ \&17.3.2.3, \(lqThe MySQL Cluster Connectstring\(rq, for information on connectstrings\&.) If this option is not used, then
 \fBndb_restore\fR
 attempts to connect to a management server on
 localhost:1186\&. This utility acts as a cluster API node, and so requires a free connection
@@ -96,7 +100,7 @@ or
 section in
 config\&.ini
 that is not being used for a MySQL server or other application for this reason (see
-Section\ \&17.3.4.7, \(lqDefining SQL and Other API Nodes in a MySQL Cluster\(rq)\&.
+Section\ \&17.3.2.7, \(lqDefining SQL and Other API Nodes in a MySQL Cluster\(rq)\&.
 .PP
 You can verify that
 \fBndb_restore\fR
@@ -167,7 +171,7 @@ column can be restored to a column of type
 INT
 or
 BIGINT\&. See
-Section\ \&16.3.1.4.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
+Section\ \&16.3.1.5.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
 .PP
 Attribute promotion by
 \fBndb_restore\fR
@@ -256,7 +260,7 @@ The
 option is used to specify the ID or sequence number of the backup, and is the same number shown by the management client in the
 Backup \fIbackup_id\fR completed
 message displayed upon completion of a backup\&. (See
-Section\ \&17.7.3.2, \(lqUsing The MySQL Cluster Management Client to Create a Backup\(rq\&.)
+Section\ \&17.5.3.2, \(lqUsing The MySQL Cluster Management Client to Create a Backup\(rq\&.)
 .if n \{\
 .sp
 .\}
@@ -282,7 +286,7 @@ having
 in the
 id
 column is updated if it already exists; such a row is inserted if it does not already exist\&. (See
-Section\ \&17.9.9, \(lqMySQL Cluster Backups With MySQL Cluster Replication\(rq\&.)
+Section\ \&17.6.9, \(lqMySQL Cluster Backups With MySQL Cluster Replication\(rq\&.)
 .PP
 The path to the backup directory is required; this is supplied to
 \fBndb_restore\fR
@@ -295,7 +299,8 @@ is
 /var/lib/mysql\-cluster/BACKUP, and the backup files for the backup with the ID 3 can be found in
 /var/lib/mysql\-cluster/BACKUP/BACKUP\-3\&. The path may be absolute or relative to the directory in which the
 \fBndb_restore\fR
-executable is located\&.
+executable is located, and may be optionally prefixed with
+\fBbackup_path=\fR\&.
 .if n \{\
 .sp
 .\}
@@ -339,7 +344,7 @@ and
 must be run twice \(em once for each database node in the cluster where the backup was taken\&. However,
 \fBndb_restore\fR
 cannot always restore backups made from a cluster running one version of MySQL to a cluster running a different MySQL version\&. See
-Section\ \&17.5.2, \(lqMySQL Cluster 5.1 and MySQL Cluster NDB 6.x/7.x Upgrade and Downgrade Compatibility\(rq, for more information\&.
+Section\ \&17.2.6.2, \(lqMySQL Cluster 5.1 and MySQL Cluster NDB 6.x/7.x Upgrade and Downgrade Compatibility\(rq, for more information\&.
 .if n \{\
 .sp
 .\}
@@ -391,6 +396,7 @@ option (short form:
 Most of the options available for this program are shown in the following table:
 .TS
 allbox tab(:);
+l l l l
 l l l l
 l l l l
 l l l l
@@ -509,6 +515,17 @@ T}:T{
 T}:T{
 Do not restore the indicated database or databases (added in MySQL
                   Cluster NDB 6\&.3\&.22 and 6\&.4\&.3)
+T}:T{
+[N/A]
+T}
+T{
+\fB\-\-exclude\-missing\-columns\fR
+T}:T{
+\fINone\fR
+T}:T{
+Ignore any columns present in the backup copy of the table that are not
+                  present in the table as being restored (added in MySQL
+                  Cluster NDB 6\&.3\&.26 and 7\&.0\&.7)
 T}:T{
 [N/A]
 T}
@@ -906,6 +923,14 @@ One or more tables from a single database
 .RE
 .sp
 .RE
+.\" ndb_restore: --include-databases option
+.\" ndb_restore: --include-tables option
+.\" ndb_restore: --exclude-databases option
+.\" ndb_restore: --exclude-tables option
+.\" --include-databases option (ndb_restore)
+.\" --include-tables option (ndb_restore)
+.\" --exclude-databases option (ndb_restore)
+.\" --exclude-tables option (ndb_restore)
 .PP
 Beginning with MySQL Cluster NDB 6\&.3\&.22 and 6\&.4\&.3, you can (and should) use instead the options
 \fB\-\-include\-databases\fR
@@ -995,6 +1020,14 @@ exclude all databases and tables not explicitly named\&. Similarly,
 and
 \fB\-\-exclude\-tables\fR
 include all databases and tables not listed in the arguments to these options\&.
+.\" ndb_restore: --exclude-missing-columns option
+.\" --exclude-missing-columns option (ndb_restore)
+.PP
+Beginning with MySQL Cluster NDB 6\&.3\&.26 and MySQL Cluster NDB 7\&.0\&.7, it is also possible restore only selected table columns using the
+\fB\-\-exclude\-missing\-columns\fR
+option\&. When this option is used,
+\fBndb_restore\fR
+ignores any columns missing from tables being restored as compared to the versions of those tables found in the backup\&. This option applies to all tables being restored\&. If you wish to apply this option only to selected tables or databases, you can use it in combination with one or more of the options described in the previous paragraph to do so, then restore data to the remaining tables using a complementary set of these options\&.
 .\" ndb_restore: errors
 .PP
 \fBError reporting\fR. 

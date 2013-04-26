@@ -50,9 +50,6 @@
            is killed.
 */
 
-/* Requires Windows 2000 or higher */
-#define _WIN32_WINNT 0x0500
-
 #include <windows.h>
 #include <stdio.h>
 #include <tlhelp32.h>
@@ -163,6 +160,7 @@ int main(int argc, const char** argv )
   HANDLE job_handle;
   HANDLE wait_handles[NUM_HANDLES]= {0};
   PROCESS_INFORMATION process_info= {0};
+  BOOL nocore= FALSE;
 
   sprintf(safe_process_name, "safe_process[%d]", pid);
 
@@ -188,7 +186,14 @@ int main(int argc, const char** argv )
         die("No real args -> nothing to do");
       /* Copy the remaining args to child_arg */
       for (int j= i+1; j < argc; j++) {
-        to+= _snprintf(to, child_args + sizeof(child_args) - to, "%s ", argv[j]);
+	if (strchr (argv[j], ' ')) {
+	  /* Protect with "" if this arg contains a space */
+	  to+= _snprintf(to, child_args + sizeof(child_args) - to,
+                         "\"%s\" ", argv[j]);
+	} else {
+	  to+= _snprintf(to, child_args + sizeof(child_args) - to,
+	                 "%s ", argv[j]);
+	}
       }
       break;
     } else {
@@ -204,6 +209,10 @@ int main(int argc, const char** argv )
 		if ((parent_pid= atoi(start)) == 0)
 		  die("Invalid value '%s' passed to --parent-id", start);
 	  }
+      else if (strcmp(arg, "--nocore") == 0)
+      {
+        nocore= TRUE;
+      }
       else
         die("Unknown option: %s", arg);
     }
@@ -240,6 +249,11 @@ int main(int argc, const char** argv )
   if (SetInformationJobObject(job_handle, JobObjectExtendedLimitInformation,
                               &jeli, sizeof(jeli)) == 0)
     message("SetInformationJobObject failed, continue anyway...");
+
+				/* Avoid popup box */
+  if (nocore)
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX
+                 | SEM_NOOPENFILEERRORBOX);
 
 #if 0
   /* Setup stdin, stdout and stderr redirect */

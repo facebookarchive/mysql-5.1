@@ -1677,7 +1677,7 @@ i_s_file_status_fill_low(
 	const char*	operation,/*!< in: either "read" or "write" */
 	os_io_perf_t*	io_perf)  /*!< in: stats collected for the table */
 {
-	restore_record(table, s->default_values);
+	DBUG_ENTER("i_s_file_status_fill_low");
 
         OK(field_store_string(table->field[0], file_name));
         OK(field_store_string(table->field[1], operation));
@@ -1692,7 +1692,9 @@ i_s_file_status_fill_low(
         OK(table->field[10]->store(io_perf->wait_usecs / io_perf->requests / 1000.0));
         OK(table->field[11]->store((ulonglong)(io_perf->wait_usecs_max / 1000.0)));
 
-	return schema_table_store_record(thd, table);
+	OK(schema_table_store_record(thd, table));
+
+	DBUG_RETURN(0);
 }
 
 /************************************************************************//**

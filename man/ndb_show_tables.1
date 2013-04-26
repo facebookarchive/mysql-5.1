@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_show_tables\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/12/2009
+.\"      Date: 11/04/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_SHOW_TABLES\F" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_SHOW_TABLES\F" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -34,6 +34,10 @@ NDB
 system tables, but
 NDB\-specific indexes, internal triggers, and MySQL Cluster Disk Data objects as well\&.
 .PP
+The following table includes options that are specific to the MySQL Cluster program
+\fBndb_show_tables\fR\&. Additional descriptions follow the table\&. For options common to all MySQL Cluster programs, see
+Section\ \&17.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
+.PP
 \fBUsage\fR:
 .sp
 .if n \{\
@@ -45,8 +49,22 @@ ndb_show_tables [\-c \fIconnect_string\fR]
 .if n \{\
 .RE
 .\}
-.PP
-\fBAdditional Options\fR:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_show_tables: database option
+.\" database option: ndb_show_tables
+\fB\-\-database\fR,
+\fB\-d\fR
+.sp
+Specifies the name of the database in which the tables are found\&.
+.RE
 .sp
 .RS 4
 .ie n \{\
@@ -79,6 +97,21 @@ Specifies the number of times the utility should execute\&. This is 1 when this 
 .sp
 Using this option causes the output to be in a format suitable for use with
 LOAD DATA INFILE\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_show_tables: show-temp-status option
+.\" show-temp-status option: ndb_show_tables
+\fB\-\-show\-temp\-status\fR
+.sp
+If specified, this causes temporary tables to be displayed\&.
 .RE
 .sp
 .RS 4

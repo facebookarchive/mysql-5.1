@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (C) 2000-2006 MySQL AB, 2009 Sun Microsystems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,6 +49,11 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
+
+# mf_keycache is used only in the server, so it is safe to leave the file
+# out of the non-threaded library.
+# In fact, it will currently not compile without thread support.
+@NEED_THREAD_TRUE@am__append_1 = mf_keycache.c
 subdir = mysys
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in ChangeLog
@@ -80,35 +85,58 @@ am__installdirs = "$(DESTDIR)$(pkglibdir)"
 pkglibLIBRARIES_INSTALL = $(INSTALL_DATA)
 LIBRARIES = $(pkglib_LIBRARIES)
 libmysys_a_AR = $(AR) $(ARFLAGS)
+am__libmysys_a_SOURCES_DIST = my_init.c my_getwd.c mf_getdate.c \
+	my_mmap.c mf_path.c mf_loadpath.c my_file.c my_open.c \
+	my_create.c my_dup.c my_seek.c my_read.c my_pread.c my_write.c \
+	my_getpagesize.c mf_keycaches.c my_crc32.c mf_iocache.c \
+	mf_iocache2.c mf_cache.c mf_tempfile.c mf_tempdir.c my_lock.c \
+	mf_brkhant.c my_alarm.c my_malloc.c my_realloc.c my_once.c \
+	mulalloc.c my_alloc.c safemalloc.c my_new.cc my_vle.c \
+	my_atomic.c my_fopen.c my_fstream.c my_getsystime.c my_error.c \
+	errors.c my_div.c my_messnc.c mf_format.c mf_same.c \
+	mf_dirname.c mf_fn_ext.c my_symlink.c my_symlink2.c mf_pack.c \
+	mf_unixpath.c mf_arr_appstr.c mf_wcomp.c mf_wfile.c \
+	my_gethwaddr.c mf_qsort.c mf_qsort2.c mf_sort.c ptr_cmp.c \
+	mf_radix.c queues.c my_getncpus.c tree.c trie.c list.c hash.c \
+	array.c string.c typelib.c my_copy.c my_append.c my_lib.c \
+	my_delete.c my_rename.c my_redel.c my_chsize.c my_clock.c \
+	my_quick.c my_lockmem.c my_static.c my_sync.c my_getopt.c \
+	my_mkdir.c default_modify.c default.c my_compress.c checksum.c \
+	my_net.c my_port.c my_sleep.c charset.c charset-def.c \
+	my_bitmap.c my_bit.c md5.c my_gethostbyname.c rijndael.c \
+	my_aes.c sha1.c my_handler.c my_netware.c my_largepage.c \
+	my_memmem.c stacktrace.c my_windac.c my_access.c base64.c \
+	my_libwrap.c mf_keycache.c
+@NEED_THREAD_TRUE@am__objects_1 = mf_keycache.$(OBJEXT)
 am_libmysys_a_OBJECTS = my_init.$(OBJEXT) my_getwd.$(OBJEXT) \
 	mf_getdate.$(OBJEXT) my_mmap.$(OBJEXT) mf_path.$(OBJEXT) \
 	mf_loadpath.$(OBJEXT) my_file.$(OBJEXT) my_open.$(OBJEXT) \
 	my_create.$(OBJEXT) my_dup.$(OBJEXT) my_seek.$(OBJEXT) \
 	my_read.$(OBJEXT) my_pread.$(OBJEXT) my_write.$(OBJEXT) \
-	my_getpagesize.$(OBJEXT) mf_keycache.$(OBJEXT) \
-	mf_keycaches.$(OBJEXT) my_crc32.$(OBJEXT) mf_iocache.$(OBJEXT) \
-	mf_iocache2.$(OBJEXT) mf_cache.$(OBJEXT) mf_tempfile.$(OBJEXT) \
-	mf_tempdir.$(OBJEXT) my_lock.$(OBJEXT) mf_brkhant.$(OBJEXT) \
-	my_alarm.$(OBJEXT) my_malloc.$(OBJEXT) my_realloc.$(OBJEXT) \
-	my_once.$(OBJEXT) mulalloc.$(OBJEXT) my_alloc.$(OBJEXT) \
-	safemalloc.$(OBJEXT) my_new.$(OBJEXT) my_vle.$(OBJEXT) \
-	my_atomic.$(OBJEXT) my_fopen.$(OBJEXT) my_fstream.$(OBJEXT) \
+	my_getpagesize.$(OBJEXT) mf_keycaches.$(OBJEXT) \
+	my_crc32.$(OBJEXT) mf_iocache.$(OBJEXT) mf_iocache2.$(OBJEXT) \
+	mf_cache.$(OBJEXT) mf_tempfile.$(OBJEXT) mf_tempdir.$(OBJEXT) \
+	my_lock.$(OBJEXT) mf_brkhant.$(OBJEXT) my_alarm.$(OBJEXT) \
+	my_malloc.$(OBJEXT) my_realloc.$(OBJEXT) my_once.$(OBJEXT) \
+	mulalloc.$(OBJEXT) my_alloc.$(OBJEXT) safemalloc.$(OBJEXT) \
+	my_new.$(OBJEXT) my_vle.$(OBJEXT) my_atomic.$(OBJEXT) \
+	my_fopen.$(OBJEXT) my_fstream.$(OBJEXT) \
 	my_getsystime.$(OBJEXT) my_error.$(OBJEXT) errors.$(OBJEXT) \
 	my_div.$(OBJEXT) my_messnc.$(OBJEXT) mf_format.$(OBJEXT) \
 	mf_same.$(OBJEXT) mf_dirname.$(OBJEXT) mf_fn_ext.$(OBJEXT) \
 	my_symlink.$(OBJEXT) my_symlink2.$(OBJEXT) mf_pack.$(OBJEXT) \
-	mf_unixpath.$(OBJEXT) mf_strip.$(OBJEXT) \
-	mf_arr_appstr.$(OBJEXT) mf_wcomp.$(OBJEXT) mf_wfile.$(OBJEXT) \
-	my_gethwaddr.$(OBJEXT) mf_qsort.$(OBJEXT) mf_qsort2.$(OBJEXT) \
-	mf_sort.$(OBJEXT) ptr_cmp.$(OBJEXT) mf_radix.$(OBJEXT) \
-	queues.$(OBJEXT) my_getncpus.$(OBJEXT) tree.$(OBJEXT) \
-	trie.$(OBJEXT) list.$(OBJEXT) hash.$(OBJEXT) array.$(OBJEXT) \
-	string.$(OBJEXT) typelib.$(OBJEXT) my_copy.$(OBJEXT) \
-	my_append.$(OBJEXT) my_lib.$(OBJEXT) my_delete.$(OBJEXT) \
-	my_rename.$(OBJEXT) my_redel.$(OBJEXT) my_chsize.$(OBJEXT) \
-	my_clock.$(OBJEXT) my_quick.$(OBJEXT) my_lockmem.$(OBJEXT) \
-	my_static.$(OBJEXT) my_sync.$(OBJEXT) my_getopt.$(OBJEXT) \
-	my_mkdir.$(OBJEXT) default_modify.$(OBJEXT) default.$(OBJEXT) \
+	mf_unixpath.$(OBJEXT) mf_arr_appstr.$(OBJEXT) \
+	mf_wcomp.$(OBJEXT) mf_wfile.$(OBJEXT) my_gethwaddr.$(OBJEXT) \
+	mf_qsort.$(OBJEXT) mf_qsort2.$(OBJEXT) mf_sort.$(OBJEXT) \
+	ptr_cmp.$(OBJEXT) mf_radix.$(OBJEXT) queues.$(OBJEXT) \
+	my_getncpus.$(OBJEXT) tree.$(OBJEXT) trie.$(OBJEXT) \
+	list.$(OBJEXT) hash.$(OBJEXT) array.$(OBJEXT) string.$(OBJEXT) \
+	typelib.$(OBJEXT) my_copy.$(OBJEXT) my_append.$(OBJEXT) \
+	my_lib.$(OBJEXT) my_delete.$(OBJEXT) my_rename.$(OBJEXT) \
+	my_redel.$(OBJEXT) my_chsize.$(OBJEXT) my_clock.$(OBJEXT) \
+	my_quick.$(OBJEXT) my_lockmem.$(OBJEXT) my_static.$(OBJEXT) \
+	my_sync.$(OBJEXT) my_getopt.$(OBJEXT) my_mkdir.$(OBJEXT) \
+	default_modify.$(OBJEXT) default.$(OBJEXT) \
 	my_compress.$(OBJEXT) checksum.$(OBJEXT) my_net.$(OBJEXT) \
 	my_port.$(OBJEXT) my_sleep.$(OBJEXT) charset.$(OBJEXT) \
 	charset-def.$(OBJEXT) my_bitmap.$(OBJEXT) my_bit.$(OBJEXT) \
@@ -117,7 +145,7 @@ am_libmysys_a_OBJECTS = my_init.$(OBJEXT) my_getwd.$(OBJEXT) \
 	my_netware.$(OBJEXT) my_largepage.$(OBJEXT) \
 	my_memmem.$(OBJEXT) stacktrace.$(OBJEXT) my_windac.$(OBJEXT) \
 	my_access.$(OBJEXT) base64.$(OBJEXT) my_libwrap.$(OBJEXT) \
-	my_ut.$(OBJEXT)
+	my_ut.$(OBJEXT) $(am__objects_1)
 libmysys_a_OBJECTS = $(am_libmysys_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -141,7 +169,7 @@ CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(libmysys_a_SOURCES)
-DIST_SOURCES = $(libmysys_a_SOURCES)
+DIST_SOURCES = $(am__libmysys_a_SOURCES_DIST)
 HEADERS = $(noinst_HEADERS)
 ETAGS = etags
 CTAGS = ctags
@@ -470,39 +498,27 @@ pkglib_LIBRARIES = libmysys.a
 LDADD = libmysys.a $(top_builddir)/strings/libmystrings.a $(top_builddir)/dbug/libdbug.a
 noinst_HEADERS = mysys_priv.h my_static.h my_handler_errors.h
 libmysys_a_SOURCES = my_init.c my_getwd.c mf_getdate.c my_mmap.c \
-			mf_path.c mf_loadpath.c my_file.c \
-			my_open.c my_create.c my_dup.c my_seek.c my_read.c \
-			my_pread.c my_write.c my_getpagesize.c \
-			mf_keycache.c mf_keycaches.c my_crc32.c \
-			mf_iocache.c mf_iocache2.c mf_cache.c mf_tempfile.c \
-			mf_tempdir.c my_lock.c mf_brkhant.c my_alarm.c \
-			my_malloc.c my_realloc.c my_once.c mulalloc.c \
-			my_alloc.c safemalloc.c my_new.cc \
-			my_vle.c my_atomic.c \
-			my_fopen.c my_fstream.c my_getsystime.c \
-			my_error.c errors.c my_div.c my_messnc.c \
-			mf_format.c mf_same.c mf_dirname.c mf_fn_ext.c \
-			my_symlink.c my_symlink2.c \
-			mf_pack.c mf_unixpath.c mf_strip.c mf_arr_appstr.c \
-			mf_wcomp.c mf_wfile.c my_gethwaddr.c \
-			mf_qsort.c mf_qsort2.c mf_sort.c \
-			ptr_cmp.c mf_radix.c queues.c my_getncpus.c \
-			tree.c trie.c list.c hash.c array.c string.c typelib.c \
-			my_copy.c my_append.c my_lib.c \
-			my_delete.c my_rename.c my_redel.c \
-			my_chsize.c my_clock.c \
-			my_quick.c my_lockmem.c my_static.c \
-			my_sync.c my_getopt.c my_mkdir.c \
-			default_modify.c default.c \
-                        my_compress.c checksum.c \
-			my_net.c my_port.c my_sleep.c \
-			charset.c charset-def.c my_bitmap.c my_bit.c md5.c \
-			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
-			my_handler.c my_netware.c my_largepage.c \
-			my_memmem.c stacktrace.c \
-			my_windac.c my_access.c base64.c my_libwrap.c \
-			my_ut.c
-
+	mf_path.c mf_loadpath.c my_file.c my_open.c my_create.c \
+	my_dup.c my_seek.c my_read.c my_pread.c my_write.c \
+	my_getpagesize.c mf_keycaches.c my_crc32.c mf_iocache.c \
+	mf_iocache2.c mf_cache.c mf_tempfile.c mf_tempdir.c my_lock.c \
+	mf_brkhant.c my_alarm.c my_malloc.c my_realloc.c my_once.c \
+	mulalloc.c my_alloc.c safemalloc.c my_new.cc my_vle.c \
+	my_atomic.c my_fopen.c my_fstream.c my_getsystime.c my_error.c \
+	errors.c my_div.c my_messnc.c mf_format.c mf_same.c \
+	mf_dirname.c mf_fn_ext.c my_symlink.c my_symlink2.c mf_pack.c \
+	mf_unixpath.c mf_arr_appstr.c mf_wcomp.c mf_wfile.c \
+	my_gethwaddr.c mf_qsort.c mf_qsort2.c mf_sort.c ptr_cmp.c \
+	mf_radix.c queues.c my_getncpus.c tree.c trie.c list.c hash.c \
+	array.c string.c typelib.c my_copy.c my_append.c my_lib.c \
+	my_delete.c my_rename.c my_redel.c my_chsize.c my_clock.c \
+	my_quick.c my_lockmem.c my_static.c my_sync.c my_getopt.c \
+	my_mkdir.c default_modify.c default.c my_compress.c checksum.c \
+	my_net.c my_port.c my_sleep.c charset.c charset-def.c \
+	my_bitmap.c my_bit.c md5.c my_gethostbyname.c rijndael.c \
+	my_aes.c sha1.c my_handler.c my_netware.c my_largepage.c \
+	my_memmem.c stacktrace.c my_windac.c my_access.c base64.c \
+	my_libwrap.c my_ut.c $(am__append_1)
 EXTRA_DIST = thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c \
 			CMakeLists.txt mf_soundex.c \
@@ -616,7 +632,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mf_radix.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mf_same.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mf_sort.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mf_strip.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mf_tempdir.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mf_tempfile.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mf_unixpath.Po@am__quote@
