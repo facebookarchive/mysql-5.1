@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 05/06/2010
+.\"      Date: 08/03/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "05/06/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -216,6 +216,10 @@ was added as a shell script and worked only for Unix systems\&. As of MySQL 5\&.
 is an executable binary and is available on all systems\&.
 .PP
 \fBmysql_upgrade\fR
+does not upgrade the contents of the help tables\&. For upgrade instructions, see
+Section\ \&5.1.8, \(lqServer-Side Help\(rq\&.
+.PP
+\fBmysql_upgrade\fR
 supports the following options, which can be specified on the command line or in the
 [mysql_upgrade]
 and
@@ -395,7 +399,7 @@ This option was introduced in MySQL 5\&.1\&.40\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

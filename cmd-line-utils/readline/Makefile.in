@@ -41,7 +41,8 @@ subdir = cmd-line-utils/readline
 DIST_COMMON = README $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in COPYING INSTALL
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/alloca.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/maintainer.m4 \
+	$(top_srcdir)/config/ac-macros/alloca.m4 \
 	$(top_srcdir)/config/ac-macros/check_cpu.m4 \
 	$(top_srcdir)/config/ac-macros/character_sets.m4 \
 	$(top_srcdir)/config/ac-macros/compiler_flag.m4 \
@@ -95,6 +96,8 @@ ABI_CHECK = @ABI_CHECK@
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_CXXFLAGS = @AM_CXXFLAGS@
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 AS = @AS@
@@ -129,7 +132,7 @@ CXXFLAGS = @CXXFLAGS@
 CXXLDFLAGS = @CXXLDFLAGS@
 CXX_VERSION = @CXX_VERSION@
 CYGPATH_W = @CYGPATH_W@
-DEFS = -DMYSQL_CLIENT_NO_THREADS -DHAVE_CONFIG_H -DNO_KILL_INTR
+DEFS = -DMYSQL_CLIENT_NO_THREADS -DHAVE_CONFIG_H -DNO_KILL_INTR -D_GNU_SOURCE=1
 DEPDIR = @DEPDIR@
 DIFF = @DIFF@
 DOT_FRM_VERSION = @DOT_FRM_VERSION@
@@ -393,6 +396,7 @@ yassl_dir = @yassl_dir@
 yassl_h_ln_cmd = @yassl_h_ln_cmd@
 yassl_libs = @yassl_libs@
 yassl_taocrypt_extra_cxxflags = @yassl_taocrypt_extra_cxxflags@
+yassl_thread_cxxflags = @yassl_thread_cxxflags@
 zlib_dir = @zlib_dir@
 
 # Last  -I$(top_srcdir) needed for RedHat!

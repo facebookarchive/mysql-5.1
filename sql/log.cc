@@ -1459,11 +1459,6 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
                                trx_data->has_incident());
     trx_data->reset();
 
-    /*
-      We need to step the table map version after writing the
-      transaction cache to disk.
-    */
-    mysql_bin_log.update_table_map_version();
     statistic_increment(binlog_cache_use, &LOCK_status);
     if (trans_log->disk_writes != 0)
     {
@@ -1489,13 +1484,6 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
     }
     else                                        // ...statement
       trx_data->truncate(trx_data->before_stmt_pos);
-
-    /*
-      We need to step the table map version on a rollback to ensure
-      that a new table map event is generated instead of the one that
-      was written to the thrown-away transaction cache.
-    */
-    mysql_bin_log.update_table_map_version();
   }
 
   DBUG_ASSERT(thd->binlog_get_pending_rows_event() == NULL);
@@ -1541,27 +1529,23 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   }
 
   /*
-    We commit the transaction if:
+    We flush the cache if:
 
-     - We are not in a transaction and committing a statement, or
+     - we are committing a transaction or;
+     - no statement was committed before and just non-transactional
+       tables were updated.
 
-     - We are in a transaction and a full transaction is committed
-
-    Otherwise, we accumulate the statement
+    Otherwise, we collect the changes.
   */
-  ulonglong const in_transaction=
-    thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
   DBUG_PRINT("debug",
-             ("all: %d, empty: %s, in_transaction: %s, all.modified_non_trans_table: %s, stmt.modified_non_trans_table: %s",
+             ("all: %d, empty: %s, all.modified_non_trans_table: %s, stmt.modified_non_trans_table: %s",
               all,
               YESNO(trx_data->empty()),
-              YESNO(in_transaction),
               YESNO(thd->transaction.all.modified_non_trans_table),
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
-  if (!in_transaction || all ||
-      (!all && !trx_data->at_least_one_stmt_committed &&
-      !stmt_has_updated_trans_table(thd) &&
-      thd->transaction.stmt.modified_non_trans_table))
+  if (ending_trans(thd, all) ||
+      (trans_has_no_stmt_committed(thd, all) &&
+       !stmt_has_updated_trans_table(thd) && stmt_has_updated_non_trans_table(thd)))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, TRUE, 0);
     error= binlog_end_trans(thd, trx_data, &qev, all);
@@ -1624,7 +1608,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
       On the other hand, if a statement is transactional, we just safely roll it
       back.
     */
-    if ((thd->transaction.stmt.modified_non_trans_table ||
+    if ((stmt_has_updated_non_trans_table(thd) ||
         (thd->options & OPTION_KEEP_LOG)) &&
         mysql_bin_log.check_write_error(thd))
       trx_data->set_incident();
@@ -1634,19 +1618,18 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   {
    /*
       We flush the cache with a rollback, wrapped in a beging/rollback if:
-        . aborting a transaction that modified a non-transactional table;
+        . aborting a transaction that modified a non-transactional table or
+          the OPTION_KEEP_LOG is activate.
         . aborting a statement that modified both transactional and
           non-transactional tables but which is not in the boundaries of any
           transaction or there was no early change;
-        . the OPTION_KEEP_LOG is activate.
     */
-    if ((all && thd->transaction.all.modified_non_trans_table) ||
-        (!all && thd->transaction.stmt.modified_non_trans_table &&
-         !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT))) ||
-        (!all && thd->transaction.stmt.modified_non_trans_table &&
-         !trx_data->at_least_one_stmt_committed &&
-         thd->current_stmt_binlog_row_based) ||
-        ((thd->options & OPTION_KEEP_LOG)))
+    if ((ending_trans(thd, all) &&
+        (trans_has_updated_non_trans_table(thd) ||
+         (thd->options & OPTION_KEEP_LOG))) ||
+        (trans_has_no_stmt_committed(thd, all) &&
+         stmt_has_updated_non_trans_table(thd) &&
+         thd->current_stmt_binlog_row_based))
     {
       Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, TRUE, 0);
       error= binlog_end_trans(thd, trx_data, &qev, all);
@@ -1655,13 +1638,26 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
       Otherwise, we simply truncate the cache as there is no change on
       non-transactional tables as follows.
     */
-    else if ((all && !thd->transaction.all.modified_non_trans_table) ||
-          (!all && !thd->transaction.stmt.modified_non_trans_table))
+    else if (ending_trans(thd, all) ||
+             (!(thd->options & OPTION_KEEP_LOG) && !stmt_has_updated_non_trans_table(thd)))
       error= binlog_end_trans(thd, trx_data, 0, all);
   }
   if (!all)
     trx_data->before_stmt_pos = MY_OFF_T_UNDEF; // part of the stmt rollback
   DBUG_RETURN(error);
+}
+
+/**
+  Cleanup the cache.
+
+  @param thd   The client thread that wants to clean up the cache.
+*/
+void MYSQL_BIN_LOG::reset_gathered_updates(THD *thd)
+{
+  binlog_trx_data *const trx_data=
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
+
+  trx_data->reset();
 }
 
 void MYSQL_BIN_LOG::set_write_error(THD *thd)
@@ -1752,7 +1748,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
     non-transactional table. Otherwise, truncate the binlog cache starting
     from the SAVEPOINT command.
   */
-  if (unlikely(thd->transaction.all.modified_non_trans_table ||
+  if (unlikely(trans_has_updated_non_trans_table(thd) || 
                (thd->options & OPTION_KEEP_LOG)))
   {
     String log_query;
@@ -1898,7 +1894,7 @@ static int find_uniq_filename(char *name)
   file_info= dir_info->dir_entry;
   for (i=dir_info->number_off_files ; i-- ; file_info++)
   {
-    if (bcmp((uchar*) file_info->name, (uchar*) start, length) == 0 &&
+    if (memcmp(file_info->name, start, length) == 0 &&
 	test_if_number(file_info->name+length, &number,0))
     {
       set_if_bigger(max_found,(ulong) number);
@@ -2533,7 +2529,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG()
   :current_ticket(1),
    next_ticket(1),
    bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
-   need_start_event(TRUE), m_table_map_version(0),
+   need_start_event(TRUE),
    active_mi(NULL),
    is_relay_log(0),
    description_event_for_exec(0), description_event_for_queue(0)
@@ -4260,6 +4256,67 @@ bool MYSQL_BIN_LOG::is_query_in_union(THD *thd, query_id_t query_id_param)
           query_id_param >= thd->binlog_evt_union.first_query_id);
 }
 
+/**
+  This function checks if a transaction, either a multi-statement
+  or a single statement transaction is about to commit or not.
+
+  @param thd The client thread that executed the current statement.
+  @param all Committing a transaction (i.e. TRUE) or a statement
+             (i.e. FALSE).
+  @return
+    @c true if committing a transaction, otherwise @c false.
+*/
+bool ending_trans(const THD* thd, const bool all)
+{
+  return (all || (!all && !(thd->options & 
+                  (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT))));
+}
+
+/**
+  This function checks if a non-transactional table was updated by
+  the current transaction.
+
+  @param thd The client thread that executed the current statement.
+  @return
+    @c true if a non-transactional table was updated, @c false
+    otherwise.
+*/
+bool trans_has_updated_non_trans_table(const THD* thd)
+{
+  return (thd->transaction.all.modified_non_trans_table ||
+          thd->transaction.stmt.modified_non_trans_table);
+}
+
+/**
+  This function checks if any statement was committed and cached.
+
+  @param thd The client thread that executed the current statement.
+  @param all Committing a transaction (i.e. TRUE) or a statement
+             (i.e. FALSE).
+  @return
+    @c true if at a statement was committed and cached, @c false
+    otherwise.
+*/
+bool trans_has_no_stmt_committed(const THD* thd, bool all)
+{
+  binlog_trx_data *const trx_data=
+    (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
+
+  return (!all && !trx_data->at_least_one_stmt_committed);
+}
+
+/**
+  This function checks if a non-transactional table was updated by the
+  current statement.
+
+  @param thd The client thread that executed the current statement.
+  @return
+    @c true if a non-transactional table was updated, @c false otherwise.
+*/
+bool stmt_has_updated_non_trans_table(const THD* thd)
+{
+  return (thd->transaction.stmt.modified_non_trans_table);
+}
 
 /*
   These functions are placed in this file since they need access to
@@ -4392,7 +4449,6 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
     DBUG_RETURN(error);
 
   binlog_table_maps++;
-  table->s->table_map_version= mysql_bin_log.table_map_version();
   DBUG_RETURN(0);
 }
 
@@ -4487,9 +4543,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 
     /*
       If we are not writing to the log file directly, we could avoid
-      locking the log. This does not work since we need to step the
-      m_table_map_version below, and that change has to be protected
-      by the LOCK_log mutex.
+      locking the log.
     */
     pthread_mutex_lock(&LOCK_log);
 
@@ -4502,24 +4556,6 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       set_write_error(thd);
       DBUG_RETURN(1);
     }
-
-    /*
-      We step the table map version if we are writing an event
-      representing the end of a statement.  We do this regardless of
-      wheather we write to the transaction cache or to directly to the
-      file.
-
-      In an ideal world, we could avoid stepping the table map version
-      if we were writing to a transaction cache, since we could then
-      reuse the table map that was written earlier in the transaction
-      cache.  This does not work since STMT_END_F implies closing all
-      table mappings on the slave side.
-
-      TODO: Find a solution so that table maps does not have to be
-      written several times within a transaction.
-     */
-    if (pending->get_flags(Rows_log_event::STMT_END_F))
-      ++m_table_map_version;
 
     delete pending;
 
@@ -4735,8 +4771,6 @@ err:
       set_write_error(thd);
   }
 
-  if (event_info->flags & LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F)
-    ++m_table_map_version;
   // only unlock if we initially locked
   if (file == &log_file)
   {
@@ -5636,7 +5670,7 @@ int MYSQL_BIN_LOG::update_master_info(THD *thd,
        MYSQL_BIN_LOG::open() might create a new relay-log file.
      */
     reinit_io_cache(&mi->file, WRITE_CACHE, 0L, 0, 1);
-    if ((error=test(flush_master_info(mi, 0))))
+    if ((error=test(flush_master_info(mi, FALSE, FALSE))))
     {
       sql_print_error("update_master_info: failed to flush master info file");
     }
@@ -5715,6 +5749,22 @@ void sql_perror(const char *message)
 }
 
 
+/*
+  Unfortunately, there seems to be no good way
+  to restore the original streams upon failure.
+*/
+static bool redirect_std_streams(const char *file)
+{
+  if (freopen(file, "a+", stdout) && freopen(file, "a+", stderr))
+  {
+    setbuf(stderr, NULL);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+
 bool flush_error_log()
 {
   bool result=0;
@@ -5742,11 +5792,7 @@ bool flush_error_log()
       setbuf(stderr, NULL);
       (void) my_delete(err_renamed, MYF(0));
       my_rename(log_error_file,err_renamed,MYF(0));
-      if (freopen(log_error_file,"a+",stdout))
-      {
-        freopen(log_error_file,"a+",stderr);
-        setbuf(stderr, NULL);
-      }
+      redirect_std_streams(log_error_file);
 
       if ((fd = my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
       {
@@ -5761,13 +5807,7 @@ bool flush_error_log()
      result= 1;
 #else
    my_rename(log_error_file,err_renamed,MYF(0));
-   if (freopen(log_error_file,"a+",stdout))
-   {
-     FILE *reopen;
-     reopen= freopen(log_error_file,"a+",stderr);
-     setbuf(stderr, NULL);
-   }
-   else
+   if (redirect_std_streams(log_error_file))
      result= 1;
 #endif
     VOID(pthread_mutex_unlock(&LOCK_error_log));
@@ -5818,25 +5858,9 @@ static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
 #endif /* __NT__ */
 
 
-/**
-  Prints a printf style message to the error log and, under NT, to the
-  Windows event log.
-
-  This function prints the message into a buffer and then sends that buffer
-  to other functions to write that message to other logging sources.
-
-  @param event_type          Type of event to write (Error, Warning, or Info)
-  @param format              Printf style format of message
-  @param args                va_list list of arguments for the message
-
-  @returns
-    The function always returns 0. The return value is present in the
-    signature to be compatible with other logging routines, which could
-    return an error (e.g. logging to the log tables)
-*/
-
 #ifndef EMBEDDED_LIBRARY
-static void print_buffer_to_file(enum loglevel level, const char *buffer)
+static void print_buffer_to_file(enum loglevel level, const char *buffer,
+                                 size_t length)
 {
   time_t skr;
   struct tm tm_tmp;
@@ -5850,7 +5874,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
   localtime_r(&skr, &tm_tmp);
   start=&tm_tmp;
 
-  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d [%s] %s\n",
+  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d [%s] %.*s\n",
           start->tm_year % 100,
           start->tm_mon+1,
           start->tm_mday,
@@ -5859,7 +5883,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
           start->tm_sec,
           (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
            "Warning" : "Note"),
-          buffer);
+          (int) length, buffer);
 
   fflush(stderr);
 
@@ -5867,7 +5891,22 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
   DBUG_VOID_RETURN;
 }
 
+/**
+  Prints a printf style message to the error log and, under NT, to the
+  Windows event log.
 
+  This function prints the message into a buffer and then sends that buffer
+  to other functions to write that message to other logging sources.
+
+  @param level          The level of the msg significance
+  @param format         Printf style format of message
+  @param args           va_list list of arguments for the message
+
+  @returns
+    The function always returns 0. The return value is present in the
+    signature to be compatible with other logging routines, which could
+    return an error (e.g. logging to the log tables)
+*/
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
@@ -5875,7 +5914,7 @@ int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
   DBUG_ENTER("vprint_msg_to_log");
 
   length= my_vsnprintf(buff, sizeof(buff), format, args);
-  print_buffer_to_file(level, buff);
+  print_buffer_to_file(level, buff, length);
 
 #ifdef __NT__
   print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
@@ -5883,7 +5922,7 @@ int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 
   DBUG_RETURN(0);
 }
-#endif /*EMBEDDED_LIBRARY*/
+#endif /* EMBEDDED_LIBRARY */
 
 
 void sql_print_error(const char *format, ...)

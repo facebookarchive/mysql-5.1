@@ -58,7 +58,8 @@ subdir = storage/csv
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/alloca.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/maintainer.m4 \
+	$(top_srcdir)/config/ac-macros/alloca.m4 \
 	$(top_srcdir)/config/ac-macros/check_cpu.m4 \
 	$(top_srcdir)/config/ac-macros/character_sets.m4 \
 	$(top_srcdir)/config/ac-macros/compiler_flag.m4 \
@@ -119,6 +120,8 @@ ABI_CHECK = @ABI_CHECK@
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_CXXFLAGS = @AM_CXXFLAGS@
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 AS = @AS@
@@ -417,6 +420,7 @@ yassl_dir = @yassl_dir@
 yassl_h_ln_cmd = @yassl_h_ln_cmd@
 yassl_libs = @yassl_libs@
 yassl_taocrypt_extra_cxxflags = @yassl_taocrypt_extra_cxxflags@
+yassl_thread_cxxflags = @yassl_thread_cxxflags@
 zlib_dir = @zlib_dir@
 MYSQLDATAdir = $(localstatedir)
 MYSQLSHAREdir = $(pkgdatadir)
@@ -433,11 +437,11 @@ noinst_HEADERS = ha_tina.h transparent_file.h
 EXTRA_LTLIBRARIES = ha_csv.la
 pkglib_LTLIBRARIES = @plugin_csv_shared_target@
 ha_csv_la_LDFLAGS = -module -rpath $(MYSQLLIBdir)
-ha_csv_la_CXXFLAGS = $(AM_CFLAGS) -DMYSQL_PLUGIN
+ha_csv_la_CXXFLAGS = $(AM_CXXFLAGS) -DMYSQL_PLUGIN
 ha_csv_la_SOURCES = transparent_file.cc ha_tina.cc 
 EXTRA_LIBRARIES = libcsv.a
 noinst_LIBRARIES = @plugin_csv_static_target@
-libcsv_a_CXXFLAGS = $(AM_CFLAGS)
+libcsv_a_CXXFLAGS = $(AM_CXXFLAGS)
 libcsv_a_SOURCES = transparent_file.cc ha_tina.cc
 EXTRA_DIST = CMakeLists.txt plug.in
 all: all-am

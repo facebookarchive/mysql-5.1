@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 05/06/2010
+.\"      Date: 08/03/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "05/06/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -57,8 +57,7 @@ Section\ \&17.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
 .ps -1
 .br
 .PP
-All of these options also apply to the multi\-threaded version of this program \(em
-\fBndbmtd\fR, which is available in MySQL Cluster NDB 7\&.0 \(em and you may substitute
+All of these options also apply to the multi\-threaded version of this program\(em\fBndbmtd\fR, which is available in MySQL Cluster NDB 7\&.0\(emand you may substitute
 \(lq\fBndbmtd\fR\(rq
 for
 \(lq\fBndbd\fR\(rq
@@ -82,11 +81,11 @@ Section\ \&17.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
 \fB\-\-bind\-address\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBVersion Introduced\fR
 T}:T{
@@ -132,14 +131,19 @@ This option was added in MySQL 5\&.1\&.12\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-daemon
+T}
+T{
+T}:T{
+\-d
 T}
 T{
 \ \&
@@ -184,10 +188,10 @@ on Windows platforms\&.
 \fB\-\-initial\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
@@ -323,11 +327,11 @@ necessary to do so\&.
 \fB\-\-initial\-start\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBVersion Introduced\fR
 T}:T{
@@ -358,7 +362,7 @@ T}
 This option is used when performing a partial initial start of the cluster\&. Each node should be started with this option, as well as
 \fB\-\-nowait\-nodes\fR\&.
 .sp
-Suppose that you have a 4\-node cluster whose data nodes have the IDs 2, 3, 4, and 5, and you wish to perform a partial initial start using only nodes 2, 4, and 5 \(em that is, omitting node 3:
+Suppose that you have a 4\-node cluster whose data nodes have the IDs 2, 3, 4, and 5, and you wish to perform a partial initial start using only nodes 2, 4, and 5\(emthat is, omitting node 3:
 .sp
 .if n \{\
 .RS 4
@@ -396,7 +400,7 @@ Do not confuse this option with the
 \fB\-\-nowait\-nodes\fR
 option added for
 \fBndb_mgmd\fR
-in MySQL Cluster NDB 7\&.0\&.10, which can be used to allow a cluster configured with multiple management servers to be started without all management servers being online\&.
+in MySQL Cluster NDB 7\&.0\&.10, which can be used to enable a cluster configured with multiple management servers to be started without all management servers being online\&.
 .sp .5v
 .RE
 .RE
@@ -414,11 +418,11 @@ in MySQL Cluster NDB 7\&.0\&.10, which can be used to allow a cluster configured
 \fB\-\-nowait\-nodes=\fR\fB\fInode_id_1\fR\fR\fB[, \fR\fB\fInode_id_2\fR\fR\fB[, \&.\&.\&.]]\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBVersion Introduced\fR
 T}:T{
@@ -457,8 +461,7 @@ StartPartitionedTimeout
 milliseconds for nodes 3 and 5 to connect as it would otherwise\&.
 .sp
 If you wanted to start up the same cluster as in the previous example without one
-\fBndbd\fR
-\(em say, for example, that the host machine for node 3 has suffered a hardware failure \(em then start nodes 2, 4, and 5 with
+\fBndbd\fR\(emsay, for example, that the host machine for node 3 has suffered a hardware failure\(emthen start nodes 2, 4, and 5 with
 \fB\-\-nowait\-nodes=3\fR\&. Then the cluster will start as soon as nodes 2, 4, and 5 connect and will not wait for node 3 to start\&.
 .sp
 This option was added in MySQL 5\&.1\&.9\&.
@@ -477,13 +480,13 @@ This option was added in MySQL 5\&.1\&.9\&.
 \fB\-\-nodaemon\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-^ l l
-^ l l
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+^ l l s
+^ l l s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
@@ -550,14 +553,19 @@ on Windows is to run in the foreground, making this option unnecessary on Window
 \fB\-n\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-nostart
+T}
+T{
+T}:T{
+\-n
 T}
 T{
 \ \&
@@ -584,6 +592,139 @@ connects to the management server, obtains configuration data from it, and initi
 START
 command in the management client (see
 Section\ \&17.5.2, \(lqCommands in the MySQL Cluster Management Client\(rq)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" --install option (ndbd)
+.\" --install option (ndbmtd)
+\fB\-\-install[=\fR\fB\fIname\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
+T{
+\fBVersion Introduced\fR
+T}:T{
+5\&.1\&.47\-ndb\-7\&.1\&.5
+T}
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-install[=name]
+T}
+T{
+\ \&
+T}:T{
+\fBPermitted Values \fR
+T}
+:T{
+\fBType\fR (windows)
+T}:T{
+string
+T}
+:T{
+\fBDefault\fR
+T}:T{
+ndbd
+T}
+.TE
+.sp 1
+Causes
+\fBndbd\fR
+to be installed as a Windows service\&. Optionally, you can specify a name for the service; if not set, the service name defaults to
+ndbd\&. Although it is preferable to specify other
+\fBndbd\fR
+program options in a
+my\&.ini
+or
+my\&.cnf
+configuration file, it is possible to use together with
+\fB\-\-install\fR\&. However, in such cases, the
+\fB\-\-install\fR
+option must be specified first, before any other options are given, in order for the Windows service installation to succeed\&.
+.sp
+It is generally not advisable to use this option together with the
+\fB\-\-initial\fR
+option, since this causes the data node filesystem to be wiped and rebuilt every time the service is stopped and started\&. Extreme care should also be taken if you intend to use any of the other
+\fBndbd\fR
+options that affect the starting of data nodes\(emincluding
+\fB\-\-initial\-start\fR,
+\fB\-\-nostart\fR, and
+\fB\-\-nowait\-nodes\fR\(emtogether with
+\fB\-\-install\fR, and you should make absolutely certain you fully understand and allow for any possible consequences of doing so\&.
+.sp
+The
+\fB\-\-install\fR
+option has no effect on non\-Windows platforms\&.
+.sp
+This option became available in MySQL Cluster NDB 7\&.0\&.16 and MySQL Cluster NDB 7\&.1\&.5\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" --remove option (ndbd)
+.\" --remove option (ndbmtd)
+\fB\-\-remove[=\fR\fB\fIname\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
+T{
+\fBVersion Introduced\fR
+T}:T{
+5\&.1\&.47\-ndb\-7\&.1\&.5
+T}
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-remove[=name]
+T}
+T{
+\ \&
+T}:T{
+\fBPermitted Values \fR
+T}
+:T{
+\fBType\fR (windows)
+T}:T{
+string
+T}
+:T{
+\fBDefault\fR
+T}:T{
+ndbd
+T}
+.TE
+.sp 1
+Causes an
+\fBndbd\fR
+process that was previously installed as a Windows service to be removed\&. Optionally, you can specify a name for the service to be uninstalled; if not set, the service name defaults to
+ndbd\&.
+.sp
+The
+\fB\-\-remove\fR
+option has no effect on non\-Windows platforms\&.
+.sp
+This option became available in MySQL Cluster NDB 7\&.0\&.16 and MySQL Cluster NDB 7\&.1\&.5\&.
 .RE
 .\" MySQL Cluster: log files
 .\" log files (MySQL Cluster)
@@ -787,7 +928,7 @@ Section\ \&17.1.5, \(lqKnown Limitations of MySQL Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -1,5 +1,5 @@
 
-2.5.10. Installing MySQL from Source on Windows
+2.5.9. Installing MySQL from Source on Windows
 
    These instructions describe how to build binaries from source for
    MySQL 5.1 on Windows. Instructions are provided for building
@@ -88,7 +88,7 @@ Note
    Windows, please send a message to the win32 mailing list. See
    Section 1.6.1, "MySQL Mailing Lists."
 
-2.5.10.1. Building MySQL from Source Using CMake and Visual Studio
+2.5.9.1. Building MySQL from Source Using CMake and Visual Studio
 
    You can build MySQL on Windows by using a combination of cmake and
    Microsoft Visual Studio .NET 2003 (7.1), Microsoft Visual Studio
@@ -99,7 +99,7 @@ Note
 Note
 
    To compile from the source code on Windows you must use the
-   standard source distribution (for example, mysql-5.1.48.tar.gz).
+   standard source distribution (for example, mysql-5.1.50.tar.gz).
    You build from the same distribution as used to build MySQL on
    Unix, Linux and other platforms. Do not use the Windows Source
    distributions as they do not contain the necessary configuration
@@ -152,10 +152,10 @@ C:\workdir>cscript win\configure.js options
           + WITH_FEDERATED_STORAGE_ENGINE: Enable the FEDERATED
             storage engine.
 
-          + WITH_NDBCLUSTER_STORAGE_ENGINE (experimental): Enable the
-            NDBCLUSTER storage engine in the MySQL server; cause
-            binaries for the MySQL Cluster management and data node,
-            management client, and other programs to be built.
+          + WITH_NDBCLUSTER_STORAGE_ENGINE: Enable the NDBCLUSTER
+            storage engine in the MySQL server; cause binaries for
+            the MySQL Cluster management and data node, management
+            client, and other programs to be built.
             This option is supported only in MySQL Cluster NDB 7.0
             (NDBCLUSTER storage engine versions 6.4.0 and later)
             using the MySQL Cluster sources. It cannot be used to

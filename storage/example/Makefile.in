@@ -58,7 +58,8 @@ subdir = storage/example
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/alloca.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/maintainer.m4 \
+	$(top_srcdir)/config/ac-macros/alloca.m4 \
 	$(top_srcdir)/config/ac-macros/check_cpu.m4 \
 	$(top_srcdir)/config/ac-macros/character_sets.m4 \
 	$(top_srcdir)/config/ac-macros/compiler_flag.m4 \
@@ -117,6 +118,8 @@ ABI_CHECK = @ABI_CHECK@
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_CXXFLAGS = @AM_CXXFLAGS@
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 AS = @AS@
@@ -415,6 +418,7 @@ yassl_dir = @yassl_dir@
 yassl_h_ln_cmd = @yassl_h_ln_cmd@
 yassl_libs = @yassl_libs@
 yassl_taocrypt_extra_cxxflags = @yassl_taocrypt_extra_cxxflags@
+yassl_thread_cxxflags = @yassl_thread_cxxflags@
 zlib_dir = @zlib_dir@
 MYSQLDATAdir = $(localstatedir)
 MYSQLSHAREdir = $(pkgdatadir)
@@ -431,12 +435,12 @@ noinst_HEADERS = ha_example.h
 EXTRA_LTLIBRARIES = ha_example.la
 pkgplugin_LTLIBRARIES = @plugin_example_shared_target@
 ha_example_la_LDFLAGS = -module -rpath $(pkgplugindir)
-ha_example_la_CXXFLAGS = $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_example_la_CXXFLAGS = $(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_example_la_CFLAGS = $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_example_la_SOURCES = ha_example.cc
 EXTRA_LIBRARIES = libexample.a
 noinst_LIBRARIES = @plugin_example_static_target@
-libexample_a_CXXFLAGS = $(AM_CFLAGS)
+libexample_a_CXXFLAGS = $(AM_CXXFLAGS)
 libexample_a_CFLAGS = $(AM_CFLAGS)
 libexample_a_SOURCES = ha_example.cc
 EXTRA_DIST = CMakeLists.txt plug.in

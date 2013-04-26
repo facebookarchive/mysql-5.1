@@ -49,7 +49,8 @@ subdir = storage/ibmdb2i
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/alloca.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/maintainer.m4 \
+	$(top_srcdir)/config/ac-macros/alloca.m4 \
 	$(top_srcdir)/config/ac-macros/check_cpu.m4 \
 	$(top_srcdir)/config/ac-macros/character_sets.m4 \
 	$(top_srcdir)/config/ac-macros/compiler_flag.m4 \
@@ -131,6 +132,8 @@ ABI_CHECK = @ABI_CHECK@
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_CXXFLAGS = @AM_CXXFLAGS@
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 AS = @AS@
@@ -429,6 +432,7 @@ yassl_dir = @yassl_dir@
 yassl_h_ln_cmd = @yassl_h_ln_cmd@
 yassl_libs = @yassl_libs@
 yassl_taocrypt_extra_cxxflags = @yassl_taocrypt_extra_cxxflags@
+yassl_thread_cxxflags = @yassl_thread_cxxflags@
 zlib_dir = @zlib_dir@
 MYSQLDATAdir = $(localstatedir)
 MYSQLSHAREdir = $(pkgdatadir)
@@ -454,7 +458,7 @@ EXTRA_LTLIBRARIES = ha_ibmdb2i.la
 pkgplugin_LTLIBRARIES = @plugin_ibmdb2i_shared_target@
 ha_ibmdb2i_la_LIBADD = -liconv
 ha_ibmdb2i_la_LDFLAGS = -module -rpath $(MYSQLLIBdir)
-ha_ibmdb2i_la_CXXFLAGS = $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_ibmdb2i_la_CXXFLAGS = $(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_ibmdb2i_la_CFLAGS = $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_ibmdb2i_la_SOURCES = ha_ibmdb2i.cc db2i_ileBridge.cc db2i_conversion.cc \
 			db2i_blobCollection.cc db2i_file.cc db2i_charsetSupport.cc \
@@ -464,7 +468,7 @@ ha_ibmdb2i_la_SOURCES = ha_ibmdb2i.cc db2i_ileBridge.cc db2i_conversion.cc \
 
 EXTRA_LIBRARIES = libibmdb2i.a
 noinst_LIBRARIES = @plugin_ibmdb2i_static_target@
-libibmdb2i_a_CXXFLAGS = $(AM_CFLAGS)
+libibmdb2i_a_CXXFLAGS = $(AM_CXXFLAGS)
 libibmdb2i_a_CFLAGS = $(AM_CFLAGS)
 libibmdb2i_a_SOURCES = $(ha_ibmdb2i_la_SOURCES)
 EXTRA_DIST = CMakeLists.txt plug.in

@@ -49,11 +49,12 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 noinst_PROGRAMS = simple-t$(EXEEXT) skip-t$(EXEEXT) todo-t$(EXEEXT) \
-	skip_all-t$(EXEEXT) no_plan-t$(EXEEXT) core-t$(EXEEXT)
+	skip_all-t$(EXEEXT) no_plan-t$(EXEEXT)
 subdir = unittest/examples
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/alloca.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/maintainer.m4 \
+	$(top_srcdir)/config/ac-macros/alloca.m4 \
 	$(top_srcdir)/config/ac-macros/check_cpu.m4 \
 	$(top_srcdir)/config/ac-macros/character_sets.m4 \
 	$(top_srcdir)/config/ac-macros/compiler_flag.m4 \
@@ -71,10 +72,6 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/include/config.h
 CONFIG_CLEAN_FILES =
 PROGRAMS = $(noinst_PROGRAMS)
-core_t_SOURCES = core-t.c
-core_t_OBJECTS = core-t.$(OBJEXT)
-core_t_LDADD = $(LDADD)
-core_t_DEPENDENCIES =
 no_plan_t_SOURCES = no_plan-t.c
 no_plan_t_OBJECTS = no_plan-t.$(OBJEXT)
 no_plan_t_LDADD = $(LDADD)
@@ -107,10 +104,8 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = core-t.c no_plan-t.c simple-t.c skip-t.c skip_all-t.c \
-	todo-t.c
-DIST_SOURCES = core-t.c no_plan-t.c simple-t.c skip-t.c skip_all-t.c \
-	todo-t.c
+SOURCES = no_plan-t.c simple-t.c skip-t.c skip_all-t.c todo-t.c
+DIST_SOURCES = no_plan-t.c simple-t.c skip-t.c skip_all-t.c todo-t.c
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -118,6 +113,8 @@ ABI_CHECK = @ABI_CHECK@
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_CXXFLAGS = @AM_CXXFLAGS@
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 AS = @AS@
@@ -416,6 +413,7 @@ yassl_dir = @yassl_dir@
 yassl_h_ln_cmd = @yassl_h_ln_cmd@
 yassl_libs = @yassl_libs@
 yassl_taocrypt_extra_cxxflags = @yassl_taocrypt_extra_cxxflags@
+yassl_thread_cxxflags = @yassl_thread_cxxflags@
 zlib_dir = @zlib_dir@
 AM_CPPFLAGS = -I$(srcdir) -I$(top_builddir)/include \
 		     -I$(top_srcdir)/unittest/mytap -I$(top_srcdir)/include
@@ -462,9 +460,6 @@ clean-noinstPROGRAMS:
 	  echo " rm -f $$p $$f"; \
 	  rm -f $$p $$f ; \
 	done
-core-t$(EXEEXT): $(core_t_OBJECTS) $(core_t_DEPENDENCIES) 
-	@rm -f core-t$(EXEEXT)
-	$(LINK) $(core_t_OBJECTS) $(core_t_LDADD) $(LIBS)
 no_plan-t$(EXEEXT): $(no_plan_t_OBJECTS) $(no_plan_t_DEPENDENCIES) 
 	@rm -f no_plan-t$(EXEEXT)
 	$(LINK) $(no_plan_t_OBJECTS) $(no_plan_t_LDADD) $(LIBS)
@@ -487,7 +482,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/core-t.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/no_plan-t.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simple-t.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/skip-t.Po@am__quote@

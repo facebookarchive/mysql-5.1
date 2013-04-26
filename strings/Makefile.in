@@ -56,7 +56,8 @@ subdir = strings
 DIST_COMMON = README $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	ChangeLog
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/alloca.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/maintainer.m4 \
+	$(top_srcdir)/config/ac-macros/alloca.m4 \
 	$(top_srcdir)/config/ac-macros/check_cpu.m4 \
 	$(top_srcdir)/config/ac-macros/character_sets.m4 \
 	$(top_srcdir)/config/ac-macros/compiler_flag.m4 \
@@ -91,15 +92,14 @@ am__libmystrings_a_SOURCES_DIST = bmove_upp-sparc.s strappend-sparc.s \
 	strappend.c strcont.c strend.c strfill.c strcend.c is_prefix.c \
 	strstr.c strinstr.c strmake.c strnmov.c strmov.c \
 	longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c \
-	int2str.c str2int.c r_strinstr.c strtod.c bcmp.c strtol.c \
-	strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c \
-	ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c \
-	ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c \
-	ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c \
-	ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c \
-	ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c \
-	ctype-extra.c my_strtoll10.c str_alloc.c my_strchr.c \
-	longlong2str_asm.c
+	int2str.c str2int.c r_strinstr.c strtod.c strtol.c strtoul.c \
+	strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c \
+	ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c \
+	ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c \
+	ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c \
+	ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c \
+	ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c \
+	my_strtoll10.c str_alloc.c my_strchr.c longlong2str_asm.c
 @ASSEMBLER_sparc32_TRUE@@ASSEMBLER_x86_FALSE@am__objects_1 = bmove_upp-sparc.$(OBJEXT) \
 @ASSEMBLER_sparc32_TRUE@@ASSEMBLER_x86_FALSE@	strappend-sparc.$(OBJEXT) \
 @ASSEMBLER_sparc32_TRUE@@ASSEMBLER_x86_FALSE@	strend-sparc.$(OBJEXT) \
@@ -134,7 +134,6 @@ am__libmystrings_a_SOURCES_DIST = bmove_upp-sparc.s strappend-sparc.s \
 @ASSEMBLER_sparc32_FALSE@@ASSEMBLER_x86_FALSE@	str2int.$(OBJEXT) \
 @ASSEMBLER_sparc32_FALSE@@ASSEMBLER_x86_FALSE@	r_strinstr.$(OBJEXT) \
 @ASSEMBLER_sparc32_FALSE@@ASSEMBLER_x86_FALSE@	strtod.$(OBJEXT) \
-@ASSEMBLER_sparc32_FALSE@@ASSEMBLER_x86_FALSE@	bcmp.$(OBJEXT) \
 @ASSEMBLER_sparc32_FALSE@@ASSEMBLER_x86_FALSE@	strtol.$(OBJEXT) \
 @ASSEMBLER_sparc32_FALSE@@ASSEMBLER_x86_FALSE@	strtoul.$(OBJEXT) \
 @ASSEMBLER_sparc32_FALSE@@ASSEMBLER_x86_FALSE@	strtoll.$(OBJEXT) \
@@ -181,7 +180,6 @@ am__libmystrings_a_SOURCES_DIST = bmove_upp-sparc.s strappend-sparc.s \
 @ASSEMBLER_sparc32_TRUE@@ASSEMBLER_x86_FALSE@	str2int.$(OBJEXT) \
 @ASSEMBLER_sparc32_TRUE@@ASSEMBLER_x86_FALSE@	r_strinstr.$(OBJEXT) \
 @ASSEMBLER_sparc32_TRUE@@ASSEMBLER_x86_FALSE@	strtod.$(OBJEXT) \
-@ASSEMBLER_sparc32_TRUE@@ASSEMBLER_x86_FALSE@	bcmp.$(OBJEXT) \
 @ASSEMBLER_sparc32_TRUE@@ASSEMBLER_x86_FALSE@	strtol.$(OBJEXT) \
 @ASSEMBLER_sparc32_TRUE@@ASSEMBLER_x86_FALSE@	strtoul.$(OBJEXT) \
 @ASSEMBLER_sparc32_TRUE@@ASSEMBLER_x86_FALSE@	strtoll.$(OBJEXT) \
@@ -220,13 +218,12 @@ am__libmystrings_a_SOURCES_DIST = bmove_upp-sparc.s strappend-sparc.s \
 @ASSEMBLER_x86_TRUE@	bmove512.$(OBJEXT) bchange.$(OBJEXT) \
 @ASSEMBLER_x86_TRUE@	strxnmov.$(OBJEXT) int2str.$(OBJEXT) \
 @ASSEMBLER_x86_TRUE@	str2int.$(OBJEXT) r_strinstr.$(OBJEXT) \
-@ASSEMBLER_x86_TRUE@	strtod.$(OBJEXT) bcmp.$(OBJEXT) \
-@ASSEMBLER_x86_TRUE@	strtol.$(OBJEXT) strtoul.$(OBJEXT) \
-@ASSEMBLER_x86_TRUE@	strtoll.$(OBJEXT) strtoull.$(OBJEXT) \
-@ASSEMBLER_x86_TRUE@	llstr.$(OBJEXT) strnlen.$(OBJEXT) \
-@ASSEMBLER_x86_TRUE@	ctype.$(OBJEXT) ctype-simple.$(OBJEXT) \
-@ASSEMBLER_x86_TRUE@	ctype-mb.$(OBJEXT) ctype-big5.$(OBJEXT) \
-@ASSEMBLER_x86_TRUE@	ctype-cp932.$(OBJEXT) \
+@ASSEMBLER_x86_TRUE@	strtod.$(OBJEXT) strtol.$(OBJEXT) \
+@ASSEMBLER_x86_TRUE@	strtoul.$(OBJEXT) strtoll.$(OBJEXT) \
+@ASSEMBLER_x86_TRUE@	strtoull.$(OBJEXT) llstr.$(OBJEXT) \
+@ASSEMBLER_x86_TRUE@	strnlen.$(OBJEXT) ctype.$(OBJEXT) \
+@ASSEMBLER_x86_TRUE@	ctype-simple.$(OBJEXT) ctype-mb.$(OBJEXT) \
+@ASSEMBLER_x86_TRUE@	ctype-big5.$(OBJEXT) ctype-cp932.$(OBJEXT) \
 @ASSEMBLER_x86_TRUE@	ctype-czech.$(OBJEXT) \
 @ASSEMBLER_x86_TRUE@	ctype-eucjpms.$(OBJEXT) \
 @ASSEMBLER_x86_TRUE@	ctype-euc_kr.$(OBJEXT) \
@@ -246,7 +243,7 @@ am_libmystrings_a_OBJECTS = $(am__objects_1) $(am__objects_2)
 libmystrings_a_OBJECTS = $(am_libmystrings_a_OBJECTS)
 PROGRAMS = $(noinst_PROGRAMS)
 am_conf_to_src_OBJECTS = conf_to_src.$(OBJEXT) xml.$(OBJEXT) \
-	ctype.$(OBJEXT) bcmp.$(OBJEXT)
+	ctype.$(OBJEXT)
 conf_to_src_OBJECTS = $(am_conf_to_src_OBJECTS)
 conf_to_src_DEPENDENCIES =
 conf_to_src_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
@@ -277,6 +274,8 @@ ABI_CHECK = @ABI_CHECK@
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_CXXFLAGS = @AM_CXXFLAGS@
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 AS = @AS@
@@ -575,6 +574,7 @@ yassl_dir = @yassl_dir@
 yassl_h_ln_cmd = @yassl_h_ln_cmd@
 yassl_libs = @yassl_libs@
 yassl_taocrypt_extra_cxxflags = @yassl_taocrypt_extra_cxxflags@
+yassl_thread_cxxflags = @yassl_thread_cxxflags@
 zlib_dir = @zlib_dir@
 INCLUDES = -I$(top_builddir)/include -I$(top_srcdir)/include
 pkglib_LIBRARIES = libmystrings.a
@@ -588,9 +588,9 @@ pkglib_LIBRARIES = libmystrings.a
 @ASSEMBLER_x86_TRUE@ASRCS = strings-x86.s longlong2str-x86.s my_strtoll10-x86.s
 # These file MUST all be on the same line!! Otherwise automake
 # generats a very broken makefile
-@ASSEMBLER_sparc32_FALSE@@ASSEMBLER_x86_FALSE@CSRCS = strxmov.c bmove_upp.c strappend.c strcont.c strend.c strfill.c strcend.c is_prefix.c strstr.c strinstr.c strmake.c strnmov.c strmov.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c strtod.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c my_strtoll10.c str_alloc.c my_strchr.c
-@ASSEMBLER_sparc32_TRUE@@ASSEMBLER_x86_FALSE@CSRCS = strcont.c strfill.c strcend.c is_prefix.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c strtod.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c strxmov.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c my_strtoll10.c str_alloc.c my_strchr.c strmov.c
-@ASSEMBLER_x86_TRUE@CSRCS = bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c strtod.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c str_alloc.c longlong2str_asm.c my_strchr.c strmov.c
+@ASSEMBLER_sparc32_FALSE@@ASSEMBLER_x86_FALSE@CSRCS = strxmov.c bmove_upp.c strappend.c strcont.c strend.c strfill.c strcend.c is_prefix.c strstr.c strinstr.c strmake.c strnmov.c strmov.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c strtod.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c my_strtoll10.c str_alloc.c my_strchr.c
+@ASSEMBLER_sparc32_TRUE@@ASSEMBLER_x86_FALSE@CSRCS = strcont.c strfill.c strcend.c is_prefix.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c strtod.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c strxmov.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c my_strtoll10.c str_alloc.c my_strchr.c strmov.c
+@ASSEMBLER_x86_TRUE@CSRCS = bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c strtod.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c my_vsnprintf.c xml.c decimal.c ctype-extra.c str_alloc.c longlong2str_asm.c my_strchr.c strmov.c
 libmystrings_a_SOURCES = $(ASRCS) $(CSRCS)
 CLEANFILES = str_test uctypedump test_decimal
 # Default charset definitions
@@ -610,7 +610,7 @@ EXTRA_DIST = ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_
 			CHARSET_INFO.txt
 
 libmystrings_a_LIBADD = 
-conf_to_src_SOURCES = conf_to_src.c xml.c ctype.c bcmp.c
+conf_to_src_SOURCES = conf_to_src.c xml.c ctype.c
 conf_to_src_LDADD = 
 #force static linking of conf_to_src - essential when linking against
 #custom installation of libc
@@ -703,7 +703,6 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bchange.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bcmp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bfill.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bmove.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bmove512.Po@am__quote@

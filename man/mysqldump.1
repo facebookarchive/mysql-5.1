@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 05/06/2010
+.\"      Date: 08/03/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "05/06/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -312,7 +312,7 @@ LOCK TABLES
 and
 UNLOCK TABLES
 statements\&. This results in faster inserts when the dump file is reloaded\&. See
-Section\ \&7.2.21, \(lqSpeed of INSERT Statements\(rq\&.
+Section\ \&7.3.2.1, \(lqSpeed of INSERT Statements\(rq\&.
 .RE
 .sp
 .RS 4
@@ -366,7 +366,7 @@ This option was added in MySQL 5\&.1\&.6\&.
 .\" allow-keywords option: mysqldump
 \fB\-\-allow\-keywords\fR
 .sp
-Allow creation of column names that are keywords\&. This works by prefixing each column name with the table name\&.
+Permit creation of column names that are keywords\&. This works by prefixing each column name with the table name\&.
 .RE
 .sp
 .RS 4
@@ -1018,7 +1018,7 @@ and
 .sp
 For each dumped database, lock all tables to be dumped before dumping them\&. The tables are locked with
 READ LOCAL
-to allow concurrent inserts in the case of
+to permit concurrent inserts in the case of
 MyISAM
 tables\&. For transactional tables such as
 InnoDB,
@@ -1275,6 +1275,27 @@ option is given\&.
 Do not write
 CREATE TABLE
 statements that re\-create each dumped table\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option does
+\fInot\fR
+not exclude statements creating log file groups or tablespaces from
+\fBmysqldump\fR
+output; in MySQL 5\&.1\&.14 and later, you can use the
+\fB\-\-no\-tablespaces\fR
+option for this purpose\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4
@@ -1310,6 +1331,29 @@ statement for the table (for example, to create an empty copy of the table by lo
 .sp
 This has the same effect as
 \fB\-\-skip\-set\-charset\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: no-tablespaces option
+.\" no-tablespaces option: mysqldump
+\fB\-\-no\-tablespaces\fR,
+\fB\-y\fR
+.sp
+This option suppresses all
+CREATE LOGFILE GROUP
+and
+CREATE TABLESPACE
+statements in the output of
+\fBmysqldump\fR\&.
+.sp
+This option was added in MySQL 5\&.1\&.14\&.
 .RE
 .sp
 .RS 4
@@ -1431,7 +1475,7 @@ The TCP/IP port number to use for the connection\&.
 .\" protocol option: mysqldump
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
-The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the allowable values, see
+The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
 Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 .RE
 .sp
@@ -2207,7 +2251,7 @@ Section\ \&D.4, \(lqRestrictions on Views\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

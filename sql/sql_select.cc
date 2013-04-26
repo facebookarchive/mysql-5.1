@@ -270,15 +270,15 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
       setup_tables_done_option changed for next rexecution
     */
     res= mysql_select(thd, &select_lex->ref_pointer_array,
-		      (TABLE_LIST*) select_lex->table_list.first,
+		      select_lex->table_list.first,
 		      select_lex->with_wild, select_lex->item_list,
 		      select_lex->where,
 		      select_lex->order_list.elements +
 		      select_lex->group_list.elements,
-		      (ORDER*) select_lex->order_list.first,
-		      (ORDER*) select_lex->group_list.first,
+		      select_lex->order_list.first,
+		      select_lex->group_list.first,
 		      select_lex->having,
-		      (ORDER*) lex->proc_list.first,
+		      lex->proc_list.first,
 		      select_lex->options | thd->options |
                       setup_tables_done_option,
 		      result, unit, select_lex);
@@ -586,13 +586,21 @@ JOIN::prepare(Item ***rref_pointer_array,
     {
       Item *item= *ord->item;
       /*
-        Disregard sort order if there's only "{VAR}CHAR(0) NOT NULL" fields
-        there. Such fields don't contain any data to sort.
+        Disregard sort order if there's only 
+        zero length NOT NULL fields (e.g. {VAR}CHAR(0) NOT NULL") or
+        zero length NOT NULL string functions there.
+        Such tuples don't contain any data to sort.
       */
       if (!real_order &&
-          (item->type() != Item::FIELD_ITEM ||
-           ((Item_field *) item)->field->maybe_null() ||
-           ((Item_field *) item)->field->sort_length()))
+           /* Not a zero length NOT NULL field */
+          ((item->type() != Item::FIELD_ITEM ||
+            ((Item_field *) item)->field->maybe_null() ||
+            ((Item_field *) item)->field->sort_length()) &&
+           /* AND not a zero length NOT NULL string function. */
+           (item->type() != Item::FUNC_ITEM ||
+            item->maybe_null ||
+            item->result_type() != STRING_RESULT ||
+            item->max_length)))
         real_order= TRUE;
 
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
@@ -1146,7 +1154,7 @@ JOIN::optimize()
     elements may be lost during further having
     condition transformation in JOIN::exec.
   */
-  if (having && const_table_map)
+  if (having && const_table_map && !having->with_sum_func)
   {
     having->update_used_tables();
     having= remove_eq_conds(thd, having, &having_value);
@@ -2732,31 +2740,53 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     /* 
        Build transitive closure for relation 'to be dependent on'.
        This will speed up the plan search for many cases with outer joins,
-       as well as allow us to catch illegal cross references/
+       as well as allow us to catch illegal cross references.
        Warshall's algorithm is used to build the transitive closure.
-       As we use bitmaps to represent the relation the complexity
-       of the algorithm is O((number of tables)^2). 
+       As we may restart the outer loop upto 'table_count' times, the
+       complexity of the algorithm is O((number of tables)^3).
+       However, most of the iterations will be shortcircuited when
+       there are no pedendencies to propogate.
     */
-    for (i= 0, s= stat ; i < table_count ; i++, s++)
+    for (i= 0 ; i < table_count ; i++)
     {
-      for (uint j= 0 ; j < table_count ; j++)
+      uint j;
+      table= stat[i].table;
+
+      if (!table->reginfo.join_tab->dependent)
+        continue;
+
+      /* Add my dependencies to other tables depending on me */
+      for (j= 0, s= stat ; j < table_count ; j++, s++)
       {
-        table= stat[j].table;
         if (s->dependent & table->map)
+        {
+          table_map was_dependent= s->dependent;
           s->dependent |= table->reginfo.join_tab->dependent;
+          /*
+            If we change dependencies for a table we already have
+            processed: Redo dependency propagation from this table.
+          */
+          if (i > j && s->dependent != was_dependent)
+          {
+            i = j-1;
+            break;
+          }
+        }
       }
-      if (outer_join & s->table->map)
-        s->table->maybe_null= 1;
     }
-    /* Catch illegal cross references for outer joins */
+
     for (i= 0, s= stat ; i < table_count ; i++, s++)
     {
+      /* Catch illegal cross references for outer joins */
       if (s->dependent & s->table->map)
       {
         join->tables=0;			// Don't use join->table
         my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
         goto error;
       }
+
+      if (outer_join & s->table->map)
+        s->table->maybe_null= 1;
       s->key_dependent= s->dependent;
     }
   }
@@ -2990,8 +3020,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
-      if (records == 0 && s->table->reginfo.impossible_range &&
-          (s->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
+      if (records == 0 && s->table->reginfo.impossible_range)
       {
 	/*
 	  Impossible WHERE or ON expression
@@ -7232,7 +7261,8 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
-      if (order->item[0]->with_subselect)
+      if (order->item[0]->with_subselect && 
+          !(join->select_lex->options & SELECT_DESCRIBE))
         order->item[0]->val_str(&order->item[0]->str_value);
       DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
       continue;					// skip const item
@@ -8728,6 +8758,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
   NESTED_JOIN *nested_join;
   TABLE_LIST *prev_table= 0;
   List_iterator<TABLE_LIST> li(*join_list);
+  bool straight_join= test(join->select_options & SELECT_STRAIGHT_JOIN);
   DBUG_ENTER("simplify_joins");
 
   /* 
@@ -8838,7 +8869,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     if (prev_table)
     {
       /* The order of tables is reverse: prev_table follows table */
-      if (prev_table->straight)
+      if (prev_table->straight || straight_join)
         prev_table->dep_tables|= used_tables;
       if (prev_table->on_expr)
       {
@@ -9114,6 +9145,46 @@ static bool check_interleaving_with_nj(JOIN_TAB *next_tab)
 /**
   Nested joins perspective: Remove the last table from the join order.
 
+  The algorithm is the reciprocal of check_interleaving_with_nj(), hence
+  parent join nest nodes are updated only when the last table in its child
+  node is removed. The ASCII graphic below will clarify.
+
+  %A table nesting such as <tt> t1 x [ ( t2 x t3 ) x ( t4 x t5 ) ] </tt>is
+  represented by the below join nest tree.
+
+  @verbatim
+                     NJ1
+                  _/ /  \
+                _/  /    NJ2
+              _/   /     / \ 
+             /    /     /   \
+   t1 x [ (t2 x t3) x (t4 x t5) ]
+  @endverbatim
+
+  At the point in time when check_interleaving_with_nj() adds the table t5 to
+  the query execution plan, QEP, it also directs the node named NJ2 to mark
+  the table as covered. NJ2 does so by incrementing its @c counter
+  member. Since all of NJ2's tables are now covered by the QEP, the algorithm
+  proceeds up the tree to NJ1, incrementing its counter as well. All join
+  nests are now completely covered by the QEP.
+
+  restore_prev_nj_state() does the above in reverse. As seen above, the node
+  NJ1 contains the nodes t2, t3, and NJ2. Its counter being equal to 3 means
+  that the plan covers t2, t3, and NJ2, @e and that the sub-plan (t4 x t5)
+  completely covers NJ2. The removal of t5 from the partial plan will first
+  decrement NJ2's counter to 1. It will then detect that NJ2 went from being
+  completely to partially covered, and hence the algorithm must continue
+  upwards to NJ1 and decrement its counter to 2. %A subsequent removal of t4
+  will however not influence NJ1 since it did not un-cover the last table in
+  NJ2.
+
+  SYNOPSIS
+    restore_prev_nj_state()
+      last  join table to remove, it is assumed to be the last in current 
+            partial join order.
+     
+  DESCRIPTION
+
     Remove the last table from the partial join order and update the nested
     joins counters and join->cur_embedding_map. It is ok to call this 
     function for the first table in join order (for which 
@@ -9127,19 +9198,20 @@ static void restore_prev_nj_state(JOIN_TAB *last)
 {
   TABLE_LIST *last_emb= last->table->pos_in_table_list->embedding;
   JOIN *join= last->join;
-  while (last_emb)
+  for (;last_emb != NULL; last_emb= last_emb->embedding)
   {
-    if (!(--last_emb->nested_join->counter))
-      join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
-    else if (last_emb->nested_join->join_list.elements-1 ==
-             last_emb->nested_join->counter) 
-    {
-      join->cur_embedding_map|= last_emb->nested_join->nj_map;
+    NESTED_JOIN *nest= last_emb->nested_join;
+    DBUG_ASSERT(nest->counter > 0);
+    
+    bool was_fully_covered= nest->is_fully_covered();
+    
+    if (--nest->counter == 0)
+      join->cur_embedding_map&= ~nest->nj_map;
+    
+    if (!was_fully_covered)
       break;
-    }
-    else
-      break;
-    last_emb= last_emb->embedding;
+    
+    join->cur_embedding_map|= nest->nj_map;
   }
 }
 
@@ -11609,38 +11681,30 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
     SQL_SELECT *select=join_tab->select;
     if (rc == NESTED_LOOP_OK)
     {
-      bool consider_record= !join_tab->cache.select || 
-        !join_tab->cache.select->skip_record();
-
-      /*
-        Check for error: skip_record() can execute code by calling
-        Item_subselect::val_*. We need to check for errors (if any)
-        after such call.
-      */
-      if (join->thd->is_error())
+      bool skip_record= FALSE;
+      if (join_tab->cache.select &&
+          join_tab->cache.select->skip_record(join->thd, &skip_record))
       {
         reset_cache_write(&join_tab->cache);
         return NESTED_LOOP_ERROR;
       }
 
-      if (consider_record)  
+      if (!skip_record)
       {
         uint i;
         reset_cache_read(&join_tab->cache);
         for (i=(join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
         {
           read_cached_record(join_tab);
-          if (!select || !select->skip_record())
+          skip_record= FALSE;
+          if (select && select->skip_record(join->thd, &skip_record))
           {
-            /*
-              Check for error: skip_record() can execute code by calling
-              Item_subselect::val_*. We need to check for errors (if any)
-              after such call.
-              */
-            if (join->thd->is_error())
-              rc= NESTED_LOOP_ERROR;
-            else
-              rc= (join_tab->next_select)(join,join_tab+1,0);
+            reset_cache_write(&join_tab->cache);
+            return NESTED_LOOP_ERROR;
+          }
+          if (!skip_record)
+          {
+            rc= (join_tab->next_select)(join,join_tab+1,0);
             if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
             {
               reset_cache_write(&join_tab->cache);
@@ -13371,6 +13435,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     uint nr;
     key_map keys;
     uint best_key_parts= 0;
+    uint saved_best_key_parts= 0;
     int best_key_direction= 0;
     ha_rows best_records= 0;
     double read_time;
@@ -13531,6 +13596,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             {
               best_key= nr;
               best_key_parts= keyinfo->key_parts;
+              saved_best_key_parts= used_key_parts;
               best_records= quick_records;
               is_best_covering= is_covering;
               best_key_direction= direction; 
@@ -13617,8 +13683,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           */
         }
       }
-      used_key_parts= best_key_parts;
       order_direction= best_key_direction;
+      /*
+        saved_best_key_parts is actual number of used keyparts found by the
+        test_if_order_by_key function. It could differ from keyinfo->key_parts,
+        thus we have to restore it in case of desc order as it affects
+        QUICK_SELECT_DESC behaviour.
+      */
+      used_key_parts= (order_direction == -1) ?
+        saved_best_key_parts :  best_key_parts;
     }
     else
       DBUG_RETURN(0); 
@@ -16764,15 +16837,15 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     thd->lex->current_select= first;
     unit->set_limit(unit->global_parameters);
     res= mysql_select(thd, &first->ref_pointer_array,
-			(TABLE_LIST*) first->table_list.first,
+			first->table_list.first,
 			first->with_wild, first->item_list,
 			first->where,
 			first->order_list.elements +
 			first->group_list.elements,
-			(ORDER*) first->order_list.first,
-			(ORDER*) first->group_list.first,
+			first->order_list.first,
+			first->group_list.first,
 			first->having,
-			(ORDER*) thd->lex->proc_list.first,
+			thd->lex->proc_list.first,
 			first->options | thd->options | SELECT_DESCRIBE,
 			result, unit, first);
   }
@@ -17059,7 +17132,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   if (group_list.elements)
   {
     str->append(STRING_WITH_LEN(" group by "));
-    print_order(str, (ORDER *) group_list.first, query_type);
+    print_order(str, group_list.first, query_type);
     switch (olap)
     {
       case CUBE_TYPE:
@@ -17090,7 +17163,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   if (order_list.elements)
   {
     str->append(STRING_WITH_LEN(" order by "));
-    print_order(str, (ORDER *) order_list.first, query_type);
+    print_order(str, order_list.first, query_type);
   }
 
   // limit

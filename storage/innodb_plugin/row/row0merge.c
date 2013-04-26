@@ -717,14 +717,16 @@ row_merge_read(
 }
 
 /********************************************************************//**
-Read a merge block from the file system.
+Write a merge block to the file system.
 @return	TRUE if request was successful, FALSE if fail */
 static
 ibool
 row_merge_write(
 /*============*/
 	int		fd,	/*!< in: file descriptor */
-	ulint		offset,	/*!< in: offset where to write */
+	ulint		offset,	/*!< in: offset where to read
+				in number of row_merge_block_t
+				elements */
 	const void*	buf)	/*!< in: data */
 {
 	ib_uint64_t	ofs = ((ib_uint64_t) offset)
@@ -1081,7 +1083,8 @@ row_merge_cmp(
 {
 	int	cmp;
 
-	cmp = cmp_rec_rec_simple(mrec1, mrec2, offsets1, offsets2, index, null_eq);
+	cmp = cmp_rec_rec_simple(mrec1, mrec2, offsets1, offsets2, index,
+				 null_eq);
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_cmp) {
@@ -1447,7 +1450,7 @@ corrupt:
 	}
 
 	while (mrec0 && mrec1) {
-		ibool null_eq = FALSE;
+		ibool	null_eq = FALSE;
 		switch (row_merge_cmp(mrec0, mrec1,
 				      offsets0, offsets1, index,
 				      &null_eq)) {
@@ -1777,6 +1780,11 @@ row_merge_copy_blobs(
 		(below). */
 		data = btr_rec_copy_externally_stored_field(
 			mrec, offsets, zip_size, i, &len, heap);
+		/* Because we have locked the table, any records
+		written by incomplete transactions must have been
+		rolled back already. There must not be any incomplete
+		BLOB columns. */
+		ut_a(data);
 
 		dfield_set_data(field, data, len);
 	}
@@ -2125,9 +2133,12 @@ row_merge_drop_temp_indexes(void)
 
 		if (table) {
 			dict_index_t*	index;
+			dict_index_t*	next_index;
 
 			for (index = dict_table_get_first_index(table);
-			     index; index = dict_table_get_next_index(index)) {
+			     index; index = next_index) {
+
+				next_index = dict_table_get_next_index(index);
 
 				if (*index->name == TEMP_INDEX_PREFIX) {
 					row_merge_drop_index(index, table, trx);
@@ -2330,13 +2341,24 @@ row_merge_rename_tables(
 {
 	ulint		err	= DB_ERROR;
 	pars_info_t*	info;
-	const char*	old_name= old_table->name;
+	char		old_name[MAX_TABLE_NAME_LEN + 1];
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
+
+	/* store the old/current name to an automatic variable */
+	if (strlen(old_table->name) + 1 <= sizeof(old_name)) {
+		memcpy(old_name, old_table->name, strlen(old_table->name) + 1);
+	} else {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "InnoDB: too long table name: '%s', "
+			"max length is %d\n", old_table->name,
+			MAX_TABLE_NAME_LEN);
+		ut_error;
+	}
 
 	trx->op_info = "renaming tables";
 

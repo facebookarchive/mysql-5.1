@@ -88,7 +88,9 @@ static int partition_initialize(void *p)
   partition_hton->create= partition_create_handler;
   partition_hton->partition_flags= partition_flags;
   partition_hton->alter_table_flags= alter_table_flags;
-  partition_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
+  partition_hton->flags= HTON_NOT_USER_SELECTABLE |
+                         HTON_HIDDEN |
+                         HTON_TEMPORARY_NOT_SUPPORTED;
 
   return 0;
 }
@@ -357,7 +359,7 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
   }
   else if (get_from_handler_file(table_share->normalized_path.str, mem_root))
   {
-    mem_alloc_error(2);
+    my_message(ER_UNKNOWN_ERROR, "Failed to read from the .par file", MYF(0));
     DBUG_RETURN(1);
   }
   /*
@@ -1836,6 +1838,13 @@ uint ha_partition::del_ren_cre_table(const char *from,
   uint i;
   handler **file, **abort_file;
   DBUG_ENTER("del_ren_cre_table()");
+
+  /* Not allowed to create temporary partitioned tables */
+  if (create_info && create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
+    my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   if (get_from_handler_file(from, ha_thd()->mem_root))
     DBUG_RETURN(TRUE);
@@ -4208,6 +4217,58 @@ int ha_partition::index_read_last_map(uchar *buf, const uchar *key,
   m_start_key.keypart_map= keypart_map;
   m_start_key.flag= HA_READ_PREFIX_LAST;
   DBUG_RETURN(common_index_read(buf, TRUE));
+}
+
+
+/*
+  Optimization of the default implementation to take advantage of dynamic
+  partition pruning.
+*/
+int ha_partition::index_read_idx_map(uchar *buf, uint index,
+                                     const uchar *key,
+                                     key_part_map keypart_map,
+                                     enum ha_rkey_function find_flag)
+{
+  int error= HA_ERR_KEY_NOT_FOUND;
+  DBUG_ENTER("ha_partition::index_read_idx_map");
+
+  if (find_flag == HA_READ_KEY_EXACT)
+  {
+    uint part;
+    m_start_key.key= key;
+    m_start_key.keypart_map= keypart_map;
+    m_start_key.flag= find_flag;
+    m_start_key.length= calculate_key_len(table, index, m_start_key.key,
+                                          m_start_key.keypart_map);
+
+    get_partition_set(table, buf, index, &m_start_key, &m_part_spec);
+
+    /* How can it be more than one partition with the current use? */
+    DBUG_ASSERT(m_part_spec.start_part == m_part_spec.end_part);
+
+    for (part= m_part_spec.start_part; part <= m_part_spec.end_part; part++)
+    {
+      if (bitmap_is_set(&(m_part_info->used_partitions), part))
+      {
+        error= m_file[part]->index_read_idx_map(buf, index, key,
+                                                keypart_map, find_flag);
+        if (error != HA_ERR_KEY_NOT_FOUND &&
+            error != HA_ERR_END_OF_FILE)
+          break;
+      }
+    }
+  }
+  else
+  {
+    /*
+      If not only used with READ_EXACT, we should investigate if possible
+      to optimize for other find_flag's as well.
+    */
+    DBUG_ASSERT(0);
+    /* fall back on the default implementation */
+    error= handler::index_read_idx_map(buf, index, key, keypart_map, find_flag);
+  }
+  DBUG_RETURN(error);
 }
 
 

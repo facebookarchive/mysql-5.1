@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 05/06/2010
+.\"      Date: 08/03/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "05/06/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -159,7 +159,7 @@ Display a help message and exit\&.
 .sp
 This option determines when events should be displayed encoded as base\-64 strings using
 BINLOG
-statements\&. The option has these allowable values (not case sensitive):
+statements\&. The option has these permissible values (not case sensitive):
 .sp
 .RS 4
 .ie n \{\
@@ -702,7 +702,7 @@ is removed in MySQL 5\&.5\&.
 .\" protocol option: mysqlbinlog
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
-The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the allowable values, see
+The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
 Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 .RE
 .sp
@@ -759,6 +759,35 @@ Direct output to the given file\&.
 \fB\-\-server\-id=\fR\fB\fIid\fR\fR
 .sp
 Display only those events created by the server having the given server ID\&. This option is available as of MySQL 5\&.1\&.4\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlbinlog: server-id-bits option
+.\" server-id-bits option: mysqlbinlog
+\fB\-\-server\-id\-bits=\fR\fB\fIN\fR\fR
+.sp
+Use only the first
+\fIN\fR
+bits of the
+server_id
+to identify the server\&. If the binary log was written by a
+\fBmysqld\fR
+with server\-id\-bits set to less than 32 and user data stored in the most significant bit, running
+\fBmysqlbinlog\fR
+with
+\fB\-\-server\-id\-bits\fR
+set to 32 enables this data to be seen\&.
+.sp
+This option was added in MySQL Cluster NDB 7\&.0\&.17 and MySQL Cluster NDB 7\&.1\&.6, and is supported only by the versions of
+\fBmysqlbinlog\fR
+supplied with these and later releases of MySQL Cluster\&.
 .RE
 .sp
 .RS 4
@@ -1964,7 +1993,7 @@ option can be used to prevent this header from being written\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

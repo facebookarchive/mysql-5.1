@@ -425,6 +425,7 @@ int mysql_update(THD *thd,
       {
 	goto err;
       }
+      thd->examined_row_count+= examined_rows;
       /*
 	Filesort has already found and selected the rows we want to update,
 	so we don't need the where clause
@@ -471,7 +472,15 @@ int mysql_update(THD *thd,
 
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
-	if (!(select && select->skip_record()))
+        thd->examined_row_count++;
+        bool skip_record= FALSE;
+        if (select && select->skip_record(thd, &skip_record))
+        {
+          error= 1;
+          table->file->unlock_row();
+          break;
+        }
+        if (!skip_record)
 	{
           if (table->file->was_semi_consistent_read())
 	    continue;  /* repeat the read of the same row if it still exists */
@@ -577,7 +586,9 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
-    if (!(select && select->skip_record()))
+    thd->examined_row_count++;
+    bool skip_record;
+    if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
     {
       if (table->file->was_semi_consistent_read())
         continue;  /* repeat the read of the same row if it still exists */
@@ -1050,7 +1061,7 @@ reopen_tables:
         correct order of statements. Otherwise, we use a TL_READ lock to
         improve performance.
       */
-      tl->lock_type= read_lock_type_for_table(thd, table);
+      tl->lock_type= read_lock_type_for_table(thd, lex, tl);
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)
@@ -1328,7 +1339,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 			  SELECT_LEX_UNIT *lex_unit)
 {
   TABLE_LIST *table_ref;
-  SQL_LIST update;
+  SQL_I_List<TABLE_LIST> update;
   table_map tables_to_update;
   Item_field *item;
   List_iterator_fast<Item> field_it(*fields);
@@ -1409,11 +1420,11 @@ int multi_update::prepare(List<Item> &not_used_values,
     leaf_table_count++;
     if (tables_to_update & table->map)
     {
-      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup((char*) table_ref,
+      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup(table_ref,
 						sizeof(*tl));
       if (!tl)
 	DBUG_RETURN(1);
-      update.link_in_list((uchar*) tl, (uchar**) &tl->next_local);
+      update.link_in_list(tl, &tl->next_local);
       tl->shared= table_count++;
       table->no_keyread=1;
       table->covering_keys.clear_all();
@@ -1434,7 +1445,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 
 
   table_count=  update.elements;
-  update_tables= (TABLE_LIST*) update.first;
+  update_tables= update.first;
 
   tmp_tables = (TABLE**) thd->calloc(sizeof(TABLE *) * table_count);
   tmp_table_param = (TMP_TABLE_PARAM*) thd->calloc(sizeof(TMP_TABLE_PARAM) *

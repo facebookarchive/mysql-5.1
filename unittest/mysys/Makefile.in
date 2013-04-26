@@ -48,16 +48,12 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-noinst_PROGRAMS = bitmap-t$(EXEEXT) base64-t$(EXEEXT) $(am__EXEEXT_1)
-
-# my_atomic-t is used to check thread functions, so it is safe to 
-# ignore the file in non-threaded builds.
-# In fact, it will not compile without thread support.
-@NEED_THREAD_TRUE@am__append_1 = my_atomic-t
+noinst_PROGRAMS = bitmap-t$(EXEEXT) base64-t$(EXEEXT)
 subdir = unittest/mysys
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/alloca.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/maintainer.m4 \
+	$(top_srcdir)/config/ac-macros/alloca.m4 \
 	$(top_srcdir)/config/ac-macros/check_cpu.m4 \
 	$(top_srcdir)/config/ac-macros/character_sets.m4 \
 	$(top_srcdir)/config/ac-macros/compiler_flag.m4 \
@@ -74,7 +70,6 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/include/config.h
 CONFIG_CLEAN_FILES =
-@NEED_THREAD_TRUE@am__EXEEXT_1 = my_atomic-t$(EXEEXT)
 PROGRAMS = $(noinst_PROGRAMS)
 base64_t_SOURCES = base64-t.c
 base64_t_OBJECTS = base64-t.$(OBJEXT)
@@ -90,13 +85,6 @@ bitmap_t_DEPENDENCIES = $(top_builddir)/unittest/mytap/libmytap.a \
 	$(top_builddir)/mysys/libmysys.a \
 	$(top_builddir)/dbug/libdbug.a \
 	$(top_builddir)/strings/libmystrings.a
-my_atomic_t_SOURCES = my_atomic-t.c
-my_atomic_t_OBJECTS = my_atomic-t.$(OBJEXT)
-my_atomic_t_LDADD = $(LDADD)
-my_atomic_t_DEPENDENCIES = $(top_builddir)/unittest/mytap/libmytap.a \
-	$(top_builddir)/mysys/libmysys.a \
-	$(top_builddir)/dbug/libdbug.a \
-	$(top_builddir)/strings/libmystrings.a
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -109,8 +97,8 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = base64-t.c bitmap-t.c my_atomic-t.c
-DIST_SOURCES = base64-t.c bitmap-t.c my_atomic-t.c
+SOURCES = base64-t.c bitmap-t.c
+DIST_SOURCES = base64-t.c bitmap-t.c
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -118,6 +106,8 @@ ABI_CHECK = @ABI_CHECK@
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_CXXFLAGS = @AM_CXXFLAGS@
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 AS = @AS@
@@ -416,6 +406,7 @@ yassl_dir = @yassl_dir@
 yassl_h_ln_cmd = @yassl_h_ln_cmd@
 yassl_libs = @yassl_libs@
 yassl_taocrypt_extra_cxxflags = @yassl_taocrypt_extra_cxxflags@
+yassl_thread_cxxflags = @yassl_thread_cxxflags@
 zlib_dir = @zlib_dir@
 AM_CPPFLAGS = @ZLIB_INCLUDES@ -I$(top_builddir)/include \
 	-I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap
@@ -470,9 +461,6 @@ base64-t$(EXEEXT): $(base64_t_OBJECTS) $(base64_t_DEPENDENCIES)
 bitmap-t$(EXEEXT): $(bitmap_t_OBJECTS) $(bitmap_t_DEPENDENCIES) 
 	@rm -f bitmap-t$(EXEEXT)
 	$(LINK) $(bitmap_t_OBJECTS) $(bitmap_t_LDADD) $(LIBS)
-my_atomic-t$(EXEEXT): $(my_atomic_t_OBJECTS) $(my_atomic_t_DEPENDENCIES) 
-	@rm -f my_atomic-t$(EXEEXT)
-	$(LINK) $(my_atomic_t_OBJECTS) $(my_atomic_t_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -482,7 +470,6 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/base64-t.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bitmap-t.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/my_atomic-t.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

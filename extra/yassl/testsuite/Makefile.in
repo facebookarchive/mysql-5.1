@@ -37,7 +37,8 @@ noinst_PROGRAMS = testsuite$(EXEEXT)
 subdir = extra/yassl/testsuite
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/alloca.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/maintainer.m4 \
+	$(top_srcdir)/config/ac-macros/alloca.m4 \
 	$(top_srcdir)/config/ac-macros/check_cpu.m4 \
 	$(top_srcdir)/config/ac-macros/character_sets.m4 \
 	$(top_srcdir)/config/ac-macros/compiler_flag.m4 \
@@ -86,6 +87,8 @@ ABI_CHECK = @ABI_CHECK@
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_CXXFLAGS = @AM_CXXFLAGS@
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 AS = @AS@
@@ -384,6 +387,7 @@ yassl_dir = @yassl_dir@
 yassl_h_ln_cmd = @yassl_h_ln_cmd@
 yassl_libs = @yassl_libs@
 yassl_taocrypt_extra_cxxflags = @yassl_taocrypt_extra_cxxflags@
+yassl_thread_cxxflags = @yassl_thread_cxxflags@
 zlib_dir = @zlib_dir@
 INCLUDES = -I$(srcdir)/../include -I$(srcdir)/../taocrypt/include -I$(srcdir)/../taocrypt/mySTL
 testsuite_SOURCES = testsuite.cpp ../taocrypt/test/test.cpp \
@@ -391,7 +395,7 @@ testsuite_SOURCES = testsuite.cpp ../taocrypt/test/test.cpp \
 	../examples/echoclient/echoclient.cpp \
 	../examples/echoserver/echoserver.cpp
 
-testsuite_CXXFLAGS = -DYASSL_PURE_C -DYASSL_PREFIX -DNO_MAIN_DRIVER
+testsuite_CXXFLAGS = -DYASSL_PURE_C -DYASSL_PREFIX -DNO_MAIN_DRIVER @yassl_thread_cxxflags@
 testsuite_LDADD = $(top_builddir)/extra/yassl/src/libyassl.la \
                      $(top_builddir)/extra/yassl/taocrypt/src/libtaocrypt.la
 

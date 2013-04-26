@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlmanager\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 05/06/2010
+.\"      Date: 08/03/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLMANAGER\FR" "8" "05/06/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLMANAGER\FR" "8" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -438,7 +438,7 @@ mysqlmanager > im\&.log
 .sp
 The interval in seconds for monitoring server instances\&. The default value is 20 seconds\&. Instance Manager tries to connect to each monitored (guarded) instance using the nonexisting
 MySQL_Instance_Manager
-user account to check whether it is alive/not hanging\&. If the result of the connection attempt indicates that the instance is unavailable, Instance Manager performs several attempts to restart the instance\&.
+user account to check whether it is available/not hanging\&. If the result of the connection attempt indicates that the instance is unavailable, Instance Manager performs several attempts to restart the instance\&.
 .sp
 Normally, the
 MySQL_Instance_Manager
@@ -981,7 +981,7 @@ Without
 .PP
 Instance Manager also stops all guarded server instances when it shuts down\&.
 .PP
-The allowable options for
+The permissible options for
 [mysqld\fIN\fR]
 server instance sections are described in
 the section called \(lqMYSQL INSTANCE MANAGER CONFIGURATION FILES\(rq\&. In these sections, you can use a special
@@ -1241,7 +1241,7 @@ option, Instance Manager prompts for the required value\&.
 .PP
 \fB\-\-print\-password\-line\fR
 causes Instance Manager to send the resulting account entry to its output, which you can append to the password file\&. The following list describes other account\-management options that cause Instance Manager to operate directly on the password file\&. (These options make Instance Manager scriptable for account\-management purposes\&.) For operations on the password file to succeed, the file must exist and it must be accessible by Instance Manager\&. (The exception is
-\fB\-\-clean\-password\-file\fR, which creates the file if it does not exist\&. Alternatively, if there is no password file, manually create it as an empty file and ensure that its ownership and access modes allow it to be read and written by Instance Manager\&.) The default password file is used unless you specify a
+\fB\-\-clean\-password\-file\fR, which creates the file if it does not exist\&. Alternatively, if there is no password file, manually create it as an empty file and ensure that its ownership and access modes permit it to be read and written by Instance Manager\&.) The default password file is used unless you specify a
 \fB\-\-password\-file\fR
 option\&.
 .PP
@@ -1430,7 +1430,7 @@ command\&. This is the only status monitoring done for nonguarded instances\&.
 .PP
 Instance Manager knows if a server instance fails at startup because it receives a status from the attempt\&. For an instance that starts but later crashes, Instance Manager receives a signal because it is the parent process of the instance\&.
 .PP
-Beginning with MySQL 5\&.1\&.12, Instance Manager tracks instance states so that it can determine which commands are allowed for each instance\&. For example, commands that modify an instance\'s configuration are allowed only while the instance is offline\&.
+Beginning with MySQL 5\&.1\&.12, Instance Manager tracks instance states so that it can determine which commands are permitted for each instance\&. For example, commands that modify an instance\'s configuration are permitted only while the instance is offline\&.
 .PP
 Each instance is in one of the states described in the following table\&. Guarded instances can be in any of the states\&. Nonguarded instances can only be offline or online\&. Instance state information is displayed in the
 status
@@ -1662,7 +1662,7 @@ is not a valid instance name or the instance already exists\&.
 .sp
 The created section instance is empty if no options are given\&. Otherwise, the options are added to the section\&. Options should be given in the same format used when you write options in option files\&. (See
 Section\ \&4.2.3.3, \(lqUsing Option Files\(rq
-for a description of the allowable syntax\&.) If you specify multiple options, separate them by commas\&.
+for a description of the permissible syntax\&.) If you specify multiple options, separate them by commas\&.
 .sp
 For example, to create an instance section named
 [mysqld98], you might write something like this were you to modify the configuration file directly:
@@ -2062,7 +2062,7 @@ Query OK, 0 rows affected (0\&.04 sec)
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 05/06/2010
+.\"      Date: 08/03/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "05/06/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -53,11 +53,21 @@ Section\ \&17.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
 \fB\-?\fR
 .TS
 allbox tab(:);
-l l s.
+l l s s
+l l s s
+l l s s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-help
+T}
+T{
+T}:T{
+\-\-usage
+T}
+T{
+T}:T{
+\-?
 T}
 .TE
 .sp 1
@@ -80,11 +90,16 @@ to print a list of available options, and then exit\&.
 \fB\-V\fR
 .TS
 allbox tab(:);
-l l s.
+l l s s
+l l s s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-V
+T}
+T{
+T}:T{
+\-\-version
 T}
 .TE
 .sp 1
@@ -106,14 +121,24 @@ to print a version information string, and then exit\&.
 \fB\-\-ndb\-connectstring=\fR\fB\fIconnect_string\fR\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-ndb\-connectstring=name
+T}
+T{
+T}:T{
+\-\-connect\-string=name
+T}
+T{
+T}:T{
+\-c
 T}
 T{
 \ \&
@@ -175,14 +200,19 @@ is invoked, then an absolute path must be used\&.
 \fIquery\-options\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-query=string
+T}
+T{
+T}:T{
+\-q
 T}
 T{
 \ \&
@@ -201,10 +231,9 @@ T}
 .TE
 .sp 1
 This is a comma\-delimited list of
-query options
-\(em that is, a list of one or more node attributes to be returned\&. These include
+query options\(emthat is, a list of one or more node attributes to be returned\&. These include
 id
-(node ID), type (node type \(em that is,
+(node ID), type (node type\(emthat is,
 ndbd,
 mysqld, or
 ndb_mgmd), and any configuration parameters whose values are to be obtained\&.
@@ -247,10 +276,10 @@ If a given parameter is not applicable to a certain type of node, than an empty 
 \fB\-\-host=\fR\fB\fIhostname\fR\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
@@ -336,10 +365,10 @@ Used to specify the node ID of the node for which configuration information is t
 \fB\-\-nodes\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
@@ -384,11 +413,11 @@ and other sections of cluster configuration files\&.)
 \fB\-\-type=\fR\fB\fInode_type\fR\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-^ l l
-^ l l
-^ l l.
+l l s s
+l l s s
+^ l l s
+^ l l s
+^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
@@ -437,14 +466,19 @@ ndb_mgmd) are returned\&.
 \fIdelimiter\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-fields=string
+T}
+T{
+T}:T{
+\-f
 T}
 T{
 \ \&
@@ -503,14 +537,19 @@ for the linefeed character), then it must be quoted\&.
 \fIseparator\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-rows=string
+T}
+T{
+T}:T{
+\-r
 T}
 T{
 \ \&
@@ -676,11 +715,11 @@ Default: 0 (Min: 0, Max: 4294967039)
 \fB\-\-xml\fR
 .TS
 allbox tab(:);
-l l s
-l l s
-l l s
-^ l l
-^ l l.
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
 T{
 \fBVersion Introduced\fR
 T}:T{
@@ -1011,7 +1050,7 @@ option\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

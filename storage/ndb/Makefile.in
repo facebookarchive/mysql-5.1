@@ -65,7 +65,8 @@ target_triplet = @target@
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 subdir = storage/ndb
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/alloca.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/maintainer.m4 \
+	$(top_srcdir)/config/ac-macros/alloca.m4 \
 	$(top_srcdir)/config/ac-macros/check_cpu.m4 \
 	$(top_srcdir)/config/ac-macros/character_sets.m4 \
 	$(top_srcdir)/config/ac-macros/compiler_flag.m4 \
@@ -100,6 +101,8 @@ ABI_CHECK = @ABI_CHECK@
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_CXXFLAGS = $(NDB_AM_CXXFLAGS) $(NDB_CXXFLAGS)
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 AS = @AS@
@@ -398,6 +401,7 @@ yassl_dir = @yassl_dir@
 yassl_h_ln_cmd = @yassl_h_ln_cmd@
 yassl_libs = @yassl_libs@
 yassl_taocrypt_extra_cxxflags = @yassl_taocrypt_extra_cxxflags@
+yassl_thread_cxxflags = @yassl_thread_cxxflags@
 zlib_dir = @zlib_dir@
 SUBDIRS = src tools . include @ndb_opt_subdirs@
 DIST_SUBDIRS = src tools include test docs
@@ -413,7 +417,6 @@ INCLUDES = $(INCLUDES_LOC)
 LDADD = $(LDADD_LOC)
 NDB_CXXFLAGS = @ndb_cxxflags_fix@ $(NDB_CXXFLAGS_LOC) 
 NDB_AM_CXXFLAGS := $(AM_CXXFLAGS)
-AM_CXXFLAGS = $(NDB_AM_CXXFLAGS) $(NDB_CXXFLAGS)
 all: all-recursive
 
 .SUFFIXES:

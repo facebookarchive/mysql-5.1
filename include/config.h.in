@@ -94,9 +94,6 @@
 /* Define to 1 if you have the `backtrace_symbols_fd' function. */
 #undef HAVE_BACKTRACE_SYMBOLS_FD
 
-/* Define to 1 if you have the `bcmp' function. */
-#undef HAVE_BCMP
-
 /* Define to 1 if you have the `bfill' function. */
 #undef HAVE_BFILL
 
@@ -333,6 +330,9 @@
 
 /* Define to 1 if you have the `fpsetmask' function. */
 #undef HAVE_FPSETMASK
+
+/* Define to 1 if you have the <fpu_control.h> header file. */
+#undef HAVE_FPU_CONTROL_H
 
 /* Define to 1 if the system has the type `fp_except'. */
 #undef HAVE_FP_EXCEPT
@@ -1022,6 +1022,15 @@
 /* Define to 1 if the system has the type `u_int32_t'. */
 #undef HAVE_U_INT32_T
 
+/* Define for Valgrind support */
+#undef HAVE_VALGRIND
+
+/* Define to 1 if you have the <valgrind/memcheck.h> header file. */
+#undef HAVE_VALGRIND_MEMCHECK_H
+
+/* Define to 1 if you have the <valgrind/valgrind.h> header file. */
+#undef HAVE_VALGRIND_VALGRIND_H
+
 /* Define to 1 if you have the <varargs.h> header file. */
 #undef HAVE_VARARGS_H
 
@@ -1189,15 +1198,6 @@
 
 /* Last argument to get/setsockopt */
 #undef SOCKOPT_OPTLEN_TYPE
-
-/* Broken sprintf */
-#undef SPRINTF_RETURNS_GARBAGE
-
-/* POSIX sprintf */
-#undef SPRINTF_RETURNS_INT
-
-/* Broken sprintf */
-#undef SPRINTF_RETURNS_PTR
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be

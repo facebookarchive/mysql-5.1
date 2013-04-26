@@ -118,7 +118,8 @@ DIST_COMMON = README $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 test_PROGRAMS = atrt$(EXEEXT)
 subdir = storage/ndb/test/run-test
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/alloca.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/maintainer.m4 \
+	$(top_srcdir)/config/ac-macros/alloca.m4 \
 	$(top_srcdir)/config/ac-macros/check_cpu.m4 \
 	$(top_srcdir)/config/ac-macros/character_sets.m4 \
 	$(top_srcdir)/config/ac-macros/compiler_flag.m4 \
@@ -188,6 +189,8 @@ ABI_CHECK = @ABI_CHECK@
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_CXXFLAGS = $(NDB_AM_CXXFLAGS) $(NDB_CXXFLAGS)
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 AS = @AS@
@@ -486,6 +489,7 @@ yassl_dir = @yassl_dir@
 yassl_h_ln_cmd = @yassl_h_ln_cmd@
 yassl_libs = @yassl_libs@
 yassl_taocrypt_extra_cxxflags = @yassl_taocrypt_extra_cxxflags@
+yassl_thread_cxxflags = @yassl_thread_cxxflags@
 zlib_dir = @zlib_dir@
 testroot = $(prefix)
 testdir = $(testroot)/mysql-test/ndb
@@ -519,7 +523,6 @@ LDADD = $(LDADD_LOC) $(top_builddir)/storage/ndb/src/libndbclient.la \
 	@ZLIB_LIBS@ $(am__empty)
 NDB_CXXFLAGS = @ndb_cxxflags_fix@ $(NDB_CXXFLAGS_LOC) 
 NDB_AM_CXXFLAGS := $(AM_CXXFLAGS)
-AM_CXXFLAGS = $(NDB_AM_CXXFLAGS) $(NDB_CXXFLAGS)
 test_DATA = daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
           conf-ndbmaster.cnf \
           conf-dl145a.cnf test-tests.txt conf-test.cnf

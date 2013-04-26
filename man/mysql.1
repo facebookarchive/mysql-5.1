@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 05/06/2010
+.\"      Date: 08/03/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "05/06/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -533,7 +533,7 @@ has no effect if the server does not also support it\&.
 .sp
 Enable named
 \fBmysql\fR
-commands\&. Long\-format commands are allowed, not just short\-format commands\&. For example,
+commands\&. Long\-format commands are permitted, not just short\-format commands\&. For example,
 quit
 and
 \eq
@@ -765,7 +765,7 @@ the section called \(lqMYSQL COMMANDS\(rq\&.
 .\" protocol option: mysql
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
-The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the allowable values, see
+The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
 Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 .RE
 .sp
@@ -874,7 +874,7 @@ If the connection to the server is lost, automatically try to reconnect\&. A sin
 \fB\-\-i\-am\-a\-dummy\fR,
 \fB\-U\fR
 .sp
-Allow only those
+Permit only those
 UPDATE
 and
 DELETE
@@ -2354,7 +2354,7 @@ prompt=(\e\eu@\e\eh) [\e\ed]>\e\e_
 .sp
 In this example, note that the backslashes are doubled\&. If you set the prompt using the
 prompt
-option in an option file, it is advisable to double the backslashes when using the special prompt options\&. There is some overlap in the set of allowable prompt options and the set of special escape sequences that are recognized in option files\&. (The rules for escape sequences in option files are listed in
+option in an option file, it is advisable to double the backslashes when using the special prompt options\&. There is some overlap in the set of permissible prompt options and the set of special escape sequences that are recognized in option files\&. (The rules for escape sequences in option files are listed in
 Section\ \&4.2.3.3, \(lqUsing Option Files\(rq\&.) The overlap may cause you problems if you use single backslashes\&. For example,
 \es
 is interpreted as a space rather than as the current seconds value\&. The following example shows how to define a prompt within an option file to include the current time in
@@ -2703,7 +2703,7 @@ statement has the following effects:
 .sp -1
 .IP \(bu 2.3
 .\}
-You are not allowed to execute an
+You are not permitted to execute an
 UPDATE
 or
 DELETE
@@ -2815,7 +2815,7 @@ Section\ \&21.9.11, \(lqControlling Automatic Reconnection Behavior\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

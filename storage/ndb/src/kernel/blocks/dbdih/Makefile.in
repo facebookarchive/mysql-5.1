@@ -84,7 +84,8 @@ DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 subdir = storage/ndb/src/kernel/blocks/dbdih
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/alloca.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/config/ac-macros/maintainer.m4 \
+	$(top_srcdir)/config/ac-macros/alloca.m4 \
 	$(top_srcdir)/config/ac-macros/check_cpu.m4 \
 	$(top_srcdir)/config/ac-macros/character_sets.m4 \
 	$(top_srcdir)/config/ac-macros/compiler_flag.m4 \
@@ -132,6 +133,8 @@ ABI_CHECK = @ABI_CHECK@
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_CFLAGS = @AM_CFLAGS@
+AM_CXXFLAGS = $(NDB_AM_CXXFLAGS) $(NDB_CXXFLAGS)
 AR = @AR@
 ARFLAGS = @ARFLAGS@
 AS = @AS@
@@ -430,6 +433,7 @@ yassl_dir = @yassl_dir@
 yassl_h_ln_cmd = @yassl_h_ln_cmd@
 yassl_libs = @yassl_libs@
 yassl_taocrypt_extra_cxxflags = @yassl_taocrypt_extra_cxxflags@
+yassl_thread_cxxflags = @yassl_thread_cxxflags@
 zlib_dir = @zlib_dir@
 ndb_print_sys_file_SOURCES = printSysfile.cpp
 ndb_print_sys_file_LDFLAGS = @ndb_bin_am_ldflags@ \
@@ -463,7 +467,6 @@ INCLUDES = $(INCLUDES_LOC) -I$(srcdir) -I$(top_builddir)/include \
 LDADD = $(LDADD_LOC)
 NDB_CXXFLAGS = @ndb_cxxflags_fix@ $(NDB_CXXFLAGS_LOC) 
 NDB_AM_CXXFLAGS := $(AM_CXXFLAGS)
-AM_CXXFLAGS = $(NDB_AM_CXXFLAGS) $(NDB_CXXFLAGS)
 all: all-am
 
 .SUFFIXES:

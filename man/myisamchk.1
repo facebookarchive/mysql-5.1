@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisamchk\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 05/06/2010
+.\"      Date: 08/03/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYISAMCHK\FR" "1" "05/06/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYISAMCHK\FR" "1" "08/03/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -37,6 +37,16 @@ tables (tables that have
 and
 \&.MYI
 files for storing data and indexes)\&.
+.PP
+You can also use the
+CHECK TABLE
+and
+REPAIR TABLE
+statements to check and repair
+MyISAM
+tables\&. See
+Section\ \&12.4.2.3, \(lqCHECK TABLE Syntax\(rq, and
+Section\ \&12.4.2.6, \(lqREPAIR TABLE Syntax\(rq\&.
 .PP
 The use of
 \fBmyisamchk\fR
@@ -98,7 +108,7 @@ You can name several tables on the
 \fBmyisamchk\fR
 command line if you wish\&. You can also specify a table by naming its index file (the file with the
 \&.MYI
-suffix)\&. This allows you to specify all tables in a directory by using the pattern
+suffix)\&. This enables you to specify all tables in a directory by using the pattern
 *\&.MYI\&. For example, if you are in a database directory, you can check all the
 MyISAM
 tables in that directory like this:
@@ -171,6 +181,10 @@ shell> \fBmyisamchk \-\-silent \-\-force \-\-fast \-\-update\-state \e\fR
 This command assumes that you have more than 64MB free\&. For more information about memory allocation with
 \fBmyisamchk\fR, see
 the section called \(lqMYISAMCHK MEMORY USAGE\(rq\&.
+.PP
+For additional information about using
+\fBmyisamchk\fR, see
+Section\ \&6.6, \(lqMyISAM Table Maintenance and Crash Recovery\(rq\&.
 .if n \{\
 .sp
 .\}
@@ -525,7 +539,7 @@ system variable\&. For more information, see the description of
 myisam_stats_method
 in
 Section\ \&5.1.4, \(lqServer System Variables\(rq, and
-Section\ \&7.4.7, \(lqMyISAM Index Statistics Collection\(rq\&.
+Section\ \&7.5.4, \(lqMyISAM Index Statistics Collection\(rq\&.
 .PP
 ft_min_word_len
 and
@@ -658,7 +672,7 @@ key_buffer_size
 variable to a large value helps the repair operation run faster\&.
 .sp
 For a description of the output format, see
-the section called \(lqMYISAMCHK TABLE INFORMATION\(rq\&.
+the section called \(lqOBTAINING TABLE INFORMATION WITH MYISAMCHK\(rq\&.
 .RE
 .sp
 .RS 4
@@ -868,7 +882,7 @@ The maximum length of the data file (when re\-creating data file when it is
 Do a repair that tries to recover every possible row from the data file\&. Normally, this also finds a lot of garbage rows\&. Do not use this option unless you are desperate\&.
 .sp
 For a description of the output format, see
-the section called \(lqMYISAMCHK TABLE INFORMATION\(rq\&.
+the section called \(lqOBTAINING TABLE INFORMATION WITH MYISAMCHK\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1180,7 +1194,7 @@ Find the record that a block at the given offset belongs to\&.
 Print some descriptive information about the table\&. Specifying the
 \fB\-\-verbose\fR
 option once or twice produces additional information\&. See
-the section called \(lqMYISAMCHK TABLE INFORMATION\(rq\&.
+the section called \(lqOBTAINING TABLE INFORMATION WITH MYISAMCHK\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1251,7 +1265,7 @@ sorts and moves records, it just overwrites record offsets in the index\&. If ke
 \fBmyisamchk\fR
 must unpack key blocks first, then re\-create indexes and pack the key blocks again\&. (In this case, re\-creating indexes is faster than updating offsets for each index\&.)
 .RE
-.SH "MYISAMCHK TABLE INFORMATION"
+.SH "OBTAINING TABLE INFORMATION WITH MYISAMCHK"
 .\" table description: myisamchk
 .\" tables: information
 .\" examples: myisamchk output
@@ -2327,16 +2341,16 @@ uses no more memory than its memory\-related variables are set to\&. If you are 
 \fBmyisamchk\fR
 on very large tables, you should first decide how much memory you want it to use\&. The default is to use only about 3MB to perform repairs\&. By using larger values, you can get
 \fBmyisamchk\fR
-to operate faster\&. For example, if you have more than 32MB RAM, you could use options such as these (in addition to any other options you might specify):
+to operate faster\&. For example, if you have more than 512MB RAM available, you could use options such as these (in addition to any other options you might specify):
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \-\-sort_buffer_size=16M \e\fR
-           \fB\-\-key_buffer_size=16M \e\fR
-           \fB\-\-read_buffer_size=1M \e\fR
-           \fB\-\-write_buffer_size=1M \&.\&.\&.\fR
+shell> \fBmyisamchk \-\-sort_buffer_size=256M \e\fR
+           \fB\-\-key_buffer_size=512M \e\fR
+           \fB\-\-read_buffer_size=64M \e\fR
+           \fB\-\-write_buffer_size=64M \&.\&.\&.\fR
 .fi
 .if n \{\
 .RE
@@ -2344,7 +2358,7 @@ shell> \fBmyisamchk \-\-sort_buffer_size=16M \e\fR
 .PP
 Using
 \fB\-\-sort_buffer_size=16M\fR
-should probably be enough for most cases\&.
+is probably enough for most cases\&.
 .PP
 Be aware that
 \fBmyisamchk\fR
@@ -2407,7 +2421,7 @@ or
 .RS 4
 .\}
 .nf
-(\fIlargest_key\fR + \fIrow_pointer_length\fR) \(mu \fInumber_of_rows\fR \(mu 2
+(\fIlargest_key\fR + \fIrow_pointer_length\fR) * \fInumber_of_rows\fR * 2
 .fi
 .if n \{\
 .RE
@@ -2418,7 +2432,7 @@ You can check the length of the keys and the
 with
 \fBmyisamchk \-dv \fR\fB\fItbl_name\fR\fR
 (see
-the section called \(lqMYISAMCHK TABLE INFORMATION\(rq)\&. The
+the section called \(lqOBTAINING TABLE INFORMATION WITH MYISAMCHK\(rq)\&. The
 \fIrow_pointer_length\fR
 and
 \fInumber_of_rows\fR
@@ -2444,7 +2458,7 @@ instead of
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2010, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

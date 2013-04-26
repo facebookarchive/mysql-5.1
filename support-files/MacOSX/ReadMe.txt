@@ -61,7 +61,7 @@ Note
    command line.
 
    When installing from the package version, you should also install
-   the MySQL Preference Pane, which will allow you to control the
+   the MySQL Preference Pane, which will enable you to control the
    startup and execution of your MySQL server from System
    Preferences. For more information, see Section 2.7.3, "Installing
    and Using the MySQL Preference Pane."
@@ -96,17 +96,17 @@ Note
        MySQLStartupItem.pkg installation package, and the
        MySQL.prefPane.
 
-    2. Double-click on the MySQL installer package. It will be named
+    2. Double-click the MySQL installer package. It will be named
        according to the version of MySQL you have downloaded. For
        example, if you have downloaded MySQL 5.1.39, double-click
        mysql-5.1.39-osx10.5-x86.pkg.
 
-    3. You will be presented with the openin installer dialog. Click
-       Continue to begihn installation.
+    3. You will be presented with the opening installer dialog. Click
+       Continue to begin installation.
        MySQL Package Installer: Step 1
 
     4. A copy of the installation instructions and other important
-       information relevant to this installation are display. Click
+       information relevant to this installation are displayed. Click
        Continue .
 
     5. If you have downloaded the community version of MySQL, you
@@ -125,11 +125,7 @@ Note
        startup item, click Install.
 
     8. Once the installation has been completed successfully, you
-       will be given an Install Succeeded message.
-
-   Once you have completed the basic installation, you must complete
-   the post-installation steps as specifed in Section 2.13,
-   "Post-Installation Setup and Testing."
+       will be shown an Install Succeeded message.
 
    For convenience, you may also want to install the Section 2.7.2,
    "Installing the MySQL Startup Item" and Section 2.7.3, "Installing
@@ -138,7 +134,7 @@ Note
 2.7.2. Installing the MySQL Startup Item
 
    The MySQL Installation Package includes a startup item that can be
-   used to automatically startup and shutdown MySQL during boot.
+   used to automatically start up and shut down MySQL.
 
    To install the MySQL Startup Item:
 
@@ -148,7 +144,7 @@ Note
        MySQLStartupItem.pkg installation package, and the
        MySQL.prefPane.
 
-    2. Double-click on the MySQLStartItem.pkg file to start the
+    2. Double-click the MySQLStartItem.pkg file to start the
        installation process.
 
     3. You will be presented with the Install MySQL Startup Item
@@ -157,7 +153,7 @@ Note
        Click Continue to continue the installation process.
 
     4. A copy of the installation instructions and other important
-       information relevant to this installation are display. Click
+       information relevant to this installation are displayed. Click
        Continue .
 
     5. Select the drive you want to use to install the MySQL Startup
@@ -171,14 +167,14 @@ Note
        install the startup item, click Install.
 
     7. Once the installation has been completed successfully, you
-       will be given an Install Succeeded message.
+       will be shown an Install Succeeded message.
        MySQL Startup Item Installer: Step 5
 
    The Startup Item for MySQL is installed into
    /Library/StartupItems/MySQLCOM. The Startup Item installation adds
    a variable MYSQLCOM=-YES- to the system configuration file
    /etc/hostconfig. If you want to disable the automatic startup of
-   MySQL, simply change this variable to MYSQLCOM=-NO-.
+   MySQL, change this variable to MYSQLCOM=-NO-.
 
    After the installation, you can start up MySQL by running the
    following commands in a terminal window. You must have
@@ -210,7 +206,7 @@ shell> sudo /Library/StartupItems/MySQLCOM/MySQLCOM stop
        package, the MySQLStartupItem.pkg installation package, and
        the MySQL.prefPane.
 
-    2. Double click on MySQL.prefPane. The MySQL System Preferences
+    2. Double-click the MySQL.prefPane. The MySQL System Preferences
        will open.
 
     3. If this is the first time you have installed the preference
@@ -234,8 +230,8 @@ Note
    Once the MySQL Preference Pane has been installed, you can control
    your MySQL server instance using the preference pane. To use the
    preference pane, open the System Preferences... from the Apple
-   menu. Select the MySQL preference pane by clicking on the MySQL
-   logo within the Other section of the preference panes list.
+   menu. Select the MySQL preference pane by clicking the MySQL logo
+   within the Other section of the preference panes list.
    MySQL Preference Pane
 
    The MySQL Preference Pane shows the current status of the MySQL
@@ -342,12 +338,11 @@ Note
      * Due to a bug in the Mac OS X package installer, you may see
        this error message in the destination disk selection dialog:
 You cannot install this software on this disk. (null)
-       If this error occurs, simply click the Go Back button once to
-       return to the previous screen. Then click Continue to advance
-       to the destination disk selection again, and you should be
-       able to choose the destination disk correctly. We have
-       reported this bug to Apple and it is investigating this
-       problem.
+       If this error occurs, click the Go Back button once to return
+       to the previous screen. Then click Continue to advance to the
+       destination disk selection again, and you should be able to
+       choose the destination disk correctly. We have reported this
+       bug to Apple and it is investigating this problem.
 
      * Because the MySQL package installer installs the MySQL
        contents into a version and platform specific directory, you
