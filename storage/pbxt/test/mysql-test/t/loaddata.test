@@ -1,0 +1,144 @@
+#
+# Some simple test of load data
+#
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+create table t1 (a date, b date, c date not null, d date);
+load data infile '../std_data_ln/loaddata1.dat' into table t1 fields terminated by ',';
+load data infile '../std_data_ln/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
+SELECT * from t1;
+truncate table t1;
+
+load data infile '../std_data_ln/loaddata1.dat' into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
+SELECT * from t1;
+drop table t1;
+
+create table t1 (a text, b text);
+load data infile '../std_data_ln/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+drop table t1;
+
+create table t1 (a int, b char(10));
+load data infile '../std_data_ln/loaddata3.dat' into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
+select * from t1;
+truncate table t1;
+load data infile '../std_data_ln/loaddata4.dat' into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
+
+# The empty line last comes from the end line field in the file
+select * from t1;
+drop table t1;
+
+#
+# Bug #12053 LOAD DATA INFILE ignores NO_AUTO_VALUE_ON_ZERO setting
+#
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+create table t1(id integer not null auto_increment primary key);
+insert into t1 values(0);
+disable_query_log;
+eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1' from t1;
+delete from t1;
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t1' into table t1;
+enable_query_log;
+select * from t1;
+--exec rm $MYSQLTEST_VARDIR/tmp/t1
+
+disable_query_log;
+eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1'
+FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n'
+FROM t1;
+delete from t1;
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t1' into table t1
+FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n';
+enable_query_log;
+select * from t1;
+--exec rm $MYSQLTEST_VARDIR/tmp/t1
+SET @@SQL_MODE=@OLD_SQL_MODE;
+drop table t1;
+
+#
+# Bug #11203: LOAD DATA does not accept same characters for ESCAPED and
+# ENCLOSED
+#
+create table t1 (a varchar(20), b varchar(20));
+load data infile '../std_data_ln/loaddata_dq.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
+select * from t1;
+drop table t1;
+
+# End of 4.1 tests
+
+#
+# Let us test extended LOAD DATA features
+#
+create table t1 (a int default 100, b int, c varchar(60));
+# we can do something like this
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (a, @b) set b=@b+10, c=concat("b=",@b);
+select * from t1;
+truncate table t1;
+# we can use filled fields in expressions 
+# we also assigning NULL value to field with non-NULL default here
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (a, @b) set c= if(a is null,"oops",a);
+select * from t1;
+truncate table t1;
+# we even can use variables in set clause, and missed columns will be set
+# with default values
+set @c:=123;
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@a, b) set c= if(@a is null,@c,b);
+select * from t1;
+# let us test side-effect of such load
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@a, @b);
+select * from t1;
+select @a, @b;
+truncate table t1;
+# Reading of all columns with set
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 set c=b;
+select * from t1;
+truncate table t1;
+# now going to test fixed field-row file format
+load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c="Wow";
+select * from t1;
+truncate table t1;
+# this also should work
+load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c=concat(a,"+",b,"+",@c,"+",b,"+",if(c is null,"NIL",c));
+select * from t1;
+# and this should bark
+--error 1409 
+load data infile '../std_data_ln/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, @b);
+
+# Now let us test LOAD DATA with subselect
+create table t2 (num int primary key, str varchar(10));
+insert into t2 values (10,'Ten'), (15,'Fifteen');
+truncate table t1;
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1 (@dummy,@n) set a= @n, c= (select str from t2 where num=@n);
+select * from t1;
+
+# cleanup
+drop table t1, t2;
+
+# End of 5.0 tests
+
+
+#
+# Bug#12448 LOAD DATA / SELECT INTO OUTFILE
+# doesn't work with multibyte path name
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1);
+SET NAMES latin1;
+SET character_set_filesystem=filename;
+select @@character_set_filesystem;
+SELECT * INTO OUTFILE 't-1' FROM t1;
+DELETE FROM t1;
+LOAD DATA INFILE 't-1' INTO TABLE t1;
+SELECT * FROM t1;
+DELETE FROM t1;
+SET character_set_filesystem=latin1;
+select @@character_set_filesystem;
+LOAD DATA INFILE 't@002d1' INTO TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+--exec rm $MYSQLTEST_VARDIR/master-data/test/t@002d1
+SET character_set_filesystem=default;
+select @@character_set_filesystem;

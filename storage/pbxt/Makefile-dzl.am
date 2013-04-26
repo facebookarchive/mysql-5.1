@@ -1,0 +1,10 @@
+SUBDIRS = src test
+DIST_SUBDIRS = src 
+
+EXTRA_DIST = plug.in
+
+.PHONY: test
+
+test:
+	cd test/mysql-test ; \
+	./pbxt-test-run.pl --base-dir=$(mysql_src)/sql --force --mysqld=--default-storage-engine=pbxt --mysqld=--plugin_dir=../../src/.libs

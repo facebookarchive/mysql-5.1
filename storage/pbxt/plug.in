@@ -1,0 +1,3 @@
+MYSQL_STORAGE_ENGINE(pbxt,,  [PBXT Storage Engine], [MVCC-based transactional engine], [max,max-no-ndb])
+MYSQL_PLUGIN_STATIC(pbxt,    [src/libpbxt.a])
+MYSQL_PLUGIN_DYNAMIC(pbxt,   [src/libpbxt.la])

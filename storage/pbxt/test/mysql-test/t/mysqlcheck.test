@@ -1,0 +1,36 @@
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
+
+# check that CSV engine was compiled in, as the result of the test
+# depends on the presence of the log tables (which are CSV-based).
+--source include/have_csv.inc
+
+--disable_warnings
+drop database if exists client_test_db;
+--enable_warnings
+
+DROP SCHEMA test;
+CREATE SCHEMA test;
+use test;
+#
+# Bug #13783  mysqlcheck tries to optimize and analyze information_schema
+#
+--replace_result 'Table is already up to date' OK
+--exec $MYSQL_CHECK --all-databases --analyze --optimize
+--replace_result 'Table is already up to date' OK
+--exec $MYSQL_CHECK --analyze --optimize  --databases test information_schema mysql
+--exec $MYSQL_CHECK --analyze --optimize information_schema schemata
+
+#
+# Bug #16502: mysqlcheck tries to check views
+#
+create table t1 (a int);
+create view v1 as select * from t1;
+--replace_result 'Table is already up to date' OK
+--exec $MYSQL_CHECK --analyze --optimize --databases test
+--replace_result 'Table is already up to date' OK
+--exec $MYSQL_CHECK --all-in-1 --analyze --optimize --databases test
+drop view v1;
+drop table t1;
+
+--echo End of 5.0 tests

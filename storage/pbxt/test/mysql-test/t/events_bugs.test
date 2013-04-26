@@ -1,0 +1,299 @@
+# Can't test with embedded server that doesn't support grants
+-- source include/not_embedded.inc
+
+create database if not exists events_test;
+use events_test;
+
+#
+# START - 16415: Events: event names are case sensitive
+#
+CREATE EVENT lower_case ON SCHEDULE EVERY 1 MINUTE DO SELECT 1;
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT Lower_case ON SCHEDULE EVERY 2 MINUTE DO SELECT 2;
+DROP EVENT Lower_case;
+SET NAMES cp1251;
+CREATE EVENT ‰ÓÎÂÌ_Â„ËÒÚ˙_1251 ON SCHEDULE EVERY 1 YEAR DO SELECT 100;
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT ƒÓÀÂÕ_Â„ËÒÚ˙_1251 ON SCHEDULE EVERY 2 YEAR DO SELECT 200;
+DROP EVENT ƒÓÀÂÕ_Â„ËÒÚ˙_1251;
+SET NAMES utf8;
+CREATE EVENT –¥–æ–ª–µ–Ω_—Ä–µ–≥–∏—Å—Ç—ä—Ä_—É—Ç—Ñ8 ON SCHEDULE EVERY 3 YEAR DO SELECT 300;
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT –î–û–õ–ï–ù_—Ä–µ–≥–∏—Å—Ç—ä—Ä_—É—Ç—Ñ8 ON SCHEDULE EVERY 4 YEAR DO SELECT 400;
+DROP EVENT –î–û–õ–ï–ù_—Ä–µ–≥–∏—Å—Ç—ä—Ä_—É—Ç—Ñ8;
+SET NAMES latin1;
+#
+# END   - 16415: Events: event names are case sensitive
+#
+
+#
+# START - BUG#16408: Events: crash for an event in a procedure
+#
+set @a=3;
+--error ER_EVENT_RECURSIVITY_FORBIDDEN
+CREATE PROCEDURE p_16 () CREATE EVENT e_16 ON SCHEDULE EVERY @a SECOND DO SET @a=5;
+#
+# END   - BUG#16408: Events: crash for an event in a procedure
+#
+
+#
+# Start - 16396: Events: Distant-future dates become past dates
+#
+--error ER_WRONG_VALUE
+create event e_55 on schedule at 99990101000000 do drop table t;
+--error ER_WRONG_VALUE
+create event e_55 on schedule every 10 hour starts 99990101000000 do drop table t;
+--error ER_EVENT_ENDS_BEFORE_STARTS
+create event e_55 on schedule every 10 minute ends 99990101000000 do drop table t;
+--error ER_EVENT_EXEC_TIME_IN_THE_PAST
+create event e_55 on schedule at 10000101000000 do drop table t;
+--error ER_EVENT_EXEC_TIME_IN_THE_PAST
+create event e_55 on schedule at 20000101000000 do drop table t;
+--error ER_PARSE_ERROR
+create event e_55 on schedule at 20200101000000 starts 10000101000000 do drop table t;
+--error ER_PARSE_ERROR
+create event e_55 on schedule at 20200101000000 ends 10000101000000 do drop table t;
+--error ER_PARSE_ERROR
+create event e_55 on schedule at 20200101000000 starts 10000101000000 ends 10000101000000 do drop table t;
+--error ER_WRONG_VALUE
+create event e_55 on schedule every 10 hour starts 10000101000000 do drop table t;
+
+#
+# End  -  16396: Events: Distant-future dates become past dates
+#
+
+#
+# Start - 16407: Events: Changes in sql_mode won't be taken into account
+#
+set global event_scheduler=off;
+delete from mysql.event;
+set global event_scheduler= on;
+set @old_sql_mode:=@@sql_mode;
+set sql_mode=ansi;
+select get_lock('test_bug16407', 60);
+delimiter |;
+create event e_16407 on schedule every 60 second do
+begin
+  select get_lock('test_bug16407', 60);
+  drop table "hashed_num";
+end|
+delimiter ;|
+--sleep 0.8
+--echo "Now if everything is fine the event has compiled and is locked
+select /*1*/ user, host, db, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;
+select release_lock('test_bug16407');
+
+set global event_scheduler= off;
+
+select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
+--echo "Let's check whether we change the sql_mode on ALTER EVENT"
+set sql_mode='traditional';
+alter event e_16407 do select 1;
+select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
+drop event e_16407;
+
+set sql_mode="ansi";
+select get_lock('ee_16407_2', 60);
+
+set global event_scheduler= 1;
+--echo "Another sql_mode test"
+set sql_mode="traditional";
+create table events_smode_test(ev_name char(10), a date) engine=myisam;
+--echo "This should never insert something"
+delimiter |;
+create event ee_16407_2 on schedule every 60 second do
+begin
+  select get_lock('ee_16407_2', 60) /*ee_16407_2*/;
+  select release_lock('ee_16407_2');
+  insert into events_test.events_smode_test values('ee_16407_2','1980-19-02');
+end|
+--error ER_TRUNCATED_WRONG_VALUE
+insert into events_smode_test values ('test','1980-19-02')|
+--echo "This is ok"
+create event ee_16407_3 on schedule every 60 second do
+begin
+  select get_lock('ee_16407_2', 60) /*ee_16407_3*/;
+  select release_lock('ee_16407_2');
+  insert into events_test.events_smode_test values ('ee_16407_3','1980-02-19');
+  insert into events_test.events_smode_test values ('ee_16407_3','1980-02-29');
+end|
+set sql_mode=""|
+--echo "This will insert rows but they will be truncated"
+create event ee_16407_4 on schedule every 60 second do
+begin
+  select get_lock('ee_16407_2', 60) /*ee_16407_4*/;
+  select release_lock('ee_16407_2');
+  insert into events_test.events_smode_test values ('ee_16407_4','10-11-1956');
+end|
+delimiter ;|
+select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
+--sleep 1
+select /*2*/ user, host, db, info from information_schema.processlist where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%') order by info;
+select release_lock('ee_16407_2');
+--sleep 1.2
+select /*3*/ user, host, db, info from information_schema.processlist where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%') order by info;
+set global event_scheduler= off;
+select * from events_smode_test order by ev_name, a;
+--echo "OK, last check before we drop them"
+select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
+drop event ee_16407_2;
+drop event ee_16407_3;
+drop event ee_16407_4;
+
+
+--echo "And now one last test regarding sql_mode and call of SP from an event"
+delete from events_smode_test;
+set sql_mode='ansi';
+select get_lock('ee_16407_5', 60);
+
+set global event_scheduler= on;
+
+set sql_mode='traditional';
+delimiter |;
+create procedure ee_16407_5_pendant() begin insert into events_test.events_smode_test values('ee_16407_5','2001-02-29'); end|
+create procedure ee_16407_6_pendant() begin insert into events_test.events_smode_test values('ee_16407_6','2004-02-29'); end|
+create event ee_16407_5 on schedule every 60 second do
+begin
+  select get_lock('ee_16407_5', 60) /*ee_16407_5*/;
+  select release_lock('ee_16407_5');
+  call events_test.ee_16407_5_pendant();
+end|
+create event ee_16407_6 on schedule every 60 second do
+begin
+  select get_lock('ee_16407_5', 60) /*ee_16407_6*/;
+  select release_lock('ee_16407_5');
+  call events_test.ee_16407_6_pendant();
+end|
+delimiter ;|
+--sleep 1
+--echo "Should have 2 locked processes"
+select /*4*/ user, host, db, info from information_schema.processlist where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%') order by info;
+select release_lock('ee_16407_5');
+--sleep 1.3
+--echo "Should have 0 processes locked"
+select /*5*/ user, host, db, info from information_schema.processlist where (command!='Daemon' || user='event_scheduler') and (info is null or info not like '%processlist%') order by info;
+select * from events_smode_test order by ev_name, a;
+--echo "And here we check one more time before we drop the events"
+select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
+drop event ee_16407_5;
+drop event ee_16407_6;
+drop procedure ee_16407_5_pendant;
+drop procedure ee_16407_6_pendant;
+set global event_scheduler= off;
+drop table events_smode_test;
+set sql_mode=@old_sql_mode;
+#
+# End  - 16407: Events: Changes in sql_mode won't be taken into account  
+#
+
+#
+# START - 18897: Events: unauthorized action possible with alter event rename
+#
+set global event_scheduler=off;
+--disable_warnings
+delete from mysql.user where User like 'mysqltest_%';
+delete from mysql.db where User like 'mysqltest_%';
+flush privileges;
+drop database if exists mysqltest_db1;
+--enable_warnings
+create user mysqltest_user1@localhost;
+create database mysqltest_db1;
+grant event on events_test.* to mysqltest_user1@localhost;
+connect (conn2,localhost,mysqltest_user1,,events_test);
+create event mysqltest_user1 on schedule every 10 second do select 42;
+--error ER_DBACCESS_DENIED_ERROR
+alter event mysqltest_user1 rename to mysqltest_db1.mysqltest_user1;
+--echo "Let's test now rename when there is no select DB"
+disconnect conn2;
+connect (conn2,localhost,mysqltest_user1,,*NO-ONE*);
+select database();
+--error ER_NO_DB_ERROR
+alter event events_test.mysqltest_user1 rename to mysqltest_user1;
+select event_schema, event_name, definer, event_type, status from information_schema.events;
+drop event events_test.mysqltest_user1;
+disconnect conn2;
+connection default;
+drop user mysqltest_user1@localhost;
+drop database mysqltest_db1;
+#
+# END   - 18897: Events: unauthorized action possible with alter event rename
+#
+
+#
+# START - BUG#16394: Events: Crash if schedule contains SELECT
+#
+--error ER_NOT_SUPPORTED_YET
+create event e_53 on schedule at (select s1 from ttx) do drop table t;
+--error ER_NOT_SUPPORTED_YET
+create event e_53 on schedule every (select s1 from ttx) second do drop table t;
+--error ER_NOT_SUPPORTED_YET
+create event e_53 on schedule every 5 second starts (select s1 from ttx) do drop table t;
+--error ER_NOT_SUPPORTED_YET
+create event e_53 on schedule every 5 second ends (select s1 from ttx) do drop table t;
+#
+# END   - BUG#16394: Events: Crash if schedule contains SELECT
+#
+
+#
+# START - BUG#22397: Events: crash with procedure which alters events
+#
+--disable_warnings
+drop event if exists e_16;
+drop procedure if exists p_16;
+--enable_warnings
+create event e_16 on schedule every 1 second do set @a=5;
+create procedure p_16 () alter event e_16 on schedule every @a second;
+set @a = null;
+--error ER_WRONG_VALUE
+call p_16();
+--error ER_WRONG_VALUE
+call p_16();
+set @a= 6;
+call p_16();
+
+drop procedure p_16;
+drop event e_16;
+
+#
+# START - BUG#22830 Events: crash with procedure which alters events with function
+#
+--disable_warnings
+drop function if exists f22830;
+drop event if exists e22830;
+drop event if exists e22830_1;
+drop event if exists e22830_2;
+drop event if exists e22830_3;
+drop event if exists e22830_4;
+drop table if exists t1;
+drop table if exists t2;
+--enable_warnings
+create table t1 (a int);
+insert into t1 values (2);
+create table t2 (a char(20));
+insert into t2 values ("e22830_1");
+create function f22830 () returns int return 5;
+--error ER_NOT_SUPPORTED_YET
+create event e22830 on schedule every f22830() second do select 123;
+create event e22830_1 on schedule every 1 hour do alter event e22830_1 on schedule every (select 8 from dual) hour;
+create event e22830_2 on schedule every 1 hour do alter event e22830_2 on schedule every (select 8 from t1) hour;
+create event e22830_3 on schedule every 1 hour do alter event e22830_3 on schedule every f22830() hour;
+create event e22830_4 on schedule every 1 hour do alter event e22830_4 on schedule every (select f22830() from dual) hour;
+select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
+set global event_scheduler=on;
+--sleep 4
+set global event_scheduler=off;
+select event_name, event_definition, interval_value, interval_field from information_schema.events order by event_name;
+drop function f22830;
+--error ER_PARSE_ERROR
+drop event (select a from t2);
+drop event e22830_1;
+drop event e22830_2;
+drop event e22830_3;
+drop event e22830_4;
+drop table t1;
+drop table t2;
+
+#
+# End of tests
+#
+drop database events_test;

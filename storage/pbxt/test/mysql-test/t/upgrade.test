@@ -1,0 +1,58 @@
+-- source include/not_embedded.inc
+
+--disable_warnings
+drop database if exists `mysqltest1`;
+drop database if exists `mysqltest-1`;
+drop database if exists `#mysql50#mysqltest-1`;
+--enable_warnings
+
+create database `mysqltest1`;
+create database `#mysql50#mysqltest-1`;
+create table `mysqltest1`.`t1` (a int) engine=myisam; # PBXT : cannot rename database
+create table `mysqltest1`.`#mysql50#t-1` (a int) engine=myisam; # PBXT : cannot rename database
+create table `#mysql50#mysqltest-1`.`t1` (a int) engine=myisam; # PBXT : cannot rename database
+create table `#mysql50#mysqltest-1`.`#mysql50#t-1` (a int) engine=myisam; # PBXT : cannot rename database
+show create database `mysqltest1`;
+--error 1049
+show create database `mysqltest-1`;
+show create database `#mysql50#mysqltest-1`;
+show tables in `mysqltest1`;
+show tables in `#mysql50#mysqltest-1`;
+
+--exec $MYSQL_CHECK --all-databases --fix-db-names --fix-table-names
+
+show create database `mysqltest1`;
+show create database `mysqltest-1`;
+--error 1049
+show create database `#mysql50#mysqltest-1`;
+show tables in `mysqltest1`;
+show tables in `mysqltest-1`;
+drop database `mysqltest1`;
+drop database `mysqltest-1`;
+
+#
+# Bug#17142: Crash if create with encoded name
+#
+--disable_warnings
+drop table if exists `txu@0023p@0023p1`;
+drop table if exists `txu#p#p1`;
+--enable_warnings
+create table `txu#p#p1` (s1 int);
+insert into `txu#p#p1` values (1);
+--error 1146
+select * from `txu@0023p@0023p1`;
+create table `txu@0023p@0023p1` (s1 int);
+insert into `txu@0023p@0023p1` values (2);
+select * from `txu@0023p@0023p1`;
+select * from `txu#p#p1`;
+drop table `txu@0023p@0023p1`;
+drop table `txu#p#p1`;
+
+#
+# Check if old tables work
+#
+
+system cp $MYSQL_TEST_DIR/std_data/old_table-323.frm $MYSQLTEST_VARDIR/master-data/test/t1.frm;
+truncate t1;
+drop table t1;
+

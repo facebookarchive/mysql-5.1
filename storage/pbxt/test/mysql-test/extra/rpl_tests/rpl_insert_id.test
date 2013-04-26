@@ -1,0 +1,488 @@
+###########################################################
+# 2006-02-01: By JBM: Added 1022, ORDER BY 
+###########################################################
+# See if queries that use both auto_increment and LAST_INSERT_ID()
+# are replicated well
+############################################################
+# REQUIREMENT
+# Auto increment should work for a table with an auto_increment
+# column and index but without primary key.
+##############################################################
+
+--echo #
+--echo # Setup
+--echo #
+
+use test;
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+
+--echo #
+--echo # See if queries that use both auto_increment and LAST_INSERT_ID()
+--echo # are replicated well
+--echo #
+--echo # We also check how the foreign_key_check variable is replicated
+--echo #
+
+-- source include/master-slave.inc
+#should work for both SBR and RBR
+
+connection master;
+create table t1(a int auto_increment, key(a));
+create table t2(b int auto_increment, c int, key(b));
+insert into t1 values (1),(2),(3);
+insert into t1 values (null);
+insert into t2 values (null,last_insert_id());
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
+connection master;
+#check if multi-line inserts,
+#which set last_insert_id to the first id inserted,
+#are replicated the same way
+drop table t1;
+drop table t2;
+--disable_warnings
+eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
+eval create table t2(b int auto_increment, c int, key(b), foreign key(b) references t1(a)) engine=$engine_type;
+--enable_warnings
+SET FOREIGN_KEY_CHECKS=0;
+insert into t1 values (10);
+insert into t1 values (null),(null),(null);
+insert into t2 values (5,0);
+insert into t2 values (null,last_insert_id());
+SET FOREIGN_KEY_CHECKS=1;
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1;
+select * from t2;
+connection master;
+
+--echo #
+--echo # check if INSERT SELECT in auto_increment is well replicated (bug #490)
+--echo #
+
+drop table t2;
+drop table t1;
+create table t1(a int auto_increment, key(a));
+create table t2(b int auto_increment, c int, key(b));
+insert into t1 values (10);
+insert into t1 values (null),(null),(null);
+insert into t2 values (5,0);
+insert into t2 (c) select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
+connection master;
+drop table t1;
+drop table t2;
+save_master_pos;
+connection slave;
+sync_with_master;
+
+--echo #
+--echo # Bug#8412: Error codes reported in binary log for CHARACTER SET,
+--echo #           FOREIGN_KEY_CHECKS
+--echo #
+
+connection master;
+SET TIMESTAMP=1000000000;
+CREATE TABLE t1 ( a INT UNIQUE );
+SET FOREIGN_KEY_CHECKS=0;
+# Duplicate Key Errors
+--error 1022, 1582
+INSERT INTO t1 VALUES (1),(1);
+sync_slave_with_master;
+connection master;
+drop table t1;
+sync_slave_with_master;
+
+--echo #
+--echo # Bug#14553: NULL in WHERE resets LAST_INSERT_ID
+--echo #
+
+connection master;
+create table t1(a int auto_increment, key(a));
+create table t2(a int);
+insert into t1 (a) values (null);
+insert into t2 (a) select a from t1 where a is null;
+insert into t2 (a) select a from t1 where a is null;
+select * from t2;
+sync_slave_with_master;
+connection slave;
+select * from t2;
+connection master;
+drop table t1;
+drop table t2;
+
+--echo #
+--echo # End of 4.1 tests
+--echo #
+
+--echo #
+--echo # BUG#15728: LAST_INSERT_ID function inside a stored function returns 0
+--echo #
+--echo # The solution is not to reset last_insert_id on enter to sub-statement.
+--echo #
+
+connection master;
+--disable_warnings
+drop function if exists bug15728;
+drop function if exists bug15728_insert;
+drop table if exists t1, t2;
+--enable_warnings
+
+create table t1 (
+  id int not null auto_increment,
+  last_id int,
+  primary key (id)
+);
+create function bug15728() returns int(11)
+  return last_insert_id();
+
+insert into t1 (last_id) values (0);
+insert into t1 (last_id) values (last_insert_id());
+insert into t1 (last_id) values (bug15728());
+
+# Check that nested call replicates too.
+create table t2 (
+  id int not null auto_increment,
+  last_id int,
+  primary key (id)
+);
+delimiter |;
+create function bug15728_insert() returns int(11) modifies sql data
+begin
+  insert into t2 (last_id) values (bug15728());
+  return bug15728();
+end|
+create trigger t1_bi before insert on t1 for each row
+begin
+  declare res int;
+  select bug15728_insert() into res;
+  set NEW.last_id = res;
+end|
+delimiter ;|
+
+insert into t1 (last_id) values (0);
+
+drop trigger t1_bi;
+
+# Check that nested call doesn't affect outer context.
+select last_insert_id();
+select bug15728_insert();
+select last_insert_id();
+insert into t1 (last_id) values (bug15728());
+# This should be exactly one greater than in the previous call.
+select last_insert_id();
+
+# BUG#20339 - stored procedure using LAST_INSERT_ID() does not
+# replicate statement-based
+--disable_warnings
+drop procedure if exists foo;
+--enable_warnings
+delimiter |;
+create procedure foo()
+begin
+  declare res int;
+  insert into t2 (last_id) values (bug15728());
+  insert into t1 (last_id) values (bug15728());
+end|
+delimiter ;|
+call foo();
+
+select * from t1;
+select * from t2;
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1;
+select * from t2;
+connection master;
+
+drop function bug15728;
+drop function bug15728_insert;
+drop table t1;
+drop procedure foo;
+
+# test of BUG#20188 REPLACE or ON DUPLICATE KEY UPDATE in
+# auto_increment breaks binlog
+
+create table t1 (n int primary key auto_increment not null,
+b int, unique(b));
+
+# First, test that we do not call restore_auto_increment() too early
+# in write_record():
+set sql_log_bin=0;
+insert into t1 values(null,100);
+replace into t1 values(null,50),(null,100),(null,150);
+select * from t1 order by n;
+truncate table t1;
+set sql_log_bin=1;
+
+insert into t1 values(null,100);
+select * from t1 order by n;
+sync_slave_with_master;
+# make slave's table autoinc counter bigger
+insert into t1 values(null,200),(null,300);
+delete from t1 where b <> 100;
+# check that slave's table content is identical to master
+select * from t1 order by n;
+# only the auto_inc counter differs.
+
+connection master;
+replace into t1 values(null,100),(null,350);
+select * from t1 order by n;
+sync_slave_with_master;
+select * from t1 order by n;
+
+# Same test as for REPLACE, but for ON DUPLICATE KEY UPDATE
+
+# We first check that if we update a row using a value larger than the
+# table's counter, the counter for next row is bigger than the
+# after-value of the updated row.
+connection master;
+insert into t1 values (NULL,400),(3,500),(NULL,600) on duplicate key UPDATE n=1000;
+select * from t1 order by n;
+sync_slave_with_master;
+select * from t1 order by n;
+
+# and now test for the bug:
+connection master;
+drop table t1;
+create table t1 (n int primary key auto_increment not null,
+b int, unique(b));
+insert into t1 values(null,100);
+select * from t1 order by n;
+sync_slave_with_master;
+insert into t1 values(null,200),(null,300);
+delete from t1 where b <> 100;
+select * from t1 order by n;
+
+connection master;
+insert into t1 values(null,100),(null,350) on duplicate key update n=2;
+select * from t1 order by n;
+sync_slave_with_master;
+select * from t1 order by n;
+
+connection master;
+drop table t1;
+sync_slave_with_master;
+
+
+#
+# BUG#20339: stored procedure using LAST_INSERT_ID() does not
+# replicate statement-based.
+#
+# There is another version of the test for bug#20339 above that is
+# actually originates in 5.1, and this is the version that is merged
+# from 5.0.
+#
+connection master;
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+# Reset result of LAST_INSERT_ID().
+SELECT LAST_INSERT_ID(0);
+
+CREATE TABLE t1 (
+  id INT NOT NULL DEFAULT 0,
+  last_id INT,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE t2 (
+  id INT NOT NULL AUTO_INCREMENT,
+  last_id INT,
+  PRIMARY KEY (id)
+);
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  INSERT INTO t2 (last_id) VALUES (LAST_INSERT_ID());
+  INSERT INTO t1 (last_id) VALUES (LAST_INSERT_ID());
+END|
+delimiter ;|
+
+CALL p1();
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+sync_slave_with_master;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+connection master;
+
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+
+
+#
+# BUG#21726: Incorrect result with multiple invocations of
+# LAST_INSERT_ID
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (
+    i INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    j INT DEFAULT 0
+);
+CREATE TABLE t2 (i INT);
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  INSERT INTO t1 (i) VALUES (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  INSERT INTO t1 (i) VALUES (NULL), (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+END |
+
+CREATE FUNCTION f1() RETURNS INT MODIFIES SQL DATA
+BEGIN
+  INSERT INTO t1 (i) VALUES (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  INSERT INTO t1 (i) VALUES (NULL), (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  RETURN 0;
+END |
+
+CREATE FUNCTION f2() RETURNS INT NOT DETERMINISTIC
+  RETURN LAST_INSERT_ID() |
+
+CREATE FUNCTION f3() RETURNS INT MODIFIES SQL DATA
+BEGIN
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  RETURN 0;
+END |
+delimiter ;|
+
+INSERT INTO t1 VALUES (NULL, -1);
+CALL p1();
+SELECT f1();
+INSERT INTO t1 VALUES (NULL, f2()), (NULL, LAST_INSERT_ID()),
+                      (NULL, LAST_INSERT_ID()), (NULL, f2()), (NULL, f2());
+INSERT INTO t1 VALUES (NULL, f2());
+INSERT INTO t1 VALUES (NULL, LAST_INSERT_ID()), (NULL, LAST_INSERT_ID(5)),
+                      (NULL, @@LAST_INSERT_ID);
+# Test replication of substitution "IS NULL" -> "= LAST_INSERT_ID".
+INSERT INTO t1 VALUES (NULL, 0), (NULL, LAST_INSERT_ID());
+UPDATE t1 SET j= -1 WHERE i IS NULL;
+
+# Test statement-based replication of function calls.
+INSERT INTO t1 (i) VALUES (NULL);
+
+connection master1;
+INSERT INTO t1 (i) VALUES (NULL);
+
+connection master;
+SELECT f3();
+
+SELECT * FROM t1 order by i; # PBXT Order required for consistent result
+SELECT * FROM t2 order by i; # PBXT Order required for consistent result
+
+sync_slave_with_master;
+SELECT * FROM t1 order by i; # PBXT Order required for consistent result
+SELECT * FROM t2 order by i; # PBXT Order required for consistent result
+
+connection master;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP TABLE t1, t2;
+
+
+sync_slave_with_master;
+
+--echo #
+--echo # End of 5.0 tests
+--echo #
+
+# Tests in this file are tightly bound together.  Recreate t2.
+connection master;
+create table t2 (
+  id int not null auto_increment,
+  last_id int,
+  primary key (id)
+);
+
+
+# Test for BUG#20341 "stored function inserting into one
+# auto_increment puts bad data in slave"
+
+connection master;
+truncate table t2;
+create table t1 (id tinyint primary key); # no auto_increment
+
+delimiter |;
+create function insid() returns int
+begin
+  insert into t2 (last_id) values (0);
+  return 0;
+end|
+delimiter ;|
+set sql_log_bin=0;
+insert into t2 (id) values(1),(2),(3);
+delete from t2;
+set sql_log_bin=1;
+#inside SELECT, then inside INSERT
+select insid();
+set sql_log_bin=0;
+insert into t2 (id) values(5),(6),(7);
+delete from t2 where id>=5;
+set sql_log_bin=1;
+insert into t1 select insid();
+select * from t1;
+select * from t2;
+
+sync_slave_with_master;
+select * from t1;
+select * from t2;
+
+connection master;
+drop table t1;
+drop function insid;
+
+truncate table t2;
+create table t1 (n int primary key auto_increment not null,
+b int, unique(b));
+delimiter |;
+create procedure foo()
+begin
+  insert into t1 values(null,10);
+  insert ignore into t1 values(null,10);
+  insert ignore into t1 values(null,10);
+  insert into t2 values(null,3);
+end|
+delimiter ;|
+call foo();
+select * from t1;
+select * from t2;
+
+sync_slave_with_master;
+select * from t1;
+select * from t2;
+
+connection master;
+drop table t1, t2;
+drop procedure foo;
+sync_slave_with_master;

@@ -1,0 +1,3 @@
+cd ../mysql-test
+./pbxt-test-run.pl --start-and-exit --base-dir=`cat ../../mysql-src-root`/sql --mysqld=--plugin_dir=../../src/.libs --mysqld=--default-storage-engine=pbxt
+cd $OLDPWD

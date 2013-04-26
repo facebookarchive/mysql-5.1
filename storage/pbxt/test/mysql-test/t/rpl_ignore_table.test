@@ -1,0 +1,54 @@
+source include/master-slave.inc;
+
+#
+# BUG#16487
+#  
+# Requirement:
+# Multi-updates on ignored tables should not fail even if the slave does 
+# not have the ignored tables.
+#
+# Note table t1, t2, and t3 are ignored in the option file to this test.
+#
+
+--echo **** Test case for BUG#16487 ****
+--echo **** Master ****
+connection master;
+CREATE TABLE test.t4 (a int);
+CREATE TABLE test.t1 (a int);
+
+# Expect: The row must *not* by updated on slave, since t1 is ignored
+UPDATE test.t4 NATURAL JOIN test.t1 SET t1.a=5;
+
+--echo **** Slave ****
+sync_slave_with_master;
+SELECT * FROM t4;
+
+# Cleanup
+connection master;
+DROP TABLE t1;
+DROP TABLE t4;
+sync_slave_with_master;
+
+#
+# bug#22877 replication character sets get out of sync
+# using replicate-wild-ignore-table
+#
+connection master;
+--disable_warnings
+DROP TABLE IF EXISTS t5;
+--enable_warnings
+CREATE TABLE t5 (
+ word varchar(50) collate utf8_unicode_ci NOT NULL default ''
+) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+SET @@session.character_set_client=33,@@session.collation_connection=192;
+CREATE TEMPORARY TABLE tmptbl504451f4258$1 (id INT NOT NULL) ENGINE=MEMORY;
+INSERT INTO t5 (word)  VALUES ('TEST’');
+SELECT HEX(word) FROM t5;
+sync_slave_with_master;
+connection slave;
+SELECT HEX(word) FROM t5;
+--error 1146
+SELECT * FROM tmptbl504451f4258$1;
+connection master;
+DROP TABLE t5;
+sync_slave_with_master;

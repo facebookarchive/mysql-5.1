@@ -1,0 +1,1855 @@
+drop table if exists t1,t2,t3;
+create table t1 (id int auto_increment key) engine=pbxt auto_increment=200;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=PBXT AUTO_INCREMENT=200 DEFAULT CHARSET=latin1
+alter table t1 add column text char(40);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `text` char(40) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=PBXT AUTO_INCREMENT=200 DEFAULT CHARSET=latin1
+alter table t1 auto_increment = 100;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `text` char(40) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=PBXT AUTO_INCREMENT=100 DEFAULT CHARSET=latin1
+drop table if exists t1;
+create table t1 (
+id int,
+c_char char(3),
+c_varchar varchar(3),
+c_char_bin char(3) binary,
+c_varchar_bin varchar(3) binary,
+c_char_uni char(3) unicode,
+c_varchar_uni varchar(3) unicode,
+c_dec decimal(3),
+index(c_char),
+index(c_varchar),
+index(c_char_bin),
+index(c_varchar_bin),
+index(c_char_uni),
+index(c_varchar_uni),
+index(c_dec)
+) engine=pbxt;
+insert t1 values (1, "ab", "ab", "ab", "ab", "ab", "ab", 12);
+insert t1 values (2, "ab ", "ab ", "ab ", "ab ", "ab ", "ab ", 123);
+select c_char from t1 where c_char = "ab";
+c_char
+ab
+ab
+select c_varchar from t1 where c_varchar = "ab";
+c_varchar
+ab
+ab 
+select c_char_bin from t1 where c_char_bin = "ab";
+c_char_bin
+ab
+ab
+select c_varchar_bin from t1 where c_varchar_bin = "ab";
+c_varchar_bin
+ab
+ab 
+select c_char_uni from t1 where c_char_uni = "ab";
+c_char_uni
+ab
+ab
+select c_varchar_uni from t1 where c_varchar_uni = "ab";
+c_varchar_uni
+ab
+ab 
+select c_dec from t1 where c_dec = 12;
+c_dec
+12
+select * from t1 where c_char = "ab ";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_varchar = "ab ";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_char_bin = "ab ";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_varchar_bin = "ab ";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_char_uni = "ab ";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_varchar_uni = "ab ";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_dec = 123;
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+2	ab	ab 	ab	ab 	ab	ab 	123
+drop table if exists t1;
+create table t1 (
+id     int,
+c_char    char(100),
+c_varchar   varchar(100),
+c_char_bin   char(100) binary,
+c_varchar_bin  varchar(100) binary,
+c_char_uni   char(100) unicode,
+c_varchar_uni  varchar(100) unicode,
+c_dec    decimal(65),
+index(c_char),
+index(c_varchar),
+index(c_char_bin),
+index(c_varchar_bin),
+index(c_char_uni),
+index(c_varchar_uni),
+index(c_dec)
+) engine=pbxt;
+insert t1 values (1, "ab", "ab", "ab", "ab", "ab", "ab", 12);
+insert t1 values (2, "ab ", "ab ", "ab ", "ab ", "ab ", "ab ", 123);
+select * from t1 where c_char = "ab";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_varchar = "ab";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_char_bin = "ab";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_varchar_bin = "ab";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_char_uni = "ab";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_varchar_uni = "ab";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_dec = 12;
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+select c_char from t1 where c_char = "ab ";
+c_char
+ab
+ab
+select c_varchar from t1 where c_varchar = "ab ";
+c_varchar
+ab
+ab 
+select c_char_bin from t1 where c_char_bin = "ab ";
+c_char_bin
+ab
+ab
+select c_varchar_bin from t1 where c_varchar_bin = "ab ";
+c_varchar_bin
+ab
+ab 
+select c_char_uni from t1 where c_char_uni = "ab ";
+c_char_uni
+ab
+ab
+select c_varchar_uni from t1 where c_varchar_uni = "ab ";
+c_varchar_uni
+ab
+ab 
+select c_dec from t1 where c_dec = 123;
+c_dec
+123
+drop table if exists t1;
+create table t1 (
+id     int,
+c_varchar   varchar(300),
+c_varchar_bin  varchar(300) binary,
+c_varchar_uni  varchar(300) unicode,
+c_ttext TINYTEXT,
+c_text TEXT,
+c_mtext MEDIUMTEXT,
+c_ltext LONGTEXT,
+index(c_varchar),
+index(c_varchar_bin),
+index(c_varchar_uni),
+index(c_ttext(100)),
+index(c_text(100)),
+index(c_mtext(100)),
+index(c_ltext(100))
+) engine=pbxt;
+insert t1 values (1, "ab", "ab", "ab", "ab", "ab", "ab", "ab");
+insert t1 values (2, "ab ", "ab ", "ab ", "ab ", "ab ", "ab ", "ab ");
+select c_varchar from t1 where c_varchar = "ab";
+c_varchar
+ab
+ab 
+select c_varchar_bin from t1 where c_varchar_bin = "ab";
+c_varchar_bin
+ab
+ab 
+select c_varchar_uni from t1 where c_varchar_uni = "ab";
+c_varchar_uni
+ab
+ab 
+select c_ttext from t1 where c_ttext = "ab";
+c_ttext
+ab
+ab 
+select c_text from t1 where c_text = "ab";
+c_text
+ab
+ab 
+select c_mtext from t1 where c_mtext = "ab";
+c_mtext
+ab
+ab 
+select c_ltext from t1 where c_ltext = "ab";
+c_ltext
+ab
+ab 
+select * from t1 where c_varchar = "ab ";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select * from t1 where c_varchar_bin = "ab ";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select * from t1 where c_varchar_uni = "ab ";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select * from t1 where c_ttext = "ab ";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select * from t1 where c_text = "ab ";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select * from t1 where c_mtext = "ab ";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select * from t1 where c_ltext = "ab ";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+drop table if exists t1;
+create table t1 (
+id int not null,
+c_char char(3) not null,
+c_varchar varchar(3) not null,
+c_char_bin char(3) binary not null,
+c_varchar_bin varchar(3) binary not null,
+c_char_uni char(3) unicode not null,
+c_varchar_uni varchar(3) unicode not null,
+c_dec decimal(3) not null,
+index(c_char),
+index(c_varchar),
+index(c_char_bin),
+index(c_varchar_bin),
+index(c_char_uni),
+index(c_varchar_uni),
+index(c_dec)
+) engine=pbxt;
+insert t1 values (1, "ab", "ab", "ab", "ab", "ab", "ab", 12);
+insert t1 values (2, "ab ", "ab ", "ab ", "ab ", "ab ", "ab ", 123);
+select * from t1 where c_char = "ab";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_varchar = "ab";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_char_bin = "ab";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_varchar_bin = "ab";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_char_uni = "ab";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_varchar_uni = "ab";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_dec = 12;
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+select c_char from t1 where c_char = "ab ";
+c_char
+ab
+ab
+select c_varchar from t1 where c_varchar = "ab ";
+c_varchar
+ab
+ab 
+select c_char_bin from t1 where c_char_bin = "ab ";
+c_char_bin
+ab
+ab
+select c_varchar_bin from t1 where c_varchar_bin = "ab ";
+c_varchar_bin
+ab
+ab 
+select c_char_uni from t1 where c_char_uni = "ab ";
+c_char_uni
+ab
+ab
+select c_varchar_uni from t1 where c_varchar_uni = "ab ";
+c_varchar_uni
+ab
+ab 
+select c_dec from t1 where c_dec = 123;
+c_dec
+123
+drop table if exists t1;
+create table t1 (
+id     int not null,
+c_char    char(100) not null,
+c_varchar   varchar(100) not null,
+c_char_bin   char(100) binary not null,
+c_varchar_bin  varchar(100) binary not null,
+c_char_uni   char(100) unicode not null,
+c_varchar_uni  varchar(100) unicode not null,
+c_dec    decimal(65),
+index(c_char),
+index(c_varchar),
+index(c_char_bin),
+index(c_varchar_bin),
+index(c_char_uni),
+index(c_varchar_uni),
+index(c_dec)
+) engine=pbxt;
+insert t1 values (1, "ab", "ab", "ab", "ab", "ab", "ab", 12);
+insert t1 values (2, "ab ", "ab ", "ab ", "ab ", "ab ", "ab ", 123);
+select c_char from t1 where c_char = "ab";
+c_char
+ab
+ab
+select c_varchar from t1 where c_varchar = "ab";
+c_varchar
+ab
+ab 
+select c_char_bin from t1 where c_char_bin = "ab";
+c_char_bin
+ab
+ab
+select c_varchar_bin from t1 where c_varchar_bin = "ab";
+c_varchar_bin
+ab
+ab 
+select c_char_uni from t1 where c_char_uni = "ab";
+c_char_uni
+ab
+ab
+select c_varchar_uni from t1 where c_varchar_uni = "ab";
+c_varchar_uni
+ab
+ab 
+select c_dec from t1 where c_dec = 12;
+c_dec
+12
+select * from t1 where c_char = "ab ";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_varchar = "ab ";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_char_bin = "ab ";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_varchar_bin = "ab ";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_char_uni = "ab ";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_varchar_uni = "ab ";
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+1	ab	ab	ab	ab	ab	ab	12
+2	ab	ab 	ab	ab 	ab	ab 	123
+select * from t1 where c_dec = 123;
+id	c_char	c_varchar	c_char_bin	c_varchar_bin	c_char_uni	c_varchar_uni	c_dec
+2	ab	ab 	ab	ab 	ab	ab 	123
+drop table if exists t1;
+create table t1 (
+id     int,
+c_varchar   varchar(300) not null,
+c_varchar_bin  varchar(300) binary not null,
+c_varchar_uni  varchar(300) unicode not null,
+c_ttext TINYTEXT not null,
+c_text TEXT not null,
+c_mtext MEDIUMTEXT not null,
+c_ltext LONGTEXT not null,
+index(c_varchar),
+index(c_varchar_bin),
+index(c_varchar_uni),
+index(c_ttext(100)),
+index(c_text(100)),
+index(c_mtext(100)),
+index(c_ltext(100))
+) engine=pbxt;
+insert t1 values (1, "ab", "ab", "ab", "ab", "ab", "ab", "ab");
+insert t1 values (2, "ab ", "ab ", "ab ", "ab ", "ab ", "ab ", "ab ");
+select * from t1 where c_varchar = "ab";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select * from t1 where c_varchar_bin = "ab";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select * from t1 where c_varchar_uni = "ab";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select * from t1 where c_ttext = "ab";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select * from t1 where c_text = "ab";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select * from t1 where c_mtext = "ab";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select * from t1 where c_ltext = "ab";
+id	c_varchar	c_varchar_bin	c_varchar_uni	c_ttext	c_text	c_mtext	c_ltext
+1	ab	ab	ab	ab	ab	ab	ab
+2	ab 	ab 	ab 	ab 	ab 	ab 	ab 
+select c_varchar from t1 where c_varchar = "ab ";
+c_varchar
+ab
+ab 
+select c_varchar_bin from t1 where c_varchar_bin = "ab ";
+c_varchar_bin
+ab
+ab 
+select c_varchar_uni from t1 where c_varchar_uni = "ab ";
+c_varchar_uni
+ab
+ab 
+select c_ttext from t1 where c_ttext = "ab ";
+c_ttext
+ab
+ab 
+select c_text from t1 where c_text = "ab ";
+c_text
+ab
+ab 
+select c_mtext from t1 where c_mtext = "ab ";
+c_mtext
+ab
+ab 
+select c_ltext from t1 where c_ltext = "ab ";
+c_ltext
+ab
+ab 
+drop table if exists t1;
+create table t1 (
+id     int,
+c_char_suni  char(4) unicode,
+c_varchar_suni  varchar(4) unicode,
+c_char_uni  char(255) unicode,
+c_varchar_uni  varchar(300) unicode,
+index(c_char_suni),
+index(c_varchar_suni),
+index(c_char_uni),
+index(c_varchar_uni)
+) engine=pbxt;
+insert t1 values (1, "ab", "ab", "ab", "ab");
+insert t1 values (1, "abcd", "abcd", "abcd", "abcd");
+insert t1 values (1, "ab  ", "ab  ", "abcd123123123123123123123123123123123123", "abcd123123123123123123123123123123123123");
+select * from t1 where c_char_suni = "ab";
+id	c_char_suni	c_varchar_suni	c_char_uni	c_varchar_uni
+1	ab	ab	ab	ab
+1	ab	ab  	abcd123123123123123123123123123123123123	abcd123123123123123123123123123123123123
+select * from t1 where c_varchar_suni = "ab";
+id	c_char_suni	c_varchar_suni	c_char_uni	c_varchar_uni
+1	ab	ab	ab	ab
+1	ab	ab  	abcd123123123123123123123123123123123123	abcd123123123123123123123123123123123123
+select * from t1 where c_char_uni = "ab";
+id	c_char_suni	c_varchar_suni	c_char_uni	c_varchar_uni
+1	ab	ab	ab	ab
+select * from t1 where c_varchar_uni = "ab";
+id	c_char_suni	c_varchar_suni	c_char_uni	c_varchar_uni
+1	ab	ab	ab	ab
+drop table if exists t1;
+create table t1 (id int, name char(10) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+id	name
+1	ab
+insert t1 values (2, "ab ");
+ERROR 23000: Duplicate entry 'ab' for key 'PRIMARY'
+drop table if exists t1;
+create table t1 (id int, name char(100) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+id	name
+1	ab
+insert t1 values (2, "ab ");
+ERROR 23000: Duplicate entry 'ab' for key 'PRIMARY'
+drop table if exists t1;
+create table t1 (id int, name varchar(10) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+id	name
+1	ab
+insert t1 values (2, "ab ");
+ERROR 23000: Duplicate entry 'ab ' for key 'PRIMARY'
+drop table if exists t1;
+create table t1 (id int, name varchar(100) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+id	name
+1	ab
+insert t1 values (2, "ab ");
+ERROR 23000: Duplicate entry 'ab ' for key 'PRIMARY'
+drop table if exists t1;
+create table t1 (id int, name varchar(400) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+id	name
+1	ab
+insert t1 values (2, "ab ");
+ERROR 23000: Duplicate entry 'ab ' for key 'PRIMARY'
+drop table if exists t1;
+create table t1 (id int, name char(10) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+id	name
+1	ab
+insert t1 values (2, "ab ");
+ERROR 23000: Duplicate entry 'ab' for key 'PRIMARY'
+drop table if exists t1;
+create table t1 (id int, name char(100) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+id	name
+1	ab
+insert t1 values (2, "ab ");
+ERROR 23000: Duplicate entry 'ab' for key 'PRIMARY'
+drop table if exists t1;
+create table t1 (id int, name varchar(10), index(name)) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+id	name
+1	ab
+insert t1 values (2, "ab ");
+insert t1 values (3, "ab  ");
+select * from t1 where name = "ab";
+id	name
+1	ab
+2	ab 
+3	ab  
+insert t1 values (4, "ab ");
+drop table if exists t1;
+create table t1 (id int, name varchar(100), index(name)) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+id	name
+1	ab
+insert t1 values (2, "ab ");
+insert t1 values (3, "ab  ");
+select * from t1 where name = "ab";
+id	name
+1	ab
+2	ab 
+3	ab  
+insert t1 values (4, "ab ");
+drop table if exists t1;
+create table t1 (id int, name varchar(400), index(name)) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+id	name
+1	ab
+insert t1 values (2, "ab ");
+insert t1 values (3, "ab  ");
+select * from t1 where name = "ab";
+id	name
+1	ab
+2	ab 
+3	ab  
+insert t1 values (4, "ab ");
+drop table if exists t1;
+create table t1 (id int, name char(10), index(name)) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+id	name
+1	ab
+insert t1 values (2, "ab ");
+insert t1 values (3, "ab  ");
+select * from t1 where name = "ab";
+id	name
+1	ab
+2	ab
+3	ab
+insert t1 values (4, "ab ");
+drop table if exists t1;
+create table t1 (id int, name char(100), index(name)) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+id	name
+1	ab
+insert t1 values (2, "ab ");
+insert t1 values (3, "ab  ");
+select * from t1 where name = "ab";
+id	name
+1	ab
+2	ab
+3	ab
+insert t1 values (4, "ab ");
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( id int, name varchar(300)) engine=pbxt;
+begin;
+insert t1(id, name) values(1, "aaa");
+update t1 set name=REPEAT('A', 300) where id = 1;
+commit;
+flush tables;
+select * from t1;
+id	name
+1	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( id int, name varchar(300)) engine=pbxt;
+begin;
+insert t1(id, name) values(1, REPEAT('A', 300));
+update t1 set name="aaa" where id = 1;
+commit;
+flush tables;
+select * from t1;
+id	name
+1	aaa
+drop table if exists t1, t2;
+create table t1 (s1 int primary key) engine = pbxt;
+insert into t1 values (1);
+create table t2 (s1 int, foreign key (s1) references t1 (s1)) engine = pbxt;
+insert into t2 values (1);
+truncate table t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Constraint: `FOREIGN_1`)
+alter table t1 engine myisam;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `s1` int(11) NOT NULL,
+  PRIMARY KEY (`s1`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table if exists t1, t2;
+create table t1 (s1 int primary key, s2 int unique not null) engine = pbxt;
+create table t2 (s1 int, foreign key (s1) references t1 (s1)) engine = pbxt;
+select * from information_schema.table_constraints
+where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+NULL	test	FOREIGN_1	test	t2	FOREIGN KEY
+select * from information_schema.referential_constraints where table_name = 't2';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+NULL	test	FOREIGN_1	NULL	test	PRIMARY	NONE	RESTRICT	RESTRICT	t2	t1
+drop table t2, t1;
+create table t1 (s1 int, s2 int, unique key ix1 (s1, s2)) engine = pbxt;
+create table t2 (s1 int, s2 int, foreign key (s1, s2) references t1 (s1, s2)) engine = pbxt;
+select * from information_schema.table_constraints
+where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+NULL	test	FOREIGN_1	test	t2	FOREIGN KEY
+select * from information_schema.referential_constraints where table_name = 't2';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+NULL	test	FOREIGN_1	NULL	test	ix1	NONE	RESTRICT	RESTRICT	t2	t1
+drop table t2, t1;
+create table t1 (s1 int, s2 int, unique key ix1 (s1, s2), unique key ix2 (s1, s2)) engine = pbxt;
+create table t2 (s1 int, s2 int, foreign key (s1, s2) references t1 (s1, s2)) engine = pbxt;
+select * from information_schema.table_constraints
+where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+NULL	test	FOREIGN_1	test	t2	FOREIGN KEY
+select * from information_schema.referential_constraints where table_name = 't2';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+NULL	test	FOREIGN_1	NULL	test	ix1	NONE	RESTRICT	RESTRICT	t2	t1
+drop table t2, t1;
+create table t1 (s1 int, s2 int, unique key ix1 (s1, s2)) engine = pbxt;
+create table t2 (s1 int, s2 int, 
+foreign key (s1, s2) references t1 (s1, s2) on delete cascade on update set null) engine = pbxt;
+select * from information_schema.table_constraints
+where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+NULL	test	FOREIGN_1	test	t2	FOREIGN KEY
+select * from information_schema.referential_constraints where table_name = 't2';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+NULL	test	FOREIGN_1	NULL	test	ix1	NONE	SET NULL	CASCADE	t2	t1
+drop table t2, t1;
+create table t2 (s1 int, s2 int, s3 int, s4 int, unique key ix34 (s3, s4),
+foreign key (s1, s2) references t2 (s3, s4)) engine = pbxt;
+select * from information_schema.table_constraints
+where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+NULL	test	FOREIGN_1	test	t2	FOREIGN KEY
+select * from information_schema.referential_constraints where table_name = 't2';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+NULL	test	FOREIGN_1	NULL	test	ix34	NONE	RESTRICT	RESTRICT	t2	t2
+drop table t2;
+create table t1 (s1 int, s2 int, unique key ix1 (s1, s2)) engine = pbxt;
+create table t2 (s1 int, s2 int, 
+foreign key (s1, s2) references t1 (s1, s2)) engine = pbxt;
+alter table t1 add constraint s2 foreign key (s1, s2) references t2 (s1, s2);
+select * from information_schema.table_constraints
+where constraint_type = 'FOREIGN KEY' and  (table_name = 't1' or table_name = 't2');
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+NULL	test	s2	test	t1	FOREIGN KEY
+NULL	test	FOREIGN_1	test	t2	FOREIGN KEY
+select * from information_schema.referential_constraints where (table_name = 't1' or table_name = 't2');
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+NULL	test	s2	NULL	test	s1	NONE	RESTRICT	RESTRICT	t1	t2
+NULL	test	FOREIGN_1	NULL	test	ix1	NONE	RESTRICT	RESTRICT	t2	t1
+set foreign_key_checks = 0;
+drop table t2, t1;
+set foreign_key_checks = 1;
+create table t1 (id int primary key, s1 int, foreign key (s1) references t1 (id)) engine = pbxt;
+select * from information_schema.table_constraints
+where constraint_type = 'FOREIGN KEY' and  table_name = 't1';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+NULL	test	FOREIGN_1	test	t1	FOREIGN KEY
+select * from information_schema.referential_constraints where table_name = 't1';
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+NULL	test	FOREIGN_1	NULL	test	PRIMARY	NONE	RESTRICT	RESTRICT	t1	t1
+drop table t1;
+drop table if exists t2,t1;
+create table t1 (s1 int primary key) engine = pbxt;
+create table t2 (s1 int primary key, foreign key (s1) references t1 (s1) on update cascade) engine = pbxt;
+set @@autocommit = 0;
+insert into t1 values (1);
+insert into t2 values (1);
+update t1 set s1 = 2;
+set @@autocommit = 1;
+select * from t1, t2;
+s1	s1
+2	2
+drop table t2, t1;
+create table t1 (s1 int primary key, s2 int, key (s1, s2)) engine = pbxt;
+create table t2 (s1 int primary key, s2 int, key (s1, s2), foreign key (s1) references t1 (s1) on update cascade) engine = pbxt;
+set @@autocommit = 0;
+insert into t1 values (1, 5);
+insert into t2 values (1, 6);
+update t1 set s1 = 2;
+set @@autocommit = 1;
+select * from t1, t2;
+s1	s2	s1	s2
+2	5	2	6
+drop table t2, t1;
+set @@autocommit = 1;
+SET foreign_key_checks = 0;
+DROP TABLE IF EXISTS t15,t14,t13,t12,t11,t10,t9,t8,t7,t6,t5,t4,t3,t2,t1;
+SET foreign_key_checks = 1;
+CREATE TABLE t1 (s1 INT PRIMARY KEY, s2 INT) engine = pbxt;
+CREATE TABLE t2 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t1 (s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t3 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t2 (s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t4 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t3 (s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t5 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t4 (s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t6 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t5 (s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t7 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t6 (s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t8 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t7 (s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t9 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t8 (s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t10(s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t9 (s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t11(s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t10(s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t12(s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t11(s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t13(s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t12(s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t14(s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t13(s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t15(s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t14(s1) ON UPDATE CASCADE) engine = pbxt;
+ALTER TABLE t1 ADD FOREIGN KEY (s2) REFERENCES t15(s1) ON UPDATE CASCADE;
+SET foreign_key_checks = 0;
+INSERT INTO t1 VALUES (1,NULL);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1);
+INSERT INTO t4 VALUES (1);
+INSERT INTO t5 VALUES (1);
+INSERT INTO t6 VALUES (1);
+INSERT INTO t7 VALUES (1);
+INSERT INTO t8 VALUES (1);
+INSERT INTO t9 VALUES (1);
+INSERT INTO t10 VALUES (1);
+INSERT INTO t11 VALUES (1);
+INSERT INTO t12 VALUES (1);
+INSERT INTO t13 VALUES (1);
+INSERT INTO t14 VALUES (1);
+INSERT INTO t15 VALUES (1);
+SET foreign_key_checks = 1;
+UPDATE t1 SET s1 = 2;
+select * from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15;
+s1	s2	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1
+2	NULL	2	2	2	2	2	2	2	2	2	2	2	2	2	2
+UPDATE t1 SET s2 = 2;
+select * from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15;
+s1	s2	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1
+2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2
+UPDATE t1 SET s1 = 3;
+select * from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15;
+s1	s2	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1	s1
+3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3
+SET foreign_key_checks = 0;
+DROP TABLE IF EXISTS t15,t14,t13,t12,t11,t10,t9,t8,t7,t6,t5,t4,t3,t2,t1;
+SET foreign_key_checks = 1;
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 ENUM('a','b') PRIMARY KEY) engine = pbxt;
+CREATE TABLE t2 (s1 ENUM('A','B'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+DROP TABLE t2,t1;
+CREATE TABLE t1 (s1 ENUM('a','b') PRIMARY KEY) engine = pbxt;
+CREATE TABLE t2 (s1 ENUM('A','B', 'C'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+ERROR HY000: Can't create table 'test.t2' (errno: 151)
+DROP TABLE t1;
+CREATE TABLE t1 (s1 ENUM('a','b','c') PRIMARY KEY) engine = pbxt;
+CREATE TABLE t2 (s1 ENUM('d','e','f'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+DROP TABLE t2,t1;
+CREATE TABLE t1 (s1 SET('a','b') PRIMARY KEY) engine = pbxt;
+CREATE TABLE t2 (s1 SET('A','B'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+DROP TABLE t2,t1;
+CREATE TABLE t1 (s1 SET('a','b') PRIMARY KEY) engine = pbxt;
+CREATE TABLE t2 (s1 SET('A','B', 'C'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+ERROR HY000: Can't create table 'test.t2' (errno: 151)
+DROP TABLE t1;
+CREATE TABLE t1 (s1 SET('a','b','c') PRIMARY KEY) engine = pbxt;
+CREATE TABLE t2 (s1 SET('d','e','f'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+DROP TABLE t2,t1;
+CREATE TABLE t1 (s1 SET('a','b') PRIMARY KEY) engine = pbxt;
+CREATE TABLE t2 (s1 ENUM('a','b'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+ERROR HY000: Can't create table 'test.t2' (errno: 151)
+DROP TABLE t1;
+CREATE TABLE t1 (s1 ENUM('a','b') PRIMARY KEY) engine = pbxt;
+CREATE TABLE t2 (s1 SET('a','b'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+ERROR HY000: Can't create table 'test.t2' (errno: 151)
+DROP TABLE t1;
+DROP TABLE IF EXISTS t2, t1;
+Warnings:
+Note	1051	Unknown table 't2'
+Note	1051	Unknown table 't1'
+CREATE TABLE t1 (s1 VARCHAR(50) PRIMARY KEY) engine = pbxt;
+CREATE TABLE t2 (s1 VARCHAR(50), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+INSERT INTO t1 VALUES ('A');
+INSERT INTO t2 VALUES ('A ');
+UPDATE t1 SET s1 = 'A ';
+DELETE FROM t2;
+DELETE FROM t1;
+INSERT INTO t1 VALUES ('A');
+INSERT INTO t2 VALUES ('A');
+UPDATE t1 SET s1 = 'A ';
+UPDATE t2 SET s1 = 'A  ';
+UPDATE t1 SET s1 = 'a';
+UPDATE t2 SET s1 = 'a';
+DROP TABLE t2, t1;
+DROP TABLE IF EXISTS t2,t1;
+Warnings:
+Note	1051	Unknown table 't2'
+Note	1051	Unknown table 't1'
+CREATE TABLE t1 (s1 INT PRIMARY KEY);
+CREATE TABLE t2 (s1 INT DEFAULT 2, FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET DEFAULT);
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1);
+DELETE FROM t1 WHERE s1 = 1;
+SELECT * FROM t2;
+s1
+2
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 DATE NOT NULL UNIQUE);
+CREATE TABLE t2 (s1 DATE DEFAULT '2000-01-01', FOREIGN KEY (s1) REFERENCES t1 (s1) ON UPDATE SET DEFAULT);
+INSERT INTO t1 VALUES ('2001-01-01');
+INSERT INTO t2 VALUES ('2001-01-01');
+UPDATE t1 SET s1 = '2001-01-02';
+SELECT * FROM t2;
+s1
+2000-01-01
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 INT PRIMARY KEY);
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET DEFAULT);
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1);
+DELETE FROM t1 WHERE s1 = 1;
+SELECT * FROM t2;
+s1
+NULL
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 VARCHAR(45) primary key);
+CREATE TABLE t2 (s1 VARCHAR(45) DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET DEFAULT);
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1);
+DELETE FROM t1 WHERE s1 = 1;
+SELECT * FROM t2;
+s1
+NULL
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 VARCHAR(45), INDEX (s1(10)));
+CREATE TABLE t2 (s1 VARCHAR(45) DEFAULT "12345678901", FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET DEFAULT);
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1);
+DELETE FROM t1 WHERE s1 = 1;
+SELECT * FROM t2;
+s1
+12345678901
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 INT);
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET DEFAULT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+ERROR HY000: Got temporary error -1 'Matching index required for '`t1` (s1)'' from PBXT
+DROP TABLE IF EXISTS t3,t2,t1;
+CREATE TABLE t1 (s1 INT primary key);
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET NULL);
+CREATE TABLE t3 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t2 (s1) ON DELETE SET NULL);
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1);
+DELETE FROM t1 WHERE s1 = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Constraint: `FOREIGN_1`)
+SELECT * FROM t1;
+s1
+1
+2
+SELECT * FROM t2;
+s1
+1
+SELECT * FROM t3;
+s1
+1
+DROP TABLE IF EXISTS t3,t2,t1;
+CREATE TABLE t1 (s1 INT primary key);
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET DEFAULT);
+CREATE TABLE t3 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t2 (s1) ON DELETE SET DEFAULT);
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1);
+DELETE FROM t1 WHERE s1 = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Constraint: `FOREIGN_1`)
+SELECT * FROM t1;
+s1
+1
+2
+SELECT * FROM t2;
+s1
+1
+SELECT * FROM t3;
+s1
+1
+DROP TABLE IF EXISTS t3,t2,t1;
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 INT PRIMARY KEY, s2 char(1));
+CREATE TABLE t2 (s1 INT, s2 INT PRIMARY KEY,
+FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE CASCADE);
+INSERT INTO t1 VALUES (1,'a');
+INSERT INTO t2 VALUES (1,1);
+REPLACE INTO t1 VALUES (1,'b');
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+0
+set foreign_key_checks = 0;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (s1 INT PRIMARY KEY, s2 char(1));
+set foreign_key_checks = 1;
+INSERT INTO t1 VALUES (1,'a');
+REPLACE INTO t1 VALUES (1,'b');
+DROP TABLE IF EXISTS t3,t2,t1;
+CREATE TABLE t1 (s1 INT PRIMARY KEY, s2 INT);
+CREATE TABLE t2 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t1 (s1) ON UPDATE CASCADE);
+CREATE TABLE t3 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t2 (s1) ON UPDATE CASCADE);
+DROP TABLE IF EXISTS t3,t2,t1;
+CREATE TABLE t1 (s1 ENUM('a','b') PRIMARY KEY);
+CREATE TABLE t2 (s1 ENUM('A','B','C'), FOREIGN KEY (s1) REFERENCES t1 (s1));
+ERROR HY000: Can't create table 'test.t2' (errno: 151)
+DROP TABLE IF EXISTS t2,t1;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE t1 (s1 INT PRIMARY KEY, s2 INT);
+CREATE TABLE t2 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t1 (s1) ON UPDATE CASCADE);
+DROP TABLE IF EXISTS t2,t1;
+create table t1 (s1 varchar(40) primary key);
+create table t2 (s1 VARCHAR(30), foreign key (s1) references t1 (s1));
+insert into t1 values ("1");
+insert into t2 values ("1");
+DROP TABLE IF EXISTS t2,t1;
+DROP TABLE IF EXISTS t5;
+CREATE TABLE t5 (
+c1 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, 
+c2 BIGINT SIGNED NULL, 
+c3 BIGINT SIGNED NOT NULL, 
+c4 TINYINT, c5 SMALLINT, 
+c6 MEDIUMINT, 
+c7 INT, 
+c8 INTEGER, 
+PRIMARY KEY(c1,c2), UNIQUE INDEX(c3));
+INSERT INTO t5 VALUES
+(0,-9223372036854775808,1,2,3,4,5,5),
+(255,-2147483648,6,7,8,9,10,10),
+(65535,-8388608,11,12,13,14,15,15),
+(16777215,-32768,16,17,18,19,20,20),
+(4294967295,-128,21,22,23,24,25,25),
+(18446744073709551615,9223372036854775807,26,27,28,29,30,30);
+INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
+ERROR HY000: Failed to read auto-increment value from storage engine
+INSERT INTO t5(c2,c3) VALUES(33,34);
+ERROR HY000: Failed to read auto-increment value from storage engine
+SELECT * FROM t5;
+c1	c2	c3	c4	c5	c6	c7	c8
+1	-9223372036854775808	1	2	3	4	5	5
+255	-2147483648	6	7	8	9	10	10
+65535	-8388608	11	12	13	14	15	15
+16777215	-32768	16	17	18	19	20	20
+4294967295	-128	21	22	23	24	25	25
+18446744073709551615	9223372036854775807	26	27	28	29	30	30
+DROP TABLE t5;
+/* same test as above with signed bigint */
+CREATE TABLE t5 (
+c1 BIGINT SIGNED NOT NULL AUTO_INCREMENT, 
+c2 BIGINT SIGNED NULL, 
+c3 BIGINT SIGNED NOT NULL, 
+c4 TINYINT, c5 SMALLINT, 
+c6 MEDIUMINT, 
+c7 INT, 
+c8 INTEGER, 
+PRIMARY KEY(c1,c2), UNIQUE INDEX(c3));
+INSERT INTO t5 VALUES
+(0,-9223372036854775808,1,2,3,4,5,5),
+(255,-2147483648,6,7,8,9,10,10),
+(65535,-8388608,11,12,13,14,15,15),
+(16777215,-32768,16,17,18,19,20,20),
+(4294967295,-128,21,22,23,24,25,25),
+(9223372036854775807,9223372036854775807,26,27,28,29,30,30);
+INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
+ERROR HY000: Failed to read auto-increment value from storage engine
+INSERT INTO t5(c2,c3) VALUES(33,34);
+ERROR HY000: Failed to read auto-increment value from storage engine
+SELECT * FROM t5;
+c1	c2	c3	c4	c5	c6	c7	c8
+1	-9223372036854775808	1	2	3	4	5	5
+255	-2147483648	6	7	8	9	10	10
+65535	-8388608	11	12	13	14	15	15
+16777215	-32768	16	17	18	19	20	20
+4294967295	-128	21	22	23	24	25	25
+9223372036854775807	9223372036854775807	26	27	28	29	30	30
+CREATE TABLE t2(c1 INT SIGNED NOT NULL, c2 INT UNSIGNED NULL, c3 INT, KEY(c1), KEY(c2));
+INSERT INTO t2 VALUES(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(-7,7,7),(-8,8,8),(-9,9,9),(10,10,10),(-11,NULL,11),(-12,12,12);
+INSERT INTO t2 VALUES(-2147483648,0,13),(2147483647,4294967295,14),(0,2147483648,15),(2147483647,2147483647,16);
+SELECT * FROM t2;
+c1	c2	c3
+-1	1	1
+-11	NULL	11
+-12	12	12
+-2	2	2
+-2147483648	0	13
+-3	3	3
+-4	4	4
+-5	5	5
+-6	6	6
+-7	7	7
+-8	8	8
+-9	9	9
+0	2147483648	15
+10	10	10
+2147483647	2147483647	16
+2147483647	4294967295	14
+EXPLAIN SELECT c1 FROM t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	NULL	c1	4	NULL	16	Using index
+SELECT c1 FROM t2;
+c1
+-1
+-11
+-12
+-2
+-2147483648
+-3
+-4
+-5
+-6
+-7
+-8
+-9
+0
+10
+2147483647
+2147483647
+UPDATE t2 SET c1=-2147483648 WHERE c2 <> 0 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <> 0 ORDER BY c2;
+c1	c2	c3
+-12	12	12
+-2147483648	1	1
+-2147483648	2	2
+-3	3	3
+-4	4	4
+-5	5	5
+-6	6	6
+-7	7	7
+-8	8	8
+-9	9	9
+0	2147483648	15
+10	10	10
+2147483647	2147483647	16
+2147483647	4294967295	14
+UPDATE t2 SET c1=-2147483648 WHERE c2 >= 0 ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 >= 0 ORDER BY c2 DESC;
+c1	c2	c3
+-12	12	12
+-2147483648	0	13
+-2147483648	1	1
+-2147483648	2	2
+-2147483648	2147483648	15
+-2147483648	4294967295	14
+-3	3	3
+-4	4	4
+-5	5	5
+-6	6	6
+-7	7	7
+-8	8	8
+-9	9	9
+10	10	10
+2147483647	2147483647	16
+UPDATE t2 SET c1=-2147483648 WHERE c2 <= 3 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <= 3 ORDER BY c2;
+c1	c2	c3
+-2147483648	0	13
+-2147483648	1	1
+-2147483648	2	2
+-3	3	3
+UPDATE t2 SET c1=-2147483648 WHERE c2 <=> 4 ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 <=> 4 ORDER BY c2;
+c1	c2	c3
+-2147483648	4	4
+UPDATE t2 SET c1=-2147483648 WHERE c2 BETWEEN 4 AND 7 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 BETWEEN 4 AND 7 ORDER BY c2;
+c1	c2	c3
+-2147483648	4	4
+-2147483648	5	5
+-6	6	6
+-7	7	7
+UPDATE t2 SET c1=-2147483648 WHERE c2 IN(8,9) ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IN(8,9) ORDER BY c2 DESC;
+c1	c2	c3
+-2147483648	8	8
+-2147483648	9	9
+UPDATE t2 SET c1=-2147483648 WHERE c2 IS NULL ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2;
+c1	c2	c3
+-2147483648	NULL	11
+UPDATE t2 SET c1=-2147483648 WHERE c2>= 6 AND c2 < 9 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2>= 6 AND c2 < 9 ORDER BY c2;
+c1	c2	c3
+-2147483648	6	6
+-2147483648	7	7
+-2147483648	8	8
+UPDATE t2 SET c1=-2147483648 WHERE c1=-12 OR c2=1;
+SELECT * FROM t2 WHERE c1=-2147483648;
+c1	c2	c3
+-2147483648	0	13
+-2147483648	1	1
+-2147483648	12	12
+-2147483648	2	2
+-2147483648	2147483648	15
+-2147483648	4	4
+-2147483648	4294967295	14
+-2147483648	5	5
+-2147483648	6	6
+-2147483648	7	7
+-2147483648	8	8
+-2147483648	9	9
+-2147483648	NULL	11
+SELECT * FROM t2;
+c1	c2	c3
+-2147483648	0	13
+-2147483648	1	1
+-2147483648	12	12
+-2147483648	2	2
+-2147483648	2147483648	15
+-2147483648	4	4
+-2147483648	4294967295	14
+-2147483648	5	5
+-2147483648	6	6
+-2147483648	7	7
+-2147483648	8	8
+-2147483648	9	9
+-2147483648	NULL	11
+-3	3	3
+10	10	10
+2147483647	2147483647	16
+EXPLAIN SELECT c1 FROM t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	NULL	c1	4	NULL	16	Using index
+SELECT c1 FROM t2;
+c1
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-3
+10
+2147483647
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 INTEGER NOT NULL PRIMARY KEY, c2 VARCHAR(255));
+LOAD DATA LOCAL INFILE 't/load_unique_error1.inc' REPLACE INTO TABLE t1 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' (@c1,c2) SET c1 = @c1 % 2;
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	opq
+1	jkl
+DROP TABLE t1;
+create table parent (id int primary key);
+create table child (id int PRIMARY KEY, FOREIGN KEY (id) REFERENCES parent(id));
+insert into parent values (2), (3), (4);
+insert into child values (3), (4);
+delete ignore from parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Constraint: `FOREIGN_1`)
+select * from parent;
+id
+2
+3
+4
+drop table child, parent;
+create schema test378222;
+use test378222;
+create table t1 (id int primary key);
+create table t2 (id int primary key);
+alter table t1 add constraint foreign key (id) references t2 (id);
+alter table t2 add constraint foreign key (id) references t1 (id);
+drop schema test378222;
+create schema test378222a;
+create schema test378222b;
+create table test378222a.t1 (id int primary key);
+create table test378222b.t2 (id int primary key);
+alter table test378222a.t1 add constraint foreign key (id) references test378222b.t2 (id);
+alter table test378222b.t2 add constraint foreign key (id) references test378222a.t1 (id);
+set foreign_key_checks = 1;
+drop schema test378222a;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+drop schema test378222b;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+set foreign_key_checks = 0;
+drop schema test378222a;
+drop schema test378222b;
+set foreign_key_checks = 1;
+use test;
+CREATE TABLE t1(c1 TINYINT AUTO_INCREMENT NULL KEY ) AUTO_INCREMENT=10;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`c1`)
+) ENGINE=PBXT AUTO_INCREMENT=10 DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES(null);
+INSERT INTO t1 VALUES(null);
+INSERT INTO t1 VALUES(null);
+SELECT * FROM t1;
+c1
+10
+11
+12
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES(null);
+SELECT * FROM t1;
+c1
+1
+DROP TABLE t1;
+create table t1 (c1 int, c2 int, c3 int) engine = pbxt;
+insert into t1 values (1,2,3);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+SELECT DATA_LENGTH, INDEX_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+DATA_LENGTH	INDEX_LENGTH
+1456	4096
+alter table t1 add index (c1);
+alter table t1 add index (c2);
+alter table t1 add index (c3);
+SELECT DATA_LENGTH, INDEX_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+DATA_LENGTH	INDEX_LENGTH
+1456	53248
+drop table t1;
+create table t1 (c1 int, c2 int, c3 int, c4 varchar(255), c5 varchar(255)) engine = pbxt;
+insert into t1 values (1,2,3, repeat('a', 255), repeat('b', 255));
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+SELECT DATA_LENGTH, INDEX_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+DATA_LENGTH	INDEX_LENGTH
+5120	4096
+alter table t1 add index (c1);
+alter table t1 add index (c2);
+alter table t1 add index (c3);
+SELECT DATA_LENGTH, INDEX_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+DATA_LENGTH	INDEX_LENGTH
+5120	53248
+drop table t1;
+drop table if exists t2, t1;
+create table t1 (c1 int, c2 int, index(c1, c2), index(c2, c1)) engine = pbxt;
+create table t2 (c1 int, c2 int, index(c1, c2), index(c2, c1),
+constraint fk1 foreign key (c1) references t1 (c1),
+constraint fk2 foreign key (c2) references t1 (c2)) engine = pbxt;
+insert into t1 values (1,1), (2,2);
+insert into t2 values (1,1), (2,2);
+insert into t2 values (1,3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Constraint: `fk1`)
+drop table t2, t1;
+create table t2 (id int primary key, constraint foreign key fk1 (id) references t1(id)) engine=pbxt;
+select * from t2;
+id
+insert into t2 values (1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Referenced table `t1` not found)
+create table t1 (id int primary key) engine=pbxt;
+insert into t1 values (1);
+insert into t2 values (1);
+drop table t2, t1;
+# ROUND 1 finished, prev log count = 0, new log count = 1
+# ROUND 2 finished, prev log count = 1, new log count = 2
+# ROUND 3 finished, prev log count = 2, new log count = 3
+# ROUND 4 finished, prev log count = 3, new log count = 4
+# ROUND 5 finished, prev log count = 4, new log count = 5
+# ROUND 6 finished, prev log count = 5, new log count = 6
+# ROUND 7 finished, prev log count = 6, new log count = 7
+# ROUND 8 finished, prev log count = 7, new log count = 8
+# ROUND 9 finished, prev log count = 8, new log count = 9
+# ROUND 10 finished, prev log count = 9, new log count = 10
+# ROUND 11 finished, prev log count = 10, new log count = 11
+# ROUND 12 finished, prev log count = 11, new log count = 12
+# ROUND 13 finished, prev log count = 12, new log count = 13
+# ROUND 14 finished, prev log count = 13, new log count = 14
+# ROUND 15 finished, prev log count = 14, new log count = 15
+# ROUND 16 finished, prev log count = 15, new log count = 16
+# ROUND 17 finished, prev log count = 16, new log count = 17
+# ROUND 18 finished, prev log count = 17, new log count = 18
+# ROUND 19 finished, prev log count = 18, new log count = 19
+# ROUND 20 finished, prev log count = 19, new log count = 20
+# ROUND 21 finished, prev log count = 20, new log count = 21
+# ROUND 22 finished, prev log count = 21, new log count = 22
+# ROUND 23 finished, prev log count = 22, new log count = 23
+# ROUND 24 finished, prev log count = 23, new log count = 24
+# ROUND 25 finished, prev log count = 24, new log count = 25
+# ROUND 26 finished, prev log count = 25, new log count = 26
+# ROUND 27 finished, prev log count = 26, new log count = 27
+# ROUND 28 finished, prev log count = 27, new log count = 28
+# ROUND 29 finished, prev log count = 28, new log count = 29
+# ROUND 30 finished, prev log count = 29, new log count = 30
+# ROUND 31 finished, prev log count = 30, new log count = 31
+# ROUND 32 finished, prev log count = 31, new log count = 32
+# ROUND 33 finished, prev log count = 32, new log count = 33
+# ROUND 34 finished, prev log count = 33, new log count = 34
+# ROUND 35 finished, prev log count = 34, new log count = 35
+# ROUND 36 finished, prev log count = 35, new log count = 36
+# ROUND 37 finished, prev log count = 36, new log count = 37
+# ROUND 38 finished, prev log count = 37, new log count = 38
+# ROUND 39 finished, prev log count = 38, new log count = 39
+# ROUND 40 finished, prev log count = 39, new log count = 40
+# ROUND 41 finished, prev log count = 40, new log count = 41
+# ROUND 42 finished, prev log count = 41, new log count = 42
+# ROUND 43 finished, prev log count = 42, new log count = 43
+# ROUND 44 finished, prev log count = 43, new log count = 44
+# ROUND 45 finished, prev log count = 44, new log count = 45
+# ROUND 46 finished, prev log count = 45, new log count = 46
+# ROUND 47 finished, prev log count = 46, new log count = 47
+# ROUND 48 finished, prev log count = 47, new log count = 48
+# ROUND 49 finished, prev log count = 48, new log count = 49
+# ROUND 50 finished, prev log count = 49, new log count = 50
+# ROUND 51 finished, prev log count = 50, new log count = 51
+# ROUND 52 finished, prev log count = 51, new log count = 52
+# ROUND 53 finished, prev log count = 52, new log count = 53
+# ROUND 54 finished, prev log count = 53, new log count = 54
+# ROUND 55 finished, prev log count = 54, new log count = 55
+# ROUND 56 finished, prev log count = 55, new log count = 56
+# ROUND 57 finished, prev log count = 56, new log count = 57
+# ROUND 58 finished, prev log count = 57, new log count = 58
+# ROUND 59 finished, prev log count = 58, new log count = 59
+# ROUND 60 finished, prev log count = 59, new log count = 60
+# ROUND 61 finished, prev log count = 60, new log count = 61
+# ROUND 62 finished, prev log count = 61, new log count = 62
+# ROUND 63 finished, prev log count = 62, new log count = 63
+# ROUND 64 finished, prev log count = 63, new log count = 64
+# ROUND 65 finished, prev log count = 64, new log count = 65
+# ROUND 66 finished, prev log count = 65, new log count = 66
+# ROUND 67 finished, prev log count = 66, new log count = 67
+# ROUND 68 finished, prev log count = 67, new log count = 68
+# ROUND 69 finished, prev log count = 68, new log count = 69
+# ROUND 70 finished, prev log count = 69, new log count = 70
+# ROUND 71 finished, prev log count = 70, new log count = 71
+# ROUND 72 finished, prev log count = 71, new log count = 72
+# ROUND 73 finished, prev log count = 72, new log count = 73
+# ROUND 74 finished, prev log count = 73, new log count = 74
+# ROUND 75 finished, prev log count = 74, new log count = 75
+# ROUND 76 finished, prev log count = 75, new log count = 76
+# ROUND 77 finished, prev log count = 76, new log count = 77
+# ROUND 78 finished, prev log count = 77, new log count = 78
+# ROUND 79 finished, prev log count = 78, new log count = 79
+# ROUND 80 finished, prev log count = 79, new log count = 80
+# ROUND 81 finished, prev log count = 80, new log count = 81
+# ROUND 82 finished, prev log count = 81, new log count = 82
+# ROUND 83 finished, prev log count = 82, new log count = 83
+# ROUND 84 finished, prev log count = 83, new log count = 84
+# ROUND 85 finished, prev log count = 84, new log count = 85
+# ROUND 86 finished, prev log count = 85, new log count = 86
+# ROUND 87 finished, prev log count = 86, new log count = 87
+# ROUND 88 finished, prev log count = 87, new log count = 88
+# ROUND 89 finished, prev log count = 88, new log count = 89
+# ROUND 90 finished, prev log count = 89, new log count = 90
+# ROUND 91 finished, prev log count = 90, new log count = 91
+# ROUND 92 finished, prev log count = 91, new log count = 92
+# ROUND 93 finished, prev log count = 92, new log count = 93
+# ROUND 94 finished, prev log count = 93, new log count = 94
+# ROUND 95 finished, prev log count = 94, new log count = 95
+# ROUND 96 finished, prev log count = 95, new log count = 96
+# ROUND 97 finished, prev log count = 96, new log count = 97
+# ROUND 98 finished, prev log count = 97, new log count = 98
+# ROUND 99 finished, prev log count = 98, new log count = 99
+# ROUND 100 finished, prev log count = 99, new log count = 100
+# ROUND 101 finished, prev log count = 100, new log count = 101
+# ROUND 102 finished, prev log count = 101, new log count = 102
+# ROUND 103 finished, prev log count = 102, new log count = 103
+# ROUND 104 finished, prev log count = 103, new log count = 104
+# ROUND 105 finished, prev log count = 104, new log count = 105
+# ROUND 106 finished, prev log count = 105, new log count = 106
+# ROUND 107 finished, prev log count = 106, new log count = 107
+# ROUND 108 finished, prev log count = 107, new log count = 108
+# ROUND 109 finished, prev log count = 108, new log count = 109
+# ROUND 110 finished, prev log count = 109, new log count = 110
+# ROUND 111 finished, prev log count = 110, new log count = 111
+# ROUND 112 finished, prev log count = 111, new log count = 112
+# ROUND 113 finished, prev log count = 112, new log count = 113
+# ROUND 114 finished, prev log count = 113, new log count = 114
+# ROUND 115 finished, prev log count = 114, new log count = 115
+# ROUND 116 finished, prev log count = 115, new log count = 116
+# ROUND 117 finished, prev log count = 116, new log count = 117
+# ROUND 118 finished, prev log count = 117, new log count = 118
+# ROUND 119 finished, prev log count = 118, new log count = 119
+# ROUND 120 finished, prev log count = 119, new log count = 120
+# ROUND 121 finished, prev log count = 120, new log count = 121
+# ROUND 122 finished, prev log count = 121, new log count = 122
+# ROUND 123 finished, prev log count = 122, new log count = 123
+# ROUND 124 finished, prev log count = 123, new log count = 124
+# ROUND 125 finished, prev log count = 124, new log count = 125
+# ROUND 126 finished, prev log count = 125, new log count = 126
+# ROUND 127 finished, prev log count = 126, new log count = 127
+# ROUND 128 finished, prev log count = 127, new log count = 128
+# ROUND 129 finished, prev log count = 128, new log count = 129
+# ROUND 130 finished, prev log count = 129, new log count = 130
+# ROUND 131 finished, prev log count = 130, new log count = 131
+# ROUND 132 finished, prev log count = 131, new log count = 132
+# ROUND 133 finished, prev log count = 132, new log count = 133
+# ROUND 134 finished, prev log count = 133, new log count = 134
+# ROUND 135 finished, prev log count = 134, new log count = 135
+# ROUND 136 finished, prev log count = 135, new log count = 136
+# ROUND 137 finished, prev log count = 136, new log count = 137
+# ROUND 138 finished, prev log count = 137, new log count = 138
+# ROUND 139 finished, prev log count = 138, new log count = 139
+# ROUND 140 finished, prev log count = 139, new log count = 140
+# ROUND 141 finished, prev log count = 140, new log count = 141
+# ROUND 142 finished, prev log count = 141, new log count = 142
+# ROUND 143 finished, prev log count = 142, new log count = 143
+# ROUND 144 finished, prev log count = 143, new log count = 144
+# ROUND 145 finished, prev log count = 144, new log count = 145
+# ROUND 146 finished, prev log count = 145, new log count = 146
+# ROUND 147 finished, prev log count = 146, new log count = 147
+# ROUND 148 finished, prev log count = 147, new log count = 148
+# ROUND 149 finished, prev log count = 148, new log count = 149
+# ROUND 150 finished, prev log count = 149, new log count = 150
+# ROUND 151 finished, prev log count = 150, new log count = 151
+# ROUND 152 finished, prev log count = 151, new log count = 152
+# ROUND 153 finished, prev log count = 152, new log count = 153
+# ROUND 154 finished, prev log count = 153, new log count = 154
+# ROUND 155 finished, prev log count = 154, new log count = 155
+# ROUND 156 finished, prev log count = 155, new log count = 156
+# ROUND 157 finished, prev log count = 156, new log count = 157
+# ROUND 158 finished, prev log count = 157, new log count = 158
+# ROUND 159 finished, prev log count = 158, new log count = 159
+# ROUND 160 finished, prev log count = 159, new log count = 160
+# ROUND 161 finished, prev log count = 160, new log count = 161
+# ROUND 162 finished, prev log count = 161, new log count = 162
+# ROUND 163 finished, prev log count = 162, new log count = 163
+# ROUND 164 finished, prev log count = 163, new log count = 164
+# ROUND 165 finished, prev log count = 164, new log count = 165
+# ROUND 166 finished, prev log count = 165, new log count = 166
+# ROUND 167 finished, prev log count = 166, new log count = 167
+# ROUND 168 finished, prev log count = 167, new log count = 168
+# ROUND 169 finished, prev log count = 168, new log count = 169
+# ROUND 170 finished, prev log count = 169, new log count = 170
+# ROUND 171 finished, prev log count = 170, new log count = 171
+# ROUND 172 finished, prev log count = 171, new log count = 172
+# ROUND 173 finished, prev log count = 172, new log count = 173
+# ROUND 174 finished, prev log count = 173, new log count = 174
+# ROUND 175 finished, prev log count = 174, new log count = 175
+# ROUND 176 finished, prev log count = 175, new log count = 176
+# ROUND 177 finished, prev log count = 176, new log count = 177
+# ROUND 178 finished, prev log count = 177, new log count = 178
+# ROUND 179 finished, prev log count = 178, new log count = 179
+# ROUND 180 finished, prev log count = 179, new log count = 180
+# ROUND 181 finished, prev log count = 180, new log count = 181
+# ROUND 182 finished, prev log count = 181, new log count = 182
+# ROUND 183 finished, prev log count = 182, new log count = 183
+# ROUND 184 finished, prev log count = 183, new log count = 184
+# ROUND 185 finished, prev log count = 184, new log count = 185
+# ROUND 186 finished, prev log count = 185, new log count = 186
+# ROUND 187 finished, prev log count = 186, new log count = 187
+# ROUND 188 finished, prev log count = 187, new log count = 188
+# ROUND 189 finished, prev log count = 188, new log count = 189
+# ROUND 190 finished, prev log count = 189, new log count = 190
+# ROUND 191 finished, prev log count = 190, new log count = 191
+# ROUND 192 finished, prev log count = 191, new log count = 192
+# ROUND 193 finished, prev log count = 192, new log count = 193
+# ROUND 194 finished, prev log count = 193, new log count = 194
+# ROUND 195 finished, prev log count = 194, new log count = 195
+# ROUND 196 finished, prev log count = 195, new log count = 196
+# ROUND 197 finished, prev log count = 196, new log count = 197
+# ROUND 198 finished, prev log count = 197, new log count = 198
+# ROUND 199 finished, prev log count = 198, new log count = 199
+# ROUND 200 finished, prev log count = 199, new log count = 200
+# ROUND 201 finished, prev log count = 200, new log count = 201
+# ROUND 202 finished, prev log count = 201, new log count = 202
+# ROUND 203 finished, prev log count = 202, new log count = 203
+# ROUND 204 finished, prev log count = 203, new log count = 204
+# ROUND 205 finished, prev log count = 204, new log count = 205
+# ROUND 206 finished, prev log count = 205, new log count = 206
+# ROUND 207 finished, prev log count = 206, new log count = 207
+# ROUND 208 finished, prev log count = 207, new log count = 208
+# ROUND 209 finished, prev log count = 208, new log count = 209
+# ROUND 210 finished, prev log count = 209, new log count = 210
+# ROUND 211 finished, prev log count = 210, new log count = 211
+# ROUND 212 finished, prev log count = 211, new log count = 212
+# ROUND 213 finished, prev log count = 212, new log count = 213
+# ROUND 214 finished, prev log count = 213, new log count = 214
+# ROUND 215 finished, prev log count = 214, new log count = 215
+# ROUND 216 finished, prev log count = 215, new log count = 216
+# ROUND 217 finished, prev log count = 216, new log count = 217
+# ROUND 218 finished, prev log count = 217, new log count = 218
+# ROUND 219 finished, prev log count = 218, new log count = 219
+# ROUND 220 finished, prev log count = 219, new log count = 220
+# ROUND 221 finished, prev log count = 220, new log count = 221
+# ROUND 222 finished, prev log count = 221, new log count = 222
+# ROUND 223 finished, prev log count = 222, new log count = 223
+# ROUND 224 finished, prev log count = 223, new log count = 224
+# ROUND 225 finished, prev log count = 224, new log count = 225
+# ROUND 226 finished, prev log count = 225, new log count = 226
+# ROUND 227 finished, prev log count = 226, new log count = 227
+# ROUND 228 finished, prev log count = 227, new log count = 228
+# ROUND 229 finished, prev log count = 228, new log count = 229
+# ROUND 230 finished, prev log count = 229, new log count = 230
+# ROUND 231 finished, prev log count = 230, new log count = 231
+# ROUND 232 finished, prev log count = 231, new log count = 232
+# ROUND 233 finished, prev log count = 232, new log count = 233
+# ROUND 234 finished, prev log count = 233, new log count = 234
+# ROUND 235 finished, prev log count = 234, new log count = 235
+# ROUND 236 finished, prev log count = 235, new log count = 236
+# ROUND 237 finished, prev log count = 236, new log count = 237
+# ROUND 238 finished, prev log count = 237, new log count = 238
+# ROUND 239 finished, prev log count = 238, new log count = 239
+# ROUND 240 finished, prev log count = 239, new log count = 240
+# ROUND 241 finished, prev log count = 240, new log count = 241
+# ROUND 242 finished, prev log count = 241, new log count = 242
+# ROUND 243 finished, prev log count = 242, new log count = 243
+# ROUND 244 finished, prev log count = 243, new log count = 244
+# ROUND 245 finished, prev log count = 244, new log count = 245
+# ROUND 246 finished, prev log count = 245, new log count = 246
+# ROUND 247 finished, prev log count = 246, new log count = 247
+# ROUND 248 finished, prev log count = 247, new log count = 248
+# ROUND 249 finished, prev log count = 248, new log count = 249
+# ROUND 250 finished, prev log count = 249, new log count = 250
+# ROUND 251 finished, prev log count = 250, new log count = 251
+# ROUND 252 finished, prev log count = 251, new log count = 252
+# ROUND 253 finished, prev log count = 252, new log count = 253
+# ROUND 254 finished, prev log count = 253, new log count = 254
+# ROUND 255 finished, prev log count = 254, new log count = 255
+# ROUND 256 finished, prev log count = 255, new log count = 256
+# ROUND 257 finished, prev log count = 256, new log count = 257
+# ROUND 258 finished, prev log count = 257, new log count = 258
+# ROUND 259 finished, prev log count = 258, new log count = 259
+# ROUND 260 finished, prev log count = 259, new log count = 260
+# ROUND 261 finished, prev log count = 260, new log count = 261
+# ROUND 262 finished, prev log count = 261, new log count = 262
+# ROUND 263 finished, prev log count = 262, new log count = 263
+# ROUND 264 finished, prev log count = 263, new log count = 264
+# ROUND 265 finished, prev log count = 264, new log count = 265
+# ROUND 266 finished, prev log count = 265, new log count = 266
+# ROUND 267 finished, prev log count = 266, new log count = 267
+# ROUND 268 finished, prev log count = 267, new log count = 268
+# ROUND 269 finished, prev log count = 268, new log count = 269
+# ROUND 270 finished, prev log count = 269, new log count = 270
+# ROUND 271 finished, prev log count = 270, new log count = 271
+# ROUND 272 finished, prev log count = 271, new log count = 272
+# ROUND 273 finished, prev log count = 272, new log count = 273
+# ROUND 274 finished, prev log count = 273, new log count = 274
+# ROUND 275 finished, prev log count = 274, new log count = 275
+# ROUND 276 finished, prev log count = 275, new log count = 276
+# ROUND 277 finished, prev log count = 276, new log count = 277
+# ROUND 278 finished, prev log count = 277, new log count = 278
+# ROUND 279 finished, prev log count = 278, new log count = 279
+# ROUND 280 finished, prev log count = 279, new log count = 280
+# ROUND 281 finished, prev log count = 280, new log count = 281
+# ROUND 282 finished, prev log count = 281, new log count = 282
+# ROUND 283 finished, prev log count = 282, new log count = 283
+# ROUND 284 finished, prev log count = 283, new log count = 284
+# ROUND 285 finished, prev log count = 284, new log count = 285
+# ROUND 286 finished, prev log count = 285, new log count = 286
+# ROUND 287 finished, prev log count = 286, new log count = 287
+# ROUND 288 finished, prev log count = 287, new log count = 288
+# ROUND 289 finished, prev log count = 288, new log count = 289
+# ROUND 290 finished, prev log count = 289, new log count = 290
+# ROUND 291 finished, prev log count = 290, new log count = 291
+# ROUND 292 finished, prev log count = 291, new log count = 292
+# ROUND 293 finished, prev log count = 292, new log count = 293
+# ROUND 294 finished, prev log count = 293, new log count = 294
+# ROUND 295 finished, prev log count = 294, new log count = 295
+# ROUND 296 finished, prev log count = 295, new log count = 296
+# ROUND 297 finished, prev log count = 296, new log count = 297
+# ROUND 298 finished, prev log count = 297, new log count = 298
+# ROUND 299 finished, prev log count = 298, new log count = 299
+# ROUND 300 finished, prev log count = 299, new log count = 300
+# ROUND 301 finished, prev log count = 300, new log count = 301
+# ROUND 302 finished, prev log count = 301, new log count = 302
+# ROUND 303 finished, prev log count = 302, new log count = 303
+# ROUND 304 finished, prev log count = 303, new log count = 304
+# ROUND 305 finished, prev log count = 304, new log count = 305
+# ROUND 306 finished, prev log count = 305, new log count = 306
+# ROUND 307 finished, prev log count = 306, new log count = 307
+# ROUND 308 finished, prev log count = 307, new log count = 308
+# ROUND 309 finished, prev log count = 308, new log count = 309
+# ROUND 310 finished, prev log count = 309, new log count = 310
+# ROUND 311 finished, prev log count = 310, new log count = 311
+# ROUND 312 finished, prev log count = 311, new log count = 312
+# ROUND 313 finished, prev log count = 312, new log count = 313
+# ROUND 314 finished, prev log count = 313, new log count = 314
+# ROUND 315 finished, prev log count = 314, new log count = 315
+# ROUND 316 finished, prev log count = 315, new log count = 316
+# ROUND 317 finished, prev log count = 316, new log count = 317
+# ROUND 318 finished, prev log count = 317, new log count = 318
+# ROUND 319 finished, prev log count = 318, new log count = 319
+# ROUND 320 finished, prev log count = 319, new log count = 320
+# ROUND 321 finished, prev log count = 320, new log count = 321
+# ROUND 322 finished, prev log count = 321, new log count = 322
+# ROUND 323 finished, prev log count = 322, new log count = 323
+# ROUND 324 finished, prev log count = 323, new log count = 324
+# ROUND 325 finished, prev log count = 324, new log count = 325
+# ROUND 326 finished, prev log count = 325, new log count = 326
+# ROUND 327 finished, prev log count = 326, new log count = 327
+# ROUND 328 finished, prev log count = 327, new log count = 328
+# ROUND 329 finished, prev log count = 328, new log count = 329
+# ROUND 330 finished, prev log count = 329, new log count = 330
+# ROUND 331 finished, prev log count = 330, new log count = 331
+# ROUND 332 finished, prev log count = 331, new log count = 332
+# ROUND 333 finished, prev log count = 332, new log count = 333
+# ROUND 334 finished, prev log count = 333, new log count = 334
+# ROUND 335 finished, prev log count = 334, new log count = 335
+# ROUND 336 finished, prev log count = 335, new log count = 336
+# ROUND 337 finished, prev log count = 336, new log count = 337
+# ROUND 338 finished, prev log count = 337, new log count = 338
+# ROUND 339 finished, prev log count = 338, new log count = 339
+# ROUND 340 finished, prev log count = 339, new log count = 340
+# ROUND 341 finished, prev log count = 340, new log count = 341
+# ROUND 342 finished, prev log count = 341, new log count = 342
+# ROUND 343 finished, prev log count = 342, new log count = 343
+# ROUND 344 finished, prev log count = 343, new log count = 344
+# ROUND 345 finished, prev log count = 344, new log count = 345
+# ROUND 346 finished, prev log count = 345, new log count = 346
+# ROUND 347 finished, prev log count = 346, new log count = 347
+# ROUND 348 finished, prev log count = 347, new log count = 348
+# ROUND 349 finished, prev log count = 348, new log count = 349
+# ROUND 350 finished, prev log count = 349, new log count = 350
+# ROUND 351 finished, prev log count = 350, new log count = 351
+# ROUND 352 finished, prev log count = 351, new log count = 352
+# ROUND 353 finished, prev log count = 352, new log count = 353
+# ROUND 354 finished, prev log count = 353, new log count = 354
+# ROUND 355 finished, prev log count = 354, new log count = 355
+# ROUND 356 finished, prev log count = 355, new log count = 356
+# ROUND 357 finished, prev log count = 356, new log count = 357
+# ROUND 358 finished, prev log count = 357, new log count = 358
+# ROUND 359 finished, prev log count = 358, new log count = 359
+# ROUND 360 finished, prev log count = 359, new log count = 360
+# ROUND 361 finished, prev log count = 360, new log count = 361
+# ROUND 362 finished, prev log count = 361, new log count = 362
+# ROUND 363 finished, prev log count = 362, new log count = 363
+# ROUND 364 finished, prev log count = 363, new log count = 364
+# ROUND 365 finished, prev log count = 364, new log count = 365
+# ROUND 366 finished, prev log count = 365, new log count = 366
+# ROUND 367 finished, prev log count = 366, new log count = 367
+# ROUND 368 finished, prev log count = 367, new log count = 368
+# ROUND 369 finished, prev log count = 368, new log count = 369
+# ROUND 370 finished, prev log count = 369, new log count = 370
+# ROUND 371 finished, prev log count = 370, new log count = 371
+# ROUND 372 finished, prev log count = 371, new log count = 372
+# ROUND 373 finished, prev log count = 372, new log count = 373
+# ROUND 374 finished, prev log count = 373, new log count = 374
+# ROUND 375 finished, prev log count = 374, new log count = 375
+# ROUND 376 finished, prev log count = 375, new log count = 376
+# ROUND 377 finished, prev log count = 376, new log count = 377
+# ROUND 378 finished, prev log count = 377, new log count = 378
+# ROUND 379 finished, prev log count = 378, new log count = 379
+# ROUND 380 finished, prev log count = 379, new log count = 380
+# ROUND 381 finished, prev log count = 380, new log count = 381
+# ROUND 382 finished, prev log count = 381, new log count = 382
+# ROUND 383 finished, prev log count = 382, new log count = 383
+# ROUND 384 finished, prev log count = 383, new log count = 384
+# ROUND 385 finished, prev log count = 384, new log count = 385
+# ROUND 386 finished, prev log count = 385, new log count = 386
+# ROUND 387 finished, prev log count = 386, new log count = 387
+# ROUND 388 finished, prev log count = 387, new log count = 388
+# ROUND 389 finished, prev log count = 388, new log count = 389
+# ROUND 390 finished, prev log count = 389, new log count = 390
+# ROUND 391 finished, prev log count = 390, new log count = 391
+# ROUND 392 finished, prev log count = 391, new log count = 392
+# ROUND 393 finished, prev log count = 392, new log count = 393
+# ROUND 394 finished, prev log count = 393, new log count = 394
+# ROUND 395 finished, prev log count = 394, new log count = 395
+# ROUND 396 finished, prev log count = 395, new log count = 396
+# ROUND 397 finished, prev log count = 396, new log count = 397
+# ROUND 398 finished, prev log count = 397, new log count = 398
+# ROUND 399 finished, prev log count = 398, new log count = 399
+# ROUND 400 finished, prev log count = 399, new log count = 400
+# ROUND 401 finished, prev log count = 400, new log count = 401
+# ROUND 402 finished, prev log count = 401, new log count = 402
+# ROUND 403 finished, prev log count = 402, new log count = 403
+# ROUND 404 finished, prev log count = 403, new log count = 404
+# ROUND 405 finished, prev log count = 404, new log count = 405
+# ROUND 406 finished, prev log count = 405, new log count = 406
+# ROUND 407 finished, prev log count = 406, new log count = 407
+# ROUND 408 finished, prev log count = 407, new log count = 408
+# ROUND 409 finished, prev log count = 408, new log count = 409
+# ROUND 410 finished, prev log count = 409, new log count = 410
+# ROUND 411 finished, prev log count = 410, new log count = 411
+# ROUND 412 finished, prev log count = 411, new log count = 412
+# ROUND 413 finished, prev log count = 412, new log count = 413
+# ROUND 414 finished, prev log count = 413, new log count = 414
+# ROUND 415 finished, prev log count = 414, new log count = 415
+# ROUND 416 finished, prev log count = 415, new log count = 416
+# ROUND 417 finished, prev log count = 416, new log count = 417
+# ROUND 418 finished, prev log count = 417, new log count = 418
+# ROUND 419 finished, prev log count = 418, new log count = 419
+# ROUND 420 finished, prev log count = 419, new log count = 420
+# ROUND 421 finished, prev log count = 420, new log count = 421
+# ROUND 422 finished, prev log count = 421, new log count = 422
+# ROUND 423 finished, prev log count = 422, new log count = 423
+# ROUND 424 finished, prev log count = 423, new log count = 424
+# ROUND 425 finished, prev log count = 424, new log count = 425
+# ROUND 426 finished, prev log count = 425, new log count = 426
+# ROUND 427 finished, prev log count = 426, new log count = 427
+# ROUND 428 finished, prev log count = 427, new log count = 428
+# ROUND 429 finished, prev log count = 428, new log count = 429
+# ROUND 430 finished, prev log count = 429, new log count = 430
+# ROUND 431 finished, prev log count = 430, new log count = 431
+# ROUND 432 finished, prev log count = 431, new log count = 432
+# ROUND 433 finished, prev log count = 432, new log count = 433
+# ROUND 434 finished, prev log count = 433, new log count = 434
+# ROUND 435 finished, prev log count = 434, new log count = 435
+# ROUND 436 finished, prev log count = 435, new log count = 436
+# ROUND 437 finished, prev log count = 436, new log count = 437
+# ROUND 438 finished, prev log count = 437, new log count = 438
+# ROUND 439 finished, prev log count = 438, new log count = 439
+# ROUND 440 finished, prev log count = 439, new log count = 440
+# ROUND 441 finished, prev log count = 440, new log count = 441
+# ROUND 442 finished, prev log count = 441, new log count = 442
+# ROUND 443 finished, prev log count = 442, new log count = 443
+# ROUND 444 finished, prev log count = 443, new log count = 444
+# ROUND 445 finished, prev log count = 444, new log count = 445
+# ROUND 446 finished, prev log count = 445, new log count = 446
+# ROUND 447 finished, prev log count = 446, new log count = 447
+# ROUND 448 finished, prev log count = 447, new log count = 448
+# ROUND 449 finished, prev log count = 448, new log count = 449
+# ROUND 450 finished, prev log count = 449, new log count = 450
+# ROUND 451 finished, prev log count = 450, new log count = 451
+# ROUND 452 finished, prev log count = 451, new log count = 452
+# ROUND 453 finished, prev log count = 452, new log count = 453
+# ROUND 454 finished, prev log count = 453, new log count = 454
+# ROUND 455 finished, prev log count = 454, new log count = 455
+# ROUND 456 finished, prev log count = 455, new log count = 456
+# ROUND 457 finished, prev log count = 456, new log count = 457
+# ROUND 458 finished, prev log count = 457, new log count = 458
+# ROUND 459 finished, prev log count = 458, new log count = 459
+# ROUND 460 finished, prev log count = 459, new log count = 460
+# ROUND 461 finished, prev log count = 460, new log count = 461
+# ROUND 462 finished, prev log count = 461, new log count = 462
+# ROUND 463 finished, prev log count = 462, new log count = 463
+# ROUND 464 finished, prev log count = 463, new log count = 464
+# ROUND 465 finished, prev log count = 464, new log count = 465
+# ROUND 466 finished, prev log count = 465, new log count = 466
+# ROUND 467 finished, prev log count = 466, new log count = 467
+# ROUND 468 finished, prev log count = 467, new log count = 468
+# ROUND 469 finished, prev log count = 468, new log count = 469
+# ROUND 470 finished, prev log count = 469, new log count = 470
+# ROUND 471 finished, prev log count = 470, new log count = 471
+# ROUND 472 finished, prev log count = 471, new log count = 472
+# ROUND 473 finished, prev log count = 472, new log count = 473
+# ROUND 474 finished, prev log count = 473, new log count = 474
+# ROUND 475 finished, prev log count = 474, new log count = 475
+# ROUND 476 finished, prev log count = 475, new log count = 476
+# ROUND 477 finished, prev log count = 476, new log count = 477
+# ROUND 478 finished, prev log count = 477, new log count = 478
+# ROUND 479 finished, prev log count = 478, new log count = 479
+# ROUND 480 finished, prev log count = 479, new log count = 480
+# ROUND 481 finished, prev log count = 480, new log count = 481
+# ROUND 482 finished, prev log count = 481, new log count = 482
+# ROUND 483 finished, prev log count = 482, new log count = 483
+# ROUND 484 finished, prev log count = 483, new log count = 484
+# ROUND 485 finished, prev log count = 484, new log count = 485
+# ROUND 486 finished, prev log count = 485, new log count = 486
+# ROUND 487 finished, prev log count = 486, new log count = 487
+# ROUND 488 finished, prev log count = 487, new log count = 488
+# ROUND 489 finished, prev log count = 488, new log count = 489
+# ROUND 490 finished, prev log count = 489, new log count = 490
+# ROUND 491 finished, prev log count = 490, new log count = 491
+# ROUND 492 finished, prev log count = 491, new log count = 492
+# ROUND 493 finished, prev log count = 492, new log count = 493
+# ROUND 494 finished, prev log count = 493, new log count = 494
+# ROUND 495 finished, prev log count = 494, new log count = 495
+# ROUND 496 finished, prev log count = 495, new log count = 496
+# ROUND 497 finished, prev log count = 496, new log count = 497
+# ROUND 498 finished, prev log count = 497, new log count = 498
+# ROUND 499 finished, prev log count = 498, new log count = 499
+# ROUND 500 finished, prev log count = 499, new log count = 500
+# Could not reproduce the problem in 500 iterations
+select * from tb0_logs order by i1 desc limit 5;
+i1	entry_dsc
+500	Update row 3 Update #499 -> Update #500
+499	Update row 3 Update #498 -> Update #499
+498	Update row 3 Update #497 -> Update #498
+497	Update row 3 Update #496 -> Update #497
+496	Update row 3 Update #495 -> Update #496
+create table t1 (c1 int, c2 int, primary key (c1, c2));
+insert into t1 values (1,1), (2,2), (3,3);
+create table t2 (c1 int, c char, primary key(c1));
+alter table t2 add constraint foreign key (c1) references t1 (c1);
+insert into t2 (c1) values (1), (2), (3);
+update t1 set c1 = 4 where c1 = 2;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Constraint: `FOREIGN_1`)
+drop table t2;
+create table t2 (c1 int, c char, primary key(c1));
+alter table t2 add constraint foreign key (c1) references t1 (c1) on update cascade;
+insert into t2 (c1) values (1), (2), (3);
+update t1 set c1 = 4 where c1 = 2;
+select * from t2;
+c1	c
+1	NULL
+3	NULL
+4	NULL
+update t1 set c1 = 1 where c1 = 4;
+ERROR 23000: Upholding foreign key constraints for table 't1', entry '1-2', key 1 would lead to a duplicate entry
+drop table t2, t1;
