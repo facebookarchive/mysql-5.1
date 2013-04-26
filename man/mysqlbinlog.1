@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/01/2010
+.\"      Date: 04/06/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "03/01/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "04/06/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -67,11 +67,43 @@ The output includes events contained in
 binlog\&.000003\&. For statement\-based logging, event information includes the SQL statement, the ID of the server on which it was executed, the timestamp when the statement was executed, how much time it took, and so forth\&. For row\-based logging, the event indicates a row change rather than an SQL statement\&. See
 Section\ \&16.1.2, \(lqReplication Formats\(rq, for information about logging modes\&.
 .PP
+Events are preceded by header comments that provide additional information\&. For example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# at 141
+#100309  9:28:36 server id 123  end_log_pos 245
+  Query thread_id=3350  exec_time=11  error_code=0
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+In the first line, the number following
+at
+indicates the starting position of the event in the binary log file\&.
+.PP
+The second line starts with a date and time indicating when the statement started on the server where the event originated\&. For replication, this timestamp is propagated to slave servers\&.
+server id
+is the
+server_id
+value of the server where the event originated\&.
+end_log_pos
+indicates where the next event starts (that is, it is the end position of the current event + 1)\&.
+thread_id
+indicates which thread executed the event\&.
+exec_time
+is the time spent executing the event, on a master server\&. On a slave, it is the difference of the end execution time on the slave minus the beginning execution time on the master\&. The difference serves as an indicator of how much replication lags behind the master\&.
+error_code
+indicates the result from executing the event\&. Zero means that no error occurred\&.
+.PP
 The output from
 \fBmysqlbinlog\fR
 can be re\-executed (for example, by using it as input to
 \fBmysql\fR) to redo the statements in the log\&. This is useful for recovery operations after a server crash\&. For other usage examples, see the discussion later in this section and
-Section\ \&6.4, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq\&.
+Section\ \&6.5, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq\&.
 .PP
 Normally, you use
 \fBmysqlbinlog\fR
@@ -654,6 +686,8 @@ The TCP/IP port number to use for connecting to a remote server\&.
 Deprecated\&. Use
 \fB\-\-start\-position\fR
 instead\&.
+\fB\-\-position\fR
+is removed in MySQL 5\&.5\&.
 .RE
 .sp
 .RS 4
@@ -972,7 +1006,7 @@ You can pipe the output of
 into the
 \fBmysql\fR
 client to execute the events contained in the binary log\&. This technique is used to recover from a crash when you have an old backup (see
-Section\ \&6.4, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq)\&. For example:
+Section\ \&6.5, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq)\&. For example:
 .sp
 .if n \{\
 .RS 4

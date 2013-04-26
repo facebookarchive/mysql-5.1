@@ -162,8 +162,8 @@ am_libinnobase_a_OBJECTS = libinnobase_a-btr0btr.$(OBJEXT) \
 	libinnobase_a-usr0sess.$(OBJEXT) \
 	libinnobase_a-ut0byte.$(OBJEXT) libinnobase_a-ut0dbg.$(OBJEXT) \
 	libinnobase_a-ut0list.$(OBJEXT) libinnobase_a-ut0mem.$(OBJEXT) \
-	libinnobase_a-ut0rnd.$(OBJEXT) libinnobase_a-ut0ut.$(OBJEXT) \
-	libinnobase_a-ut0vec.$(OBJEXT) \
+	libinnobase_a-ut0rbt.$(OBJEXT) libinnobase_a-ut0rnd.$(OBJEXT) \
+	libinnobase_a-ut0ut.$(OBJEXT) libinnobase_a-ut0vec.$(OBJEXT) \
 	libinnobase_a-ut0wqueue.$(OBJEXT)
 libinnobase_a_OBJECTS = $(am_libinnobase_a_OBJECTS)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -237,9 +237,9 @@ am__objects_1 = ha_innodb_plugin_la-btr0btr.lo \
 	ha_innodb_plugin_la-trx0trx.lo ha_innodb_plugin_la-trx0undo.lo \
 	ha_innodb_plugin_la-usr0sess.lo ha_innodb_plugin_la-ut0byte.lo \
 	ha_innodb_plugin_la-ut0dbg.lo ha_innodb_plugin_la-ut0list.lo \
-	ha_innodb_plugin_la-ut0mem.lo ha_innodb_plugin_la-ut0rnd.lo \
-	ha_innodb_plugin_la-ut0ut.lo ha_innodb_plugin_la-ut0vec.lo \
-	ha_innodb_plugin_la-ut0wqueue.lo
+	ha_innodb_plugin_la-ut0mem.lo ha_innodb_plugin_la-ut0rbt.lo \
+	ha_innodb_plugin_la-ut0rnd.lo ha_innodb_plugin_la-ut0ut.lo \
+	ha_innodb_plugin_la-ut0vec.lo ha_innodb_plugin_la-ut0wqueue.lo
 am_ha_innodb_plugin_la_OBJECTS = $(am__objects_1)
 ha_innodb_plugin_la_OBJECTS = $(am_ha_innodb_plugin_la_OBJECTS)
 ha_innodb_plugin_la_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
@@ -775,6 +775,7 @@ noinst_HEADERS = \
 			include/ut0lst.h	\
 			include/ut0mem.h	\
 			include/ut0mem.ic	\
+			include/ut0rbt.h	\
 			include/ut0rnd.h	\
 			include/ut0rnd.ic	\
 			include/ut0sort.h	\
@@ -876,6 +877,7 @@ libinnobase_a_SOURCES = \
 			ut/ut0dbg.c			\
 			ut/ut0list.c			\
 			ut/ut0mem.c			\
+			ut/ut0rbt.c			\
 			ut/ut0rnd.c			\
 			ut/ut0ut.c			\
 			ut/ut0vec.c			\
@@ -1057,6 +1059,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ha_innodb_plugin_la-ut0dbg.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ha_innodb_plugin_la-ut0list.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ha_innodb_plugin_la-ut0mem.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ha_innodb_plugin_la-ut0rbt.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ha_innodb_plugin_la-ut0rnd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ha_innodb_plugin_la-ut0ut.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ha_innodb_plugin_la-ut0vec.Plo@am__quote@
@@ -1149,6 +1152,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libinnobase_a-ut0dbg.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libinnobase_a-ut0list.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libinnobase_a-ut0mem.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libinnobase_a-ut0rbt.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libinnobase_a-ut0rnd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libinnobase_a-ut0ut.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libinnobase_a-ut0vec.Po@am__quote@
@@ -2351,6 +2355,20 @@ libinnobase_a-ut0mem.obj: ut/ut0mem.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libinnobase_a_CFLAGS) $(CFLAGS) -c -o libinnobase_a-ut0mem.obj `if test -f 'ut/ut0mem.c'; then $(CYGPATH_W) 'ut/ut0mem.c'; else $(CYGPATH_W) '$(srcdir)/ut/ut0mem.c'; fi`
 
+libinnobase_a-ut0rbt.o: ut/ut0rbt.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libinnobase_a_CFLAGS) $(CFLAGS) -MT libinnobase_a-ut0rbt.o -MD -MP -MF $(DEPDIR)/libinnobase_a-ut0rbt.Tpo -c -o libinnobase_a-ut0rbt.o `test -f 'ut/ut0rbt.c' || echo '$(srcdir)/'`ut/ut0rbt.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libinnobase_a-ut0rbt.Tpo $(DEPDIR)/libinnobase_a-ut0rbt.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ut/ut0rbt.c' object='libinnobase_a-ut0rbt.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libinnobase_a_CFLAGS) $(CFLAGS) -c -o libinnobase_a-ut0rbt.o `test -f 'ut/ut0rbt.c' || echo '$(srcdir)/'`ut/ut0rbt.c
+
+libinnobase_a-ut0rbt.obj: ut/ut0rbt.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libinnobase_a_CFLAGS) $(CFLAGS) -MT libinnobase_a-ut0rbt.obj -MD -MP -MF $(DEPDIR)/libinnobase_a-ut0rbt.Tpo -c -o libinnobase_a-ut0rbt.obj `if test -f 'ut/ut0rbt.c'; then $(CYGPATH_W) 'ut/ut0rbt.c'; else $(CYGPATH_W) '$(srcdir)/ut/ut0rbt.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libinnobase_a-ut0rbt.Tpo $(DEPDIR)/libinnobase_a-ut0rbt.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ut/ut0rbt.c' object='libinnobase_a-ut0rbt.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libinnobase_a_CFLAGS) $(CFLAGS) -c -o libinnobase_a-ut0rbt.obj `if test -f 'ut/ut0rbt.c'; then $(CYGPATH_W) 'ut/ut0rbt.c'; else $(CYGPATH_W) '$(srcdir)/ut/ut0rbt.c'; fi`
+
 libinnobase_a-ut0rnd.o: ut/ut0rnd.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libinnobase_a_CFLAGS) $(CFLAGS) -MT libinnobase_a-ut0rnd.o -MD -MP -MF $(DEPDIR)/libinnobase_a-ut0rnd.Tpo -c -o libinnobase_a-ut0rnd.o `test -f 'ut/ut0rnd.c' || echo '$(srcdir)/'`ut/ut0rnd.c
 @am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libinnobase_a-ut0rnd.Tpo $(DEPDIR)/libinnobase_a-ut0rnd.Po
@@ -2994,6 +3012,13 @@ ha_innodb_plugin_la-ut0mem.lo: ut/ut0mem.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ut/ut0mem.c' object='ha_innodb_plugin_la-ut0mem.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(ha_innodb_plugin_la_CFLAGS) $(CFLAGS) -c -o ha_innodb_plugin_la-ut0mem.lo `test -f 'ut/ut0mem.c' || echo '$(srcdir)/'`ut/ut0mem.c
+
+ha_innodb_plugin_la-ut0rbt.lo: ut/ut0rbt.c
+@am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(ha_innodb_plugin_la_CFLAGS) $(CFLAGS) -MT ha_innodb_plugin_la-ut0rbt.lo -MD -MP -MF $(DEPDIR)/ha_innodb_plugin_la-ut0rbt.Tpo -c -o ha_innodb_plugin_la-ut0rbt.lo `test -f 'ut/ut0rbt.c' || echo '$(srcdir)/'`ut/ut0rbt.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/ha_innodb_plugin_la-ut0rbt.Tpo $(DEPDIR)/ha_innodb_plugin_la-ut0rbt.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='ut/ut0rbt.c' object='ha_innodb_plugin_la-ut0rbt.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(ha_innodb_plugin_la_CFLAGS) $(CFLAGS) -c -o ha_innodb_plugin_la-ut0rbt.lo `test -f 'ut/ut0rbt.c' || echo '$(srcdir)/'`ut/ut0rbt.c
 
 ha_innodb_plugin_la-ut0rnd.lo: ut/ut0rnd.c
 @am__fastdepCC_TRUE@	$(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(ha_innodb_plugin_la_CFLAGS) $(CFLAGS) -MT ha_innodb_plugin_la-ut0rnd.lo -MD -MP -MF $(DEPDIR)/ha_innodb_plugin_la-ut0rnd.Tpo -c -o ha_innodb_plugin_la-ut0rnd.lo `test -f 'ut/ut0rnd.c' || echo '$(srcdir)/'`ut/ut0rnd.c

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_waiter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/01/2010
+.\"      Date: 04/06/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_WAITER\FR" "1" "03/01/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_WAITER\FR" "1" "04/06/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -196,6 +196,116 @@ status before exiting\&.
 \fB\-t \fR\fB\fIseconds\fR\fR
 .sp
 Time to wait\&. The program exits if the desired state is not achieved within this number of seconds\&. The default is 120 seconds (1200 reporting cycles)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_waiter: single-user option
+.\" single-user option: ndb_waiter
+\fB\-\-single\-user\fR
+.sp
+The program waits for the cluster to enter single user mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_waiter: nowait-nodes option
+.\" nowait-nodes option: ndb_waiter
+\fB\-\-nowait\-nodes=\fR\fB\fIlist\fR\fR
+.sp
+When this option is used, ndb_waiter does not wait for the nodes whose IDs are listed\&. The list is comma\-delimited; ranges can be indicated by dashes, as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_waiter \-\-nowait\-nodes=1,3,7\-9\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+Do
+\fInot\fR
+use this option together with the
+\fB\-\-wait\-nodes\fR
+option\&.
+.sp .5v
+.RE
+This option was added in MySQL Cluster NDB 6\&.2\&.1\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_waiter: wait-nodes option
+.\" wait-nodes option: ndb_waiter
+\fB\-\-wait\-nodes=\fR\fB\fIlist\fR\fR,
+\fB\-w \fR\fB\fIlist\fR\fR
+.sp
+When this option is used,
+\fBndb_waiter\fR
+waits only for the nodes whose IDs are listed\&. The list is comma\-delimited; ranges can be indicated by dashes, as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_waiter \-\-wait\-nodes=2,4\-6,10\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+Do
+\fInot\fR
+use this option together with the
+\fB\-\-nowait\-nodes\fR
+option\&.
+.sp .5v
+.RE
+This option was added in MySQL Cluster NDB 6\&.3\&.34, 7\&.0\&.15, and 7\&.1\&.4\&.
 .RE
 .PP
 \fBSample Output\fR. Shown here is the output from

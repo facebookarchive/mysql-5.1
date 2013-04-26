@@ -13,10 +13,9 @@ Note
    from the Bazaar tree. For production use, we do not advise using a
    MySQL server built by yourself from source. Normally, it is best
    to use precompiled binary distributions of MySQL that are built
-   specifically for optimal performance on Windows by Sun
-   Microsystems, Inc. Instructions for installing binary
-   distributions are available in Section 2.5, "Installing MySQL on
-   Windows."
+   specifically for optimal performance on Windows by Oracle
+   Corporation. Instructions for installing binary distributions are
+   available in Section 2.5, "Installing MySQL on Windows."
 
    To build MySQL on Windows from source, you must satisfy the
    following system, compiler, and resource requirements:
@@ -76,8 +75,8 @@ Note
    You also need a MySQL source distribution for Windows, which can
    be obtained two ways:
 
-     * Obtain a source distribution packaged by Sun Microsystems,
-       Inc. These are available from http://dev.mysql.com/downloads/.
+     * Obtain a source distribution packaged by Oracle Corporation.
+       These are available from http://dev.mysql.com/downloads/.
 
      * Package a source distribution yourself from the latest Bazaar
        developer source tree. For instructions on pulling the latest
@@ -100,7 +99,7 @@ Note
 Note
 
    To compile from the source code on Windows you must use the
-   standard source distribution (for example, mysql-5.1.45.tar.gz).
+   standard source distribution (for example, mysql-5.1.46.tar.gz).
    You build from the same distribution as used to build MySQL on
    Unix, Linux and other platforms. Do not use the Windows Source
    distributions as they do not contain the necessary configuration

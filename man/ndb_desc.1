@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_desc\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/01/2010
+.\"      Date: 04/06/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "03/01/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_DESC\FR" "1" "04/06/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -281,6 +281,28 @@ Use of this option also requires the use of the
 (\fB\-p\fR) option\&.
 .sp
 This option was added in MySQL Cluster NDB 6\&.3\&.32, MySQL Cluster NDB 7\&.0\&.13, and MySQL Cluster NDB 7\&.1\&.2\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_desc: extra-node-info option
+.\" extra-node-info option: ndb_desc
+\fB\-\-extra\-node\-info\fR,
+\fB\-n\fR
+.sp
+Include information about the mappings between table partitions and the data nodes upon which they reside\&. This information can be useful for verifying distribution awareness mechanisms and supporting more efficient application access to the data stored in MySQL Cluster\&.
+.sp
+Use of this option also requires the use of the
+\fB\-\-extra\-partition\-info\fR
+(\fB\-p\fR) option\&.
+.sp
+This option was added in MySQL Cluster NDB 6\&.2\&.19, MySQL Cluster NDB 6\&.3\&.33, MySQL Cluster NDB 7\&.0\&.14, and MySQL Cluster NDB 7\&.1\&.2\&.
 .RE
 .SH "COPYRIGHT"
 .br

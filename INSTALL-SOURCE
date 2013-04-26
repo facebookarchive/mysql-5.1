@@ -17,8 +17,7 @@ Chapter 2. Installing and Upgrading MySQL
        platform.
        Please note that not all platforms are equally suitable for
        running MySQL, and that not all platforms on which MySQL is
-       known to run are officially supported by Sun Microsystems,
-       Inc.:
+       known to run are officially supported by Oracle Corporation:
 
     2. Choose which distribution to install.
        Several versions of MySQL are available, and most are
@@ -77,11 +76,11 @@ Chapter 2. Installing and Upgrading MySQL
 
 Important
 
-   Sun Microsystems, Inc. does not necessarily provide official
-   support for all the platforms listed in this section. For
-   information about those platforms that are officially supported,
-   see http://www.mysql.com/support/supportedplatforms.html on the
-   MySQL Web site.
+   Oracle Corporation does not necessarily provide official support
+   for all the platforms listed in this section. For information
+   about those platforms that are officially supported, see
+   http://www.mysql.com/support/supportedplatforms.html on the MySQL
+   Web site.
 
    We use GNU Autoconf, so it is possible to port MySQL to all modern
    systems that have a C++ compiler and a working implementation of
@@ -147,7 +146,7 @@ Important
        by the ability of the file system to deal with large files and
        dealing with them efficiently.
 
-     * Our level of expertise here at Sun Microsystems, Inc. with the
+     * Our level of expertise here at Oracle Corporation with the
        platform. If we know a platform well, we enable
        platform-specific optimizations and fixes at compile time. We
        can also provide advice on configuring your system optimally
@@ -468,8 +467,8 @@ Important
 shell> md5sum package_name
 
    Example:
-shell> md5sum mysql-standard-5.1.45-linux-i686.tar.gz
-aaab65abbec64d5e907dcd41b8699945  mysql-standard-5.1.45-linux-i686.ta
+shell> md5sum mysql-standard-5.1.46-linux-i686.tar.gz
+aaab65abbec64d5e907dcd41b8699945  mysql-standard-5.1.46-linux-i686.ta
 r.gz
 
    You should verify that the resulting checksum (the string of
@@ -587,8 +586,8 @@ pg-signature.html
    signature, which also is available from the download page. The
    signature file has the same name as the distribution file with an
    .asc extension, as shown by the examples in the following table.
-   Distribution file mysql-standard-5.1.45-linux-i686.tar.gz
-   Signature file    mysql-standard-5.1.45-linux-i686.tar.gz.asc
+   Distribution file mysql-standard-5.1.46-linux-i686.tar.gz
+   Signature file    mysql-standard-5.1.46-linux-i686.tar.gz.asc
 
    Make sure that both files are stored in the same directory and
    then run the following command to verify the signature for the
@@ -596,7 +595,7 @@ pg-signature.html
 shell> gpg --verify package_name.asc
 
    Example:
-shell> gpg --verify mysql-standard-5.1.45-linux-i686.tar.gz.asc
+shell> gpg --verify mysql-standard-5.1.46-linux-i686.tar.gz.asc
 gpg: Signature made Tue 12 Jul 2005 23:35:41 EST using DSA key ID 507
 2E1F5
 gpg: Good signature from "MySQL Package signing key (www.mysql.com) <
@@ -616,8 +615,8 @@ build@mysql.com>"
 shell> rpm --checksig package_name.rpm
 
    Example:
-shell> rpm --checksig MySQL-server-5.1.45-0.glibc23.i386.rpm
-MySQL-server-5.1.45-0.glibc23.i386.rpm: md5 gpg OK
+shell> rpm --checksig MySQL-server-5.1.46-0.glibc23.i386.rpm
+MySQL-server-5.1.46-0.glibc23.i386.rpm: md5 gpg OK
 
 Note
 
@@ -642,7 +641,7 @@ shell> rpm --import mysql_pubkey.asc
 
    This section describes the default layout of the directories
    created by installing binary or source distributions provided by
-   Sun Microsystems, Inc. A distribution provided by another vendor
+   Oracle Corporation. A distribution provided by another vendor
    might use a layout different from those shown here.
 
    Installations created from our Linux RPM distributions result in
@@ -728,7 +727,7 @@ shell> rpm --import mysql_pubkey.asc
 
    MySQL tar file binary distributions have names of the form
    mysql-VERSION-OS.tar.gz, where VERSION is a number (for example,
-   5.1.45), and OS indicates the type of operating system for which
+   5.1.46), and OS indicates the type of operating system for which
    the distribution is intended (for example, pc-linux-i686).
 
    In addition to these generic packages, we also offer binaries in
@@ -922,7 +921,7 @@ Note
 
    MySQL source distributions are provided as compressed tar archives
    and have names of the form mysql-VERSION.tar.gz, where VERSION is
-   a number like 5.1.45.
+   a number like 5.1.46.
 
    You need the following tools to build and install MySQL from
    source:
@@ -1530,7 +1529,7 @@ shell> ./configure --with-debug
      * When given with --enable-community-features, the
        --enable-profiling option enables the statement profiling
        capability exposed by the SHOW PROFILE and SHOW PROFILES
-       statements. (See Section 12.5.5.33, "SHOW PROFILES Syntax.")
+       statements. (See Section 12.4.5.33, "SHOW PROFILES Syntax.")
        This option was added in MySQL 5.1.24. It is enabled by
        default as of MySQL 5.1.28; to disable it, use
        --disable-profiling.
@@ -2179,7 +2178,7 @@ Note
        done before upgrading. Use of this statement with a version of
        MySQL different from the one used to create the table (that
        is, using it after upgrading) may damage the table. See
-       Section 12.5.2.6, "REPAIR TABLE Syntax."
+       Section 12.4.2.6, "REPAIR TABLE Syntax."
 
      * After you upgrade to a new version of MySQL, run mysql_upgrade
        (see Section 4.4.8, "mysql_upgrade --- Check Tables for MySQL
@@ -2384,11 +2383,11 @@ RENAME TABLE table_b TO `table b`;
      * Incompatible change: MySQL 5.1 implements support for a plugin
        API that allows the loading and unloading of components at
        runtime, without restarting the server. Section 22.2, "The
-       MySQL Plugin Interface." The plugin API requires the
-       mysql.plugin table. After upgrading from an older version of
-       MySQL, you should run the mysql_upgrade command to create this
-       table. See Section 4.4.8, "mysql_upgrade --- Check Tables for
-       MySQL Upgrade."
+       MySQL Plugin API." The plugin API requires the mysql.plugin
+       table. After upgrading from an older version of MySQL, you
+       should run the mysql_upgrade command to create this table. See
+       Section 4.4.8, "mysql_upgrade --- Check Tables for MySQL
+       Upgrade."
        Plugins are installed in the directory named by the plugin_dir
        system variable. This variable also controls the location from
        which the server loads user-defined functions (UDFs), which is
@@ -2677,7 +2676,7 @@ REPAIR TABLE tbl_name QUICK;
        to reload them into an upgraded server. Handlers that contain
        illegal label references will be rejected.
        For more information about condition handlers and writing them
-       to avoid invalid jumps, see Section 12.8.4.2, "DECLARE for
+       to avoid invalid jumps, see Section 12.7.4.2, "DECLARE for
        Handlers."
 
      * Incompatible change: The parser accepted statements that
@@ -2779,14 +2778,13 @@ mysql> source /tmp/triggers.sql //
        mysqldump or mysqlhotcopy can be used as alternatives.
 
      * The LOAD DATA FROM MASTER and LOAD TABLE FROM MASTER
-       statements are deprecated. See Section 12.6.2.2, "LOAD DATA
+       statements are deprecated. See Section 12.5.2.2, "LOAD DATA
        FROM MASTER Syntax," for recommended alternatives.
 
      * The INSTALL PLUGIN and UNINSTALL PLUGIN statements that are
        used for the plugin API are new. So is the WITH PARSER clause
        for FULLTEXT index creation that associates a parser plugin
-       with a full-text index. Section 22.2, "The MySQL Plugin
-       Interface."
+       with a full-text index. Section 22.2, "The MySQL Plugin API."
 
    C API Changes:
 
@@ -3008,7 +3006,7 @@ mysql> source /tmp/triggers.sql //
    TABLE. However, the use of CHECK TABLE applies only after
    upgrades, not downgrades. Also, CHECK TABLE is not applicable to
    all storage engines. For details about which storage engines CHECK
-   TABLE supports, see Section 12.5.2.3, "CHECK TABLE Syntax."
+   TABLE supports, see Section 12.4.2.3, "CHECK TABLE Syntax."
 
    Changes that cause index rebuilding to be necessary:
 
@@ -3104,7 +3102,7 @@ mysql> REPAIR TABLE t1;
    the file, as described earlier.
 
    For specifics about which storage engines REPAIR TABLE supports,
-   see Section 12.5.2.6, "REPAIR TABLE Syntax."
+   see Section 12.4.2.6, "REPAIR TABLE Syntax."
 
    mysqlcheck --repair provides command-line access to the REPAIR
    TABLE statement. This can be a more convenient means of repairing
@@ -3386,7 +3384,7 @@ Note
    below for reference:
 
      * Windows Essentials --- this package has a file name similar to
-       mysql-essential-5.1.45-win32.msi and is supplied as a
+       mysql-essential-5.1.46-win32.msi and is supplied as a
        Microsoft Installer (MSI) package. The package includes the
        minimum set of files needed to install MySQL on Windows,
        including the MySQL Server Instance Config Wizard. This
@@ -3397,7 +3395,7 @@ Note
        MySQL with the MSI Package."
 
      * Windows MSI Installer (Complete) --- this package has a file
-       name similar to mysql-5.1.45-win32.zip and contains all files
+       name similar to mysql-5.1.46-win32.zip and contains all files
        needed for a complete Windows installation, including the
        MySQL Server Instance Config Wizard. This package includes
        optional components such as the embedded server and benchmark
@@ -3406,7 +3404,7 @@ Note
        MySQL with the MSI Package."
 
      * Without installer --- this package has a file name similar to
-       mysql-noinstall-5.1.45-win32.zip and contains all the files
+       mysql-noinstall-5.1.46-win32.zip and contains all the files
        found in the Complete install package, with the exception of
        the MySQL Server Instance Config Wizard. This package does not
        include an automated installer, and must be manually installed
@@ -3659,7 +3657,7 @@ Note
    directory. In a default installation it contains C:\Program
    Files\MySQL\MySQL Server 5.1\. The Version string contains the
    release number. For example, for an installation of MySQL Server
-   5.1.45, the key contains a value of 5.1.45.
+   5.1.46, the key contains a value of 5.1.46.
 
    These registry keys are used to help external tools identify the
    installed location of the MySQL server, preventing a complete scan
@@ -4671,7 +4669,7 @@ InnoDB: foreign key constraint system tables created
    something like this, which indicates that the server is ready to
    service client connections:
 mysqld: ready for connections
-Version: '5.1.45'  socket: ''  port: 3306
+Version: '5.1.46'  socket: ''  port: 3306
 
    The server continues to write to the console any further
    diagnostic output it produces. You can open a new console window
@@ -5404,10 +5402,9 @@ Note
    from the Bazaar tree. For production use, we do not advise using a
    MySQL server built by yourself from source. Normally, it is best
    to use precompiled binary distributions of MySQL that are built
-   specifically for optimal performance on Windows by Sun
-   Microsystems, Inc. Instructions for installing binary
-   distributions are available in Section 2.5, "Installing MySQL on
-   Windows."
+   specifically for optimal performance on Windows by Oracle
+   Corporation. Instructions for installing binary distributions are
+   available in Section 2.5, "Installing MySQL on Windows."
 
    To build MySQL on Windows from source, you must satisfy the
    following system, compiler, and resource requirements:
@@ -5467,8 +5464,8 @@ Note
    You also need a MySQL source distribution for Windows, which can
    be obtained two ways:
 
-     * Obtain a source distribution packaged by Sun Microsystems,
-       Inc. These are available from http://dev.mysql.com/downloads/.
+     * Obtain a source distribution packaged by Oracle Corporation.
+       These are available from http://dev.mysql.com/downloads/.
 
      * Package a source distribution yourself from the latest Bazaar
        developer source tree. For instructions on pulling the latest
@@ -5491,7 +5488,7 @@ Note
 Note
 
    To compile from the source code on Windows you must use the
-   standard source distribution (for example, mysql-5.1.45.tar.gz).
+   standard source distribution (for example, mysql-5.1.46.tar.gz).
    You build from the same distribution as used to build MySQL on
    Unix, Linux and other platforms. Do not use the Windows Source
    distributions as they do not contain the necessary configuration
@@ -7169,10 +7166,10 @@ shell> bin/mysqladmin variables
        on your platform and version of MySQL, but should be similar
        to that shown here:
 shell> bin/mysqladmin version
-mysqladmin  Ver 14.12 Distrib 5.1.45, for pc-linux-gnu on i686
+mysqladmin  Ver 14.12 Distrib 5.1.46, for pc-linux-gnu on i686
 ...
 
-Server version          5.1.45
+Server version          5.1.46
 Protocol version        10
 Connection              Localhost via UNIX socket
 UNIX socket             /var/lib/mysql/mysql.sock

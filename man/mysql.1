@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/01/2010
+.\"      Date: 04/06/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "03/01/2010" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "04/06/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -593,6 +593,8 @@ Do not beep when errors occur\&.
 Deprecated, use
 \fB\-\-disable\-named\-commands\fR
 instead\&.
+\fB\-\-no\-named\-commands\fR
+is removed in MySQL 5\&.5\&.
 .RE
 .sp
 .RS 4
@@ -611,6 +613,8 @@ Deprecated form of
 \fB\-\-skip\-pager\fR\&. See the
 \fB\-\-pager\fR
 option\&.
+\fB\-\-no\-pager\fR
+is removed in MySQL 5\&.5\&.
 .RE
 .sp
 .RS 4
@@ -625,8 +629,12 @@ option\&.
 .\" no-tee option: mysql
 \fB\-\-no\-tee\fR
 .sp
-Do not copy output to a file\&.
-the section called \(lqMYSQL COMMANDS\(rq, discusses tee files further\&.
+Deprecated form of
+\fB\-\-skip\-tee\fR\&. See the
+\fB\-\-tee\fR
+option\&.
+\fB\-\-no\-tee\fR
+is removed in MySQL 5\&.5\&.
 .RE
 .sp
 .RS 4
@@ -1231,7 +1239,7 @@ shell> \fBmysql \-\-xml \-uroot \-e "SHOW VARIABLES LIKE \'version%\'"\fR
 You can also set the following variables by using
 \fB\-\-\fR\fB\fIvar_name\fR\fR\fB=\fR\fB\fIvalue\fR\fR\&. The
 \fB\-\-set\-variable\fR
-format is deprecated\&.
+format is deprecated and is removed in MySQL 5\&.5\&.
 .sp
 .RS 4
 .ie n \{\

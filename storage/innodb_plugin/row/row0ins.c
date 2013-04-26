@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1994,7 +1994,7 @@ row_ins_index_entry_low(
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 				    mode | BTR_INSERT | ignore_sec_unique,
-				    &cursor, 0, &mtr);
+				    &cursor, 0, __FILE__, __LINE__, &mtr);
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
 		/* The insertion was made to the insert buffer already during
@@ -2052,7 +2052,8 @@ row_ins_index_entry_low(
 			btr_cur_search_to_nth_level(index, 0, entry,
 						    PAGE_CUR_LE,
 						    mode | BTR_INSERT,
-						    &cursor, 0, &mtr);
+						    &cursor, 0,
+						    __FILE__, __LINE__, &mtr);
 		}
 	}
 
@@ -2111,7 +2112,8 @@ function_exit:
 		mtr_start_trx(&mtr, trx);
 
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-					    BTR_MODIFY_TREE, &cursor, 0, &mtr);
+					    BTR_MODIFY_TREE, &cursor, 0,
+					    __FILE__, __LINE__, &mtr);
 		rec = btr_cur_get_rec(&cursor);
 		offsets = rec_get_offsets(rec, index, NULL,
 					  ULINT_UNDEFINED, &heap);

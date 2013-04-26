@@ -19,7 +19,7 @@
 
 echo "Finding system information for a MySQL bug report"
 
-VERSION="5.1.45"
+VERSION="5.1.46"
 COMPILATION_COMMENT="Source distribution"
 BUGmysql="mysql@lists.mysql.com"
 # This is set by configure
