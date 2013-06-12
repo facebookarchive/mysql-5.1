@@ -2919,7 +2919,6 @@ retry:
 	ibool first = TRUE;
 
 	if (srv_trx_log_write_block_size && file_pad) {
-          fprintf(stderr, "offset = %lu len = %lu\n", offset, n);
 		if (((offset + srv_trx_log_write_block_size - 1)
 		     / srv_trx_log_write_block_size)
 		    != ((offset + n + srv_trx_log_write_block_size - 1)
@@ -2927,7 +2926,6 @@ retry:
 			// needs padding
 			ulint pad = ut_calc_align(offset + n,
 						  srv_trx_log_write_block_size);
-                        fprintf(stderr, "offset = %lu, pad = %lu, old = %lu\n", offset, pad, os_file_trx_log_write_padding_end);
 			if (pad != os_file_trx_log_write_padding_end) {
 				os_file_trx_log_write_padding_end = pad;
 #ifdef UNIV_DEBUG
