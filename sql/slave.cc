@@ -1078,48 +1078,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     goto err;
   }
 
-  /*
-    Compare the master and slave's clock. Do not die if master's clock is
-    unavailable (very old master not supporting UNIX_TIMESTAMP()?).
-  */
-
-  DBUG_EXECUTE_IF("dbug.before_get_UNIX_TIMESTAMP",
-                  {
-                    const char act[]=
-                      "now "
-                      "wait_for signal.get_unix_timestamp";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                       STRING_WITH_LEN(act)));
-                  };);
-
-  master_res= NULL;
-  if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
-      (master_res= mysql_store_result(mysql)) &&
-      (master_row= mysql_fetch_row(master_res)))
-  {
-    mi->clock_diff_with_master=
-      (long) (time((time_t*) 0) - strtoul(master_row[0], 0, 10));
-  }
-  else if (is_network_error(mysql_errno(mysql)))
-  {
-    mi->report(WARNING_LEVEL, mysql_errno(mysql),
-               "Get master clock failed with error: %s", mysql_error(mysql));
-    goto network_err;
-  }
-  else 
-  {
-    mi->clock_diff_with_master= 0; /* The "most sensible" value */
-    sql_print_warning("\"SELECT UNIX_TIMESTAMP()\" failed on master, "
-                      "do not trust column Seconds_Behind_Master of SHOW "
-                      "SLAVE STATUS. Error: %s (%d)",
-                      mysql_error(mysql), mysql_errno(mysql));
-  }
-  if (master_res)
-  {
-    mysql_free_result(master_res);
-    master_res= NULL;
-  }
+  mi->clock_diff_with_master= 0; /* The "most sensible" value */
 
   /*
     Check that the master's server id and ours are different. Because if they
